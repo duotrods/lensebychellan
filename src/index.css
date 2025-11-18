@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+@import "tailwindcss";
+@plugin "daisyui";
+
+
+:root {
+  font-family: 'Montserrat',system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: #1A1A1A;
+  background-color: #F8F8F8;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 {
+  font-size: clamp(40px, 6vw, 64px);
+  font-weight: 600;
+}
+
+h2 {
+  font-size: clamp(32px, 4.5vw, 48px);
+  font-weight: 600;
+}
+
+h3 {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 600;
+}
+
+h4 {
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 500;
+}
+
+h5 {
+  font-size: clamp(20px, 2.5vw, 24px);
+  font-weight: 500;
+}
+
+h6 {
+  font-size: clamp(18px, 2vw, 20px);
+  font-weight: 500;
+}
+
+p,
+body {
+  font-size: clamp(16px, 1.8vw, 18px);
+}
+
+a{
+  font-size: clamp(16px, 1.8vw, 18px);
+  font-weight: 500;
+}
+
+@theme {
+  --color-brand-50: #e8f7f4;
+  --color-brand-100: #b7e6de;
+  --color-brand-200: #94dacd;
+  --color-brand-300: #64c9b7;
+  --color-brand-400: #45bfa9;
+  --color-brand-500: #17af93;
+  --color-brand-600: #159f86;
+  --color-brand-700: #107c68;
+  --color-brand-800: #0d6051;
+  --color-brand-900: #0a4a3e;
+}
