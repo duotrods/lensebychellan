@@ -28,20 +28,27 @@ const about = () => {
               Independent Award 90% for our work on the Midlands NECER Schemes
               as part of HS2.
             </p>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-8">
               We have our own accredited training course TM CCTV (on major
               schemes) which ensures our staff are qualified and competent to
               the highest standards. All our operators are based at our central
               monitoring office in Barnsley.
             </p>
-            <button className="bg-teal-500 text-white px-6 py-3 rounded hover:bg-teal-600 font-semibold">
+            <a
+              href="https://chellan.co.uk/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-8 py-3 rounded f ont-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600"
+            >
               Visit our website
-            </button>
+            </a>
           </div>
           <div className="rounded-lg overflow-hidden shadow-xl">
-            <div className="bg-gradient-to-br from-gray-300 to-gray-400 h-96 flex items-center justify-center">
-              <span className="text-6xl">🛣️</span>
-            </div>
+            <img
+              src="/src/assets/chellancctvroom.jpg"
+              alt="About Us"
+              className="w-full h-[600px] object-cover"
+            />
           </div>
         </div>
       </div>
