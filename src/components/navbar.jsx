@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import headerLogo from "../assets/headerlogo.svg";
 
 const navList = [
@@ -7,8 +8,7 @@ const navList = [
   { href: "#about", label: "About" },
 ];
 
-const navbar = () => {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -33,12 +33,12 @@ const navbar = () => {
               </a>
             ))}
           </nav>
-          <a
-            href=""
+          <Link
+            to="/signin"
             className="px-8 py-3 bg-brand-500 text-white rounded hover:bg-brand-600"
           >
             Sign In
-          </a>
+          </Link>
         </div>
         <div className="md:hidden">
           <button
@@ -92,12 +92,13 @@ const navbar = () => {
                 {link.label}
               </a>
             ))}
-            <a
-              href=""
+            <Link
+              to="/signin"
+              onClick={() => setIsMenuOpen(false)}
               className="mt-2 px-4 py-2 bg-brand-500 text-white rounded hover:bg-brand-600 text-center"
             >
               Sign In
-            </a>
+            </Link>
           </nav>
         </div>
       )}
@@ -105,4 +106,4 @@ const navbar = () => {
   );
 };
 
-export default navbar;
+export default Navbar;
