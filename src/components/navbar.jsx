@@ -1,5 +1,5 @@
-import React from "react";
 import { useState } from "react";
+import headerLogo from "../assets/headerlogo.svg";
 
 const navList = [
   { href: "#home", label: "Home" },
@@ -8,6 +8,7 @@ const navList = [
 ];
 
 const navbar = () => {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -15,7 +16,7 @@ const navbar = () => {
       <nav className="container max-w-7xl mx-auto px-4 py-4 flex justify-between items-center sm:px-6 lg:px-8">
         <div className="flex items-center space-x-2">
           <img
-            src="/src/assets/headerlogo.svg"
+            src={headerLogo}
             alt="MyApp Logo"
             className="h-8 w-auto"
           />

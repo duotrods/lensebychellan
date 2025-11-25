@@ -4,6 +4,7 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import cctvRoomImage from "../assets/chellancctvroom.jpg";
 
 const about = () => {
   return (
@@ -38,14 +39,14 @@ const about = () => {
               href="https://chellan.co.uk/"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-8 py-3 rounded f ont-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600"
+              className="px-8 py-3 rounded font-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600"
             >
               Visit our website
             </a>
           </div>
           <div className="rounded-lg overflow-hidden shadow-xl">
             <img
-              src="/src/assets/chellancctvroom.jpg"
+              src={cctvRoomImage}
               alt="About Us"
               className="w-full h-[600px] object-cover"
             />

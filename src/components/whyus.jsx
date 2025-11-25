@@ -1,5 +1,6 @@
 import React from "react";
 import { CircleCheck } from "lucide-react";
+import cctvRoomImage from "../assets/chellancctvroom.jpg";
 
 const whyus = () => {
   return (
@@ -8,7 +9,7 @@ const whyus = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="rounded-lg overflow-hidden shadow-xl">
             <img
-              src="/src/assets/chellancctvroom.jpg"
+              src={cctvRoomImage}
               alt="About Us"
               className="w-full h-[600px] object-cover"
             />
@@ -46,7 +47,7 @@ const whyus = () => {
               href="https://chellan.co.uk/"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-8 py-3 rounded f ont-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600"
+              className="px-8 py-3 rounded font-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600"
             >
               Visit our website
             </a>

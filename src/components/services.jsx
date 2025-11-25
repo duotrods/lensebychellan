@@ -1,5 +1,6 @@
 import React from "react";
 import { FileText, Camera, Lock, Video } from "lucide-react";
+import roadImage from "../assets/road.jpg";
 
 const services = () => {
   return (
@@ -26,7 +27,7 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src="/src/assets/road.jpg" alt="" />
+                <img src={roadImage} alt="" />
               </div>
             </div>
           </div>
@@ -41,7 +42,7 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src="/src/assets/road.jpg" alt="" />
+                <img src={roadImage} alt="" />
               </div>
             </div>
           </div>
@@ -56,7 +57,7 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src="/src/assets/road.jpg" alt="" />
+                <img src={roadImage} alt="" />
               </div>
             </div>
           </div>
@@ -71,7 +72,7 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src="/src/assets/road.jpg" alt="" />
+                <img src={roadImage} alt="" />
               </div>
             </div>
           </div>
@@ -86,7 +87,7 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src="/src/assets/road.jpg" alt="" />
+                <img src={roadImage} alt="" />
               </div>
             </div>
           </div>
@@ -101,7 +102,7 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src="/src/assets/road.jpg" alt="" />
+                <img src={roadImage} alt="" />
               </div>
             </div>
           </div>
