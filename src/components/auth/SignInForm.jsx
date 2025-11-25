@@ -37,6 +37,7 @@ const SignInForm = () => {
     setLoading(true);
 
     try {
+      // eslint-disable-next-line no-unused-vars
       const { user, isNewUser } = await authService.signInWithGoogle();
 
       if (isNewUser) {
@@ -70,7 +71,7 @@ const SignInForm = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="input input-bordered w-full"
+            className="input input-bordered w-full bg-gray-100"
             required
           />
         </div>
@@ -83,7 +84,7 @@ const SignInForm = () => {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="input input-bordered w-full"
+            className="input input-bordered w-full bg-gray-100"
             required
           />
         </div>

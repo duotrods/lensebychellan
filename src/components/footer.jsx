@@ -1,37 +1,46 @@
 import React from "react";
-import { Phone, Mail, MapPin } from "lucide-react";
+import { Phone, Mail, MapPin, Linkedin } from "lucide-react";
+import whiteLogo from "../assets/Logo White.svg";
 
 const footer = () => {
   return (
-    <footer className="bg-gray-900 text-white py-12 px-4">
-      <div className="max-w-7xl mx-auto">
+    <footer className="bg-gray-900 text-white py-4 px-4">
+      <div className="max-w-7xl mx-auto mt-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="mb-4">
-              <img src="/src/assets/Logo White.svg" alt="" className="h-15" />
+              <img src={whiteLogo} alt="" className="h-15" />
             </div>
             <div className="space-y-2 text-sm text-gray-400">
               <div className="flex items-center gap-2">
                 <Phone size={16} />
-                <span>01282 2780088</span>
+                <span>01392 276046</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={16} />
-                <span>admin@chellean.com</span>
+                <span>admin@chellean.co.uk</span>
               </div>
               <div className="flex items-start gap-2">
                 <MapPin size={16} className="mt-1" />
                 <span>
                   Chellean Highways Hub, Orbital
                   <br />
-                  Crow Wood Droylsden, EN4 12B
+                  Stone Cross House
+                  <br />
+                  Doncaster Road
+                  <br />
+                  Kirk Sandall
+                  <br />
+                  Doncaster
+                  <br />
+                  DN3 1QR
                 </span>
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="font-semibold mb-4">Quick Links</h3>
+            <h4 className="font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
                 <a href="#home" className="hover:text-teal-500">
@@ -57,7 +66,7 @@ const footer = () => {
           </div>
 
           <div>
-            <h3 className="font-semibold mb-4">About Us</h3>
+            <h4 className="font-semibold mb-4">About Us</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li>
                 <a href="#website" className="hover:text-teal-500">
@@ -78,31 +87,24 @@ const footer = () => {
           </div>
 
           <div>
-            <h3 className="font-semibold mb-4">Socials and Certification</h3>
+            <h4 className="font-semibold mb-4">Socials</h4>
             <div className="flex gap-3">
               <div className="w-10 h-10 bg-blue-600 rounded flex items-center justify-center">
-                <span className="text-xs">in</span>
+                <Linkedin />
               </div>
-              <div className="w-10 h-10 bg-blue-400 rounded flex items-center justify-center">
+              {/* <div className="w-10 h-10 bg-blue-400 rounded flex items-center justify-center">
                 <span className="text-xs">CE</span>
               </div>
               <div className="w-10 h-10 bg-gray-600 rounded flex items-center justify-center">
                 <span className="text-xs">ISO</span>
-              </div>
+              </div> */}
             </div>
-            <div className="flex gap-3 mt-3">
-              <div className="w-10 h-10 bg-blue-800 rounded flex items-center justify-center">
-                <span className="text-xs">NHS</span>
-              </div>
-              <div className="w-10 h-10 bg-red-600 rounded flex items-center justify-center">
-                <span className="text-xs">A+</span>
-              </div>
-            </div>
+            
           </div>
         </div>
 
         <div className="border-t border-gray-800 pt-6 text-center text-sm text-gray-400">
-          Copyright © 2025 Chellean UK - Design by Root
+          Copyright © 2025 Chellean UK - by <a href="https://rod-duot.vercel.app/" className="text-teal-500">OliNode</a>
         </div>
       </div>
     </footer>

@@ -1,6 +1,11 @@
 import React from "react";
 import { FileText, Camera, Lock, Video } from "lucide-react";
 import roadImage from "../assets/road.jpg";
+import cctvImage from "../assets/cctvhighway.jpg";
+import monitoringroom from "../assets/cctvroom.png";
+import compoundmonitoring from "../assets/stevnagecctvroom.jpg";
+import softwaredevelopment from "../assets/chellancctvroom2.jpg";
+import analyticsimage from "../assets/roadrecording.jpg";
 
 const services = () => {
   return (
@@ -27,7 +32,9 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src={roadImage} alt="" />
+                <img src={cctvImage} alt="" className="w-full h-[200px]"
+                  
+                />
               </div>
             </div>
           </div>
@@ -35,14 +42,14 @@ const services = () => {
             <div className=" bg-white p-6 rounded-lg">
               <div className="flex items-center justify-between mb-4">
                 <h5 className="font-bold text-gray-800">
-                  Highway CCTV Monitoring
+                  Temporary CCTV Hire
                 </h5>
                 <span className="text-3xl">
                   <Camera />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src={roadImage} alt="" />
+                <img src={monitoringroom} alt="" className="w-full h-[200px]"/>
               </div>
             </div>
           </div>
@@ -50,14 +57,14 @@ const services = () => {
             <div className=" bg-white p-6 rounded-lg">
               <div className="flex items-center justify-between mb-4">
                 <h5 className="font-bold text-gray-800">
-                  Highway CCTV Monitoring
+                  Compound Monitoring
                 </h5>
                 <span className="text-3xl">
                   <Camera />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src={roadImage} alt="" />
+                <img src={compoundmonitoring} alt="" className="w-full h-[200px]"/>
               </div>
             </div>
           </div>
@@ -65,14 +72,14 @@ const services = () => {
             <div className=" bg-white p-6 rounded-lg">
               <div className="flex items-center justify-between mb-4">
                 <h5 className="font-bold text-gray-800">
-                  Highway CCTV Monitoring
+                  Stop Vehicle Detection
                 </h5>
                 <span className="text-3xl">
                   <Camera />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src={roadImage} alt="" />
+                <img src={roadImage} alt="" className="w-full h-[200px]" />
               </div>
             </div>
           </div>
@@ -80,14 +87,14 @@ const services = () => {
             <div className=" bg-white p-6 rounded-lg">
               <div className="flex items-center justify-between mb-4">
                 <h5 className="font-bold text-gray-800">
-                  Highway CCTV Monitoring
+                  Software Development
                 </h5>
                 <span className="text-3xl">
                   <Camera />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src={roadImage} alt="" />
+                <img src={softwaredevelopment} alt="" className="w-full h-[200px]" />
               </div>
             </div>
           </div>
@@ -95,14 +102,14 @@ const services = () => {
             <div className=" bg-white p-6 rounded-lg">
               <div className="flex items-center justify-between mb-4">
                 <h5 className="font-bold text-gray-800">
-                  Highway CCTV Monitoring
+                  Analytics
                 </h5>
                 <span className="text-3xl">
                   <Camera />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src={roadImage} alt="" />
+                <img src={analyticsimage} alt="" className="w-full h-[232px]" />
               </div>
             </div>
           </div>

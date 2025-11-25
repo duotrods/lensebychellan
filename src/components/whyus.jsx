@@ -1,6 +1,6 @@
 import React from "react";
 import { CircleCheck } from "lucide-react";
-import cctvRoomImage from "../assets/chellancctvroom.jpg";
+import cctvRoomImage from "../assets/chellancctvroom2.jpg";
 
 const whyus = () => {
   return (

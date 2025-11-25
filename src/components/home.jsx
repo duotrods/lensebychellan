@@ -6,14 +6,15 @@ import {
   UsersRound,
 } from "lucide-react";
 
+import heroImage from "../assets/smartmotorway.jpg";
+
 const home = () => {
   return (
     <div>
       <div
         className="hero"
         style={{
-          backgroundImage:
-            "url(https://img.daisyui.com/images/stock/photo-1507358522600-9f71e620c44e.webp)",
+          backgroundImage: `url(${heroImage})`,
         }}
       >
         <div className="hero-overlay py-20 sm:py-28 lg:py-28">
