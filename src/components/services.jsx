@@ -1,6 +1,5 @@
 import React from "react";
 import { FileText, Camera, Lock, Video } from "lucide-react";
-import { lenseservice } from "../constants";
 
 const services = () => {
   return (
