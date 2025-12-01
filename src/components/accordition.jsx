@@ -7,19 +7,19 @@ const accordition = () => {
   const [openFaq, setOpenFaq] = useState(0);
   const faqs = [
     {
-      question: "what is the LENSE portal?",
+      question: "What is the LENSE portal?",
       answer:
-        "The LENSE Portal is a secure online platform that provides clients and staff with real-time dashboards, performance graphs, and monitoring reports for all active civil contracted traffic management schemes.",
+        "The LENSE Portal is a secure online platform that provides clients and staff with real-time dashboards, performance graphs, and monitoring reports for active traffic management schemes.",
     },
     {
       question: "Who Can Access LENSE?",
       answer:
-        "Access to the LENSE portal is granted to authorized clients and staff members with appropriate credentials. Different access levels are available based on roles and responsibilities.",
+        "Access to the LENSE portal is granted to authorised clients and staff members with appropriate credentials. Different access levels are available based on roles and responsibilities.",
     },
     {
       question: "What Information Can I See In My Dashboard?",
       answer:
-        "Your dashboard displays real-time scheme performance, KPIs, incident reports, camera status, and customized views based on your access level and requirements.",
+        "Your dashboard displays real-time scheme performance, KPIs, incident reports, camera status, and customised views based on your access level and requirements.",
     },
   ];
   return (
