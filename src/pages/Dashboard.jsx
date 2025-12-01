@@ -1,8 +1,9 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import StaffSidebarLayout from '../components/layout/StaffSidebarLayout';
 import AdminDashboard from '../components/dashboard/AdminDashboard';
-import StaffDashboard from '../components/dashboard/StaffDashboard';
+import NewStaffDashboard from '../components/dashboard/NewStaffDashboard';
 import ClientDashboard from '../components/dashboard/ClientDashboard';
 import { USER_ROLES } from '../utils/constants';
 
@@ -17,17 +18,29 @@ const Dashboard = () => {
   const renderDashboard = () => {
     switch (role) {
       case USER_ROLES.ADMIN:
-        return <AdminDashboard />;
+        return (
+          <DashboardLayout>
+            <AdminDashboard />
+          </DashboardLayout>
+        );
       case USER_ROLES.STAFF:
-        return <StaffDashboard />;
+        return (
+          <StaffSidebarLayout>
+            <NewStaffDashboard />
+          </StaffSidebarLayout>
+        );
       case USER_ROLES.CLIENT:
-        return <ClientDashboard />;
+        return (
+          <DashboardLayout>
+            <ClientDashboard />
+          </DashboardLayout>
+        );
       default:
         return <Navigate to="/signin" replace />;
     }
   };
 
-  return <DashboardLayout>{renderDashboard()}</DashboardLayout>;
+  return renderDashboard();
 };
 
 export default Dashboard;

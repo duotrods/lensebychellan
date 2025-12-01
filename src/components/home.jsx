@@ -21,10 +21,10 @@ const home = () => {
           <div className="container max-w-7xl mx-auto px-4 py-4 lg:px-8">
             <div className=" text-white mb-8 max-w-4xl">
               <h1 className="mb-5 text-center sm:text-left lg:text-left">
-                The UK's Only Highways CCTV Monitoring Specialist
+                LENSE: The robust solution empowering
               </h1>
               <p className="mb-5 text-center sm:text-left lg:text-left">
-                Access real-time insight & control for your highway schemes
+                Chellan Highways Safety Services Ltd clients.
               </p>
               <div className="flex gap-4">
                 <button className="px-8 py-3 rounded font-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600">
@@ -39,7 +39,7 @@ const home = () => {
         </div>
       </div>
 
-      <section className="relative -top-24">
+      <section className="relative -top-24 ">
         <div className="mx-auto lg:mx-[16em] lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center space-y-4">

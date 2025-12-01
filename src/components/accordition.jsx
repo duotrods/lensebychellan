@@ -3,17 +3,18 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 const accordition = () => {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [openFaq, setOpenFaq] = useState(0);
   const faqs = [
     {
-      question: "What Is The Chellean Portal?",
+      question: "what is the LENSE portal?",
       answer:
-        "The Chellean Portal is a secure online platform that provides clients and staff with real-time dashboards, performance graphs, and monitoring reports for all active civil contracted traffic management schemes.",
+        "The LENSE Portal is a secure online platform that provides clients and staff with real-time dashboards, performance graphs, and monitoring reports for all active civil contracted traffic management schemes.",
     },
     {
-      question: "Who Can Access The Portal?",
+      question: "Who Can Access LENSE?",
       answer:
-        "Access to the portal is granted to authorized clients and staff members with appropriate credentials. Different access levels are available based on roles and responsibilities.",
+        "Access to the LENSE portal is granted to authorized clients and staff members with appropriate credentials. Different access levels are available based on roles and responsibilities.",
     },
     {
       question: "What Information Can I See In My Dashboard?",
@@ -29,7 +30,7 @@ const accordition = () => {
         </h2>
         <div className="space-y-4">
           {faqs.map((faq, idx) => (
-            <div key={idx} className="bg-teal-100 rounded-lg overflow-hidden">
+            <div key={idx} className="bg-teal-100 rounded-lg overflow-hidden ">
               <button
                 onClick={() => setOpenFaq(openFaq === idx ? -1 : idx)}
                 className="w-full flex items-center justify-between p-5 text-left hover:bg-teal-200 transition-colors"
@@ -44,7 +45,7 @@ const accordition = () => {
                 )}
               </button>
               {openFaq === idx && (
-                <div className="px-5 pb-5 text-gray-700 bg-white">
+                <div className="px-5 pb-5 pt-4 text-gray-700 bg-white">
                   {faq.answer}
                 </div>
               )}

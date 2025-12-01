@@ -14,26 +14,30 @@ const about = () => {
           <div>
             <h2 className="text-3xl font-bold text-gray-800 mb-6">About Us</h2>
             <p className="text-gray-600 mb-4">
-              Chellean Highway Safety Services Ltd is part of the Chellean Group
-              of Companies, and we are the only independent company dedicated to
-              providing CCTV Monitoring to the Highways sector using the latest
-              technology whilst remaining efficiency. We are the only company in
-              the UK that specialises exclusively in the highways sector.
+              LENSE operates as a vital component within the Chellan Highway
+              Safety Services Ltd group of companies. When you select Chellan to
+              oversee your Highways scheme, the LENSE service is included as
+              part of the package offered. Uniquely positioned in the marker,
+              Chellan stands as the sole specialist provider of highways CCTV
+              recovery monitoring across the United Kingdom.
             </p>
             <p className="text-gray-600 mb-4">
-              We're highly qualified, with accreditations including Achilles
-              Gold, ConstructionLine, and ISO 9001:2015. We're also Cyber
-              Essentials certified, a member of the National Infrastructure
-              Commission, and hold contracts with The Supply Chain
-              Sustainability School. We were proud to receive the Best
-              Independent Award 90% for our work on the Midlands NECER Schemes
-              as part of HS2.
+              Incorporated in 2015, the Chellan group hold a range of
+              accreditations, including Achilles Gold, ISO 9001:2015,
+              Constructionline/One for All, and Cyber Essentials. Additionally,
+              Chellan Highway Safety Services Ltd has earned the Silver Award
+              from the Supply Chain Sustainability School and, in 2024, received
+              a Best Collaboration Award as part of the NEAR Incident Support
+              Team at the National Highways/SMP event.
             </p>
             <p className="text-gray-600 mb-8">
-              We have our own accredited training course TM CCTV (on major
-              schemes) which ensures our staff are qualified and competent to
-              the highest standards. All our operators are based at our central
-              monitoring office in Barnsley.
+              The organisation offers its own accredited CCTV training course,
+              developed internally with input from leading industry
+              professionals. This programme has been completed by all staff,
+              many of whom possess over ten years of experience in the field.
+              While the primary operations hub is located in Kirk Sandall,
+              Doncaster, the company also maintains staff at satellite camera
+              rooms across the UK.
             </p>
             <a
               href="https://chellan.co.uk/"
@@ -48,7 +52,7 @@ const about = () => {
             <img
               src={cctvRoomImage}
               alt="About Us"
-              className="w-full h-[600px] object-cover"
+              className="w-full h-[700px] object-cover"
             />
           </div>
         </div>

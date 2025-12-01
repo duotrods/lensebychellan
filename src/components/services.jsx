@@ -12,7 +12,7 @@ const services = () => {
     <section className="py-20 px-4 bg-brand-50">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-4">
-          Reliable Home Interior Remodeling Services
+          Services provided by Chellan and LENSE.
         </h2>
         <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
           Nothing better than a new look from one of our professionals making

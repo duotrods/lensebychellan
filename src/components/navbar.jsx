@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import headerLogo from "../assets/headerlogo.svg";
+
+import logomarkdark from "../assets/logomarkdark.svg";
 
 const navList = [
   { href: "#home", label: "Home" },
@@ -15,11 +16,7 @@ const Navbar = () => {
     <header className="scroll-mt-20 pt-3 pb-3 bg-white shadow-md sticky top-0 z-50">
       <nav className="container max-w-7xl mx-auto px-4 py-4 flex justify-between items-center sm:px-6 lg:px-8">
         <div className="flex items-center space-x-2">
-          <img
-            src={headerLogo}
-            alt="MyApp Logo"
-            className="h-8 w-auto"
-          />
+          <img src={logomarkdark} alt="MyApp Logo" className="h-10 w-auto" />
         </div>
         <div className="hidden md:flex items-center space-x-4 gap-4">
           <nav className="hidden md:flex space-x-6">

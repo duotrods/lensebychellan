@@ -18,6 +18,11 @@ import SignInPage from './pages/SignInPage';
 import SignUpPage from './pages/SignUpPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import Dashboard from './pages/Dashboard';
+import FormsSelectionPage from './pages/staff/FormsSelectionPage';
+import CCTVCheckFormPage from './pages/staff/CCTVCheckFormPage';
+import IncidentReportFormPage from './pages/staff/IncidentReportFormPage';
+import ReportsListPage from './pages/staff/ReportsListPage';
+import CCTVUploadsPage from './pages/staff/CCTVUploadsPage';
 
 import { USER_ROLES } from './utils/constants';
 import './index.css';
@@ -72,6 +77,53 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Staff Forms Routes */}
+            <Route
+              path="/dashboard/staff/forms"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <FormsSelectionPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/forms/cctv-check"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <CCTVCheckFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/forms/incident-report"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <IncidentReportFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Staff Reports and Uploads Routes */}
+            <Route
+              path="/dashboard/staff/reports"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <ReportsListPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/cctv-uploads"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <CCTVUploadsPage />
                 </ProtectedRoute>
               }
             />

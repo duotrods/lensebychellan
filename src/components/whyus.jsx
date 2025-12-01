@@ -19,11 +19,10 @@ const whyus = () => {
               Why Choose Us?
             </h2>
             <p className="text-gray-600 mb-8">
-              Chellean Highway Safety Services Ltd is part of the Chellean Group
-              of Companies, and we are the only independent company dedicated to
-              providing CCTV Monitoring to the Highways sector using the latest
-              technology whilst remaining efficiency. We are the only company in
-              the UK that specialises exclusively in the highways sector.
+              If you chose Chellan to provide a monitoring service on your
+              scheme, not only will you receive an excellent service 24/7, but
+              you will have access to LENSE, which will provide all your data
+              needs as part of the service. Including the ability to:
             </p>
             <div className="flex gap-4 mb-4">
               <CircleCheck strokeWidth={3} className="text-brand-500" />
