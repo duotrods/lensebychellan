@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import logomarkdark from "../assets/logomarkdark.svg";
+import logomarkdark from "../assets/Logomarkdark.svg";
 
 const navList = [
   { href: "#home", label: "Home" },
