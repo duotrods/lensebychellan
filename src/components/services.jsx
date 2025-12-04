@@ -1,11 +1,11 @@
 import React from "react";
 import { FileText, Camera, Lock, Video } from "lucide-react";
-import roadImage from "../assets/road.jpg";
+import roadImage from "../assets/stpdvhcle.png";
 import cctvImage from "../assets/cctvhighway.jpg";
-import monitoringroom from "../assets/cctvroom.png";
-import compoundmonitoring from "../assets/stevnagecctvroom.jpg";
-import softwaredevelopment from "../assets/chellancctvroom2.jpg";
-import analyticsimage from "../assets/roadrecording.jpg";
+import temprycctv from "../assets/temprycctv.jpg";
+import compoundmonitoring from "../assets/compnd.png";
+import softwaredevelopment from "../assets/sftwrdev.jpg";
+import analyticsimage from "../assets/analytics.png";
 
 const services = () => {
   return (
@@ -49,7 +49,7 @@ const services = () => {
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
-                <img src={monitoringroom} alt="" className="w-full h-[200px]"/>
+                <img src={temprycctv} alt="" className="w-full h-[200px]"/>
               </div>
             </div>
           </div>

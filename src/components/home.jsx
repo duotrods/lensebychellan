@@ -19,7 +19,7 @@ const home = () => {
       >
         <div className="hero-overlay py-20 sm:py-28 lg:py-28">
           <div className="container max-w-7xl mx-auto px-4 py-4 lg:px-8">
-            <div className=" text-white mb-8 max-w-4xl">
+            <div className=" text-white mb-8 max-w-6xl">
               <h1 className="mb-5 text-center sm:text-left lg:text-left">
                 LENSE: The Robust Solution Empowering Chellan Highways Safety Services Ltd clients.
               </h1>
@@ -28,7 +28,7 @@ const home = () => {
               </p>
               <div className="flex gap-4">
                 <button className="px-8 py-3 rounded font-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600">
-                  Get Started
+                  Sign In
                 </button>
                 <button className="px-8 py-3 bg-transparent outline-white outline-2 text-white rounded font-semibold hover:bg-white hover:text-black">
                   Get Started

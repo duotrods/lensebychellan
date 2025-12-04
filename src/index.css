@@ -21,11 +21,12 @@
 h1 {
   font-size: clamp(40px, 6vw, 64px);
   font-weight: 600;
+  line-height: 1.2em;
 }
 
 h2 {
   font-size: clamp(32px, 4.5vw, 48px);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 h3 {
@@ -50,11 +51,11 @@ h6 {
 
 p,
 body {
-  font-size: clamp(16px, 1.8vw, 18px);
+  font-size: clamp(16px, 1.8vw, 16px);
 }
 
 a{
-  font-size: clamp(16px, 1.8vw, 18px);
+  font-size: clamp(16px, 1.8vw, 16px);
   font-weight: 500;
 }
 
