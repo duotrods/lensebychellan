@@ -44,7 +44,7 @@ const StaffSidebarLayout = ({ children }) => {
       icon: FileText,
       hasSubmenu: true,
       submenu: [
-        { name: 'All Forms', path: '/dashboard/staff/forms' },
+        // { name: 'All Forms', path: '/dashboard/staff/forms' },
         { name: 'CCTV Check Sheet', path: '/dashboard/staff/forms/cctv-check' },
         { name: 'Incident Report', path: '/dashboard/staff/forms/incident-report' },
         { name: 'Daily Logs', path: '/dashboard/staff/forms/daily-logs' },

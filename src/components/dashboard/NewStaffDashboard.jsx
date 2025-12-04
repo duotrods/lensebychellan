@@ -95,9 +95,9 @@ const NewStaffDashboard = () => {
       <div>
         {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">
             Welcome back, <span className="text-teal-500">{userProfile?.displayName}!</span>
-          </h1>
+          </h2>
         </div>
 
         {/* Statistics Cards */}
@@ -113,14 +113,15 @@ const NewStaffDashboard = () => {
                   key={index}
                   className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center`}>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className={`w-12 h-12 rounded-lg bg-linear-to-br ${card.color} flex items-center justify-center`}>
                       <card.icon className="w-6 h-6 text-white" />
                     </div>
+                    <h6 className="text-sm font-medium text-gray-600 mb-2">{card.title}</h6>
                   </div>
-                  <h3 className="text-sm font-medium text-gray-600 mb-2">{card.title}</h3>
-                  <p className="text-3xl font-bold text-gray-800 mb-1">{card.count}</p>
-                  <p className="text-xs text-gray-500">{card.subtitle}</p>
+                  
+                  <span className="text-4xl font-bold text-gray-700 mb-1">{card.count}</span>
+                  <p className=" text-gray-500">{card.subtitle}</p>
                 </div>
               ))}
             </div>
@@ -128,14 +129,14 @@ const NewStaffDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Latest Forms Table */}
               <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="p-6 border-b">
-                  <h2 className="text-xl font-bold text-gray-800">Latest Form Filled Out</h2>
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-800">Latest Form Filled Out</h3>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="px-6 overflow-x-auto">
                   <table className="table w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
+                    <thead className="bg-gray-50 ">
+                      <tr className='border-b-2'>
                         <th className="text-left text-sm font-semibold text-gray-600">Reference No.</th>
                         <th className="text-left text-sm font-semibold text-gray-600">Date Filled</th>
                         <th className="text-left text-sm font-semibold text-gray-600">Type of Form</th>
@@ -167,7 +168,7 @@ const NewStaffDashboard = () => {
                   </table>
                 </div>
 
-                <div className="p-4 border-t flex justify-center gap-2">
+                <div className="p-4 flex justify-center gap-2">
                   <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Previous</button>
                   {[1, 2, 3, 4, 5].map((page) => (
                     <button

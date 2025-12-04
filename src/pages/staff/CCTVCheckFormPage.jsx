@@ -115,7 +115,7 @@ const CCTVCheckFormPage = () => {
 
   const renderCheckboxSection = (title, section, options) => (
     <div className="mb-8">
-      <label className="block text-sm font-semibold text-gray-700 mb-3">
+      <label className="block text-sm font-semibold text-gray-700 mb-4">
         {title} <span className="text-red-500">*</span>
       </label>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -128,9 +128,9 @@ const CCTVCheckFormPage = () => {
               type="checkbox"
               checked={formData[section].includes(option)}
               onChange={() => handleCheckboxChange(section, option)}
-              className="checkbox checkbox-sm checkbox-primary"
+              className="checkbox checkbox-sm checkbox-neutral"
             />
-            <span className="text-sm text-gray-700 group-hover:text-teal-600">
+            <span className="text-sm text-gray-700">
               {option}
             </span>
           </label>
@@ -138,16 +138,16 @@ const CCTVCheckFormPage = () => {
       </div>
 
       {/* Comments */}
-      <div className="mt-4">
+      <div className="mt-8">
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Comments {title.split(' ')[0]}
+          Comments for {title.split(' ')[0]}
         </label>
         <textarea
           value={formData[`${section}Comments`]}
           onChange={(e) => setFormData({ ...formData, [`${section}Comments`]: e.target.value })}
           placeholder="Please list actions taken e.g informed p&d of faults along with type of fault"
           rows={3}
-          className="textarea textarea-bordered w-full"
+          className="textarea w-full textarea-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100"
         />
       </div>
     </div>
@@ -173,25 +173,25 @@ const CCTVCheckFormPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <label className="label">
-                <span className="label-text font-semibold">First Name <span className="text-red-500">*</span></span>
+                <span className="label-text font-semibold mb-2">First Name <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="input input-bordered w-full"
+                className="input input-accent w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
                 required
               />
             </div>
             <div>
               <label className="label">
-                <span className="label-text font-semibold">Last Name <span className="text-red-500">*</span></span>
+                <span className="label-text font-semibold mb-2">Last Name <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="input input-bordered w-full"
+                className="input input-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 required
               />
             </div>
@@ -201,31 +201,31 @@ const CCTVCheckFormPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
               <label className="label">
-                <span className="label-text font-semibold">Date <span className="text-red-500">*</span></span>
+                <span className="label-text font-semibold mb-2">Date <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="input input-bordered w-full"
+                className="input input-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 required
               />
             </div>
             <div>
               <label className="label">
-                <span className="label-text font-semibold">Time <span className="text-red-500">*</span></span>
+                <span className="label-text font-semibold mb-2">Time <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="time"
                 value={formData.time}
                 onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                className="input input-bordered w-full"
+                className="input input-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 required
               />
             </div>
           </div>
 
-          <div className="divider"></div>
+          <div className="divider before:h-px after:h-px  before:bg-gray-500 after:bg-gray-500 text-gray-500"></div>
 
           {/* Camera Sections */}
           {renderCheckboxSection(

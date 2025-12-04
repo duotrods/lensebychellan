@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { staffService } from '../../services/staffService';
-import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
-import { FileText, Camera, Calendar, AlertTriangle, Eye, Download, Filter, Search } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { staffService } from "../../services/staffService";
+import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import {
+  FileText,
+  Camera,
+  Calendar,
+  AlertTriangle,
+  Eye,
+  Download,
+  Filter,
+  Search,
+} from "lucide-react";
+import { toast } from "react-hot-toast";
 
 const ReportsListPage = () => {
   const navigate = useNavigate();
@@ -13,16 +22,18 @@ const ReportsListPage = () => {
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filterType, setFilterType] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const reportsPerPage = 10;
 
   useEffect(() => {
     loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile]);
 
   useEffect(() => {
     applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, filterType, searchQuery]);
 
   const loadReports = async () => {
@@ -32,29 +43,29 @@ const ReportsListPage = () => {
       setLoading(true);
       const [cctvForms, incidentReports] = await Promise.all([
         staffService.getCCTVCheckForms(userProfile.uid),
-        staffService.getIncidentReports(userProfile.uid)
+        staffService.getIncidentReports(userProfile.uid),
       ]);
 
       // Combine all reports
       const allReports = [
-        ...cctvForms.map(f => ({
+        ...cctvForms.map((f) => ({
           ...f,
-          type: 'CCTV Check',
+          type: "CCTV Check",
           icon: Camera,
-          color: 'bg-purple-100 text-purple-600'
+          color: "bg-purple-100 text-purple-600",
         })),
-        ...incidentReports.map(f => ({
+        ...incidentReports.map((f) => ({
           ...f,
-          type: 'Incident Report',
+          type: "Incident Report",
           icon: FileText,
-          color: 'bg-teal-100 text-teal-600'
-        }))
+          color: "bg-teal-100 text-teal-600",
+        })),
       ].sort((a, b) => b.createdAt - a.createdAt);
 
       setReports(allReports);
     } catch (error) {
-      console.error('Failed to load reports:', error);
-      toast.error('Failed to load reports');
+      console.error("Failed to load reports:", error);
+      toast.error("Failed to load reports");
     } finally {
       setLoading(false);
     }
@@ -64,17 +75,21 @@ const ReportsListPage = () => {
     let filtered = [...reports];
 
     // Filter by type
-    if (filterType !== 'all') {
-      filtered = filtered.filter(r => r.type === filterType);
+    if (filterType !== "all") {
+      filtered = filtered.filter((r) => r.type === filterType);
     }
 
     // Filter by search query
     if (searchQuery) {
-      filtered = filtered.filter(r =>
-        r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (r.firstName && r.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (r.lastName && r.lastName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (r.scheme && r.scheme.toLowerCase().includes(searchQuery.toLowerCase()))
+      filtered = filtered.filter(
+        (r) =>
+          r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (r.firstName &&
+            r.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (r.lastName &&
+            r.lastName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (r.scheme &&
+            r.scheme.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
 
@@ -83,28 +98,31 @@ const ReportsListPage = () => {
   };
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return "N/A";
     const date = timestamp.toDate();
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
   const formatTime = (timestamp) => {
-    if (!timestamp) return '';
+    if (!timestamp) return "";
     const date = timestamp.toDate();
-    return date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   // Pagination
   const indexOfLastReport = currentPage * reportsPerPage;
   const indexOfFirstReport = indexOfLastReport - reportsPerPage;
-  const currentReports = filteredReports.slice(indexOfFirstReport, indexOfLastReport);
+  const currentReports = filteredReports.slice(
+    indexOfFirstReport,
+    indexOfLastReport
+  );
   const totalPages = Math.ceil(filteredReports.length / reportsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
@@ -120,17 +138,17 @@ const ReportsListPage = () => {
     } else {
       if (currentPage <= 3) {
         for (let i = 1; i <= 4; i++) pages.push(i);
-        pages.push('...');
+        pages.push("...");
         pages.push(totalPages);
       } else if (currentPage >= totalPages - 2) {
         pages.push(1);
-        pages.push('...');
+        pages.push("...");
         for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
       } else {
         pages.push(1);
-        pages.push('...');
+        pages.push("...");
         for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
+        pages.push("...");
         pages.push(totalPages);
       }
     }
@@ -140,16 +158,17 @@ const ReportsListPage = () => {
 
   const handleViewReport = (report) => {
     // Navigate to view page based on type
-    if (report.type === 'CCTV Check') {
+    if (report.type === "CCTV Check") {
       navigate(`/dashboard/staff/reports/cctv-check/${report.id}`);
-    } else if (report.type === 'Incident Report') {
+    } else if (report.type === "Incident Report") {
       navigate(`/dashboard/staff/reports/incident/${report.id}`);
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleExportReport = (report) => {
     // TODO: Implement export functionality
-    toast.success('Export feature coming soon!');
+    toast.success("Export feature coming soon!");
   };
 
   return (
@@ -157,7 +176,9 @@ const ReportsListPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Reports & Forms</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            Reports & Forms
+          </h1>
           <p className="text-gray-600">View and manage all submitted reports</p>
         </div>
 
@@ -172,7 +193,7 @@ const ReportsListPage = () => {
                 placeholder="Search by ID, name, or scheme..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input input-bordered w-full pl-10"
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100  w-full pl-5"
               />
             </div>
 
@@ -182,7 +203,7 @@ const ReportsListPage = () => {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="select select-bordered w-full pl-10"
+                className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100  w-full pl-5"
               >
                 <option value="all">All Report Types</option>
                 <option value="CCTV Check">CCTV Check</option>
@@ -211,21 +232,36 @@ const ReportsListPage = () => {
                 <table className="table w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left text-sm font-semibold text-gray-600">Type</th>
-                      <th className="text-left text-sm font-semibold text-gray-600">Reference ID</th>
-                      <th className="text-left text-sm font-semibold text-gray-600">Submitted By</th>
-                      <th className="text-left text-sm font-semibold text-gray-600">Date</th>
-                      <th className="text-left text-sm font-semibold text-gray-600">Time</th>
-                      <th className="text-center text-sm font-semibold text-gray-600">Actions</th>
+                      <th className="text-left text-sm font-semibold text-gray-600">
+                        Type
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-600">
+                        Reference ID
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-600">
+                        Submitted By
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-600">
+                        Date
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-600">
+                        Time
+                      </th>
+                      <th className="text-center text-sm font-semibold text-gray-600">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {currentReports.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="text-center py-12 text-gray-500">
-                          {searchQuery || filterType !== 'all'
-                            ? 'No reports match your filters'
-                            : 'No reports submitted yet'}
+                        <td
+                          colSpan="6"
+                          className="text-center py-12 text-gray-500"
+                        >
+                          {searchQuery || filterType !== "all"
+                            ? "No reports match your filters"
+                            : "No reports submitted yet"}
                         </td>
                       </tr>
                     ) : (
@@ -233,10 +269,14 @@ const ReportsListPage = () => {
                         <tr key={report.id} className="hover:bg-gray-50">
                           <td>
                             <div className="flex items-center gap-2">
-                              <div className={`w-10 h-10 rounded-lg ${report.color} flex items-center justify-center`}>
+                              <div
+                                className={`w-10 h-10 rounded-lg ${report.color} flex items-center justify-center`}
+                              >
                                 <report.icon className="w-5 h-5" />
                               </div>
-                              <span className="text-sm font-medium text-gray-800">{report.type}</span>
+                              <span className="text-sm font-medium text-gray-800">
+                                {report.type}
+                              </span>
                             </div>
                           </td>
                           <td className="text-sm text-gray-600 font-mono">
@@ -245,7 +285,7 @@ const ReportsListPage = () => {
                           <td className="text-sm text-gray-800">
                             {report.firstName && report.lastName
                               ? `${report.firstName} ${report.lastName}`
-                              : report.submittedBy || 'N/A'}
+                              : report.submittedBy || "N/A"}
                           </td>
                           <td className="text-sm text-gray-600">
                             {formatDate(report.createdAt)}
@@ -288,23 +328,28 @@ const ReportsListPage = () => {
                     Previous
                   </button>
 
-                  {getPageNumbers().map((page, index) => (
-                    page === '...' ? (
-                      <span key={`ellipsis-${index}`} className="px-2 text-gray-400">...</span>
+                  {getPageNumbers().map((page, index) =>
+                    page === "..." ? (
+                      <span
+                        key={`ellipsis-${index}`}
+                        className="px-2 text-gray-400"
+                      >
+                        ...
+                      </span>
                     ) : (
                       <button
                         key={page}
                         onClick={() => paginate(page)}
                         className={`px-3 py-1 text-sm rounded transition-colors ${
                           page === currentPage
-                            ? 'bg-teal-500 text-white'
-                            : 'text-gray-600 hover:bg-gray-100'
+                            ? "bg-teal-500 text-white"
+                            : "text-gray-600 hover:bg-gray-100"
                         }`}
                       >
                         {page}
                       </button>
                     )
-                  ))}
+                  )}
 
                   <button
                     onClick={() => paginate(currentPage + 1)}
