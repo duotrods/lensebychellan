@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -9,6 +9,8 @@ import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
 const CCTVCheckFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -66,6 +68,48 @@ const CCTVCheckFormPage = () => {
     ]
   };
 
+  useEffect(() => {
+    if (editId) {
+      loadFormData();
+    }
+  }, [editId]);
+
+  const loadFormData = async () => {
+    try {
+      setLoading(true);
+      // Pass null to get all forms, not just current user's
+      const forms = await staffService.getCCTVCheckForms(null);
+      const form = forms.find(f => f.id === editId);
+
+      if (form) {
+        setFormData({
+          firstName: form.firstName || '',
+          lastName: form.lastName || '',
+          date: form.date || '',
+          time: form.time || '',
+          a417Cameras: form.a417Cameras || [],
+          a417Comments: form.a417Comments || '',
+          birtleyToCoalhouse: form.birtleyToCoalhouse || [],
+          birtleyComments: form.birtleyComments || '',
+          kierCore: form.kierCore || [],
+          kierCoreComments: form.kierCoreComments || '',
+          gallowsCorner: form.gallowsCorner || [],
+          gallowsCornerComments: form.gallowsCornerComments || '',
+          m3Jct9: form.m3Jct9 || [],
+          m3Jct9Comments: form.m3Jct9Comments || ''
+        });
+      } else {
+        toast.error('Form not found');
+        navigate('/dashboard/staff');
+      }
+    } catch (error) {
+      console.error('Failed to load form:', error);
+      toast.error('Failed to load form data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCheckboxChange = (section, value) => {
     setFormData(prev => {
       const currentValues = prev[section];
@@ -97,14 +141,26 @@ const CCTVCheckFormPage = () => {
     setLoading(true);
 
     try {
-      await staffService.submitCCTVCheckForm(
-        formData,
-        userProfile.uid,
-        userProfile.displayName
-      );
+      if (editId) {
+        // Update existing form
+        await staffService.updateCCTVCheckForm(
+          editId,
+          formData,
+          userProfile.uid,
+          userProfile.displayName
+        );
+        toast.success('CCTV Check Form updated successfully!');
+      } else {
+        // Submit new form
+        await staffService.submitCCTVCheckForm(
+          formData,
+          userProfile.uid,
+          userProfile.displayName
+        );
+        toast.success('CCTV Check Form submitted successfully!');
+      }
 
-      toast.success('CCTV Check Form submitted successfully!');
-      navigate('/dashboard/staff/forms');
+      navigate('/dashboard/staff');
     } catch (error) {
       console.error('Error submitting form:', error);
       toast.error('Failed to submit form. Please try again.');
@@ -164,7 +220,7 @@ const CCTVCheckFormPage = () => {
           >
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">CCTV Check Form</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{editId ? 'Edit CCTV Check Form' : 'CCTV Check Form'}</h1>
         </div>
 
         {/* Form */}
@@ -272,7 +328,7 @@ const CCTVCheckFormPage = () => {
               disabled={loading}
               className="px-8 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors font-semibold"
             >
-              {loading ? 'Submitting...' : 'Submit'}
+              {loading ? (editId ? 'Updating...' : 'Submitting...') : (editId ? 'Update' : 'Submit')}
             </button>
           </div>
         </form>

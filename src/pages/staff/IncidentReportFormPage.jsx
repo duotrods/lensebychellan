@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { ArrowLeft, Upload, X } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -11,6 +11,8 @@ import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 const IncidentReportFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
   const [loading, setLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [files, setFiles] = useState([]);
@@ -41,6 +43,59 @@ const IncidentReportFormPage = () => {
     vehicles: [{ type: "", make: "", model: "", vin: "" }],
     description: "",
   });
+
+  useEffect(() => {
+    if (editId) {
+      loadFormData();
+    }
+  }, [editId]);
+
+  const loadFormData = async () => {
+    try {
+      setLoading(true);
+      // Pass null to get all reports, not just current user's
+      const reports = await staffService.getIncidentReports(null);
+      const report = reports.find(r => r.id === editId);
+
+      if (report) {
+        setFormData({
+          scheme: report.scheme || "",
+          section: report.section || "",
+          date: report.date || "",
+          firstName: report.firstName || "",
+          lastName: report.lastName || "",
+          weatherConditions: report.weatherConditions || "",
+          nhLog: report.nhLog || "",
+          collarNumber: report.collarNumber || "",
+          incursion: report.incursion || "NO",
+          reportedBy: report.reportedBy || "",
+          cameraNumber: report.cameraNumber || "",
+          trafficConditions: report.trafficConditions || "",
+          markerPost: report.markerPost || "",
+          track: report.track || "",
+          incidentType: report.incidentType || "",
+          affectedLanes: report.affectedLanes || [],
+          emergencyServices: report.emergencyServices || [],
+          recoveryRequested: report.recoveryRequested || { light: 0, heavy: 0, ipv: 0, hetos: 0 },
+          timeSpottedToOn: report.timeSpottedToOn || "",
+          timeOnsiteToCleared: report.timeOnsiteToCleared || "",
+          closedLogCollar: report.closedLogCollar || "",
+          fault: report.fault || "",
+          vehicles: report.vehicles || [{ type: "", make: "", model: "", vin: "" }],
+          description: report.description || "",
+        });
+        // Note: Existing files from storage are not loaded into the files state for re-upload
+      } else {
+        toast.error('Form not found');
+        navigate('/dashboard/staff');
+      }
+    } catch (error) {
+      console.error('Failed to load form:', error);
+      toast.error('Failed to load form data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -136,18 +191,38 @@ const IncidentReportFormPage = () => {
       // Upload files first
       const uploadedFiles = await uploadFiles();
 
-      // Submit form with file URLs
-      await staffService.submitIncidentReport(
-        {
-          ...formData,
-          files: uploadedFiles,
-        },
-        userProfile.uid,
-        userProfile.displayName
-      );
+      if (editId) {
+        // Update existing form
+        const updateData = { ...formData };
 
-      toast.success("Incident Report submitted successfully!");
-      navigate("/dashboard/staff/forms");
+        // Only update files if new files were uploaded
+        if (uploadedFiles.length > 0) {
+          updateData.files = uploadedFiles;
+        } else if (formData.files) {
+          updateData.files = formData.files;
+        }
+
+        await staffService.updateIncidentReport(
+          editId,
+          updateData,
+          userProfile.uid,
+          userProfile.displayName
+        );
+        toast.success("Incident Report updated successfully!");
+      } else {
+        // Submit new form
+        await staffService.submitIncidentReport(
+          {
+            ...formData,
+            files: uploadedFiles,
+          },
+          userProfile.uid,
+          userProfile.displayName
+        );
+        toast.success("Incident Report submitted successfully!");
+      }
+
+      navigate("/dashboard/staff");
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Failed to submit form. Please try again.");
@@ -168,7 +243,7 @@ const IncidentReportFormPage = () => {
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
           <h3 className="text-2xl font-bold text-gray-800">
-            Incident Report Log
+            {editId ? 'Edit Incident Report' : 'Incident Report Log'}
           </h3>
         </div>
 
@@ -875,10 +950,10 @@ const IncidentReportFormPage = () => {
               className="px-8 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors font-semibold"
             >
               {loading
-                ? "Submitting..."
+                ? (editId ? "Updating..." : "Submitting...")
                 : uploadingFiles
                 ? "Uploading Files..."
-                : "Submit"}
+                : (editId ? "Update" : "Submit")}
             </button>
           </div>
         </form>

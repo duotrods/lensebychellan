@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { authService } from '../../services/authService';
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { authService } from "../../services/authService";
 import {
   LayoutDashboard,
   FileText,
@@ -12,9 +12,9 @@ import {
   Bell,
   HelpCircle,
   Search,
-  FolderOpen
-} from 'lucide-react';
-import headerLogo from '../../assets/headerlogo.svg';
+  FolderOpen,
+} from "lucide-react";
+import headerLogo from "../../assets/headerlogo.svg";
 
 const StaffSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
@@ -24,7 +24,7 @@ const StaffSidebarLayout = ({ children }) => {
 
   const handleSignOut = async () => {
     await authService.signOut();
-    navigate('/');
+    navigate("/");
   };
 
   const isActive = (path) => {
@@ -33,34 +33,40 @@ const StaffSidebarLayout = ({ children }) => {
 
   const navItems = [
     {
-      name: 'Dashboard',
-      path: '/dashboard/staff',
+      name: "Dashboard",
+      path: "/dashboard/staff",
       icon: LayoutDashboard,
-      exact: true
+      exact: true,
     },
     {
-      name: 'Forms',
-      path: '/dashboard/staff/forms',
+      name: "Forms",
+      path: "/dashboard/staff/forms",
       icon: FileText,
       hasSubmenu: true,
       submenu: [
         // { name: 'All Forms', path: '/dashboard/staff/forms' },
-        { name: 'CCTV Check Sheet', path: '/dashboard/staff/forms/cctv-check' },
-        { name: 'Incident Report', path: '/dashboard/staff/forms/incident-report' },
-        { name: 'Daily Logs', path: '/dashboard/staff/forms/daily-logs' },
-        { name: 'Asset Damage', path: '/dashboard/staff/forms/asset-damage' }
-      ]
+        { name: "CCTV Check Sheet", path: "/dashboard/staff/forms/cctv-check" },
+        {
+          name: "Incident Report",
+          path: "/dashboard/staff/forms/incident-report",
+        },
+        {
+          name: "Daily Occurrence",
+          path: "/dashboard/staff/forms/daily-occurence",
+        },
+        { name: "Asset Damage", path: "/dashboard/staff/forms/asset-damage" },
+      ],
     },
     {
-      name: 'Reports',
-      path: '/dashboard/staff/reports',
-      icon: FolderOpen
+      name: "Reports",
+      path: "/dashboard/staff/reports",
+      icon: FolderOpen,
     },
     {
-      name: 'CCTV Uploads',
-      path: '/dashboard/staff/cctv-uploads',
-      icon: Video
-    }
+      name: "CCTV Uploads",
+      path: "/dashboard/staff/cctv-uploads",
+      icon: Video,
+    },
   ];
 
   return (
@@ -84,8 +90,8 @@ const StaffSidebarLayout = ({ children }) => {
                     onClick={() => setFormsOpen(!formsOpen)}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
                       isActive(item.path)
-                        ? 'bg-teal-500 text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? "bg-teal-500 text-white"
+                        : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -94,7 +100,7 @@ const StaffSidebarLayout = ({ children }) => {
                     </div>
                     <ChevronDown
                       className={`w-4 h-4 transition-transform ${
-                        formsOpen ? 'rotate-180' : ''
+                        formsOpen ? "rotate-180" : ""
                       }`}
                     />
                   </button>
@@ -107,8 +113,8 @@ const StaffSidebarLayout = ({ children }) => {
                           to={subItem.path}
                           className={`block px-4 py-2 rounded-lg text-sm transition-colors ${
                             location.pathname === subItem.path
-                              ? 'bg-teal-50 text-teal-600 font-medium'
-                              : 'text-gray-600 hover:bg-gray-50'
+                              ? "bg-teal-50 text-teal-600 font-medium"
+                              : "text-gray-600 hover:bg-gray-50"
                           }`}
                         >
                           {subItem.name}
@@ -122,10 +128,10 @@ const StaffSidebarLayout = ({ children }) => {
                   to={item.path}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive(item.path) && item.exact
-                      ? 'bg-teal-500 text-white'
+                      ? "bg-teal-500 text-white"
                       : isActive(item.path)
-                      ? 'bg-teal-500 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? "bg-teal-500 text-white"
+                      : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
@@ -193,7 +199,7 @@ const StaffSidebarLayout = ({ children }) => {
                   <p className="text-xs text-gray-500">Staff Member</p>
                 </div>
                 <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white font-semibold">
-                  {userProfile?.displayName?.charAt(0) || 'S'}
+                  {userProfile?.displayName?.charAt(0) || "S"}
                 </div>
               </div>
             </div>

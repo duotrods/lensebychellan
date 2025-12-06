@@ -21,8 +21,14 @@ import Dashboard from './pages/Dashboard';
 import FormsSelectionPage from './pages/staff/FormsSelectionPage';
 import CCTVCheckFormPage from './pages/staff/CCTVCheckFormPage';
 import IncidentReportFormPage from './pages/staff/IncidentReportFormPage';
+import AssetDamageFormPage from './pages/staff/AssetDamageFormPage';
+import DailyOccurrenceFormPage from './pages/staff/DailyOccurrenceFormPage';
 import ReportsListPage from './pages/staff/ReportsListPage';
 import CCTVUploadsPage from './pages/staff/CCTVUploadsPage';
+import IncidentReportView from './pages/staff/IncidentReportView';
+import CCTVCheckView from './pages/staff/CCTVCheckView';
+import AssetDamageView from './pages/staff/AssetDamageView';
+import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
 
 import { USER_ROLES } from './utils/constants';
 import './index.css';
@@ -109,12 +115,66 @@ const App = () => {
               }
             />
 
+            <Route
+              path="/dashboard/staff/forms/asset-damage"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <AssetDamageFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/forms/daily-occurence"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <DailyOccurrenceFormPage />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Staff Reports and Uploads Routes */}
             <Route
               path="/dashboard/staff/reports"
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                   <ReportsListPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/reports/incident/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <IncidentReportView />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/reports/cctv-check/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <CCTVCheckView />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/reports/asset-damage/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <AssetDamageView />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/reports/daily-logs/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <DailyOccurrenceView />
                 </ProtectedRoute>
               }
             />

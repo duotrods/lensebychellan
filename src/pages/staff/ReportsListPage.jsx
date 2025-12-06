@@ -41,9 +41,11 @@ const ReportsListPage = () => {
 
     try {
       setLoading(true);
-      const [cctvForms, incidentReports] = await Promise.all([
+      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
         staffService.getCCTVCheckForms(userProfile.uid),
         staffService.getIncidentReports(userProfile.uid),
+        staffService.getAssetDamageReports(userProfile.uid),
+        staffService.getDailyOccurrenceReports(userProfile.uid),
       ]);
 
       // Combine all reports
@@ -59,6 +61,18 @@ const ReportsListPage = () => {
           type: "Incident Report",
           icon: FileText,
           color: "bg-teal-100 text-teal-600",
+        })),
+        ...assetDamageReports.map((f) => ({
+          ...f,
+          type: "Asset Damage",
+          icon: AlertTriangle,
+          color: "bg-orange-100 text-orange-600",
+        })),
+        ...dailyOccurrenceReports.map((f) => ({
+          ...f,
+          type: "Daily Logs",
+          icon: Calendar,
+          color: "bg-blue-100 text-blue-600",
         })),
       ].sort((a, b) => b.createdAt - a.createdAt);
 
@@ -84,6 +98,8 @@ const ReportsListPage = () => {
       filtered = filtered.filter(
         (r) =>
           r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (r.referenceId &&
+            r.referenceId.toLowerCase().includes(searchQuery.toLowerCase())) ||
           (r.firstName &&
             r.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
           (r.lastName &&
@@ -162,6 +178,10 @@ const ReportsListPage = () => {
       navigate(`/dashboard/staff/reports/cctv-check/${report.id}`);
     } else if (report.type === "Incident Report") {
       navigate(`/dashboard/staff/reports/incident/${report.id}`);
+    } else if (report.type === "Asset Damage") {
+      navigate(`/dashboard/staff/reports/asset-damage/${report.id}`);
+    } else if (report.type === "Daily Logs") {
+      navigate(`/dashboard/staff/reports/daily-logs/${report.id}`);
     }
   };
 
@@ -279,8 +299,8 @@ const ReportsListPage = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="text-sm text-gray-600 font-mono">
-                            {report.id.slice(0, 12)}...
+                          <td className="text-sm text-gray-600 font-mono font-semibold">
+                            {report.referenceId || report.id.slice(0, 12) + "..."}
                           </td>
                           <td className="text-sm text-gray-800">
                             {report.firstName && report.lastName

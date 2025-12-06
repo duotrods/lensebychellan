@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import NoticeBoard from '../staff/NoticeBoard';
-import { FileText, Camera, Calendar, AlertTriangle } from 'lucide-react';
+import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Trash2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const NewStaffDashboard = () => {
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const [showNoticeBoard, setShowNoticeBoard] = useState(true);
   const [stats, setStats] = useState(null);
   const [latestForms, setLatestForms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const formsPerPage = 10;
 
   useEffect(() => {
     loadDashboardData();
@@ -24,17 +29,21 @@ const NewStaffDashboard = () => {
       const dashboardStats = await staffService.getDashboardStats(userProfile.uid);
       setStats(dashboardStats);
 
-      // Load latest forms
-      const [cctvForms, incidentReports] = await Promise.all([
-        staffService.getCCTVCheckForms(userProfile.uid),
-        staffService.getIncidentReports(userProfile.uid)
+      // Load latest forms - pass null to get all forms from all staff
+      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
+        staffService.getCCTVCheckForms(null),
+        staffService.getIncidentReports(null),
+        staffService.getAssetDamageReports(null),
+        staffService.getDailyOccurrenceReports(null)
       ]);
 
-      // Combine and sort by date
+      // Combine and sort by date - show all forms, not just top 7
       const allForms = [
-        ...cctvForms.slice(0, 5).map(f => ({ ...f, type: 'CCTV Check Sheet' })),
-        ...incidentReports.slice(0, 5).map(f => ({ ...f, type: 'Incident Report' }))
-      ].sort((a, b) => b.createdAt - a.createdAt).slice(0, 7);
+        ...cctvForms.map(f => ({ ...f, type: 'CCTV Check Sheet' })),
+        ...incidentReports.map(f => ({ ...f, type: 'Incident Report' })),
+        ...assetDamageReports.map(f => ({ ...f, type: 'Asset Damage' })),
+        ...dailyOccurrenceReports.map(f => ({ ...f, type: 'Daily Occurrence' }))
+      ].sort((a, b) => b.createdAt - a.createdAt);
 
       setLatestForms(allForms);
     } catch (error) {
@@ -85,6 +94,63 @@ const NewStaffDashboard = () => {
     });
   };
 
+  // Pagination
+  const indexOfLastForm = currentPage * formsPerPage;
+  const indexOfFirstForm = indexOfLastForm - formsPerPage;
+  const currentForms = latestForms.slice(indexOfFirstForm, indexOfLastForm);
+  const totalPages = Math.ceil(latestForms.length / formsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const handleViewForm = (form) => {
+    if (form.type === "CCTV Check Sheet") {
+      navigate(`/dashboard/staff/reports/cctv-check/${form.id}`);
+    } else if (form.type === "Incident Report") {
+      navigate(`/dashboard/staff/reports/incident/${form.id}`);
+    } else if (form.type === "Asset Damage") {
+      navigate(`/dashboard/staff/reports/asset-damage/${form.id}`);
+    } else if (form.type === "Daily Occurrence") {
+      navigate(`/dashboard/staff/reports/daily-logs/${form.id}`);
+    }
+  };
+
+  const handleEditForm = (form) => {
+    // Navigate to edit page based on type
+    if (form.type === "CCTV Check Sheet") {
+      navigate(`/dashboard/staff/forms/cctv-check?edit=${form.id}`);
+    } else if (form.type === "Incident Report") {
+      navigate(`/dashboard/staff/forms/incident-report?edit=${form.id}`);
+    } else if (form.type === "Asset Damage") {
+      navigate(`/dashboard/staff/forms/asset-damage?edit=${form.id}`);
+    } else if (form.type === "Daily Occurrence") {
+      navigate(`/dashboard/staff/forms/daily-occurence?edit=${form.id}`);
+    }
+  };
+
+  const handleDeleteForm = async (form) => {
+    if (!window.confirm(`Are you sure you want to delete ${form.type} ${form.referenceId}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      if (form.type === "CCTV Check Sheet") {
+        await staffService.deleteCCTVCheckForm(form.id, userProfile.uid, userProfile.displayName);
+      } else if (form.type === "Incident Report") {
+        await staffService.deleteIncidentReport(form.id, userProfile.uid, userProfile.displayName);
+      } else if (form.type === "Asset Damage") {
+        await staffService.deleteAssetDamageReport(form.id, userProfile.uid, userProfile.displayName);
+      } else if (form.type === "Daily Occurrence") {
+        await staffService.deleteDailyOccurrenceReport(form.id, userProfile.uid, userProfile.displayName);
+      }
+
+      toast.success(`${form.type} ${form.referenceId} deleted successfully`);
+      loadDashboardData(); // Reload data
+    } catch (error) {
+      console.error('Failed to delete form:', error);
+      toast.error('Failed to delete form. Please try again.');
+    }
+  };
+
   return (
     <>
       <NoticeBoard
@@ -126,84 +192,115 @@ const NewStaffDashboard = () => {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Latest Forms Table */}
-              <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-800">Latest Form Filled Out</h3>
-                </div>
+            {/* All Forms Table - Full Width */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-800">All Forms Submitted</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Showing {currentForms.length} of {latestForms.length} forms
+                </p>
+              </div>
 
-                <div className="px-6 overflow-x-auto">
-                  <table className="table w-full">
-                    <thead className="bg-gray-50 ">
-                      <tr className='border-b-2'>
-                        <th className="text-left text-sm font-semibold text-gray-600">Reference No.</th>
-                        <th className="text-left text-sm font-semibold text-gray-600">Date Filled</th>
-                        <th className="text-left text-sm font-semibold text-gray-600">Type of Form</th>
-                        <th className="text-center text-sm font-semibold text-gray-600">Actions</th>
+              <div className="overflow-x-auto">
+                <table className="table w-full">
+                  <thead className="bg-gray-50">
+                    <tr className='border-b-2'>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Reference No.</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Created By</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Date Filled</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Type of Form</th>
+                      <th className="text-center text-sm font-semibold text-gray-600 px-6 py-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentForms.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="text-center py-12 text-gray-500">
+                          No forms submitted yet
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {latestForms.length === 0 ? (
-                        <tr>
-                          <td colSpan="4" className="text-center py-8 text-gray-500">
-                            No forms submitted yet
+                    ) : (
+                      currentForms.map((form) => (
+                        <tr key={form.id} className="hover:bg-gray-50 border-b">
+                          <td className="text-sm text-gray-800 font-mono font-semibold px-6 py-4">
+                            {form.referenceId || form.id.slice(0, 12)}
+                          </td>
+                          <td className="text-sm px-6 py-4">
+                            <div>
+                              <div className="text-gray-800">
+                                {form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || 'N/A'}
+                              </div>
+                              {form.lastEditedBy && (
+                                <div className="text-xs text-blue-600 mt-1">
+                                  Edited by: {form.lastEditedBy.name}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-sm text-gray-600 px-6 py-4">{formatDate(form.createdAt)}</td>
+                          <td className="text-sm text-gray-800 px-6 py-4">{form.type}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleViewForm(form)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="View"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleEditForm(form)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteForm(form)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      ) : (
-                        latestForms.map((form) => (
-                          <tr key={form.id} className="hover:bg-gray-50">
-                            <td className="text-sm text-gray-800">{form.id.slice(0, 12)}</td>
-                            <td className="text-sm text-gray-600">{formatDate(form.createdAt)}</td>
-                            <td className="text-sm text-gray-800">{form.type}</td>
-                            <td className="text-center">
-                              <button className="px-4 py-2 bg-teal-500 text-white text-sm rounded-lg hover:bg-teal-600">
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                <div className="p-4 flex justify-center gap-2">
-                  <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Previous</button>
-                  {[1, 2, 3, 4, 5].map((page) => (
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="p-4 border-t flex justify-center gap-2">
+                  <button
+                    onClick={() => paginate(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {[...Array(totalPages)].map((_, index) => (
                     <button
-                      key={page}
+                      key={index + 1}
+                      onClick={() => paginate(index + 1)}
                       className={`px-3 py-1 text-sm rounded ${
-                        page === 1 ? 'bg-teal-500 text-white' : 'text-gray-600 hover:bg-gray-100'
+                        index + 1 === currentPage ? 'bg-teal-500 text-white' : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
-                      {page}
+                      {index + 1}
                     </button>
                   ))}
-                  <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">Next</button>
+                  <button
+                    onClick={() => paginate(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
                 </div>
-              </div>
-
-              {/* Important Notice Sidebar */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <span className="text-lg">⚠️</span>
-                  </div>
-                  <h3 className="font-bold text-gray-800">Important Notice</h3>
-                </div>
-
-                <div className="space-y-3">
-                  {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm">
-                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-1.5"></div>
-                      <p className="text-gray-600">
-                        Track key performance indicators (KPIs) for live and past schemes
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
           </>
         )}
