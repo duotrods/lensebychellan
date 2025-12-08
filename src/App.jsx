@@ -29,6 +29,7 @@ import IncidentReportView from './pages/staff/IncidentReportView';
 import CCTVCheckView from './pages/staff/CCTVCheckView';
 import AssetDamageView from './pages/staff/AssetDamageView';
 import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
+import OTPManagementPage from './pages/admin/OTPManagementPage';
 
 import { USER_ROLES } from './utils/constants';
 import './index.css';
@@ -74,6 +75,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/otp-management"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <OTPManagementPage />
                 </ProtectedRoute>
               }
             />

@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
+import { SCHEMES } from '../../utils/schemes';
 
 const CCTVCheckFormPage = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const CCTVCheckFormPage = () => {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
+    scheme: '', // Add scheme selector
     firstName: '',
     lastName: '',
     date: '',
@@ -133,7 +135,7 @@ const CCTVCheckFormPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.firstName || !formData.lastName || !formData.date || !formData.time) {
+    if (!formData.scheme || !formData.firstName || !formData.lastName || !formData.date || !formData.time) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -225,6 +227,26 @@ const CCTVCheckFormPage = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-8">
+          {/* Scheme Selector */}
+          <div className="mb-6">
+            <label className="label">
+              <span className="label-text font-semibold mb-2">Scheme <span className="text-red-500">*</span></span>
+            </label>
+            <select
+              value={formData.scheme}
+              onChange={(e) => setFormData({ ...formData, scheme: e.target.value })}
+              className="select select-accent w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+              required
+            >
+              <option value="">Select a scheme</option>
+              {SCHEMES.map((scheme) => (
+                <option key={scheme.id} value={scheme.fullName}>
+                  {scheme.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>

@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { referenceIdService } from './referenceIdService';
+import { extractSchemeId } from '../utils/schemes';
 
 class StaffService {
   // ============================================
@@ -63,9 +64,13 @@ class StaffService {
       // Generate reference ID
       const referenceId = await referenceIdService.generateReferenceId('cctvCheck');
 
+      // Extract schemeId from scheme field
+      const schemeId = extractSchemeId(formData.scheme);
+
       const formsRef = collection(db, 'cctvCheckForms');
       const docRef = await addDoc(formsRef, {
         ...formData,
+        schemeId, // Add extracted scheme ID for client filtering
         referenceId,
         submittedBy: {
           userId,
@@ -194,9 +199,13 @@ class StaffService {
       // Generate reference ID
       const referenceId = await referenceIdService.generateReferenceId('incident');
 
+      // Extract schemeId from scheme field (e.g., "A417 Missing Link - Kier" -> "A417")
+      const schemeId = extractSchemeId(formData.scheme);
+
       const reportsRef = collection(db, 'incidentReports');
       const docRef = await addDoc(reportsRef, {
         ...formData,
+        schemeId, // Add extracted scheme ID for client filtering
         referenceId,
         submittedBy: {
           userId,
@@ -503,9 +512,13 @@ class StaffService {
       // Generate reference ID
       const referenceId = await referenceIdService.generateReferenceId('assetDamage');
 
+      // Extract schemeId from scheme field
+      const schemeId = extractSchemeId(formData.scheme);
+
       const reportsRef = collection(db, 'assetDamageReports');
       const docRef = await addDoc(reportsRef, {
         ...formData,
+        schemeId, // Add extracted scheme ID for client filtering
         referenceId,
         submittedBy: {
           userId,
@@ -634,9 +647,13 @@ class StaffService {
       // Generate reference ID
       const referenceId = await referenceIdService.generateReferenceId('dailyOccurrence');
 
+      // Extract schemeId from scheme field
+      const schemeId = extractSchemeId(formData.scheme);
+
       const reportsRef = collection(db, 'dailyOccurrenceReports');
       const docRef = await addDoc(reportsRef, {
         ...formData,
+        schemeId, // Add extracted scheme ID for client filtering
         referenceId,
         submittedBy: {
           userId,

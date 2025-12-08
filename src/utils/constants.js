@@ -23,5 +23,7 @@ export const AUTH_ERRORS = {
   'auth/user-not-found': 'No account found with this email',
   'auth/wrong-password': 'Incorrect password',
   'auth/too-many-requests': 'Too many attempts. Please try again later',
-  'auth/network-request-failed': 'Network error. Check your connection'
+  'auth/network-request-failed': 'Network error. Check your connection',
+  'auth/invalid-otp': 'Invalid or expired access code. Please check with your administrator.',
+  'auth/operation-not-allowed': 'Email/password sign-in is not enabled. Please contact support.'
 };

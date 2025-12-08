@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { firestoreService } from '../../services/firestoreService';
 import { useAuth } from '../../hooks/useAuth';
+import { Key } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadUsers();
@@ -24,9 +27,18 @@ const AdminDashboard = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <h2>Admin Dashboard</h2>
-        <p className="text-gray-600">Welcome back, {userProfile?.displayName}!</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h2>Admin Dashboard</h2>
+          <p className="text-gray-600">Welcome back, {userProfile?.displayName}!</p>
+        </div>
+        <button
+          onClick={() => navigate('/dashboard/admin/otp-management')}
+          className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+        >
+          <Key className="w-4 h-4" />
+          Manage Client Access Codes
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

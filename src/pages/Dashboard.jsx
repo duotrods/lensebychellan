@@ -2,9 +2,10 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import StaffSidebarLayout from '../components/layout/StaffSidebarLayout';
+import ClientSidebarLayout from '../components/layout/ClientSidebarLayout';
 import AdminDashboard from '../components/dashboard/AdminDashboard';
 import NewStaffDashboard from '../components/dashboard/NewStaffDashboard';
-import ClientDashboard from '../components/dashboard/ClientDashboard';
+import NewClientDashboard from '../components/dashboard/NewClientDashboard';
 import { USER_ROLES } from '../utils/constants';
 
 const Dashboard = () => {
@@ -31,9 +32,9 @@ const Dashboard = () => {
         );
       case USER_ROLES.CLIENT:
         return (
-          <DashboardLayout>
-            <ClientDashboard />
-          </DashboardLayout>
+          <ClientSidebarLayout>
+            <NewClientDashboard />
+          </ClientSidebarLayout>
         );
       default:
         return <Navigate to="/signin" replace />;

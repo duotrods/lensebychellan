@@ -10,7 +10,9 @@ import {
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { firestoreService } from './firestoreService';
+import { otpService } from './otpService';
 import { AppError } from '../utils/errorHandling';
+import { USER_ROLES } from '../utils/constants';
 
 class AuthService {
   googleProvider = new GoogleAuthProvider();
@@ -100,6 +102,63 @@ class AuthService {
       throw new AppError(error.message, error.code, error);
     }
   }
+
+  async signUpClientWithOTP(email, password, userData, otpCode) {
+    try {
+      // Validate OTP code first
+      console.log('Validating OTP code:', otpCode);
+      const otpValidation = await otpService.validateOTP(otpCode);
+      console.log('OTP validation result:', otpValidation);
+
+      if (!otpValidation.isValid) {
+        throw new AppError('Invalid OTP code', 'auth/invalid-otp');
+      }
+
+      // Create Firebase Auth user
+      console.log('Creating Firebase user with email:', email);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log('User created successfully:', user.uid);
+
+      // Update display name
+      await updateProfile(user, { displayName: userData.displayName });
+
+      // Send verification email
+      await sendEmailVerification(user);
+
+      // Create Firestore user document with scheme info
+      await firestoreService.createUserDocument(user.uid, {
+        ...userData,
+        email,
+        role: USER_ROLES.CLIENT,
+        schemeId: otpValidation.schemeId,
+        schemeName: otpValidation.schemeName,
+        emailVerified: false,
+        metadata: {
+          signInMethod: 'email',
+          ipAddress: null,
+          userAgent: navigator.userAgent,
+          otpCode: otpCode
+        }
+      });
+
+      // Mark OTP as used (non-blocking - don't fail signup if this fails)
+      try {
+        await otpService.markOTPAsUsed(otpCode, user.uid);
+      } catch (otpError) {
+        console.warn('Failed to mark OTP as used, but signup succeeded:', otpError);
+        // Don't throw - the user is already created
+      }
+
+      return user;
+    } catch (error) {
+      console.error('SignUpClientWithOTP Error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      throw new AppError(error.message, error.code, error);
+    }
+  }
 }
+
 
 export const authService = new AuthService();

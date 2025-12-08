@@ -14,6 +14,7 @@ const SignUpForm = () => {
     role: USER_ROLES.CLIENT,
     company: "",
     phone: "",
+    otpCode: "",
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -35,16 +36,33 @@ const SignUpForm = () => {
       return;
     }
 
+    // Validate OTP code for clients
+    if (formData.role === USER_ROLES.CLIENT && !formData.otpCode.trim()) {
+      toast.error("Scheme Access Code is required for client registration");
+      return;
+    }
+
     setLoading(true);
 
     try {
       // eslint-disable-next-line no-unused-vars
-      const { password, confirmPassword, ...userData } = formData;
-      await authService.signUpWithEmail(
-        formData.email,
-        formData.password,
-        userData
-      );
+      const { password, confirmPassword, otpCode, ...userData } = formData;
+
+      // Use different auth method based on role
+      if (formData.role === USER_ROLES.CLIENT) {
+        await authService.signUpClientWithOTP(
+          formData.email,
+          formData.password,
+          userData,
+          formData.otpCode
+        );
+      } else {
+        await authService.signUpWithEmail(
+          formData.email,
+          formData.password,
+          userData
+        );
+      }
 
       toast.success("Account created! Please verify your email.");
       navigate("/signin");
@@ -143,21 +161,45 @@ const SignUpForm = () => {
         </div>
 
         {formData.role === USER_ROLES.CLIENT && (
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text font-semibold mb-2">
-                Company Name
-              </span>
-            </label>
-            <input
-              type="text"
-              name="company"
-              value={formData.company}
-              onChange={handleChange}
-              className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-              required
-            />
-          </div>
+          <>
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  Scheme Access Code
+                </span>
+              </label>
+              <input
+                type="text"
+                name="otpCode"
+                value={formData.otpCode}
+                onChange={handleChange}
+                placeholder="e.g., A417-2024-ABC123"
+                className="input w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                required
+              />
+              <label className="label">
+                <span className="label-text-alt text-gray-500">
+                  Enter the access code provided by your administrator
+                </span>
+              </label>
+            </div>
+
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  Company Name
+                </span>
+              </label>
+              <input
+                type="text"
+                name="company"
+                value={formData.company}
+                onChange={handleChange}
+                className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                required
+              />
+            </div>
+          </>
         )}
 
         <div className="form-control">
