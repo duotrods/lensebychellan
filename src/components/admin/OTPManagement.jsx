@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { toast } from 'react-hot-toast';
-import { otpService } from '../../services/otpService';
-import { useAuth } from '../../hooks/useAuth';
-import { SCHEMES } from '../../utils/schemes';
-import { Copy, Plus, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import { otpService } from "../../services/otpService";
+import { useAuth } from "../../hooks/useAuth";
+import { SCHEMES } from "../../utils/schemes";
+import { Copy, Plus, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 
 const OTPManagement = () => {
   const { userProfile } = useAuth();
@@ -11,8 +11,8 @@ const OTPManagement = () => {
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
-    schemeId: '',
-    schemeName: '',
+    schemeId: "",
+    schemeName: "",
   });
 
   useEffect(() => {
@@ -24,8 +24,9 @@ const OTPManagement = () => {
     try {
       const allOTPs = await otpService.getAllOTPs();
       setOtps(allOTPs);
+      // eslint-disable-next-line no-unused-vars
     } catch (error) {
-      toast.error('Failed to load OTP codes');
+      toast.error("Failed to load OTP codes");
     } finally {
       setLoading(false);
     }
@@ -35,7 +36,7 @@ const OTPManagement = () => {
     e.preventDefault();
 
     if (!formData.schemeId || !formData.schemeName) {
-      toast.error('Please fill in all fields');
+      toast.error("Please fill in all fields");
       return;
     }
 
@@ -48,11 +49,12 @@ const OTPManagement = () => {
       );
 
       toast.success(`OTP created: ${otpCode}`);
-      setFormData({ schemeId: '', schemeName: '' });
+      setFormData({ schemeId: "", schemeName: "" });
       setShowCreateModal(false);
       loadOTPs();
+      // eslint-disable-next-line no-unused-vars
     } catch (error) {
-      toast.error('Failed to create OTP code');
+      toast.error("Failed to create OTP code");
     } finally {
       setLoading(false);
     }
@@ -60,17 +62,17 @@ const OTPManagement = () => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
+    toast.success("Copied to clipboard!");
   };
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    return new Date(timestamp.seconds * 1000).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    if (!timestamp) return "N/A";
+    return new Date(timestamp.seconds * 1000).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -78,8 +80,12 @@ const OTPManagement = () => {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Client Access Codes</h2>
-          <p className="text-gray-600 mt-1">Generate and manage OTP codes for client registration</p>
+          <h2 className="text-2xl font-bold text-gray-800">
+            Client Access Codes
+          </h2>
+          <p className="text-gray-600 mt-1">
+            Generate and manage OTP codes for client registration
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -87,7 +93,7 @@ const OTPManagement = () => {
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
           <button
@@ -109,13 +115,13 @@ const OTPManagement = () => {
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500 mb-1">Available</p>
           <p className="text-2xl font-bold text-green-600">
-            {otps.filter(otp => !otp.isUsed).length}
+            {otps.filter((otp) => !otp.isUsed).length}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500 mb-1">Used</p>
           <p className="text-2xl font-bold text-gray-400">
-            {otps.filter(otp => otp.isUsed).length}
+            {otps.filter((otp) => otp.isUsed).length}
           </p>
         </div>
       </div>
@@ -158,7 +164,9 @@ const OTPManagement = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <p className="text-sm font-semibold text-gray-800">{otp.schemeId}</p>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {otp.schemeId}
+                      </p>
                       <p className="text-xs text-gray-500">{otp.schemeName}</p>
                     </div>
                   </td>
@@ -179,7 +187,7 @@ const OTPManagement = () => {
                     {formatDate(otp.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {otp.usedAt ? formatDate(otp.usedAt) : '-'}
+                    {otp.usedAt ? formatDate(otp.usedAt) : "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
@@ -205,24 +213,30 @@ const OTPManagement = () => {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Generate New Access Code</h3>
+            <h5 className="text-xl font-bold text-gray-800 mb-4">
+              Generate New Access Code
+            </h5>
             <form onSubmit={handleCreateOTP} className="space-y-4">
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text font-semibold">Select Scheme</span>
+                  <span className="label-text font-semibold">
+                    Select Scheme
+                  </span>
                 </label>
                 <select
                   value={formData.schemeId}
                   onChange={(e) => {
-                    const selectedScheme = SCHEMES.find(s => s.id === e.target.value);
+                    const selectedScheme = SCHEMES.find(
+                      (s) => s.id === e.target.value
+                    );
                     setFormData({
                       schemeId: selectedScheme.id,
-                      schemeName: selectedScheme.fullName
+                      schemeName: selectedScheme.fullName,
                     });
                   }}
-                  className="select select-bordered w-full"
+                  className="select select-md mt-2 w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
                   required
                 >
                   <option value="">Please Select a Scheme</option>
@@ -234,7 +248,8 @@ const OTPManagement = () => {
                 </select>
                 <label className="label">
                   <span className="label-text-alt text-gray-500">
-                    {formData.schemeId && `Code will be generated for: ${formData.schemeId}`}
+                    {formData.schemeId &&
+                      `Code will be generated for: ${formData.schemeId}`}
                   </span>
                 </label>
               </div>
@@ -252,7 +267,7 @@ const OTPManagement = () => {
                   disabled={loading}
                   className="flex-1 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg"
                 >
-                  {loading ? 'Generating...' : 'Generate Code'}
+                  {loading ? "Generating..." : "Generate Code"}
                 </button>
               </div>
             </form>
