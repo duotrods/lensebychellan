@@ -48,7 +48,7 @@ const ClientSidebarLayout = ({ children }) => {
     },
     {
       name: "CCTV Recordings",
-      path: "/dashboard/client/recordings",
+      path: "/dashboard/client/cctv-recordings",
       icon: Video,
     },
   ];

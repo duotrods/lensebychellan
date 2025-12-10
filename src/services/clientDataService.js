@@ -15,19 +15,44 @@ class ClientDataService {
   async getSchemeIncidents(schemeId, limitCount = 100) {
     try {
       const incidentsRef = collection(db, 'incidentReports');
-      const q = query(
-        incidentsRef,
-        where('schemeId', '==', schemeId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
 
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // Try with schemeId field first
+      try {
+        const q = query(
+          incidentsRef,
+          where('schemeId', '==', schemeId),
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      } catch (indexError) {
+        // Check if it's an index error or permissions error
+        if (indexError.code === 'failed-precondition' || indexError.message?.includes('index')) {
+          // If index doesn't exist, try without ordering
+          console.warn('Index not available for incidentReports, trying simplified query');
+          const simpleQuery = query(
+            incidentsRef,
+            where('schemeId', '==', schemeId),
+            limit(limitCount)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          // Sort in memory
+          return docs.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+          });
+        }
+        // If it's a permissions error or other error, rethrow
+        throw indexError;
+      }
     } catch (error) {
+      console.error('Error fetching incidents:', error);
       throw new AppError('Failed to fetch scheme incidents', 'client-data/fetch-error', error);
     }
   }
@@ -36,19 +61,40 @@ class ClientDataService {
   async getSchemeCCTVChecks(schemeId, limitCount = 100) {
     try {
       const cctvRef = collection(db, 'cctvCheckForms');
-      const q = query(
-        cctvRef,
-        where('schemeId', '==', schemeId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
 
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      try {
+        const q = query(
+          cctvRef,
+          where('schemeId', '==', schemeId),
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      } catch (indexError) {
+        // Check if it's an index error or permissions error
+        if (indexError.code === 'failed-precondition' || indexError.message?.includes('index')) {
+          console.warn('Index not available for cctvCheckForms, trying simplified query');
+          const simpleQuery = query(
+            cctvRef,
+            where('schemeId', '==', schemeId),
+            limit(limitCount)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          return docs.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+          });
+        }
+        throw indexError;
+      }
     } catch (error) {
+      console.error('Error fetching CCTV checks:', error);
       throw new AppError('Failed to fetch CCTV checks', 'client-data/fetch-error', error);
     }
   }
@@ -57,19 +103,40 @@ class ClientDataService {
   async getSchemeDailyLogs(schemeId, limitCount = 100) {
     try {
       const logsRef = collection(db, 'dailyOccurrenceReports');
-      const q = query(
-        logsRef,
-        where('schemeId', '==', schemeId),
-        orderBy('createdAt', 'desc'),
-        limit(limitCount)
-      );
 
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      try {
+        const q = query(
+          logsRef,
+          where('schemeId', '==', schemeId),
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      } catch (indexError) {
+        // Check if it's an index error or permissions error
+        if (indexError.code === 'failed-precondition' || indexError.message?.includes('index')) {
+          console.warn('Index not available for dailyOccurrenceReports, trying simplified query');
+          const simpleQuery = query(
+            logsRef,
+            where('schemeId', '==', schemeId),
+            limit(limitCount)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          return docs.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+          });
+        }
+        throw indexError;
+      }
     } catch (error) {
+      console.error('Error fetching daily logs:', error);
       throw new AppError('Failed to fetch daily logs', 'client-data/fetch-error', error);
     }
   }
@@ -207,6 +274,160 @@ class ClientDataService {
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  }
+
+  // Get all reports for a specific scheme (combines all report types)
+  async getAllReports(schemeId) {
+    try {
+      // Fetch each report type separately with error handling
+      const incidents = await this.getSchemeIncidents(schemeId).catch(err => {
+        console.error('Failed to fetch incidents:', err);
+        return [];
+      });
+
+      const assetDamage = await this.getSchemeAssetDamage(schemeId).catch(err => {
+        console.error('Failed to fetch asset damage:', err);
+        return [];
+      });
+
+      const dailyLogs = await this.getSchemeDailyLogs(schemeId).catch(err => {
+        console.error('Failed to fetch daily logs:', err);
+        return [];
+      });
+
+      const cctvChecks = await this.getSchemeCCTVChecks(schemeId).catch(err => {
+        console.error('Failed to fetch CCTV checks:', err);
+        return [];
+      });
+
+      // Transform and combine all reports
+      const allReports = [
+        ...incidents.map(report => ({
+          ...report,
+          reportType: 'incident',
+          type: report.incidentType,
+          timestamp: report.createdAt
+        })),
+        ...assetDamage.map(report => ({
+          ...report,
+          reportType: 'asset-damage',
+          type: report.damageType,
+          timestamp: report.createdAt
+        })),
+        ...dailyLogs.map(report => ({
+          ...report,
+          reportType: 'daily-occurrence',
+          title: report.title || 'Daily Log',
+          timestamp: report.createdAt
+        })),
+        ...cctvChecks.map(report => ({
+          ...report,
+          reportType: 'cctv-check',
+          title: 'CCTV Check',
+          timestamp: report.createdAt
+        }))
+      ];
+
+      // Sort by timestamp (newest first)
+      return allReports.sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
+    } catch (error) {
+      console.error('Error in getAllReports:', error);
+      throw new AppError('Failed to fetch all reports', 'client-data/reports-error', error);
+    }
+  }
+
+  // Get asset damage reports for a specific scheme
+  async getSchemeAssetDamage(schemeId, limitCount = 100) {
+    try {
+      const damageRef = collection(db, 'assetDamageReports');
+
+      try {
+        const q = query(
+          damageRef,
+          where('schemeId', '==', schemeId),
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      } catch (indexError) {
+        // Check if it's an index error or permissions error
+        if (indexError.code === 'failed-precondition' || indexError.message?.includes('index')) {
+          console.warn('Index not available for assetDamageReports, trying simplified query');
+          const simpleQuery = query(
+            damageRef,
+            where('schemeId', '==', schemeId),
+            limit(limitCount)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          return docs.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeB - timeA;
+          });
+        }
+        throw indexError;
+      }
+    } catch (error) {
+      console.error('Error fetching asset damage:', error);
+      throw new AppError('Failed to fetch asset damage reports', 'client-data/fetch-error', error);
+    }
+  }
+
+  // Get CCTV recordings for a specific scheme
+  async getCCTVRecordings(schemeId, limitCount = 100) {
+    try {
+      const recordingsRef = collection(db, 'cctvUploads');
+
+      try {
+        const q = query(
+          recordingsRef,
+          where('scheme', '==', schemeId),
+          orderBy('uploadedAt', 'desc'),
+          limit(limitCount)
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          dateTime: doc.data().uploadedAt || doc.data().dateTime
+        }));
+      } catch (indexError) {
+        // Check if it's an index error or permissions error
+        if (indexError.code === 'failed-precondition' || indexError.message?.includes('index')) {
+          console.warn('Index not available for cctvUploads, trying simplified query');
+          const simpleQuery = query(
+            recordingsRef,
+            where('scheme', '==', schemeId),
+            limit(limitCount)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const docs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            dateTime: doc.data().uploadedAt || doc.data().dateTime
+          }));
+          // Sort in memory
+          return docs.sort((a, b) => {
+            const timeA = a.uploadedAt?.seconds || 0;
+            const timeB = b.uploadedAt?.seconds || 0;
+            return timeB - timeA;
+          });
+        }
+        throw indexError;
+      }
+    } catch (error) {
+      console.error('Error fetching CCTV recordings:', error);
+      throw new AppError('Failed to fetch CCTV recordings', 'client-data/recordings-error', error);
+    }
   }
 }
 

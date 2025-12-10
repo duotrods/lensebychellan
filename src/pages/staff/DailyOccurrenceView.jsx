@@ -5,6 +5,7 @@ import { ArrowLeft, Download, Edit, Trash2, Clock, MapPin } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
+import { generateReportPDF } from '../../utils/pdfGenerator';
 
 const DailyOccurrenceView = () => {
   const { id } = useParams();
@@ -54,6 +55,16 @@ const DailyOccurrenceView = () => {
     } catch (error) {
       console.error('Failed to delete report:', error);
       toast.error('Failed to delete report');
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      generateReportPDF(report, 'daily-occurrence');
+      toast.success('Downloaded daily occurrence report as PDF');
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast.error('Failed to download PDF');
     }
   };
 
@@ -112,6 +123,13 @@ const DailyOccurrenceView = () => {
           </div>
 
           <div className="flex gap-2">
+            <button
+              onClick={handleDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
             <button
               onClick={handleEdit}
               className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"

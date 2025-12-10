@@ -14,6 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { generateReportPDF } from "../../utils/pdfGenerator";
 
 const ReportsListPage = () => {
   const navigate = useNavigate();
@@ -185,10 +186,14 @@ const ReportsListPage = () => {
     }
   };
 
-  // eslint-disable-next-line no-unused-vars
   const handleExportReport = (report) => {
-    // TODO: Implement export functionality
-    toast.success("Export feature coming soon!");
+    try {
+      generateReportPDF(report, report.type);
+      toast.success(`Downloaded ${report.referenceId || 'report'} as PDF`);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast.error('Failed to download report');
+    }
   };
 
   return (

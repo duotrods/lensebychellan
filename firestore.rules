@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to get user's role from users collection
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // Helper function to get user's scheme
+    function getUserScheme() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schemeId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn();
+    }
+
+    // OTP codes - admin only
+    match /otpCodes/{otpId} {
+      allow read, write: if isSignedIn() && getUserRole() == 'admin';
+    }
+
+    // Incident Reports
+    match /incidentReports/{reportId} {
+      // Staff can create and read their own
+      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow read: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+      );
+      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // CCTV Check Forms
+    match /cctvCheckForms/{formId} {
+      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow read: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+      );
+      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // Asset Damage Reports
+    match /assetDamageReports/{reportId} {
+      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow read: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+      );
+      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // Daily Occurrence Reports
+    match /dailyOccurrenceReports/{reportId} {
+      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow read: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+      );
+      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // CCTV Uploads
+    match /cctvUploads/{uploadId} {
+      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow read: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && resource.data.scheme == getUserScheme())
+      );
+      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // Activities (for notice board)
+    match /activities/{activityId} {
+      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow read: if isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'staff');
+      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

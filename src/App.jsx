@@ -31,6 +31,11 @@ import AssetDamageView from './pages/staff/AssetDamageView';
 import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
 import OTPManagementPage from './pages/admin/OTPManagementPage';
 
+// Client pages
+import AnalyticsPage from './pages/client/AnalyticsPage';
+import ReportsPage from './pages/client/ReportsPage';
+import CCTVRecordingsPage from './pages/client/CCTVRecordingsPage';
+
 import { USER_ROLES } from './utils/constants';
 import './index.css';
 
@@ -203,6 +208,34 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Client Pages Routes */}
+            <Route
+              path="/dashboard/client/analytics"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/client/reports"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ReportsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/client/cctv-recordings"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <CCTVRecordingsPage />
                 </ProtectedRoute>
               }
             />

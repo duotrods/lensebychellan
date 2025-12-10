@@ -1,0 +1,75 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "incidentReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cctvCheckForms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "assetDamageReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyOccurrenceReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cctvUploads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "scheme",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, CheckCircle, XCircle, Download } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
+import { generateReportPDF } from '../../utils/pdfGenerator';
 
 const CCTVCheckView = () => {
   const { id } = useParams();
@@ -54,6 +55,16 @@ const CCTVCheckView = () => {
     } catch (error) {
       console.error('Failed to delete form:', error);
       toast.error('Failed to delete form');
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      generateReportPDF(form, 'cctv-check');
+      toast.success('Downloaded CCTV check report as PDF');
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      toast.error('Failed to download PDF');
     }
   };
 
@@ -159,6 +170,13 @@ const CCTVCheckView = () => {
           </div>
 
           <div className="flex gap-2">
+            <button
+              onClick={handleDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
             <button
               onClick={handleEdit}
               className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
