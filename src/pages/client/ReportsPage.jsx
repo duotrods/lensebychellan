@@ -241,9 +241,7 @@ const ReportsPage = () => {
                           </div>
                         </td>
                         <td className="text-sm">
-                          {typeof report.submittedBy === 'object'
-                            ? report.submittedBy?.name || 'Staff'
-                            : report.submittedBy || 'Staff'}
+                          {report.submittedBy?.name || (typeof report.submittedBy === 'string' ? report.submittedBy : 'Staff')}
                         </td>
                         <td>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(report.status)}`}>
@@ -369,9 +367,7 @@ const ReportsPage = () => {
                   <div>
                     <p className="text-sm text-gray-500">Submitted By</p>
                     <p className="font-medium">
-                      {typeof selectedReport.submittedBy === 'object'
-                        ? selectedReport.submittedBy?.name || 'Staff'
-                        : selectedReport.submittedBy}
+                      {selectedReport.submittedBy?.name || (typeof selectedReport.submittedBy === 'string' ? selectedReport.submittedBy : 'Staff')}
                     </p>
                   </div>
                 )}

@@ -186,7 +186,7 @@ const IncidentReportView = () => {
               {report.lastEditedBy && (
                 <div className="md:col-span-2">
                   <label className="text-sm font-semibold text-gray-600">Last Edited By</label>
-                  <p className="text-blue-600">{report.lastEditedBy.name}</p>
+                  <p className="text-blue-600">{report.lastEditedBy?.name || 'Unknown'}</p>
                 </div>
               )}
             </div>

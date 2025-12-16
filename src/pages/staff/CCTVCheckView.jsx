@@ -219,7 +219,7 @@ const CCTVCheckView = () => {
               {form.lastEditedBy && (
                 <div>
                   <label className="text-sm font-semibold text-gray-600">Last Edited By</label>
-                  <p className="text-blue-600">{form.lastEditedBy.name}</p>
+                  <p className="text-blue-600">{form.lastEditedBy?.name || 'Unknown'}</p>
                 </div>
               )}
             </div>

@@ -584,7 +584,7 @@ const CCTVUploadsPage = () => {
                           {upload.files?.length || 0} file(s)
                         </td>
                         <td className="text-sm text-gray-600">
-                          {upload.submittedBy}
+                          {upload.submittedBy?.name || 'Unknown'}
                         </td>
                         <td className="text-center">
                           <div className="flex items-center justify-center gap-2">

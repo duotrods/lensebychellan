@@ -69,7 +69,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+        (getUserRole() == 'client' && getUserScheme() in resource.data.schemeIds)
       );
       allow update, delete: if isSignedIn() && getUserRole() == 'staff';
     }
@@ -90,6 +90,11 @@ service cloud.firestore {
       allow create: if isSignedIn() && getUserRole() == 'staff';
       allow read: if isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'staff');
       allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // Counters (for reference ID generation)
+    match /counters/{counterId} {
+      allow read, write: if isSignedIn() && getUserRole() == 'staff';
     }
 
     // Default deny all other collections

@@ -3,13 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import NoticeBoard from '../staff/NoticeBoard';
-import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Trash2 } from 'lucide-react';
+import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Download } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { generateReportPDF } from '../../utils/pdfGenerator';
 
 const NewStaffDashboard = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
-  const [showNoticeBoard, setShowNoticeBoard] = useState(true);
+  // Check if notice board has been shown in this session
+  const [showNoticeBoard, setShowNoticeBoard] = useState(() => {
+    const hasSeenNotice = sessionStorage.getItem('hasSeenNoticeBoard');
+    return !hasSeenNotice; // Show only if not seen yet
+  });
   const [stats, setStats] = useState(null);
   const [latestForms, setLatestForms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,35 +132,38 @@ const NewStaffDashboard = () => {
     }
   };
 
-  const handleDeleteForm = async (form) => {
-    if (!window.confirm(`Are you sure you want to delete ${form.type} ${form.referenceId}? This action cannot be undone.`)) {
-      return;
-    }
-
+  const handleDownloadForm = (form) => {
     try {
+      let reportType;
       if (form.type === "CCTV Check Sheet") {
-        await staffService.deleteCCTVCheckForm(form.id, userProfile.uid, userProfile.displayName);
+        reportType = 'cctv-check';
       } else if (form.type === "Incident Report") {
-        await staffService.deleteIncidentReport(form.id, userProfile.uid, userProfile.displayName);
+        reportType = 'incident';
       } else if (form.type === "Asset Damage") {
-        await staffService.deleteAssetDamageReport(form.id, userProfile.uid, userProfile.displayName);
+        reportType = 'asset-damage';
       } else if (form.type === "Daily Occurrence") {
-        await staffService.deleteDailyOccurrenceReport(form.id, userProfile.uid, userProfile.displayName);
+        reportType = 'daily-occurrence';
       }
 
-      toast.success(`${form.type} ${form.referenceId} deleted successfully`);
-      loadDashboardData(); // Reload data
+      generateReportPDF(form, reportType);
+      toast.success(`Downloaded ${form.type} as PDF`);
     } catch (error) {
-      console.error('Failed to delete form:', error);
-      toast.error('Failed to delete form. Please try again.');
+      console.error('Failed to download PDF:', error);
+      toast.error('Failed to download PDF');
     }
+  };
+
+  const handleCloseNoticeBoard = () => {
+    // Mark notice board as seen in this session
+    sessionStorage.setItem('hasSeenNoticeBoard', 'true');
+    setShowNoticeBoard(false);
   };
 
   return (
     <>
       <NoticeBoard
         isOpen={showNoticeBoard}
-        onClose={() => setShowNoticeBoard(false)}
+        onClose={handleCloseNoticeBoard}
       />
 
       <div>
@@ -232,7 +240,7 @@ const NewStaffDashboard = () => {
                               </div>
                               {form.lastEditedBy && (
                                 <div className="text-xs text-blue-600 mt-1">
-                                  Edited by: {form.lastEditedBy.name}
+                                  Edited by: {form.lastEditedBy?.name || 'Unknown'}
                                 </div>
                               )}
                             </div>
@@ -256,11 +264,11 @@ const NewStaffDashboard = () => {
                                 <Edit className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleDeleteForm(form)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete"
+                                onClick={() => handleDownloadForm(form)}
+                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                title="Download PDF"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Download className="w-4 h-4" />
                               </button>
                             </div>
                           </td>

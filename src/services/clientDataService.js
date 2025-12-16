@@ -142,17 +142,17 @@ class ClientDataService {
   }
 
   // Get aggregated statistics for a scheme
-  async getSchemeStats(schemeId) {
+  async getSchemeStats(schemeId, days = 30) {
     try {
       const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+      const startDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
 
       // Get recent incidents
       const incidentsRef = collection(db, 'incidentReports');
       const incidentsQuery = query(
         incidentsRef,
         where('schemeId', '==', schemeId),
-        where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo))
+        where('createdAt', '>=', Timestamp.fromDate(startDate))
       );
       const incidentsSnapshot = await getDocs(incidentsQuery);
       const incidents = incidentsSnapshot.docs.map(doc => doc.data());
@@ -161,12 +161,21 @@ class ClientDataService {
       const stats = {
         totalIncidents: incidents.length,
         incidentsByType: this.groupByField(incidents, 'incidentType'),
-        incidentsByLane: this.groupByField(incidents, 'laneAffected'),
-        vehiclesDispatched: incidents.filter(i => i.vehicleDispatched).length,
-        spottedBy: this.groupByField(incidents, 'spottedBy'),
+        incidentsByLane: this.groupByFieldArray(incidents, 'affectedLanes'), // Array field
+        vehiclesDispatched: this.calculateVehiclesDispatched(incidents),
+        spottedBy: this.groupByField(incidents, 'reportedBy'), // Changed from spottedBy to reportedBy
+        faultTypes: this.groupByField(incidents, 'fault'), // Changed from faultType to fault
+        vehicleTypes: this.groupVehicleTypes(incidents), // Extract from vehicles array
+        vehicleTypesDispatched: this.groupVehiclesDispatched(incidents), // From recoveryRequested object
+        trafficConditions: this.groupByField(incidents, 'trafficConditions'),
+        trackOfIncident: this.groupByField(incidents, 'track'),
+        emergencyServices: this.groupByFieldArray(incidents, 'emergencyServices'), // Array field
+        timeToRecover: this.groupByTimeRange(incidents, 'timeOnsiteToCleared'), // Changed field name
+        timeToSite: this.groupByTimeRange(incidents, 'timeSpottedToOn'), // Changed field name
+        incursions: incidents.filter(i => i.incursion === 'YES').length, // Check for 'YES' string
         recentIncidents: incidents.slice(0, 10).map(incident => ({
           type: incident.incidentType || 'Unknown',
-          location: incident.location || 'Unknown',
+          location: incident.markerPost || incident.section || 'Unknown',
           time: incident.createdAt,
           status: incident.status || 'Resolved'
         }))
@@ -178,6 +187,52 @@ class ClientDataService {
     }
   }
 
+  // Helper function to group time data by ranges
+  // Converts time strings (HH:MM format) to minutes and groups them
+  groupByTimeRange(data, field) {
+    const ranges = {
+      'Under 10': 0,
+      '10-20': 0,
+      '20-30': 0,
+      '30-45': 0,
+      '45-1 hour': 0,
+      'Over 1 hour': 0
+    };
+
+    data.forEach(item => {
+      const timeValue = item[field];
+      if (timeValue !== undefined && timeValue !== null && timeValue !== '') {
+        let minutes = 0;
+
+        // If it's a number, use it directly
+        if (typeof timeValue === 'number') {
+          minutes = timeValue;
+        }
+        // If it's a time string like "HH:MM", convert to minutes
+        else if (typeof timeValue === 'string' && timeValue.includes(':')) {
+          const [hours, mins] = timeValue.split(':').map(Number);
+          minutes = (hours * 60) + (mins || 0);
+        }
+        // If it's just a string number
+        else if (typeof timeValue === 'string') {
+          minutes = parseInt(timeValue) || 0;
+        }
+
+        // Group by ranges
+        if (minutes > 0) {
+          if (minutes < 10) ranges['Under 10']++;
+          else if (minutes < 20) ranges['10-20']++;
+          else if (minutes < 30) ranges['20-30']++;
+          else if (minutes < 45) ranges['30-45']++;
+          else if (minutes < 60) ranges['45-1 hour']++;
+          else ranges['Over 1 hour']++;
+        }
+      }
+    });
+
+    return ranges;
+  }
+
   // Helper function to group data by field
   groupByField(data, field) {
     const grouped = {};
@@ -186,6 +241,70 @@ class ClientDataService {
       grouped[value] = (grouped[value] || 0) + 1;
     });
     return grouped;
+  }
+
+  // Helper function to group data by array field (like affectedLanes, emergencyServices)
+  groupByFieldArray(data, field) {
+    const grouped = {};
+    data.forEach(item => {
+      const values = item[field];
+      if (Array.isArray(values) && values.length > 0) {
+        values.forEach(value => {
+          grouped[value] = (grouped[value] || 0) + 1;
+        });
+      }
+    });
+    return grouped;
+  }
+
+  // Helper to extract vehicle types from vehicles array
+  groupVehicleTypes(data) {
+    const grouped = {};
+    data.forEach(item => {
+      const vehicles = item.vehicles;
+      if (Array.isArray(vehicles) && vehicles.length > 0) {
+        vehicles.forEach(vehicle => {
+          if (vehicle.type) {
+            grouped[vehicle.type] = (grouped[vehicle.type] || 0) + 1;
+          }
+        });
+      }
+    });
+    return grouped;
+  }
+
+  // Helper to group vehicles dispatched from recoveryRequested object
+  groupVehiclesDispatched(data) {
+    const totals = {
+      Light: 0,
+      Heavy: 0,
+      IPV: 0,
+      HETOS: 0
+    };
+
+    data.forEach(item => {
+      const recovery = item.recoveryRequested;
+      if (recovery && typeof recovery === 'object') {
+        totals.Light += recovery.light || 0;
+        totals.Heavy += recovery.heavy || 0;
+        totals.IPV += recovery.ipv || 0;
+        totals.HETOS += recovery.hetos || 0;
+      }
+    });
+
+    return totals;
+  }
+
+  // Calculate total vehicles dispatched
+  calculateVehiclesDispatched(data) {
+    let total = 0;
+    data.forEach(item => {
+      const recovery = item.recoveryRequested;
+      if (recovery && typeof recovery === 'object') {
+        total += (recovery.light || 0) + (recovery.heavy || 0) + (recovery.ipv || 0) + (recovery.hetos || 0);
+      }
+    });
+    return total;
   }
 
   // Get CCTV uptime statistics

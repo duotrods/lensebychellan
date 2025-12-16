@@ -79,6 +79,8 @@ class AuthService {
 
   async signOut() {
     try {
+      // Clear session storage to reset notice board for next login
+      sessionStorage.removeItem('hasSeenNoticeBoard');
       await signOut(auth);
     } catch (error) {
       throw new AppError(error.message, error.code, error);

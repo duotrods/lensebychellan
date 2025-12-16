@@ -27,8 +27,11 @@ const StaffSidebarLayout = ({ children }) => {
     navigate("/");
   };
 
-  const isActive = (path) => {
-    return location.pathname === path || location.pathname.startsWith(path);
+  const isActive = (path, exact = false) => {
+    if (exact) {
+      return location.pathname === path;
+    }
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   const navItems = [
@@ -89,7 +92,7 @@ const StaffSidebarLayout = ({ children }) => {
                   <button
                     onClick={() => setFormsOpen(!formsOpen)}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
-                      isActive(item.path)
+                      isActive(item.path, item.exact)
                         ? "bg-teal-500 text-white"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
@@ -127,9 +130,7 @@ const StaffSidebarLayout = ({ children }) => {
                 <Link
                   to={item.path}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive(item.path) && item.exact
-                      ? "bg-teal-500 text-white"
-                      : isActive(item.path)
+                    isActive(item.path, item.exact)
                       ? "bg-teal-500 text-white"
                       : "text-gray-700 hover:bg-gray-100"
                   }`}

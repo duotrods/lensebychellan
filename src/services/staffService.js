@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { referenceIdService } from './referenceIdService';
-import { extractSchemeId } from '../utils/schemes';
+import { extractSchemeId, SCHEMES } from '../utils/schemes';
 
 class StaffService {
   // ============================================
@@ -647,13 +647,26 @@ class StaffService {
       // Generate reference ID
       const referenceId = await referenceIdService.generateReferenceId('dailyOccurrence');
 
-      // Extract schemeId from scheme field
-      const schemeId = extractSchemeId(formData.scheme);
+      // Extract unique schemeIds from all occurrences
+      // If any occurrence has "All Schemes", include all scheme IDs
+      const hasAllSchemes = formData.occurrences.some(occ => occ.scheme === 'All Schemes');
+
+      let schemeIds;
+      if (hasAllSchemes) {
+        // Include all scheme IDs when "All Schemes" is selected
+        schemeIds = SCHEMES.map(scheme => scheme.id);
+      } else {
+        schemeIds = [...new Set(
+          formData.occurrences
+            .map(occ => occ.scheme ? extractSchemeId(occ.scheme) : null)
+            .filter(id => id !== null)
+        )];
+      }
 
       const reportsRef = collection(db, 'dailyOccurrenceReports');
       const docRef = await addDoc(reportsRef, {
         ...formData,
-        schemeId, // Add extracted scheme ID for client filtering
+        schemeIds, // Add array of scheme IDs for client filtering
         referenceId,
         submittedBy: {
           userId,

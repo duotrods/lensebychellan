@@ -310,7 +310,7 @@ const ReportsListPage = () => {
                           <td className="text-sm text-gray-800">
                             {report.firstName && report.lastName
                               ? `${report.firstName} ${report.lastName}`
-                              : report.submittedBy || "N/A"}
+                              : report.submittedBy?.name || "N/A"}
                           </td>
                           <td className="text-sm text-gray-600">
                             {formatDate(report.createdAt)}
