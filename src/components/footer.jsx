@@ -23,7 +23,7 @@ const footer = () => {
               <div className="flex items-start gap-2">
                 <MapPin size={16} className="mt-1" />
                 <span>
-                  Chellean Highways Hub, Orbital
+                  Chellan Highways Hub, Orbital
                   <br />
                   Stone Cross House
                   <br />
@@ -99,12 +99,14 @@ const footer = () => {
                 <span className="text-xs">ISO</span>
               </div> */}
             </div>
-            
           </div>
         </div>
 
         <div className="border-t border-gray-800 pt-6 text-center text-sm text-gray-400">
-          Copyright © 2025 Chellean UK - by <a href="https://rod-duot.vercel.app/" className="text-teal-500">OliNode</a>
+          Copyright © 2025 Chellean UK - by{" "}
+          <a href="https://rod-duot.vercel.app/" className="text-teal-500">
+            OliNode
+          </a>
         </div>
       </div>
     </footer>
