@@ -145,23 +145,23 @@ const ReportsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Total Reports</p>
-            <p className="text-2xl font-bold text-gray-800">{reportStats.total}</p>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.total}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Incidents</p>
-            <p className="text-2xl font-bold text-orange-600">{reportStats.incident}</p>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.incident}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Asset Damage</p>
-            <p className="text-2xl font-bold text-red-600">{reportStats.assetDamage}</p>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.assetDamage}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Daily Logs</p>
-            <p className="text-2xl font-bold text-blue-600">{reportStats.dailyOccurrence}</p>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.dailyOccurrence}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">CCTV Checks</p>
-            <p className="text-2xl font-bold text-green-600">{reportStats.cctvCheck}</p>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.cctvCheck}</p>
           </div>
         </div>
 
@@ -176,7 +176,7 @@ const ReportsPage = () => {
                 placeholder="Search by reference ID, type, or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input input-bordered w-full pl-10"
+                className="input input-bordered w-full pl-4 bg-white border-gray-300"
               />
             </div>
 
@@ -186,7 +186,7 @@ const ReportsPage = () => {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="select select-bordered"
+                className="select  select-bordered bg-white border-gray-300"
               >
                 <option value="all">All Types</option>
                 <option value="incident">Incident Reports</option>
@@ -208,16 +208,16 @@ const ReportsPage = () => {
             <>
               <div className="overflow-x-auto">
                 <table className="table w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-brand-500">
                     <tr>
-                      <th className="text-left">Type</th>
-                      <th className="text-left">Reference ID</th>
-                      <th className="text-left">Title/Description</th>
-                      <th className="text-left">Location</th>
-                      <th className="text-left">Date & Time</th>
-                      <th className="text-left">Submitted By</th>
-                      <th className="text-left">Status</th>
-                      <th className="text-center">Actions</th>
+                      <th className="text-left text-white">Type</th>
+                      <th className="text-left text-white">Reference ID</th>
+                      <th className="text-left text-white">Title/Description</th>
+                      <th className="text-left text-white">Location</th>
+                      <th className="text-left text-white">Date & Time</th>
+                      <th className="text-left text-white">Submitted By</th>
+                      <th className="text-left text-white">Status</th>
+                      <th className="text-center text-white">Actions</th>
                     </tr>
                   </thead>
                   <tbody>

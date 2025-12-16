@@ -149,7 +149,7 @@ const NewClientDashboard = () => {
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="select select-bordered select-md"
+            className="select select-bordered select-md bg-white border border-gray-200 p8"
           >
             <option value="7">Last 7 days</option>
             <option value="14">Last 14 days</option>
