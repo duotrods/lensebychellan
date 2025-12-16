@@ -7,6 +7,8 @@ import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { SCHEMES } from "../../utils/schemes";
 
+import chellanlogo from "../../assets/chellanpng.png"
+
 const DailyOccurrenceFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -161,9 +163,12 @@ const DailyOccurrenceFormPage = () => {
           onSubmit={handleSubmit}
           className="bg-white rounded-xl shadow-md p-8 space-y-6"
         >
+          <div className="flex justify-center items-center space-x-2 mb-8">
+                              <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
+                    </div>
           {/* Occurrences Section */}
-          <div className="border-t pt-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="border-t border-gray-300 pt-8">
+            <div className="flex items-center justify-between mb-8">
               <label className="label">
                 <span className="label-text font-semibold text-lg">
                   Daily Occurrences <span className="text-red-500">*</span>
@@ -195,9 +200,9 @@ const DailyOccurrenceFormPage = () => {
                     </button>
                   )}
 
-                  <h4 className="font-semibold text-gray-700 mb-4">
+                  <h5 className="font-semibold text-gray-700 mb-4">
                     Occurrence #{index + 1}
-                  </h4>
+                  </h5>
 
                   {/* Scheme */}
                   <div className="mb-4">
@@ -411,7 +416,7 @@ const DailyOccurrenceFormPage = () => {
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
+          <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-300">
             <button
               type="button"
               onClick={() => navigate(-1)}

@@ -8,6 +8,8 @@ import { staffService } from "../../services/staffService";
 import { storage } from "../../config/firebase";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 
+import chellanlogo from "../../assets/chellanpng.png"
+
 const AssetDamageFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -212,7 +214,10 @@ const AssetDamageFormPage = () => {
           className="bg-white rounded-xl shadow-md p-8 space-y-6"
         >
           {/* Scheme and Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex justify-center items-center space-x-2 mb-8">
+            <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-300 pt-8">
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
@@ -686,7 +691,7 @@ const AssetDamageFormPage = () => {
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
+          <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-300">
             <button
               type="button"
               onClick={() => navigate(-1)}

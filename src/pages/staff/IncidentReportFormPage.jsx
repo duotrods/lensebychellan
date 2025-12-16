@@ -8,6 +8,8 @@ import { staffService } from "../../services/staffService";
 import { storage } from "../../config/firebase";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 
+import chellanlogo from "../../assets/chellanpng.png"
+
 const IncidentReportFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -252,6 +254,10 @@ const IncidentReportFormPage = () => {
           onSubmit={handleSubmit}
           className="bg-white rounded-xl shadow-md p-8 space-y-6"
         >
+
+          <div className="flex justify-center items-center space-x-2 mb-8">
+            <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
+          </div>
           {/* Scheme and Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>

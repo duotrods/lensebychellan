@@ -7,6 +7,8 @@ import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
 import { SCHEMES } from '../../utils/schemes';
 
+import chellanlogo from "../../assets/chellanpng.png"
+
 const CCTVCheckFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -222,13 +224,18 @@ const CCTVCheckFormPage = () => {
           >
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">{editId ? 'Edit CCTV Check Form' : 'CCTV Check Form'}</h1>
+          <h3 className="text-2xl font-bold text-gray-800">{editId ? 'Edit CCTV Check Form' : 'CCTV Check Form'}</h3>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-8">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-8 ">
           {/* Scheme Selector */}
-          <div className="mb-6">
+
+          <div className="flex justify-center items-center space-x-2 mb-8">
+                              <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
+          </div>
+
+          <div className="mb-6 border-t border-gray-300 pt-8">
             <label className="label">
               <span className="label-text font-semibold mb-2">Scheme <span className="text-red-500">*</span></span>
             </label>
@@ -337,7 +344,7 @@ const CCTVCheckFormPage = () => {
           )}
 
           {/* Submit Buttons */}
-          <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
+          <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-300">
             <button
               type="button"
               onClick={() => navigate(-1)}
