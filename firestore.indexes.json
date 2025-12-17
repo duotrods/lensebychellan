@@ -15,12 +15,40 @@
       ]
     },
     {
+      "collectionGroup": "incidentReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "cctvCheckForms",
       "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "schemeId",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cctvCheckForms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeIds",
+          "arrayConfig": "CONTAINS"
         },
         {
           "fieldPath": "createdAt",
@@ -43,6 +71,20 @@
       ]
     },
     {
+      "collectionGroup": "assetDamageReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "dailyOccurrenceReports",
       "queryScope": "COLLECTION",
       "fields": [
@@ -57,12 +99,40 @@
       ]
     },
     {
+      "collectionGroup": "dailyOccurrenceReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "cctvUploads",
       "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "scheme",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cctvUploads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeIds",
+          "arrayConfig": "CONTAINS"
         },
         {
           "fieldPath": "uploadedAt",

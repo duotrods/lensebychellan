@@ -12,6 +12,7 @@ import {
   Search,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
+import SchemeSwitcher from "../client/SchemeSwitcher";
 
 const ClientSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
@@ -63,13 +64,15 @@ const ClientSidebarLayout = ({ children }) => {
         {/* Scheme Info */}
         <div className="px-6 py-4 bg-teal-50 border-b">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-            Your Scheme
+            {userProfile?.schemeIds?.length > 1 ? "Active Scheme" : "Your Scheme"}
           </p>
           <p className="text-lg font-bold text-teal-700">
-            {userProfile?.schemeId || "N/A"}
+            {userProfile?.activeSchemeId || userProfile?.schemeId || "N/A"}
           </p>
           <p className="text-sm text-gray-600">
-            {userProfile?.schemeName || "Loading..."}
+            {userProfile?.schemeNames?.[userProfile?.activeSchemeId] ||
+             userProfile?.schemeName ||
+             "Loading..."}
           </p>
         </div>
 
@@ -138,6 +141,9 @@ const ClientSidebarLayout = ({ children }) => {
                 <Bell className="w-6 h-6 text-gray-600" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
+
+              {/* Scheme Switcher - shows only if user has multiple schemes */}
+              <SchemeSwitcher />
 
               {/* User Profile */}
               <div className="flex items-center gap-3 pl-4 border-l">

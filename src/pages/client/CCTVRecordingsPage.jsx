@@ -21,15 +21,17 @@ const CCTVRecordingsPage = () => {
   const recordingsPerPage = 12;
 
   useEffect(() => {
-    if (userProfile?.schemeId) {
+    const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
+    if (activeScheme) {
       loadRecordings();
     }
-  }, [userProfile?.schemeId]);
+  }, [userProfile?.activeSchemeId, userProfile?.schemeId]);
 
   const loadRecordings = async () => {
     try {
       setLoading(true);
-      const cctvData = await clientDataService.getCCTVRecordings(userProfile.schemeId);
+      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
+      const cctvData = await clientDataService.getCCTVRecordings(activeScheme);
       setRecordings(cctvData);
     } catch (error) {
       console.error('Failed to load CCTV recordings:', error);
@@ -191,7 +193,7 @@ const CCTVRecordingsPage = () => {
                 placeholder="Search by camera number or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input input-bordered w-full pl-10"
+                className="input input-bordered w-full pl-10 bg-white border-gray-300"
               />
             </div>
 
@@ -201,7 +203,7 @@ const CCTVRecordingsPage = () => {
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="select select-bordered"
+                className="select select-bordered bg-white border-gray-300"
               >
                 <option value="all">All Time</option>
                 <option value="today">Today</option>
@@ -216,7 +218,7 @@ const CCTVRecordingsPage = () => {
               <select
                 value={cameraFilter}
                 onChange={(e) => setCameraFilter(e.target.value)}
-                className="select select-bordered"
+                className="select select-bordered bg-white border-gray-300"
               >
                 <option value="all">All Cameras</option>
                 {uniqueCameras.map(camera => (

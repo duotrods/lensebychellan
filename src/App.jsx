@@ -30,6 +30,7 @@ import CCTVCheckView from './pages/staff/CCTVCheckView';
 import AssetDamageView from './pages/staff/AssetDamageView';
 import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
 import OTPManagementPage from './pages/admin/OTPManagementPage';
+import SchemeAssignmentPage from './pages/admin/SchemeAssignmentPage';
 
 // Client pages
 import AnalyticsPage from './pages/client/AnalyticsPage';
@@ -89,6 +90,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <OTPManagementPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/scheme-assignment"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <SchemeAssignmentPage />
                 </ProtectedRoute>
               }
             />

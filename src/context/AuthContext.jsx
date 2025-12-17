@@ -40,6 +40,21 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
+  // Update active scheme for multi-scheme support
+  const updateActiveScheme = async (schemeId) => {
+    if (!currentUser) {
+      throw new Error('No user is logged in');
+    }
+
+    await firestoreService.updateUserProfile(currentUser.uid, {
+      activeSchemeId: schemeId
+    });
+
+    // Refresh user profile
+    const updatedProfile = await firestoreService.getUserDocument(currentUser.uid);
+    setUserProfile(updatedProfile);
+  };
+
   const value = {
     currentUser,
     userProfile,
@@ -47,7 +62,8 @@ export const AuthProvider = ({ children }) => {
     error,
     isAuthenticated: !!currentUser,
     isEmailVerified: currentUser?.emailVerified || false,
-    role: userProfile?.role || null
+    role: userProfile?.role || null,
+    updateActiveScheme
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

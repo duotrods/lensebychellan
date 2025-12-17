@@ -3,6 +3,7 @@ import {
   setDoc,
   getDoc,
   updateDoc,
+  addDoc,
   collection,
   getDocs,
   serverTimestamp
@@ -15,7 +16,9 @@ class FirestoreService {
   async createUserDocument(uid, userData) {
     try {
       const userRef = doc(db, 'users', uid);
-      await setDoc(userRef, {
+
+      // Transform single scheme to array format for multi-scheme support
+      const docData = {
         uid,
         ...userData,
         createdAt: serverTimestamp(),
@@ -23,7 +26,21 @@ class FirestoreService {
         lastLoginAt: serverTimestamp(),
         isActive: true,
         canCreateAdmins: false // Default false, manually set in Firestore for super admin
-      });
+      };
+
+      // If this is a client user with schemeId, convert to multi-scheme format
+      if (userData.role === USER_ROLES.CLIENT && userData.schemeId) {
+        docData.schemeIds = [userData.schemeId];
+        docData.schemeNames = {
+          [userData.schemeId]: userData.schemeName
+        };
+        docData.activeSchemeId = userData.schemeId;
+        // Keep old fields for backward compatibility
+        docData.schemeId = userData.schemeId;
+        docData.schemeName = userData.schemeName;
+      }
+
+      await setDoc(userRef, docData);
     } catch (error) {
       throw new AppError('Failed to create user document', 'firestore/create-error', error);
     }
@@ -122,12 +139,125 @@ class FirestoreService {
   async createAuditLog(logData) {
     try {
       const logsRef = collection(db, 'auditLogs');
-      await setDoc(doc(logsRef), {
+      await addDoc(logsRef, {
         ...logData,
         timestamp: serverTimestamp()
       });
     } catch (error) {
       console.error('Failed to create audit log:', error);
+    }
+  }
+
+  // Admin-only: Assign scheme to user
+  async assignSchemeToUser(userId, schemeId, schemeName, adminUid) {
+    try {
+      // Verify admin role
+      const adminUser = await this.getUserDocument(adminUid);
+      if (adminUser?.role !== USER_ROLES.ADMIN) {
+        throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+
+      // Get target user
+      const targetUser = await this.getUserDocument(userId);
+      if (!targetUser) {
+        throw new AppError('User not found', 'firestore/not-found');
+      }
+
+      // Verify target is a client
+      if (targetUser.role !== USER_ROLES.CLIENT) {
+        throw new AppError('Can only assign schemes to client users', 'firestore/permission-denied');
+      }
+
+      // Check if scheme already assigned
+      const currentSchemes = targetUser.schemeIds || [];
+      if (currentSchemes.includes(schemeId)) {
+        throw new AppError('Scheme already assigned to this user', 'firestore/already-exists');
+      }
+
+      // Update user schemes
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        schemeIds: [...currentSchemes, schemeId],
+        schemeNames: {
+          ...(targetUser.schemeNames || {}),
+          [schemeId]: schemeName
+        },
+        // If this is the first scheme, set it as active
+        ...(currentSchemes.length === 0 && { activeSchemeId: schemeId }),
+        updatedAt: serverTimestamp()
+      });
+
+      // Log audit trail
+      await this.createAuditLog({
+        action: 'scheme_assigned',
+        performedBy: adminUid,
+        targetUser: userId,
+        schemeId: schemeId,
+        schemeName: schemeName
+      });
+
+      return { success: true, message: 'Scheme assigned successfully' };
+    } catch (error) {
+      console.error('assignSchemeToUser error:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to assign scheme', 'firestore/update-error', error);
+    }
+  }
+
+  // Admin-only: Remove scheme from user
+  async removeSchemeFromUser(userId, schemeId, adminUid) {
+    try {
+      // Verify admin role
+      const adminUser = await this.getUserDocument(adminUid);
+      if (adminUser?.role !== USER_ROLES.ADMIN) {
+        throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+
+      // Get target user
+      const targetUser = await this.getUserDocument(userId);
+      if (!targetUser) {
+        throw new AppError('User not found', 'firestore/not-found');
+      }
+
+      // Check if user has multiple schemes
+      const currentSchemes = targetUser.schemeIds || [];
+      if (currentSchemes.length <= 1) {
+        throw new AppError('Cannot remove the only scheme from a user', 'firestore/invalid-operation');
+      }
+
+      // Remove scheme from arrays
+      const updatedSchemes = currentSchemes.filter(id => id !== schemeId);
+      const updatedSchemeNames = { ...(targetUser.schemeNames || {}) };
+      delete updatedSchemeNames[schemeId];
+
+      // Update user document
+      const userRef = doc(db, 'users', userId);
+      const updateData = {
+        schemeIds: updatedSchemes,
+        schemeNames: updatedSchemeNames,
+        updatedAt: serverTimestamp()
+      };
+
+      // If removing the active scheme, set new active scheme
+      if (targetUser.activeSchemeId === schemeId) {
+        updateData.activeSchemeId = updatedSchemes[0];
+      }
+
+      await updateDoc(userRef, updateData);
+
+      // Log audit trail
+      await this.createAuditLog({
+        action: 'scheme_removed',
+        performedBy: adminUid,
+        targetUser: userId,
+        schemeId: schemeId
+      });
+
+      return { success: true, message: 'Scheme removed successfully' };
+    } catch (error) {
+      throw new AppError('Failed to remove scheme', 'firestore/update-error', error);
     }
   }
 }

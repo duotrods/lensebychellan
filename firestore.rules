@@ -12,16 +12,36 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    // Helper function to get user's scheme
+    // Helper function to get user's scheme (backward compatibility)
     function getUserScheme() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schemeId;
     }
 
+    // Helper function to get user's schemes array (multi-scheme support)
+    function getUserSchemes() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schemeIds;
+    }
+
+    // Helper function to check if user has access to a scheme
+    function hasSchemeAccess(docSchemeIds) {
+      let userSchemes = getUserSchemes();
+      return userSchemes != null && docSchemeIds != null && userSchemes.hasAny(docSchemeIds);
+    }
+
+    // Helper function to safely check backward compatibility
+    function hasOldSchemeAccess(docSchemeId) {
+      let userSchemes = getUserSchemes();
+      return userSchemes != null && docSchemeId != null && docSchemeId in userSchemes;
+    }
+
     // Users collection
     match /users/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
+      // Users can update their own document, admins can update any user document
+      allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
       allow create: if isSignedIn();
+      // Only users can delete their own document (admins should deactivate instead)
+      allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
     // OTP codes - admin only
@@ -29,59 +49,133 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && getUserRole() == 'admin';
     }
 
+    // Client OTPs
+    match /clientOTPs/{otpId} {
+      // Admin can do everything
+      allow write: if isSignedIn() && getUserRole() == 'admin';
+      // Allow read for OTP validation (needed during signup before user is authenticated)
+      allow read: if true;
+    }
+
     // Incident Reports
     match /incidentReports/{reportId} {
-      // Staff can create and read their own
+      // Staff can create
       allow create: if isSignedIn() && getUserRole() == 'staff';
-      allow read: if isSignedIn() && (
+
+      // Get single document
+      allow get: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+        (getUserRole() == 'client' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.schemeId)
+        ))
       );
+
+      // List/query documents - allow clients to query their schemes
+      allow list: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client'
+      );
+
       allow update, delete: if isSignedIn() && getUserRole() == 'staff';
     }
 
     // CCTV Check Forms
     match /cctvCheckForms/{formId} {
       allow create: if isSignedIn() && getUserRole() == 'staff';
-      allow read: if isSignedIn() && (
+
+      // Get single document
+      allow get: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+        (getUserRole() == 'client' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.schemeId)
+        ))
       );
+
+      // List/query documents
+      allow list: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client'
+      );
+
       allow update, delete: if isSignedIn() && getUserRole() == 'staff';
     }
 
     // Asset Damage Reports
     match /assetDamageReports/{reportId} {
       allow create: if isSignedIn() && getUserRole() == 'staff';
-      allow read: if isSignedIn() && (
+
+      // Get single document
+      allow get: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        (getUserRole() == 'client' && resource.data.schemeId == getUserScheme())
+        (getUserRole() == 'client' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.schemeId)
+        ))
       );
+
+      // List/query documents
+      allow list: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client'
+      );
+
       allow update, delete: if isSignedIn() && getUserRole() == 'staff';
     }
 
     // Daily Occurrence Reports
     match /dailyOccurrenceReports/{reportId} {
       allow create: if isSignedIn() && getUserRole() == 'staff';
-      allow read: if isSignedIn() && (
+
+      // Get single document
+      allow get: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        (getUserRole() == 'client' && getUserScheme() in resource.data.schemeIds)
+        (getUserRole() == 'client' && (
+          (resource.data.schemeIds != null && getUserSchemes() != null &&
+           resource.data.schemeIds.hasAny(getUserSchemes())) ||
+          hasOldSchemeAccess(resource.data.schemeId)
+        ))
       );
+
+      // List/query documents
+      allow list: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client'
+      );
+
       allow update, delete: if isSignedIn() && getUserRole() == 'staff';
     }
 
     // CCTV Uploads
     match /cctvUploads/{uploadId} {
       allow create: if isSignedIn() && getUserRole() == 'staff';
-      allow read: if isSignedIn() && (
+
+      // Get single document
+      allow get: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        (getUserRole() == 'client' && resource.data.scheme == getUserScheme())
+        (getUserRole() == 'client' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.scheme)
+        ))
       );
+
+      // List/query documents
+      allow list: if isSignedIn() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client'
+      );
+
       allow update, delete: if isSignedIn() && getUserRole() == 'staff';
     }
 
@@ -95,6 +189,14 @@ service cloud.firestore {
     // Counters (for reference ID generation)
     match /counters/{counterId} {
       allow read, write: if isSignedIn() && getUserRole() == 'staff';
+    }
+
+    // Audit Logs
+    match /auditLogs/{logId} {
+      // Only admins can write audit logs
+      allow create: if isSignedIn() && getUserRole() == 'admin';
+      // Only admins can read audit logs
+      allow read: if isSignedIn() && getUserRole() == 'admin';
     }
 
     // Default deny all other collections

@@ -22,20 +22,22 @@ const NewClientDashboard = () => {
   const [dateRange, setDateRange] = useState('30');
 
   useEffect(() => {
-    if (userProfile?.schemeId) {
+    const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+    if (schemeId) {
       loadDashboardData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile?.schemeId, dateRange]);
+  }, [userProfile?.activeSchemeId, userProfile?.schemeId, dateRange]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       const days = parseInt(dateRange);
+      const schemeId = userProfile.activeSchemeId || userProfile.schemeId;
       const [schemeStats, uptimeData, weeklyData] = await Promise.all([
-        clientDataService.getSchemeStats(userProfile.schemeId, days),
-        clientDataService.getCCTVUptime(userProfile.schemeId),
-        clientDataService.getTimeSeriesData(userProfile.schemeId, days),
+        clientDataService.getSchemeStats(schemeId, days),
+        clientDataService.getCCTVUptime(schemeId),
+        clientDataService.getTimeSeriesData(schemeId, days),
       ]);
 
       setStats(schemeStats);

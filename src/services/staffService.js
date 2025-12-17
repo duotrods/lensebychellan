@@ -70,7 +70,8 @@ class StaffService {
       const formsRef = collection(db, 'cctvCheckForms');
       const docRef = await addDoc(formsRef, {
         ...formData,
-        schemeId, // Add extracted scheme ID for client filtering
+        schemeId, // Keep for backward compatibility
+        schemeIds: [schemeId], // New array format for multi-scheme support
         referenceId,
         submittedBy: {
           userId,
@@ -205,7 +206,8 @@ class StaffService {
       const reportsRef = collection(db, 'incidentReports');
       const docRef = await addDoc(reportsRef, {
         ...formData,
-        schemeId, // Add extracted scheme ID for client filtering
+        schemeId, // Keep for backward compatibility
+        schemeIds: [schemeId], // New array format for multi-scheme support
         referenceId,
         submittedBy: {
           userId,
@@ -410,9 +412,16 @@ class StaffService {
 
   async saveCCTVUploadMetadata(uploadData, userId, userName) {
     try {
+      // Extract schemeId from scheme field if present
+      const schemeId = uploadData.scheme ? extractSchemeId(uploadData.scheme) : null;
+
       const uploadsRef = collection(db, 'cctvUploads');
       const docRef = await addDoc(uploadsRef, {
         ...uploadData,
+        ...(schemeId && {
+          schemeId, // Keep for backward compatibility
+          schemeIds: [schemeId] // New array format for multi-scheme support
+        }),
         uploadedBy: {
           userId,
           name: userName
@@ -518,7 +527,8 @@ class StaffService {
       const reportsRef = collection(db, 'assetDamageReports');
       const docRef = await addDoc(reportsRef, {
         ...formData,
-        schemeId, // Add extracted scheme ID for client filtering
+        schemeId, // Keep for backward compatibility
+        schemeIds: [schemeId], // New array format for multi-scheme support
         referenceId,
         submittedBy: {
           userId,

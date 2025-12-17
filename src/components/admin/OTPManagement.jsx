@@ -236,7 +236,7 @@ const OTPManagement = () => {
                       schemeName: selectedScheme.fullName,
                     });
                   }}
-                  className="select select-md mt-2 w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                  className="select select-bordered select-md mt-2 w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
                   required
                 >
                   <option value="">Please Select a Scheme</option>

@@ -20,16 +20,18 @@ const ReportsPage = () => {
   const reportsPerPage = 10;
 
   useEffect(() => {
-    if (userProfile?.schemeId) {
+    const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
+    if (activeScheme) {
       loadReports();
     }
-  }, [userProfile?.schemeId]);
+  }, [userProfile?.activeSchemeId, userProfile?.schemeId]);
 
   const loadReports = async () => {
     try {
       setLoading(true);
-      console.log('Loading reports for scheme:', userProfile.schemeId);
-      const allReports = await clientDataService.getAllReports(userProfile.schemeId);
+      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
+      console.log('Loading reports for scheme:', activeScheme);
+      const allReports = await clientDataService.getAllReports(activeScheme);
       console.log('Loaded reports:', allReports.length);
       setReports(allReports);
     } catch (error) {

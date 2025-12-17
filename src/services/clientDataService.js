@@ -16,19 +16,21 @@ class ClientDataService {
     try {
       const incidentsRef = collection(db, 'incidentReports');
 
-      // Try with schemeId field first
+      // Try new schema first (schemeIds array)
       try {
         const q = query(
           incidentsRef,
-          where('schemeId', '==', schemeId),
+          where('schemeIds', 'array-contains', schemeId),
           orderBy('createdAt', 'desc'),
           limit(limitCount)
         );
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => ({
+        const results = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
+        console.log(`Found ${results.length} incidents for scheme ${schemeId} using array-contains`);
+        return results;
       } catch (indexError) {
         // Check if it's an index error or permissions error
         if (indexError.code === 'failed-precondition' || indexError.message?.includes('index')) {
@@ -36,11 +38,15 @@ class ClientDataService {
           console.warn('Index not available for incidentReports, trying simplified query');
           const simpleQuery = query(
             incidentsRef,
-            where('schemeId', '==', schemeId),
+            where('schemeIds', 'array-contains', schemeId),
             limit(limitCount)
           );
           const snapshot = await getDocs(simpleQuery);
           const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          console.log(`Found ${docs.length} incidents for scheme ${schemeId} (simplified query)`);
+          if (docs.length > 0) {
+            console.log('Sample incident schemeIds:', docs[0].schemeIds, 'Sample incident data:', docs[0]);
+          }
           // Sort in memory
           return docs.sort((a, b) => {
             const timeA = a.createdAt?.seconds || 0;
@@ -65,7 +71,7 @@ class ClientDataService {
       try {
         const q = query(
           cctvRef,
-          where('schemeId', '==', schemeId),
+          where('schemeIds', 'array-contains', schemeId),
           orderBy('createdAt', 'desc'),
           limit(limitCount)
         );
@@ -80,7 +86,7 @@ class ClientDataService {
           console.warn('Index not available for cctvCheckForms, trying simplified query');
           const simpleQuery = query(
             cctvRef,
-            where('schemeId', '==', schemeId),
+            where('schemeIds', 'array-contains', schemeId),
             limit(limitCount)
           );
           const snapshot = await getDocs(simpleQuery);
@@ -107,7 +113,7 @@ class ClientDataService {
       try {
         const q = query(
           logsRef,
-          where('schemeId', '==', schemeId),
+          where('schemeIds', 'array-contains', schemeId),
           orderBy('createdAt', 'desc'),
           limit(limitCount)
         );
@@ -122,7 +128,7 @@ class ClientDataService {
           console.warn('Index not available for dailyOccurrenceReports, trying simplified query');
           const simpleQuery = query(
             logsRef,
-            where('schemeId', '==', schemeId),
+            where('schemeIds', 'array-contains', schemeId),
             limit(limitCount)
           );
           const snapshot = await getDocs(simpleQuery);
@@ -151,7 +157,7 @@ class ClientDataService {
       const incidentsRef = collection(db, 'incidentReports');
       const incidentsQuery = query(
         incidentsRef,
-        where('schemeId', '==', schemeId),
+        where('schemeIds', 'array-contains', schemeId),
         where('createdAt', '>=', Timestamp.fromDate(startDate))
       );
       const incidentsSnapshot = await getDocs(incidentsQuery);
@@ -316,7 +322,7 @@ class ClientDataService {
       const cctvRef = collection(db, 'cctvCheckForms');
       const q = query(
         cctvRef,
-        where('schemeId', '==', schemeId),
+        where('schemeIds', 'array-contains', schemeId),
         where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo))
       );
 
@@ -350,7 +356,7 @@ class ClientDataService {
       const incidentsRef = collection(db, 'incidentReports');
       const q = query(
         incidentsRef,
-        where('schemeId', '==', schemeId),
+        where('schemeIds', 'array-contains', schemeId),
         where('createdAt', '>=', Timestamp.fromDate(startDate)),
         orderBy('createdAt', 'asc')
       );
@@ -467,7 +473,7 @@ class ClientDataService {
       try {
         const q = query(
           damageRef,
-          where('schemeId', '==', schemeId),
+          where('schemeIds', 'array-contains', schemeId),
           orderBy('createdAt', 'desc'),
           limit(limitCount)
         );
@@ -482,7 +488,7 @@ class ClientDataService {
           console.warn('Index not available for assetDamageReports, trying simplified query');
           const simpleQuery = query(
             damageRef,
-            where('schemeId', '==', schemeId),
+            where('schemeIds', 'array-contains', schemeId),
             limit(limitCount)
           );
           const snapshot = await getDocs(simpleQuery);
@@ -509,7 +515,7 @@ class ClientDataService {
       try {
         const q = query(
           recordingsRef,
-          where('scheme', '==', schemeId),
+          where('schemeIds', 'array-contains', schemeId),
           orderBy('uploadedAt', 'desc'),
           limit(limitCount)
         );
@@ -525,7 +531,7 @@ class ClientDataService {
           console.warn('Index not available for cctvUploads, trying simplified query');
           const simpleQuery = query(
             recordingsRef,
-            where('scheme', '==', schemeId),
+            where('schemeIds', 'array-contains', schemeId),
             limit(limitCount)
           );
           const snapshot = await getDocs(simpleQuery);

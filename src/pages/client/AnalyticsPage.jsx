@@ -20,18 +20,20 @@ const AnalyticsPage = () => {
   const [dateRange, setDateRange] = useState('30');
 
   useEffect(() => {
-    if (userProfile?.schemeId) {
+    const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
+    if (activeScheme) {
       loadAnalyticsData();
     }
-  }, [userProfile?.schemeId, dateRange]);
+  }, [userProfile?.activeSchemeId, userProfile?.schemeId, dateRange]);
 
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
+      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
       const [schemeStats, uptimeData, weeklyData] = await Promise.all([
-        clientDataService.getSchemeStats(userProfile.schemeId),
-        clientDataService.getCCTVUptime(userProfile.schemeId),
-        clientDataService.getTimeSeriesData(userProfile.schemeId, parseInt(dateRange))
+        clientDataService.getSchemeStats(activeScheme),
+        clientDataService.getCCTVUptime(activeScheme),
+        clientDataService.getTimeSeriesData(activeScheme, parseInt(dateRange))
       ]);
 
       setStats(schemeStats);
@@ -111,7 +113,7 @@ const AnalyticsPage = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Analytics Dashboard</h1>
             <p className="text-gray-600 mt-2">
-              {userProfile?.schemeId} - {userProfile?.schemeName}
+              {userProfile?.activeSchemeId || userProfile?.schemeId} - {userProfile?.schemeNames?.[userProfile?.activeSchemeId] || userProfile?.schemeName}
             </p>
           </div>
 
@@ -121,7 +123,7 @@ const AnalyticsPage = () => {
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="select select-bordered select-sm"
+              className="select select-bordered select-sm bg-white border-gray-300"
             >
               <option value="7">Last 7 days</option>
               <option value="14">Last 14 days</option>
