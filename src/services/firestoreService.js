@@ -6,7 +6,11 @@ import {
   addDoc,
   collection,
   getDocs,
-  serverTimestamp
+  serverTimestamp,
+  query,
+  orderBy,
+  limit,
+  startAfter
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { USER_ROLES } from '../utils/constants';
@@ -98,6 +102,50 @@ class FirestoreService {
       const usersRef = collection(db, 'users');
       const querySnapshot = await getDocs(usersRef);
       return querySnapshot.docs.map(doc => doc.data());
+    } catch (error) {
+      throw new AppError('Failed to fetch users', 'firestore/read-error', error);
+    }
+  }
+
+  // Admin-only: Get paginated users
+  async getUsersPaginated(limitCount = 50, lastDoc = null) {
+    try {
+      const usersRef = collection(db, 'users');
+
+      // Build query with pagination
+      let q;
+      if (lastDoc) {
+        // Get next page
+        q = query(
+          usersRef,
+          orderBy('createdAt', 'desc'),
+          startAfter(lastDoc),
+          limit(limitCount)
+        );
+      } else {
+        // Get first page
+        q = query(
+          usersRef,
+          orderBy('createdAt', 'desc'),
+          limit(limitCount)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+
+      // Get total count (for page calculation)
+      const totalSnapshot = await getDocs(usersRef);
+      const total = totalSnapshot.size;
+
+      const users = snapshot.docs.map(doc => doc.data());
+      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+      return {
+        users,
+        total,
+        lastDoc: lastVisible,
+        hasMore: snapshot.docs.length === limitCount
+      };
     } catch (error) {
       throw new AppError('Failed to fetch users', 'firestore/read-error', error);
     }

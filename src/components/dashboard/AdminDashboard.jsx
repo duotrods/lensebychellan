@@ -7,23 +7,50 @@ import { Key, Users } from 'lucide-react';
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [lastDoc, setLastDoc] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const usersPerPage = 50;
   const { userProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadUsers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   const loadUsers = async () => {
     try {
-      const allUsers = await firestoreService.getAllUsers();
-      setUsers(allUsers);
+      setLoading(true);
+      const { users: paginatedUsers, total, lastDoc: lastVisible, hasMore: more } =
+        await firestoreService.getUsersPaginated(usersPerPage, currentPage > 1 ? lastDoc : null);
+
+      setUsers(paginatedUsers);
+      setTotalUsers(total);
+      setLastDoc(lastVisible);
+      setHasMore(more);
     } catch (error) {
       console.error('Failed to load users:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleNextPage = () => {
+    if (hasMore) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      setLastDoc(null); // Reset for previous page
+    }
+  };
+
+  const totalPages = Math.ceil(totalUsers / usersPerPage);
 
   return (
     <div>
@@ -117,6 +144,39 @@ const AdminDashboard = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!loading && users.length > 0 && (
+          <div className="p-6 border-t flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              Showing page {currentPage} of {totalPages} ({totalUsers} total users)
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  currentPage === 1
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                }`}
+              >
+                Previous
+              </button>
+              <button
+                onClick={handleNextPage}
+                disabled={!hasMore}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  !hasMore
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-teal-500 hover:bg-teal-600 text-white'
+                }`}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

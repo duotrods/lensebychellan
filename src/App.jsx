@@ -1,8 +1,21 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // Data stays fresh for 5 minutes
+      cacheTime: 10 * 60 * 1000, // Cache for 10 minutes
+      refetchOnWindowFocus: false, // Don't refetch when user returns to tab
+      retry: 1, // Retry failed requests once
+    },
+  },
+});
 
 // Existing components
 import Navbar from './components/navbar';
@@ -55,11 +68,12 @@ const LandingPageLayout = () => (
 const App = () => {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <Toaster position="top-right" />
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <Toaster position="top-right" />
 
-          <Routes>
+            <Routes>
             {/* Public routes */}
             <Route path="/" element={<LandingPageLayout />} />
             <Route path="/signin" element={<SignInPage />} />
@@ -255,6 +269,7 @@ const App = () => {
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 };

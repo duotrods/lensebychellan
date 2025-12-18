@@ -606,6 +606,7 @@ const IncidentReportFormPage = () => {
                 "Works",
                 "Verge",
                 "Central Res",
+                "Slip Road",
               ].map((lane) => (
                 <label
                   key={lane}

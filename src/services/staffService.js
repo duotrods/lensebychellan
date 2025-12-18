@@ -10,7 +10,8 @@ import {
   limit,
   serverTimestamp,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { referenceIdService } from './referenceIdService';
@@ -353,43 +354,88 @@ class StaffService {
   // DASHBOARD STATISTICS
   // ============================================
 
+  // Helper: Count documents in collection (for specific user or all)
+  async getCollectionCount(collectionName, userId = null) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      let q;
+
+      if (userId) {
+        q = query(
+          collectionRef,
+          where('submittedBy.userId', '==', userId)
+        );
+      } else {
+        q = query(collectionRef);
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.size;
+    } catch (error) {
+      console.error(`Failed to count ${collectionName}:`, error);
+      return 0;
+    }
+  }
+
+  // Helper: Count documents created since a date
+  async getCollectionCountSince(collectionName, userId, sinceTimestamp) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      let q;
+
+      if (userId) {
+        q = query(
+          collectionRef,
+          where('submittedBy.userId', '==', userId),
+          where('createdAt', '>=', sinceTimestamp)
+        );
+      } else {
+        q = query(
+          collectionRef,
+          where('createdAt', '>=', sinceTimestamp)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.size;
+    } catch (error) {
+      console.error(`Failed to count ${collectionName} since date:`, error);
+      return 0;
+    }
+  }
+
   async getDashboardStats(userId) {
     try {
-      // Get counts from all collections
-      const cctvForms = await this.getCCTVCheckForms(userId);
-      const incidentReports = await this.getIncidentReports(userId);
-      const assetDamageReports = await this.getAssetDamageReports(userId);
-      const dailyOccurrenceReports = await this.getDailyOccurrenceReports(userId);
-
-      // Get this week's count
+      // Calculate one week ago as Firestore Timestamp
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const oneWeekAgoTimestamp = Timestamp.fromDate(oneWeekAgo);
 
-      const cctvThisWeek = cctvForms.filter(form =>
-        form.createdAt?.toDate() > oneWeekAgo
-      ).length;
+      // Query 1: Total counts (without date filter) - run in parallel
+      const [cctvTotal, incidentsTotal, damageTotal, logsTotal] = await Promise.all([
+        this.getCollectionCount('cctvCheckForms', userId),
+        this.getCollectionCount('incidentReports', userId),
+        this.getCollectionCount('assetDamageReports', userId),
+        this.getCollectionCount('dailyOccurrenceReports', userId)
+      ]);
 
-      const incidentsThisWeek = incidentReports.filter(report =>
-        report.createdAt?.toDate() > oneWeekAgo
-      ).length;
-
-      const assetDamageThisWeek = assetDamageReports.filter(report =>
-        report.createdAt?.toDate() > oneWeekAgo
-      ).length;
-
-      const dailyLogsThisWeek = dailyOccurrenceReports.filter(report =>
-        report.createdAt?.toDate() > oneWeekAgo
-      ).length;
+      // Query 2: This week's counts (with date filter) - run in parallel
+      const [cctvThisWeek, incidentsThisWeek, damageThisWeek, logsThisWeek] = await Promise.all([
+        this.getCollectionCountSince('cctvCheckForms', userId, oneWeekAgoTimestamp),
+        this.getCollectionCountSince('incidentReports', userId, oneWeekAgoTimestamp),
+        this.getCollectionCountSince('assetDamageReports', userId, oneWeekAgoTimestamp),
+        this.getCollectionCountSince('dailyOccurrenceReports', userId, oneWeekAgoTimestamp)
+      ]);
 
       return {
-        cctvCheckTotal: cctvForms.length,
+        cctvCheckTotal: cctvTotal,
         cctvCheckThisWeek: cctvThisWeek,
-        incidentReportTotal: incidentReports.length,
+        incidentReportTotal: incidentsTotal,
         incidentReportThisWeek: incidentsThisWeek,
-        dailyLogsTotal: dailyOccurrenceReports.length,
-        dailyLogsThisWeek: dailyLogsThisWeek,
-        assetDamageTotal: assetDamageReports.length,
-        assetDamageThisWeek: assetDamageThisWeek
+        dailyLogsTotal: logsTotal,
+        dailyLogsThisWeek: logsThisWeek,
+        assetDamageTotal: damageTotal,
+        assetDamageThisWeek: damageThisWeek
       };
     } catch (error) {
       console.error('Failed to get dashboard stats:', error);

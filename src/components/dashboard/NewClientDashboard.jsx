@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import {
@@ -15,40 +16,33 @@ import { AlertTriangle, Car, Camera, Filter, Clock, TrendingUp } from "lucide-re
 
 const NewClientDashboard = () => {
   const { userProfile } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [cctvUptime, setCctvUptime] = useState(null);
-  const [timeSeriesData, setTimeSeriesData] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('30');
 
-  useEffect(() => {
-    const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
-    if (schemeId) {
-      loadDashboardData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile?.activeSchemeId, userProfile?.schemeId, dateRange]);
+  const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+  const days = parseInt(dateRange);
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      const days = parseInt(dateRange);
-      const schemeId = userProfile.activeSchemeId || userProfile.schemeId;
-      const [schemeStats, uptimeData, weeklyData] = await Promise.all([
-        clientDataService.getSchemeStats(schemeId, days),
-        clientDataService.getCCTVUptime(schemeId),
-        clientDataService.getTimeSeriesData(schemeId, days),
-      ]);
+  // Cached query for stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['schemeStats', schemeId, days],
+    queryFn: () => clientDataService.getSchemeStats(schemeId, days),
+    enabled: !!schemeId,
+  });
 
-      setStats(schemeStats);
-      setCctvUptime(uptimeData);
-      setTimeSeriesData(weeklyData);
-    } catch (error) {
-      console.error("Failed to load dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Cached query for uptime
+  const { data: cctvUptime, isLoading: uptimeLoading } = useQuery({
+    queryKey: ['cctvUptime', schemeId],
+    queryFn: () => clientDataService.getCCTVUptime(schemeId),
+    enabled: !!schemeId,
+  });
+
+  // Cached query for time series
+  const { data: timeSeriesData = [], isLoading: timeSeriesLoading } = useQuery({
+    queryKey: ['timeSeriesData', schemeId, days],
+    queryFn: () => clientDataService.getTimeSeriesData(schemeId, days),
+    enabled: !!schemeId,
+  });
+
+  const loading = statsLoading || uptimeLoading || timeSeriesLoading;
 
   // Transform stats data for charts - filter out Unknown and empty values
   const transformDataForChart = (dataObj, filterUnknown = true) => {
