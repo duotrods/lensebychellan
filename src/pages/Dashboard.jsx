@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import DashboardLayout from '../components/layout/DashboardLayout';
+import AdminSidebarLayout from '../components/layout/AdminSidebarLayout';
 import StaffSidebarLayout from '../components/layout/StaffSidebarLayout';
 import ClientSidebarLayout from '../components/layout/ClientSidebarLayout';
 import AdminDashboard from '../components/dashboard/AdminDashboard';
@@ -20,9 +20,9 @@ const Dashboard = () => {
     switch (role) {
       case USER_ROLES.ADMIN:
         return (
-          <DashboardLayout>
+          <AdminSidebarLayout>
             <AdminDashboard />
-          </DashboardLayout>
+          </AdminSidebarLayout>
         );
       case USER_ROLES.STAFF:
         return (

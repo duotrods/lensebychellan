@@ -1,11 +1,11 @@
-import DashboardLayout from '../../components/layout/DashboardLayout';
+import AdminSidebarLayout from '../../components/layout/AdminSidebarLayout';
 import OTPManagement from '../../components/admin/OTPManagement';
 
 const OTPManagementPage = () => {
   return (
-    <DashboardLayout>
+    <AdminSidebarLayout>
       <OTPManagement />
-    </DashboardLayout>
+    </AdminSidebarLayout>
   );
 };
 

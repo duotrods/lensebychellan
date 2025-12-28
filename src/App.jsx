@@ -44,6 +44,8 @@ import AssetDamageView from './pages/staff/AssetDamageView';
 import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
 import OTPManagementPage from './pages/admin/OTPManagementPage';
 import SchemeAssignmentPage from './pages/admin/SchemeAssignmentPage';
+import StaffReportsPage from './pages/admin/StaffReportsPage';
+import ClientChartsPage from './pages/admin/ClientChartsPage';
 
 // Client pages
 import AnalyticsPage from './pages/client/AnalyticsPage';
@@ -113,6 +115,24 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <SchemeAssignmentPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/staff-reports"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <StaffReportsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/client-charts"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <ClientChartsPage />
                 </ProtectedRoute>
               }
             />
