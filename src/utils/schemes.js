@@ -7,28 +7,10 @@ export const SCHEMES = [
     contractor: 'Kier'
   },
   {
-    id: 'GALLOWS',
-    fullName: 'Gallows Corner - Costain',
-    shortName: 'Gallows Corner',
-    contractor: 'Costain'
-  },
-  {
-    id: 'A1',
-    fullName: 'A1 Birtley to Coalhouse - Costain',
-    shortName: 'A1 Birtley to Coalhouse',
-    contractor: 'Costain'
-  },
-  {
     id: 'M3',
     fullName: 'M3 Jct 9 - Balfour Beatty',
     shortName: 'M3 Jct 9',
     contractor: 'Balfour Beatty'
-  },
-  {
-    id: 'HS2',
-    fullName: 'HS2- Traffix',
-    shortName: 'HS2',
-    contractor: 'Traffix'
   },
   {
     id: 'A47',

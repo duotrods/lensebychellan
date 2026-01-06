@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
+import { SCHEMES } from "../../utils/schemes";
 import {
   FileText,
   Camera,
@@ -25,7 +26,7 @@ const StaffReportsPage = () => {
   const [filterType, setFilterType] = useState("all");
   const [filterScheme, setFilterScheme] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const reportsPerPage = 15;
+  const reportsPerPage = 10;
 
   useEffect(() => {
     loadAllReports();
@@ -115,8 +116,12 @@ const StaffReportsPage = () => {
 
   const getUniqueSchemes = () => {
     const schemes = new Set();
+    const activeSchemeNames = SCHEMES.map(s => s.fullName);
     reports.forEach((r) => {
-      if (r.scheme) schemes.add(r.scheme);
+      // Only include schemes that are in the active SCHEMES list
+      if (r.scheme && activeSchemeNames.includes(r.scheme)) {
+        schemes.add(r.scheme);
+      }
     });
     return Array.from(schemes).sort();
   };
@@ -307,15 +312,15 @@ const StaffReportsPage = () => {
             <>
               <div className="overflow-x-auto">
                 <table className="table w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-brand-500">
                     <tr>
-                      <th className="text-left">Type</th>
-                      <th className="text-left">Reference ID</th>
-                      <th className="text-left">Submitted By</th>
-                      <th className="text-left">Scheme</th>
-                      <th className="text-left">Date</th>
-                      <th className="text-left">Status</th>
-                      <th className="text-center">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Reference ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Submitted By</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Scheme</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -383,7 +388,7 @@ const StaffReportsPage = () => {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-between items-center p-4 border-t">
+                <div className="flex justify-between items-center p-4 mt-6 border-t border-gray-300">
                   <div className="text-sm text-gray-600">
                     Page {currentPage} of {totalPages}
                   </div>

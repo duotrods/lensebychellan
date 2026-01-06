@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { firestoreService } from '../../services/firestoreService';
 import { useAuth } from '../../hooks/useAuth';
-import { Key, Users } from 'lucide-react';
+import { Key, Users, UserCog, Trash2 } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -11,6 +12,9 @@ const AdminDashboard = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMore, setHasMore] = useState(false);
+  const [promoteModal, setPromoteModal] = useState({ isOpen: false, user: null });
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
+  const [actionLoading, setActionLoading] = useState(false);
   const usersPerPage = 50;
   const { userProfile } = useAuth();
   const navigate = useNavigate();
@@ -47,6 +51,45 @@ const AdminDashboard = () => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
       setLastDoc(null); // Reset for previous page
+    }
+  };
+
+  const handlePromoteToAdmin = async () => {
+    if (!promoteModal.user) return;
+
+    try {
+      setActionLoading(true);
+      await firestoreService.promoteToAdmin(promoteModal.user.uid, userProfile.uid);
+      toast.success(`${promoteModal.user.displayName} has been promoted to admin`);
+      setPromoteModal({ isOpen: false, user: null });
+      await loadUsers(); // Reload users to reflect changes
+    } catch (error) {
+      console.error('Failed to promote user:', error);
+      toast.error(error.message || 'Failed to promote user');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteModal.user) return;
+
+    try {
+      setActionLoading(true);
+      await firestoreService.deleteUser(deleteModal.user.uid, userProfile.uid);
+      toast.success(`${deleteModal.user.displayName} has been deleted from the system`);
+      setDeleteModal({ isOpen: false, user: null });
+      await loadUsers(); // Reload users to reflect changes
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        cause: error.cause
+      });
+      toast.error(error.message || 'Failed to delete user');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -99,24 +142,25 @@ const AdminDashboard = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="p-6 border-b">
+        <div className="p-5">
           <h5>User Management</h5>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center">
+          <div className="p-14 text-center">
             <span className="loading loading-spinner text-brand-500"></span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">
               <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Company</th>
-                  <th>Status</th>
+                <tr className="bg-brand-500">
+                  <th className="text-xs text-white uppercase">Name</th>
+                  <th className="text-xs text-white uppercase">Email</th>
+                  <th className="text-xs text-white uppercase">Role</th>
+                  <th className="text-xs text-white uppercase">Company</th>
+                  <th className="text-xs text-white uppercase">Status</th>
+                  <th className="text-xs text-white uppercase text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,7 +174,7 @@ const AdminDashboard = () => {
                         user.role === 'staff' ? 'badge-warning' : 'badge-info'
                       }`}>
                         {user.role}
-                      </span>
+                      </span> 
                     </td>
                     <td>{user.company || '-'}</td>
                     <td>
@@ -139,6 +183,34 @@ const AdminDashboard = () => {
                       ) : (
                         <span className="text-warning">Pending</span>
                       )}
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-center gap-2">
+                        {/* Only show promote button for staff users */}
+                        {/* {user.role === 'staff' && user.uid !== userProfile?.uid && (
+                          <button
+                            onClick={() => setPromoteModal({ isOpen: true, user })}
+                            className="btn btn-sm btn-info text-white"
+                            title="Promote to Admin"
+                          >
+                            <UserCog className="w-4 h-4" />
+                          </button>
+                        )} */}
+                        {/* Show delete button for non-admin users (staff and client) */}
+                        {user.role !== 'admin' && user.uid !== userProfile?.uid && (
+                          <button
+                            onClick={() => setDeleteModal({ isOpen: true, user })}
+                            className="btn btn-sm btn-error text-white"
+                            title="Delete User"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {/* Show nothing if it's current user or admin */}
+                        {(user.uid === userProfile?.uid || (user.role === 'admin' && user.uid !== userProfile?.uid)) && (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -149,7 +221,7 @@ const AdminDashboard = () => {
 
         {/* Pagination Controls */}
         {!loading && users.length > 0 && (
-          <div className="p-6 border-t flex justify-between items-center">
+          <div className="p-4 mt-6 border-t border-gray-300 flex justify-between items-center">
             <div className="text-sm text-gray-600">
               Showing page {currentPage} of {totalPages} ({totalUsers} total users)
             </div>
@@ -180,6 +252,93 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Promote to Admin Modal */}
+      {promoteModal.isOpen && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4">Promote to Admin</h3>
+            <p className="py-4">
+              Are you sure you want to promote <strong>{promoteModal.user?.displayName}</strong> to admin?
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              This user will have full administrative privileges including managing users, access codes, and scheme assignments.
+            </p>
+            <div className="modal-action">
+              <button
+                onClick={() => setPromoteModal({ isOpen: false, user: null })}
+                className="btn"
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePromoteToAdmin}
+                className="btn btn-info text-white"
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Promoting...
+                  </>
+                ) : (
+                  <>
+                    <UserCog className="w-4 h-4" />
+                    Promote to Admin
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Modal */}
+      {deleteModal.isOpen && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4 text-red-600">Delete User</h3>
+            <p className="py-4">
+              Are you sure you want to delete <strong>{deleteModal.user?.displayName}</strong>?
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-800 font-semibold mb-2">⚠️ Warning: This action cannot be undone!</p>
+              <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                <li>User account will be permanently deleted</li>
+                <li>All user data will be removed from the system</li>
+                <li>User will lose access immediately</li>
+              </ul>
+            </div>
+            <div className="modal-action">
+              <button
+                onClick={() => setDeleteModal({ isOpen: false, user: null })}
+                className="btn"
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                className="btn btn-error text-white"
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete User
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

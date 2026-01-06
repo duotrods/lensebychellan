@@ -268,7 +268,7 @@ const DailyOccurrenceFormPage = () => {
                     <div>
                       <label className="label">
                         <span className="label-text font-semibold mb-2">
-                          Location <span className="text-red-500">*</span>
+                          Location 
                         </span>
                       </label>
                       <input
@@ -283,7 +283,7 @@ const DailyOccurrenceFormPage = () => {
                         }
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                         placeholder="e.g., J9, MP 2.5"
-                        required
+                       
                       />
                     </div>
 
@@ -327,13 +327,14 @@ const DailyOccurrenceFormPage = () => {
                         <option value="">Please Select</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
+                        <option value="N/A">N/A</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="label">
                         <span className="label-text font-semibold mb-2">
-                          RCC
+                          RCC log number
                         </span>
                       </label>
                       <input
@@ -343,7 +344,7 @@ const DailyOccurrenceFormPage = () => {
                           handleOccurrenceChange(index, "rcc", e.target.value)
                         }
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                        placeholder="RCC"
+                        placeholder="RCC log number"
                       />
                     </div>
 

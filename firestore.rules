@@ -40,8 +40,8 @@ service cloud.firestore {
       // Users can update their own document, admins can update any user document
       allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
       allow create: if isSignedIn();
-      // Only users can delete their own document (admins should deactivate instead)
-      allow delete: if isSignedIn() && request.auth.uid == userId;
+      // Users can delete their own document, admins can delete any user document
+      allow delete: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
     }
 
     // OTP codes - admin only

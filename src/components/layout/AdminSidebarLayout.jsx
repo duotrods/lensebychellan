@@ -40,7 +40,7 @@ const AdminSidebarLayout = ({ children }) => {
       exact: true,
     },
     {
-      name: "Manage Access Code",
+      name: "Access Code",
       path: "/dashboard/admin/otp-management",
       icon: KeyRound,
     },

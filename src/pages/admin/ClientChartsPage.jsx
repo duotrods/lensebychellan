@@ -1,23 +1,19 @@
 import { useState, useEffect } from "react";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
+import { SCHEMES } from "../../utils/schemes";
 import {
   BarChart3,
   TrendingUp,
   AlertTriangle,
   Calendar,
-  Filter,
   Download,
+  Filter,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -26,20 +22,38 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+// Chart Card Component
+const ChartCard = ({ title, children, fullWidth = false, height = 300 }) => (
+  <div className={`bg-white rounded-xl shadow-md p-6 ${fullWidth ? 'col-span-full' : ''}`}>
+    <h5 className="text-lg font-semibold text-gray-800 mb-4">{title}</h5>
+    <ResponsiveContainer width="100%" height={height}>
+      {children}
+    </ResponsiveContainer>
+  </div>
+);
+
 const ClientChartsPage = () => {
   const [loading, setLoading] = useState(true);
-  const [selectedScheme, setSelectedScheme] = useState("all");
+  const [selectedScheme, setSelectedScheme] = useState("");
   const [reports, setReports] = useState([]);
   const [schemes, setSchemes] = useState([]);
 
   const COLORS = {
-    cctvCheck: "#9333ea",
-    incident: "#14b8a6",
-    assetDamage: "#f97316",
-    dailyLogs: "#3b82f6",
+    primary: "#17af93",
   };
 
-  const PIE_COLORS = ["#9333ea", "#14b8a6", "#f97316", "#3b82f6"];
+  // Common chart props
+  const commonChartProps = {
+    cartesianGrid: { strokeDasharray: "3 3", stroke: "#17af93" },
+    xAxis: { tick: { fontSize: 13 } },
+    yAxis: { tick: { fontSize: 13 } },
+    tooltip: {
+      contentStyle: { backgroundColor: '#fff', border: '1px solid #17af93', borderRadius: '8px' },
+      labelStyle: { fontWeight: 'bold' }
+    },
+    legend: { wrapperStyle: { paddingTop: '6px' } },
+    bar: { fill: COLORS.primary, radius: [8, 8, 0, 0] }
+  };
 
   useEffect(() => {
     loadAllData();
@@ -64,9 +78,17 @@ const ClientChartsPage = () => {
 
       setReports(allReports);
 
-      // Extract unique schemes
-      const uniqueSchemes = [...new Set(allReports.map((r) => r.scheme).filter(Boolean))].sort();
+      // Extract unique schemes from active SCHEMES constant only
+      const activeSchemeNames = SCHEMES.map(s => s.fullName);
+      const uniqueSchemes = [...new Set(allReports.map((r) => r.scheme).filter(Boolean))]
+        .filter(scheme => activeSchemeNames.includes(scheme))
+        .sort();
       setSchemes(uniqueSchemes);
+
+      // Set first scheme as default
+      if (uniqueSchemes.length > 0) {
+        setSelectedScheme(uniqueSchemes[0]);
+      }
     } catch (error) {
       console.error("Failed to load data:", error);
       toast.error("Failed to load chart data");
@@ -77,65 +99,186 @@ const ClientChartsPage = () => {
 
   // Filter reports by selected scheme
   const getFilteredReports = () => {
-    if (selectedScheme === "all") return reports;
+    if (!selectedScheme) return reports;
     return reports.filter((r) => r.scheme === selectedScheme);
   };
 
-  // Get reports by type data for pie chart
-  const getReportsByTypeData = () => {
-    const filtered = getFilteredReports();
-    return [
-      { name: "CCTV Check", value: filtered.filter((r) => r.type === "CCTV Check").length },
-      { name: "Incident Report", value: filtered.filter((r) => r.type === "Incident Report").length },
-      { name: "Asset Damage", value: filtered.filter((r) => r.type === "Asset Damage").length },
-      { name: "Daily Logs", value: filtered.filter((r) => r.type === "Daily Logs").length },
-    ];
+  // Get incident reports only
+  const getIncidentReports = () => {
+    return getFilteredReports().filter(r => r.type === "Incident Report");
   };
 
-  // Get monthly trend data for line chart
-  const getMonthlyTrendData = () => {
-    const filtered = getFilteredReports();
-    const monthlyData = {};
-
-    filtered.forEach((report) => {
-      if (report.createdAt) {
-        const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-        if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = {
-            month: monthKey,
-            "CCTV Check": 0,
-            "Incident Report": 0,
-            "Asset Damage": 0,
-            "Daily Logs": 0,
-          };
-        }
-
-        monthlyData[monthKey][report.type]++;
+  // Chart data extraction functions
+  const getFaultData = () => {
+    const incidents = getIncidentReports();
+    const faultCounts = {};
+    incidents.forEach(report => {
+      if (report.fault) {
+        faultCounts[report.fault] = (faultCounts[report.fault] || 0) + 1;
       }
     });
-
-    return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
+    return Object.entries(faultCounts).map(([name, Number]) => ({ name, Number }));
   };
 
-  // Get reports by scheme data for bar chart
-  const getReportsBySchemeData = () => {
-    const schemeData = {};
-
-    schemes.forEach((scheme) => {
-      const schemeReports = reports.filter((r) => r.scheme === scheme);
-      schemeData[scheme] = {
-        name: scheme.length > 20 ? scheme.substring(0, 20) + "..." : scheme,
-        fullName: scheme,
-        "CCTV Check": schemeReports.filter((r) => r.type === "CCTV Check").length,
-        "Incident Report": schemeReports.filter((r) => r.type === "Incident Report").length,
-        "Asset Damage": schemeReports.filter((r) => r.type === "Asset Damage").length,
-        "Daily Logs": schemeReports.filter((r) => r.type === "Daily Logs").length,
-      };
+  const getIncidentTypeData = () => {
+    const incidents = getIncidentReports();
+    const typeCounts = {};
+    incidents.forEach(report => {
+      if (report.incidentType) {
+        typeCounts[report.incidentType] = (typeCounts[report.incidentType] || 0) + 1;
+      }
     });
+    return Object.entries(typeCounts).map(([name, Number]) => ({ name, Number }));
+  };
 
-    return Object.values(schemeData);
+  const getVehiclesDispatchedData = () => {
+    const incidents = getIncidentReports();
+    const dispatchData = { Light: 0, Heavy: 0, IPV: 0, HETOS: 0 };
+    incidents.forEach(report => {
+      if (report.recoveryRequested) {
+        dispatchData.Light += report.recoveryRequested.light || 0;
+        dispatchData.Heavy += report.recoveryRequested.heavy || 0;
+        dispatchData.IPV += report.recoveryRequested.ipv || 0;
+        dispatchData.HETOS += report.recoveryRequested.hetos || 0;
+      }
+    });
+    return Object.entries(dispatchData).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getSpottedByData = () => {
+    const incidents = getIncidentReports();
+    const spottedCounts = {};
+    incidents.forEach(report => {
+      if (report.reportedBy) {
+        spottedCounts[report.reportedBy] = (spottedCounts[report.reportedBy] || 0) + 1;
+      }
+    });
+    return Object.entries(spottedCounts).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getLaneAffectedData = () => {
+    const incidents = getIncidentReports();
+    const laneCounts = {};
+    incidents.forEach(report => {
+      if (report.affectedLanes && Array.isArray(report.affectedLanes)) {
+        report.affectedLanes.forEach(lane => {
+          laneCounts[lane] = (laneCounts[lane] || 0) + 1;
+        });
+      }
+    });
+    return Object.entries(laneCounts).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getTimeToRecoverData = () => {
+    const incidents = getIncidentReports();
+    const timeBuckets = { '0-15': 0, '16-30': 0, '31-45': 0, '46-60': 0, '60+': 0 };
+    incidents.forEach(report => {
+      if (report.timeOnsiteToCleared) {
+        const match = report.timeOnsiteToCleared.match(/(\d+)/);
+        if (match) {
+          const mins = parseInt(match[1]);
+          if (mins <= 15) timeBuckets['0-15']++;
+          else if (mins <= 30) timeBuckets['16-30']++;
+          else if (mins <= 45) timeBuckets['31-45']++;
+          else if (mins <= 60) timeBuckets['46-60']++;
+          else timeBuckets['60+']++;
+        }
+      }
+    });
+    return Object.entries(timeBuckets).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getTrafficConditionsData = () => {
+    const incidents = getIncidentReports();
+    const trafficCounts = {};
+    incidents.forEach(report => {
+      if (report.trafficConditions) {
+        trafficCounts[report.trafficConditions] = (trafficCounts[report.trafficConditions] || 0) + 1;
+      }
+    });
+    return Object.entries(trafficCounts).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getEmergencyServicesData = () => {
+    const incidents = getIncidentReports();
+    const serviceCounts = {};
+    incidents.forEach(report => {
+      if (report.emergencyServices && Array.isArray(report.emergencyServices)) {
+        report.emergencyServices.forEach(service => {
+          serviceCounts[service] = (serviceCounts[service] || 0) + 1;
+        });
+      }
+    });
+    return Object.entries(serviceCounts).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getTimeToSiteData = () => {
+    const incidents = getIncidentReports();
+    const timeBuckets = { '0-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '20+': 0 };
+    incidents.forEach(report => {
+      if (report.timeSpottedToOn) {
+        const match = report.timeSpottedToOn.match(/(\d+)/);
+        if (match) {
+          const mins = parseInt(match[1]);
+          if (mins <= 5) timeBuckets['0-5']++;
+          else if (mins <= 10) timeBuckets['6-10']++;
+          else if (mins <= 15) timeBuckets['11-15']++;
+          else if (mins <= 20) timeBuckets['16-20']++;
+          else timeBuckets['20+']++;
+        }
+      }
+    });
+    return Object.entries(timeBuckets).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getTrackData = () => {
+    const incidents = getIncidentReports();
+    const trackCounts = {};
+    incidents.forEach(report => {
+      if (report.track) {
+        trackCounts[report.track] = (trackCounts[report.track] || 0) + 1;
+      }
+    });
+    return Object.entries(trackCounts).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getVehicleTypeData = () => {
+    const incidents = getIncidentReports();
+    const vehicleCounts = {};
+    incidents.forEach(report => {
+      if (report.vehicles && Array.isArray(report.vehicles)) {
+        report.vehicles.forEach(vehicle => {
+          if (vehicle.type) {
+            vehicleCounts[vehicle.type] = (vehicleCounts[vehicle.type] || 0) + 1;
+          }
+        });
+      }
+    });
+    return Object.entries(vehicleCounts).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getIncursionsData = () => {
+    const incidents = getIncidentReports();
+    const incursionCounts = { YES: 0, NO: 0 };
+    incidents.forEach(report => {
+      if (report.incursion) {
+        incursionCounts[report.incursion] = (incursionCounts[report.incursion] || 0) + 1;
+      }
+    });
+    return Object.entries(incursionCounts).map(([name, Number]) => ({ name, Number }));
+  };
+
+  const getTimeSeriesData = () => {
+    const incidents = getIncidentReports();
+    const monthlyCounts = {};
+    incidents.forEach(report => {
+      if (report.createdAt) {
+        const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+        const monthKey = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+        monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
+      }
+    });
+    return Object.entries(monthlyCounts).map(([name, count]) => ({ name, count, Number: count }));
   };
 
   // Statistics
@@ -148,18 +291,27 @@ const ClientChartsPage = () => {
     dailyLogs: filtered.filter((r) => r.type === "Daily Logs").length,
   };
 
-  const formatMonthLabel = (monthKey) => {
-    const [year, month] = monthKey.split("-");
-    const date = new Date(year, parseInt(month) - 1);
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-  };
+  // Extract chart data
+  const faultData = getFaultData();
+  const incidentTypeData = getIncidentTypeData();
+  const vehiclesDispatchedData = getVehiclesDispatchedData();
+  const spottedByData = getSpottedByData();
+  const laneAffectedData = getLaneAffectedData();
+  const timeToRecoverData = getTimeToRecoverData();
+  const trafficConditionsData = getTrafficConditionsData();
+  const emergencyServicesData = getEmergencyServicesData();
+  const timeToSiteData = getTimeToSiteData();
+  const trackData = getTrackData();
+  const vehicleTypeData = getVehicleTypeData();
+  const incursionsData = getIncursionsData();
+  const timeSeriesData = getTimeSeriesData();
 
   return (
     <AdminSidebarLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Client Charts & Analytics</h1>
+          <h3 className="text-3xl font-bold text-gray-800 mb-2">Client Charts & Analytics</h3>
           <p className="text-gray-600">Visual analytics of all reports and submissions per scheme</p>
         </div>
 
@@ -170,23 +322,14 @@ const ClientChartsPage = () => {
             <select
               value={selectedScheme}
               onChange={(e) => setSelectedScheme(e.target.value)}
-              className="select bg-white border-gray-300 rounded-lg w-full max-w-md"
+              className="select bg-white border-gray-300 rounded-lg w-full max-w-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
             >
-              <option value="all">All Schemes</option>
               {schemes.map((scheme) => (
                 <option key={scheme} value={scheme}>
                   {scheme}
                 </option>
               ))}
             </select>
-            {selectedScheme !== "all" && (
-              <button
-                onClick={() => setSelectedScheme("all")}
-                className="btn btn-sm btn-outline"
-              >
-                Clear Filter
-              </button>
-            )}
           </div>
         </div>
 
@@ -247,129 +390,174 @@ const ClientChartsPage = () => {
               </div>
             </div>
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              {/* Reports Distribution - Pie Chart */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Reports Distribution</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={getReportsByTypeData()}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {getReportsByTypeData().map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Monthly Trend - Line Chart */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Monthly Trend (Last 6 Months)</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={getMonthlyTrendData()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" tickFormatter={formatMonthLabel} />
-                    <YAxis />
-                    <Tooltip
-                      labelFormatter={formatMonthLabel}
-                      contentStyle={{ backgroundColor: "#fff", borderRadius: "8px" }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="CCTV Check" stroke={COLORS.cctvCheck} strokeWidth={2} />
-                    <Line type="monotone" dataKey="Incident Report" stroke={COLORS.incident} strokeWidth={2} />
-                    <Line type="monotone" dataKey="Asset Damage" stroke={COLORS.assetDamage} strokeWidth={2} />
-                    <Line type="monotone" dataKey="Daily Logs" stroke={COLORS.dailyLogs} strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Reports by Scheme - Bar Chart */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Reports by Scheme</h3>
-                <button
-                  onClick={() => toast.success("Export feature coming soon")}
-                  className="btn btn-sm btn-outline gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Export Data
-                </button>
-              </div>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={getReportsBySchemeData()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                  <YAxis />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#fff", borderRadius: "8px" }}
-                    formatter={(value, name) => [value, name]}
-                  />
-                  <Legend />
-                  <Bar dataKey="CCTV Check" stackId="a" fill={COLORS.cctvCheck} />
-                  <Bar dataKey="Incident Report" stackId="a" fill={COLORS.incident} />
-                  <Bar dataKey="Asset Damage" stackId="a" fill={COLORS.assetDamage} />
-                  <Bar dataKey="Daily Logs" stackId="a" fill={COLORS.dailyLogs} />
+            {/* Incident Analytics Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Chart 1: Fault */}
+              <ChartCard title="Fault">
+                <BarChart data={faultData.length > 0 ? faultData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartCard>
+
+              {/* Chart 2: Incident Type */}
+              <ChartCard title="Incident Type">
+                <BarChart data={incidentTypeData.length > 0 ? incidentTypeData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 3: Vehicles Dispatched */}
+              <ChartCard title="Vehicles Dispatched">
+                <BarChart data={vehiclesDispatchedData.length > 0 ? vehiclesDispatchedData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 4: Spotted By */}
+              <ChartCard title="Spotted By">
+                <BarChart data={spottedByData.length > 0 ? spottedByData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 5: Lane Affected */}
+              <ChartCard title="Lane Affected">
+                <BarChart data={laneAffectedData.length > 0 ? laneAffectedData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 6: Time to Recover */}
+              <ChartCard title="Time to recover (mins)">
+                <BarChart data={timeToRecoverData.length > 0 ? timeToRecoverData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 7: Traffic Conditions */}
+              <ChartCard title="Traffic Conditions">
+                <BarChart data={trafficConditionsData.length > 0 ? trafficConditionsData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 8: Emergency Services Attended */}
+              <ChartCard title="Emergency Services Attended">
+                <BarChart data={emergencyServicesData.length > 0 ? emergencyServicesData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 9: Time to Site */}
+              <ChartCard title="Time to Site (mins)">
+                <BarChart data={timeToSiteData.length > 0 ? timeToSiteData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 10: Track of Incident */}
+              <ChartCard title="Track of Incident">
+                <BarChart data={trackData.length > 0 ? trackData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 11: Vehicle Type */}
+              <ChartCard title="Vehicle Type">
+                <BarChart data={vehicleTypeData.length > 0 ? vehicleTypeData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 12: Incursions */}
+              <ChartCard title="Incursions">
+                <BarChart data={incursionsData.length > 0 ? incursionsData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
             </div>
 
-            {/* Insights Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-semibold">Most Active</h4>
-                </div>
-                <p className="text-2xl font-bold">
-                  {getReportsByTypeData().sort((a, b) => b.value - a.value)[0]?.name || "N/A"}
-                </p>
-                <p className="text-purple-100 text-sm mt-1">
-                  {getReportsByTypeData().sort((a, b) => b.value - a.value)[0]?.value || 0} submissions
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl shadow-md p-6 text-white">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <BarChart3 className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-semibold">Total Schemes</h4>
-                </div>
-                <p className="text-2xl font-bold">{schemes.length}</p>
-                <p className="text-teal-100 text-sm mt-1">Active schemes being monitored</p>
-              </div>
-
-              <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-6 text-white">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <AlertTriangle className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-semibold">This Month</h4>
-                </div>
-                <p className="text-2xl font-bold">
-                  {getMonthlyTrendData().slice(-1)[0]
-                    ? Object.values(getMonthlyTrendData().slice(-1)[0]).reduce(
-                        (sum, val) => (typeof val === "number" ? sum + val : sum),
-                        0
-                      )
-                    : 0}
-                </p>
-                <p className="text-orange-100 text-sm mt-1">Total submissions this month</p>
-              </div>
+            {/* Full Width: Incidents Over Time */}
+            <div className="mb-8">
+              <ChartCard title="Incidents Over Time" fullWidth height={350}>
+                <BarChart
+                  data={
+                    timeSeriesData.length > 0
+                      ? timeSeriesData.map(d => ({ ...d, Number: d.count }))
+                      : [{ name: "No Data", Number: 0 }]
+                  }
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                  <YAxis tick={{ fontSize: 13 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    labelStyle={{ fontWeight: 'bold' }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Bar dataKey="Number" fill="#17af93" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ChartCard>
             </div>
           </>
         )}

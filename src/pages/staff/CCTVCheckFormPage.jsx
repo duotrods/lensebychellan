@@ -27,17 +27,9 @@ const CCTVCheckFormPage = () => {
     a417Cameras: [],
     a417Comments: '',
 
-    // A1 Birtley to Coalhouse Section
-    birtleyToCoalhouse: [],
-    birtleyComments: '',
-
     // A11/A47 Kier/Core Section
     kierCore: [],
     kierCoreComments: '',
-
-    // Gallows Corner Section
-    gallowsCorner: [],
-    gallowsCornerComments: '',
 
     // M3 Jct 9 Section
     m3Jct9: [],
@@ -52,16 +44,9 @@ const CCTVCheckFormPage = () => {
       'CCTV 21', 'CCTV 22', 'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28',
       'CCTV 29', 'CCTV 30', 'CCTV 31', 'CCTV 32'
     ],
-    birtley: [
-      'ALL WORKING CORRECT', 'CCTV 1', 'CCTV 2', 'CCTV 3'
-    ],
     kierCore: [
       'ALL WORKING CORRECT', '1100', '1101', '1102', '1103', '1104', '1105', '1106', '1107',
       '1108', '1109', '1110', '1111'
-    ],
-    gallows: [
-      'ALL WORKING CORRECT', 'T1-CCTV 1', 'T1-CCTV 2', 'T1-CCTV 3', 'T1-CCTV 4',
-      'T2-CCTV 1', 'T2-CCTV 2', 'T2-CCTV 3', 'T2-CCTV 4'
     ],
     m3: [
       'ALL WORKING CORRECT', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
@@ -93,12 +78,8 @@ const CCTVCheckFormPage = () => {
           time: form.time || '',
           a417Cameras: form.a417Cameras || [],
           a417Comments: form.a417Comments || '',
-          birtleyToCoalhouse: form.birtleyToCoalhouse || [],
-          birtleyComments: form.birtleyComments || '',
           kierCore: form.kierCore || [],
           kierCoreComments: form.kierCoreComments || '',
-          gallowsCorner: form.gallowsCorner || [],
-          gallowsCornerComments: form.gallowsCornerComments || '',
           m3Jct9: form.m3Jct9 || [],
           m3Jct9Comments: form.m3Jct9Comments || ''
         });
@@ -320,21 +301,9 @@ const CCTVCheckFormPage = () => {
           )}
 
           {renderCheckboxSection(
-            'A1 Birtley to Coalhouse (only tick cameras that are not working correctly)',
-            'birtleyToCoalhouse',
-            cameraOptions.birtley
-          )}
-
-          {renderCheckboxSection(
             'A11/A47 Kier/Core (only tick cameras that are not working correctly)',
             'kierCore',
             cameraOptions.kierCore
-          )}
-
-          {renderCheckboxSection(
-            'Gallows Corner (only tick cameras that are not working correctly)',
-            'gallowsCorner',
-            cameraOptions.gallows
           )}
 
           {renderCheckboxSection(
@@ -350,7 +319,7 @@ const CCTVCheckFormPage = () => {
               onClick={() => navigate(-1)}
               className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Save
+              Cancel
             </button>
             <button
               type="submit"

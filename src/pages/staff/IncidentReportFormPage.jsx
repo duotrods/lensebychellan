@@ -274,20 +274,12 @@ const IncidentReportFormPage = () => {
                 required
               >
                 <option value="">Please Select</option>
-                <option value="">Please Select</option>
                 <option value="A417 Missing Link - Kier">
                   A417 Missing Link - Kier
-                </option>
-                <option value="Gallows Corner - Costain">
-                  Gallows Corner - Costain
-                </option>
-                <option value="A1 Birtley to Coalhouse - Costain">
-                  A1 Birtley to Coalhouse - Costain
                 </option>
                 <option value="M3 Jct 9 - Balfour Beatty">
                   M3 Jct 9 - Balfour Beatty
                 </option>
-                <option value="HS2- Traffix">HS2- Traffix</option>
                 <option value="A47 Thickthorn - Core">
                   A47 Thickthorn - Core
                 </option>

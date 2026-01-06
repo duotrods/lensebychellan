@@ -160,7 +160,7 @@ const SchemeAssignment = () => {
 
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto"> 
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>

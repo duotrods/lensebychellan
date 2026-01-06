@@ -228,9 +228,7 @@ const CCTVCheckView = () => {
           {/* Camera Sections */}
           <div className="space-y-6">
             {renderCameraSection('A417', form.a417Cameras, form.a417Comments)}
-            {renderCameraSection('A1 Birtley to Coalhouse', form.birtleyToCoalhouse, form.birtleyComments)}
             {renderCameraSection('A11/A47 Kier/Core', form.kierCore, form.kierCoreComments)}
-            {renderCameraSection('Gallows Corner', form.gallowsCorner, form.gallowsCornerComments)}
             {renderCameraSection('M3 Jct 9', form.m3Jct9, form.m3Jct9Comments)}
           </div>
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import {
@@ -12,13 +11,13 @@ import {
   Download,
   Filter,
   Search,
+  Edit,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 
 const ReportsListPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
@@ -30,7 +29,7 @@ const ReportsListPage = () => {
   useEffect(() => {
     loadReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile]);
+  }, []);
 
   useEffect(() => {
     applyFilters();
@@ -38,15 +37,14 @@ const ReportsListPage = () => {
   }, [reports, filterType, searchQuery]);
 
   const loadReports = async () => {
-    if (!userProfile) return;
-
     try {
       setLoading(true);
+      // Get all reports from all staff members (passing null to get all)
       const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
-        staffService.getCCTVCheckForms(userProfile.uid),
-        staffService.getIncidentReports(userProfile.uid),
-        staffService.getAssetDamageReports(userProfile.uid),
-        staffService.getDailyOccurrenceReports(userProfile.uid),
+        staffService.getCCTVCheckForms(null),
+        staffService.getIncidentReports(null),
+        staffService.getAssetDamageReports(null),
+        staffService.getDailyOccurrenceReports(null),
       ]);
 
       // Combine all reports
@@ -186,13 +184,26 @@ const ReportsListPage = () => {
     }
   };
 
-  const handleExportReport = (report) => {
+  const handleExportReport = async (report) => {
     try {
-      generateReportPDF(report, report.type);
-      toast.success(`Downloaded ${report.referenceId || 'report'} as PDF`);
+      await generateReportPDF(report);
+      toast.success("PDF downloaded successfully");
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      toast.error('Failed to download report');
+      console.error("Failed to generate PDF:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  const handleEditReport = (report) => {
+    // Navigate to edit page based on type with query parameter
+    if (report.type === "CCTV Check") {
+      navigate(`/dashboard/staff/forms/cctv-check?edit=${report.id}`);
+    } else if (report.type === "Incident Report") {
+      navigate(`/dashboard/staff/forms/incident-report?edit=${report.id}`);
+    } else if (report.type === "Asset Damage") {
+      navigate(`/dashboard/staff/forms/asset-damage?edit=${report.id}`);
+    } else if (report.type === "Daily Logs") {
+      navigate(`/dashboard/staff/forms/daily-occurence?edit=${report.id}`);
     }
   };
 
@@ -307,10 +318,17 @@ const ReportsListPage = () => {
                           <td className="text-sm text-gray-600 font-mono font-semibold">
                             {report.referenceId || report.id.slice(0, 12) + "..."}
                           </td>
-                          <td className="text-sm text-gray-800">
-                            {report.firstName && report.lastName
-                              ? `${report.firstName} ${report.lastName}`
-                              : report.submittedBy?.name || "N/A"}
+                          <td className="text-sm">
+                            <div>
+                              <div className="text-gray-800">
+                                {report.submittedBy?.name || `${report.firstName || ''} ${report.lastName || ''}`.trim() || 'N/A'}
+                              </div>
+                              {report.lastEditedBy && (
+                                <div className="text-xs text-blue-600 mt-1">
+                                  Edited by: {report.lastEditedBy?.name || 'Unknown'}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="text-sm text-gray-600">
                             {formatDate(report.createdAt)}
@@ -322,16 +340,24 @@ const ReportsListPage = () => {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleViewReport(report)}
-                                className="btn btn-sm bg-teal-500 text-white hover:bg-teal-600 border-none"
+                                className="btn btn-sm btn-ghost text-teal-600 hover:bg-teal-50"
+                                title="View Details"
                               >
                                 <Eye className="w-4 h-4" />
-                                View
                               </button>
                               <button
                                 onClick={() => handleExportReport(report)}
-                                className="btn btn-sm btn-outline"
+                                className="btn btn-sm btn-ghost text-blue-600 hover:bg-blue-50"
+                                title="Download PDF"
                               >
                                 <Download className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleEditReport(report)}
+                                className="btn btn-sm btn-ghost text-orange-600 hover:bg-orange-50"
+                                title="Edit Report"
+                              >
+                                <Edit className="w-4 h-4" />
                               </button>
                             </div>
                           </td>

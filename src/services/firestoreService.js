@@ -4,6 +4,7 @@ import {
   getDoc,
   updateDoc,
   addDoc,
+  deleteDoc,
   collection,
   getDocs,
   serverTimestamp,
@@ -306,6 +307,114 @@ class FirestoreService {
       return { success: true, message: 'Scheme removed successfully' };
     } catch (error) {
       throw new AppError('Failed to remove scheme', 'firestore/update-error', error);
+    }
+  }
+
+  // Admin-only: Promote staff to admin
+  async promoteToAdmin(targetUid, adminUid) {
+    try {
+      // Verify admin role
+      const adminUser = await this.getUserDocument(adminUid);
+      if (adminUser?.role !== USER_ROLES.ADMIN) {
+        throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+
+      // Get target user
+      const targetUser = await this.getUserDocument(targetUid);
+      if (!targetUser) {
+        throw new AppError('User not found', 'firestore/not-found');
+      }
+
+      // Verify target is staff
+      if (targetUser.role !== USER_ROLES.STAFF) {
+        throw new AppError('Can only promote staff users to admin', 'firestore/permission-denied');
+      }
+
+      // Prevent self-promotion
+      if (targetUid === adminUid) {
+        throw new AppError('Cannot promote yourself', 'firestore/invalid-operation');
+      }
+
+      // Update user role to admin
+      const userRef = doc(db, 'users', targetUid);
+      await updateDoc(userRef, {
+        role: USER_ROLES.ADMIN,
+        updatedAt: serverTimestamp()
+      });
+
+      // Log audit trail
+      await this.createAuditLog({
+        action: 'promote_to_admin',
+        performedBy: adminUid,
+        targetUser: targetUid,
+        oldValue: USER_ROLES.STAFF,
+        newValue: USER_ROLES.ADMIN,
+        targetUserEmail: targetUser.email,
+        targetUserName: targetUser.displayName
+      });
+
+      return { success: true, message: 'User promoted to admin successfully' };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to promote user', 'firestore/update-error', error);
+    }
+  }
+
+  // Admin-only: Delete user
+  async deleteUser(targetUid, adminUid) {
+    try {
+      // Verify admin role
+      const adminUser = await this.getUserDocument(adminUid);
+      if (adminUser?.role !== USER_ROLES.ADMIN) {
+        throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+
+      // Get target user
+      const targetUser = await this.getUserDocument(targetUid);
+      if (!targetUser) {
+        throw new AppError('User not found', 'firestore/not-found');
+      }
+
+      // Prevent deleting other admins
+      if (targetUser.role === USER_ROLES.ADMIN) {
+        throw new AppError('Cannot delete admin users', 'firestore/permission-denied');
+      }
+
+      // Prevent self-deletion
+      if (targetUid === adminUid) {
+        throw new AppError('Cannot delete yourself', 'firestore/invalid-operation');
+      }
+
+      // Log audit trail before deletion
+      await this.createAuditLog({
+        action: 'user_deleted',
+        performedBy: adminUid,
+        targetUser: targetUid,
+        deletedUserData: {
+          email: targetUser.email,
+          displayName: targetUser.displayName,
+          role: targetUser.role,
+          company: targetUser.company
+        }
+      });
+
+      // Delete user document from Firestore
+      const userRef = doc(db, 'users', targetUid);
+      await deleteDoc(userRef);
+
+      return { success: true, message: 'User deleted successfully' };
+    } catch (error) {
+      console.error('Delete user error details:', error);
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError(
+        `Failed to delete user: ${error.message || 'Unknown error'}`,
+        'firestore/delete-error',
+        error
+      );
     }
   }
 }
