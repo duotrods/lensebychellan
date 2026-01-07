@@ -46,6 +46,10 @@ import OTPManagementPage from './pages/admin/OTPManagementPage';
 import SchemeAssignmentPage from './pages/admin/SchemeAssignmentPage';
 import StaffReportsPage from './pages/admin/StaffReportsPage';
 import ClientChartsPage from './pages/admin/ClientChartsPage';
+import IncidentReportDetailPage from './pages/admin/IncidentReportDetailPage';
+import CCTVCheckDetailPage from './pages/admin/CCTVCheckDetailPage';
+import AssetDamageDetailPage from './pages/admin/AssetDamageDetailPage';
+import DailyLogsDetailPage from './pages/admin/DailyLogsDetailPage';
 
 // Client pages
 import AnalyticsPage from './pages/client/AnalyticsPage';
@@ -137,6 +141,43 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <ClientChartsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Staff Report Detail Pages */}
+            <Route
+              path="/dashboard/admin/staff-reports/incident/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <IncidentReportDetailPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/staff-reports/cctv/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <CCTVCheckDetailPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/staff-reports/asset/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <AssetDamageDetailPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/staff-reports/daily/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <DailyLogsDetailPage />
                 </ProtectedRoute>
               }
             />
