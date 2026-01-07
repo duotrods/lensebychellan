@@ -234,16 +234,25 @@ const CCTVUploadsPage = () => {
                       Scheme <span className="text-red-500">*</span>
                     </span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={uploadForm.scheme}
                     onChange={(e) =>
                       setUploadForm({ ...uploadForm, scheme: e.target.value })
                     }
-                    className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                    placeholder="e.g., A417, M3 Jct 9"
+                    className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                     required
-                  />
+                  >
+                    <option value="">Please Select</option>
+                    <option value="A417 Missing Link - Kier">
+                      A417 Missing Link - Kier
+                    </option>
+                    <option value="M3 Jct 9 - Balfour Beatty">
+                      M3 Jct 9 - Balfour Beatty
+                    </option>
+                    <option value="A47 Thickthorn - Core">
+                      A47 Thickthorn - Core
+                    </option>
+                  </select>
                 </div>
 
                 <div>

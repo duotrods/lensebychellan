@@ -1,4 +1,5 @@
-import { jsPDF } from 'jspdf';
+import { jsPDF } from "jspdf";
+import lenselogo from "../assets/chellanpng.png";
 
 /**
  * Generate PDF for any report type
@@ -9,14 +10,18 @@ export const generateReportPDF = (report, reportType) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
-  const contentWidth = pageWidth - (margin * 2);
+  const contentWidth = pageWidth - margin * 2;
   let yPosition = 20;
 
   // Helper function to add text with word wrap
   const addText = (text, x, y, options = {}) => {
-    const { fontSize = 10, fontStyle = 'normal', maxWidth = contentWidth } = options;
+    const {
+      fontSize = 10,
+      fontStyle = "normal",
+      maxWidth = contentWidth,
+    } = options;
     doc.setFontSize(fontSize);
-    doc.setFont('helvetica', fontStyle);
+    doc.setFont("helvetica", fontStyle);
 
     if (text && text.toString().length > 0) {
       const lines = doc.splitTextToSize(text.toString(), maxWidth);
@@ -28,145 +33,294 @@ export const generateReportPDF = (report, reportType) => {
 
   // Helper to format date
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return "N/A";
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
   // Helper to format time
   const formatTime = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!timestamp) return "N/A";
+
+    // If it's already a string in time format (HH:MM), return it
+    if (typeof timestamp === "string" && /^\d{1,2}:\d{2}/.test(timestamp)) {
+      return timestamp;
+    }
+
+    // Try to convert to Date object
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return "N/A";
+      }
+
+      return date.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      return "N/A";
+    }
   };
 
-  // Header
-  doc.setFillColor(59, 130, 246); // Blue background
-  doc.rect(0, 0, pageWidth, 30, 'F');
-  doc.setTextColor(255, 255, 255);
-  addText('LENS BY CHELLAN', margin, 15, { fontSize: 18, fontStyle: 'bold' });
-  addText('Security Report', margin, 23, { fontSize: 12 });
+  // Header with white background - increased height for centered logo and text
+  doc.setFillColor(255, 255, 255); // White background
+  doc.rect(0, 0, pageWidth, 40, "F");
 
-  yPosition = 40;
-  doc.setTextColor(0, 0, 0);
-
-  // Report Title
-  const reportTitles = {
-    'incident': 'Incident Report',
-    'asset-damage': 'Asset Damage Report',
-    'daily-occurrence': 'Daily Occurrence Report',
-    'cctv-check': 'CCTV Check Report'
-  };
-
-  addText(reportTitles[reportType] || 'Report', margin, yPosition, { fontSize: 16, fontStyle: 'bold' });
-  yPosition += 10;
-
-  // Reference ID
-  if (report.referenceId) {
-    addText(`Reference: ${report.referenceId}`, margin, yPosition, { fontSize: 10, fontStyle: 'bold' });
-    yPosition += 8;
+  // Add logo centered on top
+  try {
+    const logoWidth = 50; // Width
+    const logoHeight = 25; // Height (adjust ratio to prevent distortion)
+    const logoX = (pageWidth - logoWidth) / 2; // Center horizontally
+    doc.addImage(lenselogo, "PNG", logoX, 5, logoWidth, logoHeight);
+  } catch (error) {
+    console.error("Error adding logo:", error);
   }
 
-  // Divider line
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  // Add text centered below the logo
+  doc.setTextColor(0, 0, 0); // Black text
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("LENSE BY CHELLAN", pageWidth / 2, 35, { align: "center" });
+
+  yPosition = 50;
+  doc.setTextColor(0, 0, 0);
+
+  // Report Title Section
+  const reportTitles = {
+    incident: "Incident Report",
+    "asset-damage": "Asset Damage Report",
+    "daily-occurrence": "Daily Occurrence Report",
+    "cctv-check": "CCTV Check Report",
+  };
+
+  // Title with background
+  doc.setFillColor(240, 240, 240);
+  doc.rect(margin, yPosition - 5, contentWidth, 12, "F");
+  doc.setTextColor(0, 0, 0);
+  addText(reportTitles[reportType] || "Report", margin + 5, yPosition + 3, {
+    fontSize: 14,
+    fontStyle: "bold",
+  });
+  yPosition += 15;
+
+  // Reference ID with improved styling
+  if (report.referenceId) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Reference Number: ${report.referenceId}`, margin, yPosition);
+    yPosition += 6;
+  }
+
+  // Add generation date/time
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.text(
+    `Generated: ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleTimeString("en-GB")}`,
+    margin,
+    yPosition
+  );
   yPosition += 10;
 
-  // Report Details based on type
+  // Divider line
+  doc.setDrawColor(0, 186, 168); // Teal color
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 12;
+
+  // Helper to add section headers
+  const addSectionHeader = (title) => {
+    if (yPosition > 260) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFillColor(0, 186, 168); // Teal background
+    doc.rect(margin, yPosition - 2, contentWidth, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, margin + 3, yPosition + 4);
+    yPosition += 12;
+    doc.setTextColor(0, 0, 0);
+  };
+
+  // Improved field display
   const addField = (label, value, bold = false) => {
     if (value === undefined || value === null) return;
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${label}:`, margin, yPosition);
-
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    const valueText = value.toString();
-    const lines = doc.splitTextToSize(valueText, contentWidth - 40);
-    doc.text(lines, margin + 40, yPosition);
-
-    yPosition += lines.length * 5 + 3;
 
     if (yPosition > 270) {
       doc.addPage();
       yPosition = 20;
     }
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(60, 60, 60);
+    doc.text(`${label}:`, margin, yPosition);
+
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setTextColor(0, 0, 0);
+    const valueText = value.toString();
+    const lines = doc.splitTextToSize(valueText, contentWidth - 50);
+    doc.text(lines, margin + 50, yPosition);
+
+    yPosition += Math.max(lines.length * 5, 7);
   };
 
-  // Common fields
-  addField('Date', formatDate(report.createdAt || report.timestamp || report.date));
-  addField('Time', formatTime(report.createdAt || report.timestamp || report.time));
+  // Basic Information Section
+  addSectionHeader("BASIC INFORMATION");
+
+  addField(
+    "Report Date",
+    formatDate(report.createdAt || report.timestamp || report.date)
+  );
+  addField(
+    "Report Time",
+    formatTime(report.createdAt || report.timestamp || report.time)
+  );
 
   if (report.scheme || report.schemeId) {
-    addField('Scheme', report.scheme || report.schemeId);
+    addField("Scheme/Location", report.scheme || report.schemeId);
   }
 
   if (report.location) {
-    addField('Location', report.location);
+    addField("Specific Location", report.location);
   }
 
-  // Type-specific fields
+  // Type-specific fields with section headers
+  yPosition += 5;
+
+  // Check if report has multiple occurrences (for daily-occurrence reports)
+  const hasOccurrences = reportType === "daily-occurrence" && report.occurrences && Array.isArray(report.occurrences);
+
+  if (hasOccurrences) {
+    addSectionHeader(`DAILY OCCURRENCES (${report.occurrences.length})`);
+
+    report.occurrences.forEach((occurrence, index) => {
+      // Occurrence header
+      yPosition += 3;
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Occurrence #${index + 1}`, margin + 3, yPosition + 3);
+      yPosition += 12;
+
+      // Occurrence details
+      if (occurrence.date) addField("Date", formatDate(occurrence.date));
+      if (occurrence.time) addField("Time", formatTime(occurrence.time));
+      if (occurrence.location) addField("Location", occurrence.location);
+      if (occurrence.urn) addField("URN", occurrence.urn);
+      if (occurrence.recoveryRequired !== undefined) {
+        addField("Recovery Required", occurrence.recoveryRequired ? "Yes" : "No");
+      }
+      if (occurrence.rcc) addField("RCC", occurrence.rcc);
+      if (occurrence.nameInitials) addField("Name/Initials", occurrence.nameInitials);
+      if (occurrence.description) addField("Description", occurrence.description);
+      if (occurrence.actionTaken) addField("Action Taken", occurrence.actionTaken);
+
+      yPosition += 5;
+    });
+  } else {
+    addSectionHeader("REPORT DETAILS");
+  }
+
   switch (reportType) {
-    case 'incident':
-      if (report.incidentType) addField('Incident Type', report.incidentType, true);
-      if (report.severity) addField('Severity', report.severity);
-      if (report.laneAffected) addField('Lane Affected', report.laneAffected);
-      if (report.spottedBy) addField('Spotted By', report.spottedBy);
+    case "incident":
+      if (report.incidentType)
+        addField("Incident Type", report.incidentType, true);
+      if (report.severity) addField("Severity", report.severity);
+      if (report.laneAffected) addField("Lane Affected", report.laneAffected);
+      if (report.spottedBy) addField("Spotted By", report.spottedBy);
       if (report.vehicleDispatched !== undefined) {
-        addField('Vehicle Dispatched', report.vehicleDispatched ? 'Yes' : 'No');
+        addField("Vehicle Dispatched", report.vehicleDispatched ? "Yes" : "No");
       }
-      if (report.description) addField('Description', report.description);
-      if (report.actionTaken) addField('Action Taken', report.actionTaken);
+      if (report.description) addField("Description", report.description);
+      if (report.actionTaken) addField("Action Taken", report.actionTaken);
       break;
 
-    case 'asset-damage':
-      if (report.damageType) addField('Damage Type', report.damageType, true);
-      if (report.assetName) addField('Asset Name', report.assetName);
-      if (report.severity) addField('Severity', report.severity);
-      if (report.description) addField('Description', report.description);
-      if (report.estimatedCost) addField('Estimated Cost', `£${report.estimatedCost}`);
-      if (report.repairStatus) addField('Repair Status', report.repairStatus);
+    case "asset-damage":
+      if (report.damageType) addField("Damage Type", report.damageType, true);
+      if (report.assetName) addField("Asset Name", report.assetName);
+      if (report.severity) addField("Severity", report.severity);
+      if (report.description) addField("Description", report.description);
+      if (report.estimatedCost)
+        addField("Estimated Cost", `£${report.estimatedCost}`);
+      if (report.repairStatus) addField("Repair Status", report.repairStatus);
       break;
 
-    case 'daily-occurrence':
-      if (report.title) addField('Title', report.title, true);
-      if (report.category) addField('Category', report.category);
-      if (report.description) addField('Description', report.description);
-      if (report.weatherConditions) addField('Weather', report.weatherConditions);
-      if (report.trafficFlow) addField('Traffic Flow', report.trafficFlow);
+    case "daily-occurrence":
+      // Main occurrence details (skip title as it's already shown in occurrences)
+      if (report.category) addField("Category", report.category);
+
+      // Additional fields from the occurrence
+      if (report.urn) addField("URN", report.urn);
+      if (report.recoveryRequired !== undefined) {
+        addField("Recovery Required", report.recoveryRequired ? "Yes" : "No");
+      }
+      if (report.rcc) addField("RCC", report.rcc);
+      if (report.nameInitials) addField("Name/Initials", report.nameInitials);
+
+      // Description and Action Taken
+      if (report.description) addField("Description", report.description);
+      if (report.actionTaken) addField("Action Taken", report.actionTaken);
+
+      // Weather and Traffic
+      if (report.weatherConditions)
+        addField("Weather Conditions", report.weatherConditions);
+      if (report.trafficFlow) addField("Traffic Flow", report.trafficFlow);
       break;
 
-    case 'cctv-check':
+    case "cctv-check":
       if (report.allWorking !== undefined) {
-        addField('All Systems Working', report.allWorking ? 'Yes' : 'No', true);
+        addField("All Systems Working", report.allWorking ? "Yes" : "No", true);
       }
-      if (report.status) addField('Status', report.status);
-      if (report.camerasChecked) addField('Cameras Checked', report.camerasChecked);
-      if (report.issuesFound) addField('Issues Found', report.issuesFound);
-      if (report.notes) addField('Notes', report.notes);
+      if (report.status) addField("Status", report.status);
+      if (report.camerasChecked)
+        addField("Cameras Checked", report.camerasChecked);
+      if (report.issuesFound) addField("Issues Found", report.issuesFound);
+      if (report.notes) addField("Notes", report.notes);
       break;
   }
 
-  // Status
-  if (report.status) {
-    yPosition += 3;
-    addField('Status', report.status, true);
+  // Report Information Section (Status and Submitter)
+  yPosition += 5;
+  addSectionHeader("REPORT INFORMATION");
+
+  if (report.submittedBy) {
+    const submitter =
+      typeof report.submittedBy === "object"
+        ? report.submittedBy?.name || "Staff Member"
+        : report.submittedBy;
+    addField("Submitted By", submitter);
   }
 
-  // Submitted By
-  if (report.submittedBy) {
-    const submitter = typeof report.submittedBy === 'object'
-      ? report.submittedBy?.name || 'Staff'
-      : report.submittedBy;
-    addField('Submitted By', submitter);
+  if (report.lastEditedBy) {
+    const editor =
+      typeof report.lastEditedBy === "object"
+        ? report.lastEditedBy?.name || "Staff Member"
+        : report.lastEditedBy;
+    addField("Last Edited By", editor);
   }
+
+  if (report.status) {
+    addField("Status", report.status, true);
+  }
+
+  // Add a note section at the bottom
+  yPosition += 8;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
 
   // Footer
   const pageCount = doc.internal.getNumberOfPages();
@@ -178,18 +332,20 @@ export const generateReportPDF = (report, reportType) => {
       `Page ${i} of ${pageCount}`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 10,
-      { align: 'center' }
+      { align: "center" }
     );
     doc.text(
-      `Generated on ${new Date().toLocaleDateString('en-GB')} at ${new Date().toLocaleTimeString('en-GB')}`,
+      `Generated on ${new Date().toLocaleDateString(
+        "en-GB"
+      )} at ${new Date().toLocaleTimeString("en-GB")}`,
       margin,
       doc.internal.pageSize.getHeight() - 10
     );
   }
 
   // Generate filename
-  const timestamp = new Date().toISOString().split('T')[0];
-  const refId = report.referenceId || 'report';
+  const timestamp = new Date().toISOString().split("T")[0];
+  const refId = report.referenceId || "report";
   const filename = `${reportType}_${refId}_${timestamp}.pdf`;
 
   // Save the PDF
@@ -208,83 +364,150 @@ export const generateCCTVRecordingPDF = (recording) => {
 
   // Helper to format date
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return "N/A";
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  // Header
-  doc.setFillColor(59, 130, 246);
-  doc.rect(0, 0, pageWidth, 30, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('LENS BY CHELLAN', margin, 15);
-  doc.setFontSize(12);
-  doc.text('CCTV Recording Report', margin, 23);
+  // Header with white background - increased height for centered logo and text
+  doc.setFillColor(255, 255, 255); // White background
+  doc.rect(0, 0, pageWidth, 40, "F");
 
-  yPosition = 40;
+  // Add logo centered on top
+  try {
+    const logoWidth = 50; // Width
+    const logoHeight = 25; // Height (adjust ratio to prevent distortion)
+    const logoX = (pageWidth - logoWidth) / 2; // Center horizontally
+    doc.addImage(lenselogo, "PNG", logoX, 5, logoWidth, logoHeight);
+  } catch (error) {
+    console.error("Error adding logo:", error);
+  }
+
+  // Add text centered below the logo
+  doc.setTextColor(0, 0, 0); // Black text
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("LENSE BY CHELLAN", pageWidth / 2, 35, { align: "center" });
+
+  yPosition = 50;
   doc.setTextColor(0, 0, 0);
 
-  // Title
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('CCTV Recording Details', margin, yPosition);
+  // Title with background
+  const contentWidth = pageWidth - margin * 2;
+  doc.setFillColor(240, 240, 240);
+  doc.rect(margin, yPosition - 5, contentWidth, 12, "F");
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("CCTV Recording Details", margin + 5, yPosition + 3);
   yPosition += 15;
 
-  // Divider
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 10;
+  // Add generation date/time
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.text(
+    `Generated: ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleTimeString("en-GB")}`,
+    margin,
+    yPosition
+  );
+  yPosition += 8;
 
-  // Recording Details
+  // Divider
+  doc.setDrawColor(0, 186, 168);
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 12;
+
+  // Helper to add section headers
+  const addSectionHeader = (title) => {
+    doc.setFillColor(0, 186, 168);
+    doc.rect(margin, yPosition - 2, contentWidth, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, margin + 3, yPosition + 4);
+    yPosition += 12;
+    doc.setTextColor(0, 0, 0);
+  };
+
+  // Improved field display
   const addField = (label, value) => {
     if (!value) return;
 
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(60, 60, 60);
     doc.text(`${label}:`, margin, yPosition);
-    doc.setFont('helvetica', 'normal');
-    doc.text(value.toString(), margin + 50, yPosition);
-    yPosition += 8;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const valueText = value.toString();
+    const lines = doc.splitTextToSize(valueText, contentWidth - 50);
+    doc.text(lines, margin + 50, yPosition);
+    yPosition += Math.max(lines.length * 5, 7);
   };
 
-  addField('Camera Number', recording.cameraNumber);
-  addField('Location', recording.location);
-  addField('Scheme', recording.scheme);
-  addField('Date & Time', formatDate(recording.uploadedAt || recording.dateTime));
-  addField('File Name', recording.fileName);
-  addField('File Size', recording.fileSize ? `${(recording.fileSize / 1024 / 1024).toFixed(2)} MB` : 'N/A');
-  addField('Duration', recording.duration || 'N/A');
+  // Recording Information Section
+  addSectionHeader("RECORDING INFORMATION");
 
+  addField("Camera Number", recording.cameraNumber);
+  addField("Location", recording.location);
+  addField("Scheme", recording.scheme);
+  addField(
+    "Recording Date & Time",
+    formatDate(recording.uploadedAt || recording.dateTime)
+  );
+
+  // File Details Section
+  yPosition += 5;
+  addSectionHeader("FILE DETAILS");
+
+  addField("File Name", recording.fileName);
+  addField(
+    "File Size",
+    recording.fileSize
+      ? `${(recording.fileSize / 1024 / 1024).toFixed(2)} MB`
+      : "N/A"
+  );
+  addField("Duration", recording.duration || "N/A");
+
+  // Notes Section
   if (recording.notes) {
     yPosition += 5;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Notes:', margin, yPosition);
-    yPosition += 6;
-    doc.setFont('helvetica', 'normal');
-    const notes = doc.splitTextToSize(recording.notes, pageWidth - (margin * 2));
+    addSectionHeader("ADDITIONAL NOTES");
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const notes = doc.splitTextToSize(recording.notes, contentWidth);
     doc.text(notes, margin, yPosition);
     yPosition += notes.length * 6;
   }
+
+  // Add a divider line at the bottom
+  yPosition += 8;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPosition, pageWidth - margin, yPosition);
 
   // Footer
   doc.setFontSize(8);
   doc.setTextColor(128, 128, 128);
   doc.text(
-    `Generated on ${new Date().toLocaleDateString('en-GB')} at ${new Date().toLocaleTimeString('en-GB')}`,
+    `Generated on ${new Date().toLocaleDateString(
+      "en-GB"
+    )} at ${new Date().toLocaleTimeString("en-GB")}`,
     margin,
     doc.internal.pageSize.getHeight() - 10
   );
 
   // Save
-  const timestamp = new Date().toISOString().split('T')[0];
+  const timestamp = new Date().toISOString().split("T")[0];
   const filename = `cctv_${recording.cameraNumber}_${timestamp}.pdf`;
   doc.save(filename);
 };

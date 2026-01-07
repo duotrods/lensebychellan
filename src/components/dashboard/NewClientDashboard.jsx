@@ -93,14 +93,7 @@ const NewClientDashboard = () => {
       color: "text-blue-500",
       bgColor: "bg-blue-50",
     },
-    {
-      title: "CCTV Uptime",
-      value: loading ? "..." : `${cctvUptime?.uptime || 0}%`,
-      text: "Total percentage of time CCTV systems were operational.",
-      icon: Camera,
-      color: "text-green-500",
-      bgColor: "bg-green-50",
-    },
+    
   ];
 
   // Chart component wrapper for consistent styling
@@ -163,7 +156,7 @@ const NewClientDashboard = () => {
       ) : (
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
             {statsCards.map((stat, index) => (
               <div
                 key={index}

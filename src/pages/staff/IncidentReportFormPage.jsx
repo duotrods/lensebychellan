@@ -38,8 +38,9 @@ const IncidentReportFormPage = () => {
     affectedLanes: [],
     emergencyServices: [],
     recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
-    timeSpottedToOn: "",
-    timeOnsiteToCleared: "",
+    timeSpotted: "",
+    timeOnSite: "",
+    timeCleared: "",
     closedLogCollar: "",
     fault: "",
     vehicles: [{ type: "", make: "", model: "", vin: "" }],
@@ -79,8 +80,9 @@ const IncidentReportFormPage = () => {
           affectedLanes: report.affectedLanes || [],
           emergencyServices: report.emergencyServices || [],
           recoveryRequested: report.recoveryRequested || { light: 0, heavy: 0, ipv: 0, hetos: 0 },
-          timeSpottedToOn: report.timeSpottedToOn || "",
-          timeOnsiteToCleared: report.timeOnsiteToCleared || "",
+          timeSpotted: report.timeSpotted || "",
+          timeOnSite: report.timeOnSite || "",
+          timeCleared: report.timeCleared || "",
           closedLogCollar: report.closedLogCollar || "",
           fault: report.fault || "",
           vehicles: report.vehicles || [{ type: "", make: "", model: "", vin: "" }],
@@ -691,19 +693,18 @@ const IncidentReportFormPage = () => {
           </div>
 
           {/* Time Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Time Spotted to Time On Site{" "}
+                  Time Spotted{" "}
                   <span className="text-red-500">*</span>
                 </span>
               </label>
               <input
-                type="text"
-                name="timeSpottedToOn"
-                placeholder="HH:MM"
-                value={formData.timeSpottedToOn}
+                type="time"
+                name="timeSpotted"
+                value={formData.timeSpotted}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
               />
@@ -712,15 +713,30 @@ const IncidentReportFormPage = () => {
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Time Onsite to Time Cleared{" "}
+                  Time On Site{" "}
                   <span className="text-red-500">*</span>
                 </span>
               </label>
               <input
-                type="text"
-                name="timeOnsiteToCleared"
-                placeholder="HH:MM"
-                value={formData.timeOnsiteToCleared}
+                type="time"
+                name="timeOnSite"
+                value={formData.timeOnSite}
+                onChange={handleChange}
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+              />
+            </div>
+
+            <div>
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  Time Cleared{" "}
+                  <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <input
+                type="time"
+                name="timeCleared"
+                value={formData.timeCleared}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
               />

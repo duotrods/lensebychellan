@@ -142,8 +142,13 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy
       });
 
+      // Recalculate schemeIds when scheme is updated
+      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+
       await updateDoc(formRef, {
         ...formData,
+        schemeId, // Keep for backward compatibility
+        schemeIds: [schemeId], // Update array for client filtering
         editHistory,
         lastEditedBy: { userId, name: userName },
         updatedAt: serverTimestamp()
@@ -296,8 +301,13 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy
       });
 
+      // Recalculate schemeIds when scheme is updated
+      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+
       await updateDoc(reportRef, {
         ...formData,
+        schemeId, // Keep for backward compatibility
+        schemeIds: [schemeId], // Update array for client filtering
         editHistory,
         lastEditedBy: {
           userId,
@@ -644,8 +654,13 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy
       });
 
+      // Recalculate schemeIds when scheme is updated
+      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+
       await updateDoc(reportRef, {
         ...formData,
+        schemeId, // Keep for backward compatibility
+        schemeIds: [schemeId], // Update array for client filtering
         editHistory,
         lastEditedBy: { userId, name: userName },
         updatedAt: serverTimestamp()
@@ -792,8 +807,29 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy
       });
 
+      // Recalculate schemeIds when occurrences are updated
+      // Check if any occurrence has "All Schemes"
+      const hasAllSchemes = formData.occurrences?.some(occ => occ.scheme === 'All Schemes');
+
+      let schemeIds;
+      if (hasAllSchemes) {
+        // Include all scheme IDs when "All Schemes" is selected
+        schemeIds = SCHEMES.map(scheme => scheme.id);
+      } else if (formData.occurrences) {
+        // Extract unique scheme IDs from occurrences
+        schemeIds = [...new Set(
+          formData.occurrences
+            .map(occ => occ.scheme ? extractSchemeId(occ.scheme) : null)
+            .filter(id => id !== null)
+        )];
+      } else {
+        // Fallback to current schemeIds if no occurrences in formData
+        schemeIds = currentData.schemeIds || [];
+      }
+
       await updateDoc(reportRef, {
         ...formData,
+        schemeIds, // Update array for client filtering
         editHistory,
         lastEditedBy: { userId, name: userName },
         updatedAt: serverTimestamp()

@@ -51,6 +51,10 @@ import ClientChartsPage from './pages/admin/ClientChartsPage';
 import AnalyticsPage from './pages/client/AnalyticsPage';
 import ReportsPage from './pages/client/ReportsPage';
 import CCTVRecordingsPage from './pages/client/CCTVRecordingsPage';
+import ClientIncidentReportView from './pages/client/IncidentReportView';
+import ClientAssetDamageView from './pages/client/AssetDamageView';
+import ClientDailyOccurrenceView from './pages/client/DailyOccurrenceView';
+import ClientCCTVCheckView from './pages/client/CCTVCheckView';
 
 import { USER_ROLES } from './utils/constants';
 import './index.css';
@@ -271,6 +275,40 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
                   <ReportsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Client Report View Routes */}
+            <Route
+              path="/dashboard/client/reports/incident/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientIncidentReportView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/client/reports/asset-damage/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientAssetDamageView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/client/reports/daily-occurrence/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientDailyOccurrenceView />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/client/reports/cctv-check/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientCCTVCheckView />
                 </ProtectedRoute>
               }
             />

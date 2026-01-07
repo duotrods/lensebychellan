@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { clientDataService } from '../../services/clientDataService';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
@@ -10,6 +11,7 @@ import toast from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 
 const ReportsPage = () => {
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +101,20 @@ const ReportsPage = () => {
   };
 
   const handleViewReport = (report) => {
-    setSelectedReport(report);
+    // Navigate to appropriate view page based on report type
+    const reportTypeRoutes = {
+      'incident': `/dashboard/client/reports/incident/${report.id}`,
+      'asset-damage': `/dashboard/client/reports/asset-damage/${report.id}`,
+      'daily-occurrence': `/dashboard/client/reports/daily-occurrence/${report.id}`,
+      'cctv-check': `/dashboard/client/reports/cctv-check/${report.id}`
+    };
+
+    const route = reportTypeRoutes[report.reportType];
+    if (route) {
+      navigate(route);
+    } else {
+      setSelectedReport(report); // Fallback to modal
+    }
   };
 
   const handleDownloadReport = (report) => {
