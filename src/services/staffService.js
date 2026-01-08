@@ -11,11 +11,11 @@ import {
   serverTimestamp,
   updateDoc,
   deleteDoc,
-  Timestamp
-} from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { referenceIdService } from './referenceIdService';
-import { extractSchemeId, SCHEMES } from '../utils/schemes';
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "../config/firebase";
+import { referenceIdService } from "./referenceIdService";
+import { extractSchemeId, SCHEMES } from "../utils/schemes";
 
 class StaffService {
   // ============================================
@@ -24,34 +24,34 @@ class StaffService {
 
   async logActivity(activityData) {
     try {
-      const activitiesRef = collection(db, 'activities');
+      const activitiesRef = collection(db, "activities");
       await addDoc(activitiesRef, {
         ...activityData,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       });
     } catch (error) {
-      console.error('Failed to log activity:', error);
+      console.error("Failed to log activity:", error);
     }
   }
 
   async getRecentActivities(userId, lastLogoutTime) {
     try {
-      const activitiesRef = collection(db, 'activities');
+      const activitiesRef = collection(db, "activities");
       const q = query(
         activitiesRef,
-        where('createdAt', '>', lastLogoutTime),
-        where('staffId', '!=', userId), // Don't show own activities
-        orderBy('createdAt', 'desc'),
+        where("createdAt", ">", lastLogoutTime),
+        where("staffId", "!=", userId), // Don't show own activities
+        orderBy("createdAt", "desc"),
         limit(20)
       );
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
-      console.error('Failed to get activities:', error);
+      console.error("Failed to get activities:", error);
       return [];
     }
   }
@@ -63,12 +63,14 @@ class StaffService {
   async submitCCTVCheckForm(formData, userId, userName) {
     try {
       // Generate reference ID
-      const referenceId = await referenceIdService.generateReferenceId('cctvCheck');
+      const referenceId = await referenceIdService.generateReferenceId(
+        "cctvCheck"
+      );
 
       // Extract schemeId from scheme field
       const schemeId = extractSchemeId(formData.scheme);
 
-      const formsRef = collection(db, 'cctvCheckForms');
+      const formsRef = collection(db, "cctvCheckForms");
       const docRef = await addDoc(formsRef, {
         ...formData,
         schemeId, // Keep for backward compatibility
@@ -76,62 +78,62 @@ class StaffService {
         referenceId,
         submittedBy: {
           userId,
-          name: userName
+          name: userName,
         },
-        status: 'submitted',
+        status: "submitted",
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Log activity
       await this.logActivity({
-        type: 'form_submitted',
+        type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted CCTV Check Form ${referenceId}`,
-        relatedFormId: docRef.id
+        relatedFormId: docRef.id,
       });
 
       return docRef.id;
     } catch (error) {
-      console.error('Failed to submit CCTV check form:', error);
+      console.error("Failed to submit CCTV check form:", error);
       throw error;
     }
   }
 
   async getCCTVCheckForms(userId = null) {
     try {
-      const formsRef = collection(db, 'cctvCheckForms');
+      const formsRef = collection(db, "cctvCheckForms");
       let q;
 
       if (userId) {
         q = query(
           formsRef,
-          where('submittedBy.userId', '==', userId),
-          orderBy('createdAt', 'desc')
+          where("submittedBy.userId", "==", userId),
+          orderBy("createdAt", "desc")
         );
       } else {
-        q = query(formsRef, orderBy('createdAt', 'desc'));
+        q = query(formsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
-      console.error('Failed to get CCTV check forms:', error);
+      console.error("Failed to get CCTV check forms:", error);
       return [];
     }
   }
 
   async updateCCTVCheckForm(formId, formData, userId, userName) {
     try {
-      const formRef = doc(db, 'cctvCheckForms', formId);
+      const formRef = doc(db, "cctvCheckForms", formId);
       const formDoc = await getDoc(formRef);
 
       if (!formDoc.exists()) {
-        throw new Error('Form not found');
+        throw new Error("Form not found");
       }
 
       const currentData = formDoc.data();
@@ -139,11 +141,13 @@ class StaffService {
       editHistory.push({
         editedBy: { userId, name: userName },
         editedAt: new Date(),
-        previousSubmittedBy: currentData.submittedBy
+        previousSubmittedBy: currentData.submittedBy,
       });
 
       // Recalculate schemeIds when scheme is updated
-      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+      const schemeId = formData.scheme
+        ? extractSchemeId(formData.scheme)
+        : currentData.schemeId;
 
       await updateDoc(formRef, {
         ...formData,
@@ -151,31 +155,31 @@ class StaffService {
         schemeIds: [schemeId], // Update array for client filtering
         editHistory,
         lastEditedBy: { userId, name: userName },
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       await this.logActivity({
-        type: 'form_edited',
+        type: "form_edited",
         staffId: userId,
         staffName: userName,
         description: `${userName} edited CCTV Check Form ${currentData.referenceId}`,
-        relatedFormId: formId
+        relatedFormId: formId,
       });
 
       return formId;
     } catch (error) {
-      console.error('Failed to update CCTV check form:', error);
+      console.error("Failed to update CCTV check form:", error);
       throw error;
     }
   }
 
   async deleteCCTVCheckForm(formId, userId, userName) {
     try {
-      const formRef = doc(db, 'cctvCheckForms', formId);
+      const formRef = doc(db, "cctvCheckForms", formId);
       const formDoc = await getDoc(formRef);
 
       if (!formDoc.exists()) {
-        throw new Error('Form not found');
+        throw new Error("Form not found");
       }
 
       const currentData = formDoc.data();
@@ -183,16 +187,16 @@ class StaffService {
       await deleteDoc(formRef);
 
       await this.logActivity({
-        type: 'form_deleted',
+        type: "form_deleted",
         staffId: userId,
         staffName: userName,
         description: `${userName} deleted CCTV Check Form ${currentData.referenceId}`,
-        relatedFormId: formId
+        relatedFormId: formId,
       });
 
       return formId;
     } catch (error) {
-      console.error('Failed to delete CCTV check form:', error);
+      console.error("Failed to delete CCTV check form:", error);
       throw error;
     }
   }
@@ -204,12 +208,14 @@ class StaffService {
   async submitIncidentReport(formData, userId, userName) {
     try {
       // Generate reference ID
-      const referenceId = await referenceIdService.generateReferenceId('incident');
+      const referenceId = await referenceIdService.generateReferenceId(
+        "incident"
+      );
 
       // Extract schemeId from scheme field (e.g., "A417 Missing Link - Kier" -> "A417")
       const schemeId = extractSchemeId(formData.scheme);
 
-      const reportsRef = collection(db, 'incidentReports');
+      const reportsRef = collection(db, "incidentReports");
       const docRef = await addDoc(reportsRef, {
         ...formData,
         schemeId, // Keep for backward compatibility
@@ -217,75 +223,75 @@ class StaffService {
         referenceId,
         submittedBy: {
           userId,
-          name: userName
+          name: userName,
         },
-        status: 'action needed',
+        status: "action needed",
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Log activity
       await this.logActivity({
-        type: 'form_submitted',
+        type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted Incident Report ${referenceId}`,
-        relatedFormId: docRef.id
+        relatedFormId: docRef.id,
       });
 
       return docRef.id;
     } catch (error) {
-      console.error('Failed to submit incident report:', error);
+      console.error("Failed to submit incident report:", error);
       throw error;
     }
   }
 
   async getIncidentReports(userId = null) {
     try {
-      const reportsRef = collection(db, 'incidentReports');
+      const reportsRef = collection(db, "incidentReports");
       let q;
 
       if (userId) {
         q = query(
           reportsRef,
-          where('submittedBy.userId', '==', userId),
-          orderBy('createdAt', 'desc')
+          where("submittedBy.userId", "==", userId),
+          orderBy("createdAt", "desc")
         );
       } else {
-        q = query(reportsRef, orderBy('createdAt', 'desc'));
+        q = query(reportsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
-      console.error('Failed to get incident reports:', error);
+      console.error("Failed to get incident reports:", error);
       return [];
     }
   }
 
   async updateReportStatus(reportId, status) {
     try {
-      const reportRef = doc(db, 'incidentReports', reportId);
+      const reportRef = doc(db, "incidentReports", reportId);
       await updateDoc(reportRef, {
         status,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
     } catch (error) {
-      console.error('Failed to update report status:', error);
+      console.error("Failed to update report status:", error);
       throw error;
     }
   }
 
   async updateIncidentReport(reportId, formData, userId, userName) {
     try {
-      const reportRef = doc(db, 'incidentReports', reportId);
+      const reportRef = doc(db, "incidentReports", reportId);
       const reportDoc = await getDoc(reportRef);
 
       if (!reportDoc.exists()) {
-        throw new Error('Report not found');
+        throw new Error("Report not found");
       }
 
       const currentData = reportDoc.data();
@@ -295,14 +301,16 @@ class StaffService {
       editHistory.push({
         editedBy: {
           userId,
-          name: userName
+          name: userName,
         },
         editedAt: new Date(),
-        previousSubmittedBy: currentData.submittedBy
+        previousSubmittedBy: currentData.submittedBy,
       });
 
       // Recalculate schemeIds when scheme is updated
-      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+      const schemeId = formData.scheme
+        ? extractSchemeId(formData.scheme)
+        : currentData.schemeId;
 
       await updateDoc(reportRef, {
         ...formData,
@@ -311,34 +319,34 @@ class StaffService {
         editHistory,
         lastEditedBy: {
           userId,
-          name: userName
+          name: userName,
         },
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Log activity
       await this.logActivity({
-        type: 'form_edited',
+        type: "form_edited",
         staffId: userId,
         staffName: userName,
         description: `${userName} edited Incident Report ${currentData.referenceId}`,
-        relatedFormId: reportId
+        relatedFormId: reportId,
       });
 
       return reportId;
     } catch (error) {
-      console.error('Failed to update incident report:', error);
+      console.error("Failed to update incident report:", error);
       throw error;
     }
   }
 
   async deleteIncidentReport(reportId, userId, userName) {
     try {
-      const reportRef = doc(db, 'incidentReports', reportId);
+      const reportRef = doc(db, "incidentReports", reportId);
       const reportDoc = await getDoc(reportRef);
 
       if (!reportDoc.exists()) {
-        throw new Error('Report not found');
+        throw new Error("Report not found");
       }
 
       const currentData = reportDoc.data();
@@ -346,16 +354,16 @@ class StaffService {
       await deleteDoc(reportRef);
 
       await this.logActivity({
-        type: 'form_deleted',
+        type: "form_deleted",
         staffId: userId,
         staffName: userName,
         description: `${userName} deleted Incident Report ${currentData.referenceId}`,
-        relatedFormId: reportId
+        relatedFormId: reportId,
       });
 
       return reportId;
     } catch (error) {
-      console.error('Failed to delete incident report:', error);
+      console.error("Failed to delete incident report:", error);
       throw error;
     }
   }
@@ -371,10 +379,7 @@ class StaffService {
       let q;
 
       if (userId) {
-        q = query(
-          collectionRef,
-          where('submittedBy.userId', '==', userId)
-        );
+        q = query(collectionRef, where("submittedBy.userId", "==", userId));
       } else {
         q = query(collectionRef);
       }
@@ -396,14 +401,11 @@ class StaffService {
       if (userId) {
         q = query(
           collectionRef,
-          where('submittedBy.userId', '==', userId),
-          where('createdAt', '>=', sinceTimestamp)
+          where("submittedBy.userId", "==", userId),
+          where("createdAt", ">=", sinceTimestamp)
         );
       } else {
-        q = query(
-          collectionRef,
-          where('createdAt', '>=', sinceTimestamp)
-        );
+        q = query(collectionRef, where("createdAt", ">=", sinceTimestamp));
       }
 
       const snapshot = await getDocs(q);
@@ -422,20 +424,38 @@ class StaffService {
       const oneWeekAgoTimestamp = Timestamp.fromDate(oneWeekAgo);
 
       // Query 1: Total counts (without date filter) - run in parallel
-      const [cctvTotal, incidentsTotal, damageTotal, logsTotal] = await Promise.all([
-        this.getCollectionCount('cctvCheckForms', userId),
-        this.getCollectionCount('incidentReports', userId),
-        this.getCollectionCount('assetDamageReports', userId),
-        this.getCollectionCount('dailyOccurrenceReports', userId)
-      ]);
+      const [cctvTotal, incidentsTotal, damageTotal, logsTotal] =
+        await Promise.all([
+          this.getCollectionCount("cctvCheckForms", userId),
+          this.getCollectionCount("incidentReports", userId),
+          this.getCollectionCount("assetDamageReports", userId),
+          this.getCollectionCount("dailyOccurrenceReports", userId),
+        ]);
 
       // Query 2: This week's counts (with date filter) - run in parallel
-      const [cctvThisWeek, incidentsThisWeek, damageThisWeek, logsThisWeek] = await Promise.all([
-        this.getCollectionCountSince('cctvCheckForms', userId, oneWeekAgoTimestamp),
-        this.getCollectionCountSince('incidentReports', userId, oneWeekAgoTimestamp),
-        this.getCollectionCountSince('assetDamageReports', userId, oneWeekAgoTimestamp),
-        this.getCollectionCountSince('dailyOccurrenceReports', userId, oneWeekAgoTimestamp)
-      ]);
+      const [cctvThisWeek, incidentsThisWeek, damageThisWeek, logsThisWeek] =
+        await Promise.all([
+          this.getCollectionCountSince(
+            "cctvCheckForms",
+            userId,
+            oneWeekAgoTimestamp
+          ),
+          this.getCollectionCountSince(
+            "incidentReports",
+            userId,
+            oneWeekAgoTimestamp
+          ),
+          this.getCollectionCountSince(
+            "assetDamageReports",
+            userId,
+            oneWeekAgoTimestamp
+          ),
+          this.getCollectionCountSince(
+            "dailyOccurrenceReports",
+            userId,
+            oneWeekAgoTimestamp
+          ),
+        ]);
 
       return {
         cctvCheckTotal: cctvTotal,
@@ -445,10 +465,10 @@ class StaffService {
         dailyLogsTotal: logsTotal,
         dailyLogsThisWeek: logsThisWeek,
         assetDamageTotal: damageTotal,
-        assetDamageThisWeek: damageThisWeek
+        assetDamageThisWeek: damageThisWeek,
       };
     } catch (error) {
-      console.error('Failed to get dashboard stats:', error);
+      console.error("Failed to get dashboard stats:", error);
       return {
         cctvCheckTotal: 0,
         cctvCheckThisWeek: 0,
@@ -457,7 +477,7 @@ class StaffService {
         dailyLogsTotal: 0,
         dailyLogsThisWeek: 0,
         assetDamageTotal: 0,
-        assetDamageThisWeek: 0
+        assetDamageThisWeek: 0,
       };
     }
   }
@@ -469,101 +489,112 @@ class StaffService {
   async saveCCTVUploadMetadata(uploadData, userId, userName) {
     try {
       // Extract schemeId from scheme field if present
-      const schemeId = uploadData.scheme ? extractSchemeId(uploadData.scheme) : null;
+      const schemeId = uploadData.scheme
+        ? extractSchemeId(uploadData.scheme)
+        : null;
 
-      const uploadsRef = collection(db, 'cctvUploads');
+      const uploadsRef = collection(db, "cctvUploads");
       const docRef = await addDoc(uploadsRef, {
         ...uploadData,
         ...(schemeId && {
           schemeId, // Keep for backward compatibility
-          schemeIds: [schemeId] // New array format for multi-scheme support
+          schemeIds: [schemeId], // New array format for multi-scheme support
         }),
         uploadedBy: {
           userId,
-          name: userName
+          name: userName,
         },
-        uploadedAt: serverTimestamp()
+        uploadedAt: serverTimestamp(),
       });
 
       // Log activity
       await this.logActivity({
-        type: 'upload',
+        type: "upload",
         staffId: userId,
         staffName: userName,
-        description: `${userName} uploaded ${uploadData.fileName}`
+        description: `${userName} uploaded ${uploadData.fileName}`,
       });
 
       return docRef.id;
     } catch (error) {
-      console.error('Failed to save upload metadata:', error);
+      console.error("Failed to save upload metadata:", error);
       throw error;
     }
   }
 
   async getCCTVUploads(userId = null) {
     try {
-      const uploadsRef = collection(db, 'cctvUploads');
+      const uploadsRef = collection(db, "cctvUploads");
       let q;
 
       if (userId) {
         q = query(
           uploadsRef,
-          where('uploadedBy.userId', '==', userId),
-          orderBy('uploadedAt', 'desc')
+          where("uploadedBy.userId", "==", userId),
+          orderBy("uploadedAt", "desc")
         );
       } else {
-        q = query(uploadsRef, orderBy('uploadedAt', 'desc'));
+        q = query(uploadsRef, orderBy("uploadedAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
-      console.error('Failed to get CCTV uploads:', error);
+      console.error("Failed to get CCTV uploads:", error);
       return [];
     }
   }
 
   async submitCCTVUpload(uploadData, userId, userName) {
     try {
-      const uploadsRef = collection(db, 'cctvUploads');
+      // Extract schemeId from scheme field if present
+      const schemeId = uploadData.scheme
+        ? extractSchemeId(uploadData.scheme)
+        : null;
+
+      const uploadsRef = collection(db, "cctvUploads");
       const docRef = await addDoc(uploadsRef, {
         ...uploadData,
+        ...(schemeId && {
+          schemeId, // Keep for backward compatibility
+          schemeIds: [schemeId], // New array format for multi-scheme support
+        }),
         submittedBy: userName,
         uploadedBy: {
           userId,
-          name: userName
+          name: userName,
         },
-        createdAt: serverTimestamp()
+        uploadedAt: serverTimestamp(), // Changed from createdAt to uploadedAt to match query
       });
 
       // Log activity
       await this.logActivity({
-        type: 'cctv_upload',
+        type: "cctv_upload",
         staffId: userId,
         staffName: userName,
         description: `${userName} uploaded CCTV footage for ${uploadData.scheme} - ${uploadData.cameraNumber}`,
-        relatedUploadId: docRef.id
+        relatedUploadId: docRef.id,
       });
 
       return docRef.id;
     } catch (error) {
-      console.error('Failed to submit CCTV upload:', error);
+      console.error("Failed to submit CCTV upload:", error);
       throw error;
     }
   }
 
   async deleteCCTVUpload(uploadId) {
     try {
-      const uploadRef = doc(db, 'cctvUploads', uploadId);
+      const uploadRef = doc(db, "cctvUploads", uploadId);
       await updateDoc(uploadRef, {
         deleted: true,
-        deletedAt: serverTimestamp()
+        deletedAt: serverTimestamp(),
       });
     } catch (error) {
-      console.error('Failed to delete CCTV upload:', error);
+      console.error("Failed to delete CCTV upload:", error);
       throw error;
     }
   }
@@ -575,12 +606,14 @@ class StaffService {
   async submitAssetDamageReport(formData, userId, userName) {
     try {
       // Generate reference ID
-      const referenceId = await referenceIdService.generateReferenceId('assetDamage');
+      const referenceId = await referenceIdService.generateReferenceId(
+        "assetDamage"
+      );
 
       // Extract schemeId from scheme field
       const schemeId = extractSchemeId(formData.scheme);
 
-      const reportsRef = collection(db, 'assetDamageReports');
+      const reportsRef = collection(db, "assetDamageReports");
       const docRef = await addDoc(reportsRef, {
         ...formData,
         schemeId, // Keep for backward compatibility
@@ -588,62 +621,62 @@ class StaffService {
         referenceId,
         submittedBy: {
           userId,
-          name: userName
+          name: userName,
         },
-        status: 'action needed',
+        status: "action needed",
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Log activity
       await this.logActivity({
-        type: 'form_submitted',
+        type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted Asset Damage Report ${referenceId}`,
-        relatedFormId: docRef.id
+        relatedFormId: docRef.id,
       });
 
       return docRef.id;
     } catch (error) {
-      console.error('Failed to submit asset damage report:', error);
+      console.error("Failed to submit asset damage report:", error);
       throw error;
     }
   }
 
   async getAssetDamageReports(userId = null) {
     try {
-      const reportsRef = collection(db, 'assetDamageReports');
+      const reportsRef = collection(db, "assetDamageReports");
       let q;
 
       if (userId) {
         q = query(
           reportsRef,
-          where('submittedBy.userId', '==', userId),
-          orderBy('createdAt', 'desc')
+          where("submittedBy.userId", "==", userId),
+          orderBy("createdAt", "desc")
         );
       } else {
-        q = query(reportsRef, orderBy('createdAt', 'desc'));
+        q = query(reportsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
-      console.error('Failed to get asset damage reports:', error);
+      console.error("Failed to get asset damage reports:", error);
       return [];
     }
   }
 
   async updateAssetDamageReport(reportId, formData, userId, userName) {
     try {
-      const reportRef = doc(db, 'assetDamageReports', reportId);
+      const reportRef = doc(db, "assetDamageReports", reportId);
       const reportDoc = await getDoc(reportRef);
 
       if (!reportDoc.exists()) {
-        throw new Error('Report not found');
+        throw new Error("Report not found");
       }
 
       const currentData = reportDoc.data();
@@ -651,11 +684,13 @@ class StaffService {
       editHistory.push({
         editedBy: { userId, name: userName },
         editedAt: new Date(),
-        previousSubmittedBy: currentData.submittedBy
+        previousSubmittedBy: currentData.submittedBy,
       });
 
       // Recalculate schemeIds when scheme is updated
-      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+      const schemeId = formData.scheme
+        ? extractSchemeId(formData.scheme)
+        : currentData.schemeId;
 
       await updateDoc(reportRef, {
         ...formData,
@@ -663,31 +698,31 @@ class StaffService {
         schemeIds: [schemeId], // Update array for client filtering
         editHistory,
         lastEditedBy: { userId, name: userName },
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       await this.logActivity({
-        type: 'form_edited',
+        type: "form_edited",
         staffId: userId,
         staffName: userName,
         description: `${userName} edited Asset Damage Report ${currentData.referenceId}`,
-        relatedFormId: reportId
+        relatedFormId: reportId,
       });
 
       return reportId;
     } catch (error) {
-      console.error('Failed to update asset damage report:', error);
+      console.error("Failed to update asset damage report:", error);
       throw error;
     }
   }
 
   async deleteAssetDamageReport(reportId, userId, userName) {
     try {
-      const reportRef = doc(db, 'assetDamageReports', reportId);
+      const reportRef = doc(db, "assetDamageReports", reportId);
       const reportDoc = await getDoc(reportRef);
 
       if (!reportDoc.exists()) {
-        throw new Error('Report not found');
+        throw new Error("Report not found");
       }
 
       const currentData = reportDoc.data();
@@ -695,16 +730,16 @@ class StaffService {
       await deleteDoc(reportRef);
 
       await this.logActivity({
-        type: 'form_deleted',
+        type: "form_deleted",
         staffId: userId,
         staffName: userName,
         description: `${userName} deleted Asset Damage Report ${currentData.referenceId}`,
-        relatedFormId: reportId
+        relatedFormId: reportId,
       });
 
       return reportId;
     } catch (error) {
-      console.error('Failed to delete asset damage report:', error);
+      console.error("Failed to delete asset damage report:", error);
       throw error;
     }
   }
@@ -715,88 +750,177 @@ class StaffService {
 
   async submitDailyOccurrenceReport(formData, userId, userName) {
     try {
-      // Generate reference ID
-      const referenceId = await referenceIdService.generateReferenceId('dailyOccurrence');
+      // Get the date from the first occurrence to check for existing reports
+      const firstOccurrenceDate = formData.occurrences[0]?.date;
 
-      // Extract unique schemeIds from all occurrences
-      // If any occurrence has "All Schemes", include all scheme IDs
-      const hasAllSchemes = formData.occurrences.some(occ => occ.scheme === 'All Schemes');
-
-      let schemeIds;
-      if (hasAllSchemes) {
-        // Include all scheme IDs when "All Schemes" is selected
-        schemeIds = SCHEMES.map(scheme => scheme.id);
-      } else {
-        schemeIds = [...new Set(
-          formData.occurrences
-            .map(occ => occ.scheme ? extractSchemeId(occ.scheme) : null)
-            .filter(id => id !== null)
-        )];
+      if (!firstOccurrenceDate) {
+        throw new Error("At least one occurrence with a date is required");
       }
 
-      const reportsRef = collection(db, 'dailyOccurrenceReports');
+      // Check if a report already exists for this date
+      const reportsRef = collection(db, "dailyOccurrenceReports");
+      const dateQuery = query(
+        reportsRef,
+        where("occurrences", "!=", null),
+        orderBy("createdAt", "desc")
+      );
+
+      const snapshot = await getDocs(dateQuery);
+      let existingReport = null;
+
+      // Find existing report with matching date
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        if (data.occurrences && data.occurrences.length > 0) {
+          // Check if any occurrence in the existing report matches today's date
+          const hasMatchingDate = data.occurrences.some(
+            (occ) => occ.date === firstOccurrenceDate
+          );
+          if (hasMatchingDate) {
+            existingReport = { id: docSnap.id, ...data };
+            break;
+          }
+        }
+      }
+
+      // If an existing report is found, merge the occurrences
+      if (existingReport) {
+        // Combine existing occurrences with new ones
+        const mergedOccurrences = [
+          ...existingReport.occurrences,
+          ...formData.occurrences,
+        ];
+
+        // Recalculate schemeIds from all occurrences
+        const hasAllSchemes = mergedOccurrences.some(
+          (occ) => occ.scheme === "All Schemes"
+        );
+        let schemeIds;
+        if (hasAllSchemes) {
+          schemeIds = SCHEMES.map((scheme) => scheme.id);
+        } else {
+          schemeIds = [
+            ...new Set(
+              mergedOccurrences
+                .map((occ) => (occ.scheme ? extractSchemeId(occ.scheme) : null))
+                .filter((id) => id !== null)
+            ),
+          ];
+        }
+
+        // Update the existing report
+        const reportRef = doc(db, "dailyOccurrenceReports", existingReport.id);
+        await updateDoc(reportRef, {
+          occurrences: mergedOccurrences,
+          schemeIds,
+          updatedAt: serverTimestamp(),
+          lastAddedBy: {
+            userId,
+            name: userName,
+            addedAt: serverTimestamp(),
+          },
+        });
+
+        // Log activity
+        await this.logActivity({
+          type: "form_updated",
+          staffId: userId,
+          staffName: userName,
+          description: `${userName} added ${formData.occurrences.length} occurrence(s) to Daily Occurrence Report ${existingReport.referenceId} for ${firstOccurrenceDate}`,
+          relatedFormId: existingReport.id,
+        });
+
+        return {
+          id: existingReport.id,
+          merged: true,
+          referenceId: existingReport.referenceId,
+        };
+      }
+
+      // No existing report found - create a new one
+      const referenceId = await referenceIdService.generateReferenceId(
+        "dailyOccurrence"
+      );
+
+      // Extract unique schemeIds from all occurrences
+      const hasAllSchemes = formData.occurrences.some(
+        (occ) => occ.scheme === "All Schemes"
+      );
+      let schemeIds;
+      if (hasAllSchemes) {
+        schemeIds = SCHEMES.map((scheme) => scheme.id);
+      } else {
+        schemeIds = [
+          ...new Set(
+            formData.occurrences
+              .map((occ) => (occ.scheme ? extractSchemeId(occ.scheme) : null))
+              .filter((id) => id !== null)
+          ),
+        ];
+      }
+
       const docRef = await addDoc(reportsRef, {
         ...formData,
-        schemeIds, // Add array of scheme IDs for client filtering
+        schemeIds,
         referenceId,
         submittedBy: {
           userId,
-          name: userName
+          name: userName,
         },
-        status: 'submitted',
+        status: "submitted",
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       // Log activity
       await this.logActivity({
-        type: 'form_submitted',
+        type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted Daily Occurrence Report ${referenceId}`,
-        relatedFormId: docRef.id
+        relatedFormId: docRef.id,
       });
 
-      return docRef.id;
+      return { id: docRef.id, merged: false, referenceId };
     } catch (error) {
-      console.error('Failed to submit daily occurrence report:', error);
+      console.error("Failed to submit daily occurrence report:", error);
       throw error;
     }
   }
 
   async getDailyOccurrenceReports(userId = null) {
     try {
-      const reportsRef = collection(db, 'dailyOccurrenceReports');
+      const reportsRef = collection(db, "dailyOccurrenceReports");
       let q;
 
       if (userId) {
         q = query(
           reportsRef,
-          where('submittedBy.userId', '==', userId),
-          orderBy('createdAt', 'desc')
+          where("submittedBy.userId", "==", userId),
+          orderBy("createdAt", "desc")
         );
       } else {
-        q = query(reportsRef, orderBy('createdAt', 'desc'));
+        q = query(reportsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
-      console.error('Failed to get daily occurrence reports:', error);
+      console.error("Failed to get daily occurrence reports:", error);
       return [];
     }
   }
 
   async updateDailyOccurrenceReport(reportId, formData, userId, userName) {
     try {
-      const reportRef = doc(db, 'dailyOccurrenceReports', reportId);
+      const reportRef = doc(db, "dailyOccurrenceReports", reportId);
       const reportDoc = await getDoc(reportRef);
 
       if (!reportDoc.exists()) {
-        throw new Error('Report not found');
+        throw new Error("Report not found");
       }
 
       const currentData = reportDoc.data();
@@ -804,24 +928,28 @@ class StaffService {
       editHistory.push({
         editedBy: { userId, name: userName },
         editedAt: new Date(),
-        previousSubmittedBy: currentData.submittedBy
+        previousSubmittedBy: currentData.submittedBy,
       });
 
       // Recalculate schemeIds when occurrences are updated
       // Check if any occurrence has "All Schemes"
-      const hasAllSchemes = formData.occurrences?.some(occ => occ.scheme === 'All Schemes');
+      const hasAllSchemes = formData.occurrences?.some(
+        (occ) => occ.scheme === "All Schemes"
+      );
 
       let schemeIds;
       if (hasAllSchemes) {
         // Include all scheme IDs when "All Schemes" is selected
-        schemeIds = SCHEMES.map(scheme => scheme.id);
+        schemeIds = SCHEMES.map((scheme) => scheme.id);
       } else if (formData.occurrences) {
         // Extract unique scheme IDs from occurrences
-        schemeIds = [...new Set(
-          formData.occurrences
-            .map(occ => occ.scheme ? extractSchemeId(occ.scheme) : null)
-            .filter(id => id !== null)
-        )];
+        schemeIds = [
+          ...new Set(
+            formData.occurrences
+              .map((occ) => (occ.scheme ? extractSchemeId(occ.scheme) : null))
+              .filter((id) => id !== null)
+          ),
+        ];
       } else {
         // Fallback to current schemeIds if no occurrences in formData
         schemeIds = currentData.schemeIds || [];
@@ -832,31 +960,31 @@ class StaffService {
         schemeIds, // Update array for client filtering
         editHistory,
         lastEditedBy: { userId, name: userName },
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       await this.logActivity({
-        type: 'form_edited',
+        type: "form_edited",
         staffId: userId,
         staffName: userName,
         description: `${userName} edited Daily Occurrence Report ${currentData.referenceId}`,
-        relatedFormId: reportId
+        relatedFormId: reportId,
       });
 
       return reportId;
     } catch (error) {
-      console.error('Failed to update daily occurrence report:', error);
+      console.error("Failed to update daily occurrence report:", error);
       throw error;
     }
   }
 
   async deleteDailyOccurrenceReport(reportId, userId, userName) {
     try {
-      const reportRef = doc(db, 'dailyOccurrenceReports', reportId);
+      const reportRef = doc(db, "dailyOccurrenceReports", reportId);
       const reportDoc = await getDoc(reportRef);
 
       if (!reportDoc.exists()) {
-        throw new Error('Report not found');
+        throw new Error("Report not found");
       }
 
       const currentData = reportDoc.data();
@@ -864,16 +992,16 @@ class StaffService {
       await deleteDoc(reportRef);
 
       await this.logActivity({
-        type: 'form_deleted',
+        type: "form_deleted",
         staffId: userId,
         staffName: userName,
         description: `${userName} deleted Daily Occurrence Report ${currentData.referenceId}`,
-        relatedFormId: reportId
+        relatedFormId: reportId,
       });
 
       return reportId;
     } catch (error) {
-      console.error('Failed to delete daily occurrence report:', error);
+      console.error("Failed to delete daily occurrence report:", error);
       throw error;
     }
   }

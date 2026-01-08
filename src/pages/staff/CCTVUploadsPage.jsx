@@ -48,7 +48,8 @@ const CCTVUploadsPage = () => {
 
     try {
       setLoadingUploads(true);
-      const cctvUploads = await staffService.getCCTVUploads(userProfile.uid);
+      // Pass null to get ALL uploads from all staff members
+      const cctvUploads = await staffService.getCCTVUploads(null);
       setUploads(cctvUploads);
     } catch (error) {
       console.error("Failed to load CCTV uploads:", error);

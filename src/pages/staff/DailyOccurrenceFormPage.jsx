@@ -125,12 +125,21 @@ const DailyOccurrenceFormPage = () => {
         );
         toast.success("Daily Occurrence Report updated successfully!");
       } else {
-        await staffService.submitDailyOccurrenceReport(
+        const result = await staffService.submitDailyOccurrenceReport(
           formData,
           userProfile.uid,
           userProfile.displayName
         );
-        toast.success("Daily Occurrence Report submitted successfully!");
+
+        // Show different messages based on whether it was merged or created new
+        if (result.merged) {
+          toast.success(
+            `Added ${formData.occurrences.length} occurrence(s) to existing report ${result.referenceId} for ${formData.occurrences[0].date}`,
+            { duration: 5000 }
+          );
+        } else {
+          toast.success(`Daily Occurrence Report ${result.referenceId} created successfully!`);
+        }
       }
 
       navigate("/dashboard/staff");
