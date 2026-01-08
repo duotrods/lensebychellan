@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import { inject } from "@vercel/analytics"
+import { Analytics } from '@vercel/analytics/react';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -83,6 +83,7 @@ const App = () => {
         <BrowserRouter>
           <AuthProvider>
             <Toaster position="top-right" />
+            <Analytics />
 
             <Routes>
             {/* Public routes */}
