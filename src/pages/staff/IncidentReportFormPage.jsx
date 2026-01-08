@@ -150,6 +150,39 @@ const IncidentReportFormPage = () => {
     setFiles((prev) => [...prev, ...selectedFiles]);
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    // Filter to only accept allowed file types
+    const allowedTypes = ['image/', 'video/', 'application/pdf'];
+    const validFiles = droppedFiles.filter(file =>
+      allowedTypes.some(type => file.type.startsWith(type))
+    );
+
+    if (validFiles.length !== droppedFiles.length) {
+      toast.error('Some files were rejected. Only images, videos, and PDFs are allowed.');
+    }
+
+    setFiles((prev) => [...prev, ...validFiles]);
+  };
+
   const removeFile = (index) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
@@ -911,7 +944,13 @@ const IncidentReportFormPage = () => {
             <label className="label">
               <span className="label-text font-semibold">File Upload</span>
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-teal-400 transition-colors">
+            <div
+              className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-teal-400 transition-colors"
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <input
                 type="file"
                 multiple
