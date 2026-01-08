@@ -418,6 +418,7 @@ const IncidentReportFormPage = () => {
                 <option value="Raining">Raining</option>
                 <option value="Fog">Fog</option>
                 <option value="Snow">Snow</option>
+                <option value="Icy">Icy</option>
                 <option value="Sunny">Sunny</option>
               </select>
             </div>
@@ -837,7 +838,7 @@ const IncidentReportFormPage = () => {
                       <th className="text-gray-700">Type</th>
                       <th className="text-gray-700">Make</th>
                       <th className="text-gray-700">Model</th>
-                      <th className="text-gray-700">VIN</th>
+                      <th className="text-gray-700">VRN</th>
                       <th className="w-16"></th>
                     </tr>
                   </thead>
