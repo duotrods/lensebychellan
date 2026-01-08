@@ -57,6 +57,14 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    // Staff Invite Codes
+    match /staffInviteCodes/{codeId} {
+      // Admin can do everything
+      allow write: if isSignedIn() && getUserRole() == 'admin';
+      // Allow read for invite code validation (needed during signup before user is authenticated)
+      allow read: if true;
+    }
+
     // Incident Reports
     match /incidentReports/{reportId} {
       // Staff can create

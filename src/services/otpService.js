@@ -140,6 +140,147 @@ class OTPService {
       throw new AppError('Failed to fetch available OTPs', 'otp/fetch-error', error);
     }
   }
+
+  // ==================== STAFF INVITE CODE METHODS ====================
+
+  // Generate a random Staff Invite Code
+  generateStaffInviteCode() {
+    const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const year = new Date().getFullYear();
+    return `STAFF-${year}-${randomPart}`;
+  }
+
+  // Admin: Create a new Staff Invite Code
+  async createStaffInviteCode(adminUid, adminName, expiresInDays = 30, maxUses = 1) {
+    try {
+      const inviteCode = this.generateStaffInviteCode();
+      const inviteRef = doc(db, 'staffInviteCodes', inviteCode);
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+      await setDoc(inviteRef, {
+        inviteCode,
+        isUsed: false,
+        usesRemaining: maxUses,
+        maxUses,
+        createdBy: adminUid,
+        createdByName: adminName,
+        createdAt: serverTimestamp(),
+        expiresAt: expiresAt,
+        usedBy: [],
+        usedAt: null,
+        lastUsedAt: null
+      });
+
+      return inviteCode;
+    } catch (error) {
+      throw new AppError('Failed to create staff invite code', 'staff-invite/create-error', error);
+    }
+  }
+
+  // Validate Staff Invite Code during staff signup
+  async validateStaffInviteCode(inviteCode) {
+    try {
+      const inviteRef = doc(db, 'staffInviteCodes', inviteCode);
+      const inviteSnap = await getDoc(inviteRef);
+
+      if (!inviteSnap.exists()) {
+        return { isValid: false, reason: 'Code does not exist' };
+      }
+
+      const inviteData = inviteSnap.data();
+
+      // Check if code is already used (for single-use codes)
+      if (inviteData.usesRemaining <= 0) {
+        return { isValid: false, reason: 'Code has been fully used' };
+      }
+
+      // Check if code has expired
+      const now = new Date();
+      const expiresAt = inviteData.expiresAt?.toDate();
+      if (expiresAt && expiresAt < now) {
+        return { isValid: false, reason: 'Code has expired' };
+      }
+
+      return {
+        isValid: true,
+        createdBy: inviteData.createdBy,
+        createdByName: inviteData.createdByName
+      };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to validate staff invite code', 'staff-invite/validation-error', error);
+    }
+  }
+
+  // Mark Staff Invite Code as used after successful staff registration
+  async markStaffInviteCodeAsUsed(inviteCode, staffUid) {
+    try {
+      const inviteRef = doc(db, 'staffInviteCodes', inviteCode);
+      const inviteSnap = await getDoc(inviteRef);
+
+      if (!inviteSnap.exists()) {
+        throw new AppError('Invite code not found', 'staff-invite/not-found');
+      }
+
+      const inviteData = inviteSnap.data();
+      const updatedUsedBy = [...(inviteData.usedBy || []), staffUid];
+      const usesRemaining = inviteData.usesRemaining - 1;
+
+      await updateDoc(inviteRef, {
+        usesRemaining,
+        isUsed: usesRemaining <= 0,
+        usedBy: updatedUsedBy,
+        lastUsedAt: serverTimestamp()
+      });
+    } catch (error) {
+      throw new AppError('Failed to mark invite code as used', 'staff-invite/update-error', error);
+    }
+  }
+
+  // Admin: Get all Staff Invite Codes
+  async getAllStaffInviteCodes() {
+    try {
+      const invitesRef = collection(db, 'staffInviteCodes');
+      const q = query(invitesRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      throw new AppError('Failed to fetch staff invite codes', 'staff-invite/fetch-error', error);
+    }
+  }
+
+  // Admin: Get available (unused/valid) Staff Invite Codes
+  async getAvailableStaffInviteCodes() {
+    try {
+      const invitesRef = collection(db, 'staffInviteCodes');
+      const q = query(
+        invitesRef,
+        where('isUsed', '==', false),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+
+      // Filter out expired codes
+      const now = new Date();
+      return querySnapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        .filter(invite => {
+          const expiresAt = invite.expiresAt?.toDate();
+          return !expiresAt || expiresAt > now;
+        });
+    } catch (error) {
+      throw new AppError('Failed to fetch available staff invite codes', 'staff-invite/fetch-error', error);
+    }
+  }
 }
 
 export const otpService = new OTPService();

@@ -160,6 +160,61 @@ class AuthService {
       throw new AppError(error.message, error.code, error);
     }
   }
+
+  async signUpStaffWithOTP(email, password, userData, otpCode) {
+    try {
+      // Validate Staff Invite Code
+      console.log('Validating Staff Invite Code:', otpCode);
+      const otpValidation = await otpService.validateStaffInviteCode(otpCode);
+      console.log('Staff invite validation result:', otpValidation);
+
+      if (!otpValidation.isValid) {
+        throw new AppError('Invalid or expired staff invite code', 'auth/invalid-staff-code');
+      }
+
+      // Create Firebase Auth user
+      console.log('Creating Firebase user with email:', email);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log('Staff user created successfully:', user.uid);
+
+      // Update display name
+      await updateProfile(user, { displayName: userData.displayName });
+
+      // Send verification email
+      await sendEmailVerification(user);
+
+      // Create Firestore user document with staff role
+      await firestoreService.createUserDocument(user.uid, {
+        ...userData,
+        email,
+        role: USER_ROLES.STAFF,
+        emailVerified: false,
+        metadata: {
+          signInMethod: 'email',
+          ipAddress: null,
+          userAgent: navigator.userAgent,
+          inviteCode: otpCode,
+          invitedBy: otpValidation.createdBy || 'admin'
+        }
+      });
+
+      // Mark invite code as used (non-blocking - don't fail signup if this fails)
+      try {
+        await otpService.markStaffInviteCodeAsUsed(otpCode, user.uid);
+      } catch (inviteError) {
+        console.warn('Failed to mark invite code as used, but signup succeeded:', inviteError);
+        // Don't throw - the user is already created
+      }
+
+      return user;
+    } catch (error) {
+      console.error('SignUpStaffWithOTP Error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      throw new AppError(error.message, error.code, error);
+    }
+  }
 }
 
 
