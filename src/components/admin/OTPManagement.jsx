@@ -406,28 +406,7 @@ const OTPManagement = () => {
                     />
                     <label className="label">
                       <span className="label-text-alt text-gray-500">
-                        Code will expire in {formData.expiresInDays} days
-                      </span>
-                    </label>
-                  </div>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-semibold">
-                        Maximum Uses
-                      </span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={formData.maxUses}
-                      onChange={(e) => setFormData({ ...formData, maxUses: parseInt(e.target.value) })}
-                      className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-                      required
-                    />
-                    <label className="label">
-                      <span className="label-text-alt text-gray-500">
-                        Code can be used {formData.maxUses} time{formData.maxUses > 1 ? 's' : ''}
+                        Code will expire in {formData.expiresInDays} days. Each code is single-use only.
                       </span>
                     </label>
                   </div>

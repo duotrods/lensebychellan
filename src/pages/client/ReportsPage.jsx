@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
+import { SCHEMES } from '../../utils/schemes';
 
 const ReportsPage = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const ReportsPage = () => {
     if (activeScheme) {
       loadReports();
     }
-  }, [userProfile?.activeSchemeId, userProfile?.schemeId]);
+  }, [userProfile?.activeSchemeId, userProfile?.schemeId, userProfile?.schemeName]);
 
   const loadReports = async () => {
     try {
@@ -56,6 +57,26 @@ const ReportsPage = () => {
                          report.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || report.reportType === filterType;
+
+    // For daily occurrence reports, check if any occurrence matches the client's scheme
+    if (report.reportType === 'daily-occurrence' && report.occurrences) {
+      // Get the active scheme name - if activeSchemeName is not set, look it up from the scheme ID
+      let activeSchemeName = userProfile?.activeSchemeName || userProfile?.schemeName;
+
+      // If we have an activeSchemeId but no activeSchemeName, look it up
+      if (!userProfile?.activeSchemeName && userProfile?.activeSchemeId) {
+        const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+        if (activeSchemeObj) {
+          activeSchemeName = activeSchemeObj.fullName;
+        }
+      }
+
+      const hasMatchingOccurrence = report.occurrences.some(occurrence =>
+        occurrence.scheme === activeSchemeName || occurrence.scheme === 'All Schemes'
+      );
+      return matchesSearch && matchesType && hasMatchingOccurrence;
+    }
+
     return matchesSearch && matchesType;
   });
 
@@ -147,6 +168,25 @@ const ReportsPage = () => {
     cctvCheck: reports.filter(r => r.reportType === 'cctv-check').length
   };
 
+  // Get the active scheme name for display
+  const getActiveSchemeName = () => {
+    // If activeSchemeName is set, use it
+    if (userProfile?.activeSchemeName) {
+      return userProfile.activeSchemeName;
+    }
+
+    // If we have an activeSchemeId but no activeSchemeName, look it up
+    if (userProfile?.activeSchemeId) {
+      const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+      if (activeSchemeObj) {
+        return activeSchemeObj.fullName;
+      }
+    }
+
+    // Fall back to the default scheme name
+    return userProfile?.schemeName;
+  };
+
   return (
     <ClientSidebarLayout>
       <div className="p-6">
@@ -154,7 +194,7 @@ const ReportsPage = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Reports</h1>
           <p className="text-gray-600 mt-2">
-            View and manage all reports for {userProfile?.schemeName}
+            View and manage all reports for {getActiveSchemeName()}
           </p>
         </div>
 

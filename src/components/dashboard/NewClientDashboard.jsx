@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { AlertTriangle, Car, Camera, Filter, Clock, TrendingUp } from "lucide-react";
+import { SCHEMES } from "../../utils/schemes";
 
 const NewClientDashboard = () => {
   const { userProfile } = useAuth();
@@ -20,6 +21,29 @@ const NewClientDashboard = () => {
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
   const days = parseInt(dateRange);
+
+  // Get the active scheme name for display
+  const getActiveSchemeName = () => {
+    // If activeSchemeName is set, use it
+    if (userProfile?.activeSchemeName) {
+      return userProfile.activeSchemeName;
+    }
+
+    // If we have an activeSchemeId but no activeSchemeName, look it up
+    if (userProfile?.activeSchemeId) {
+      const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+      if (activeSchemeObj) {
+        return activeSchemeObj.fullName;
+      }
+    }
+
+    // Fall back to the default scheme name
+    return userProfile?.schemeName;
+  };
+
+  const getActiveSchemeId = () => {
+    return userProfile?.activeSchemeId || userProfile?.schemeId;
+  };
 
   // Cached query for stats
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -128,7 +152,7 @@ const NewClientDashboard = () => {
             Welcome back, {userProfile?.displayName}!
           </h3>
           <p className="text-gray-600 mt-2">
-            {userProfile?.schemeId} - {userProfile?.schemeName}
+            {getActiveSchemeId()} - {getActiveSchemeName()}
           </p>
         </div>
 

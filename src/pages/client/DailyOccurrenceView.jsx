@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { clientDataService } from '../../services/clientDataService';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
+import { SCHEMES } from '../../utils/schemes';
 
 const DailyOccurrenceView = () => {
   const { id } = useParams();
@@ -26,7 +27,26 @@ const DailyOccurrenceView = () => {
       const foundReport = allReports.find(r => r.id === id && r.reportType === 'daily-occurrence');
 
       if (foundReport) {
-        setReport(foundReport);
+        // Filter occurrences to only show those matching the client's scheme
+        // Get the active scheme name - if activeSchemeName is not set, look it up from the scheme ID
+        let activeSchemeName = userProfile.activeSchemeName || userProfile.schemeName;
+
+        // If we have an activeSchemeId but no activeSchemeName, look it up
+        if (!userProfile.activeSchemeName && userProfile.activeSchemeId) {
+          const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+          if (activeSchemeObj) {
+            activeSchemeName = activeSchemeObj.fullName;
+          }
+        }
+
+        const filteredOccurrences = foundReport.occurrences?.filter(occurrence => {
+          return occurrence.scheme === activeSchemeName || occurrence.scheme === 'All Schemes';
+        }) || [];
+
+        setReport({
+          ...foundReport,
+          occurrences: filteredOccurrences
+        });
       } else {
         toast.error('Report not found');
         navigate('/dashboard/client/reports');
@@ -159,10 +179,10 @@ const DailyOccurrenceView = () => {
                       <h5 className="text-md font-semibold text-gray-800">
                         Occurrence #{index + 1}
                       </h5>
-                      {occurrence.scheme && (
-                        <div className="flex items-center gap-2 px-3 py-1 bg-brand-100 text-brand-800 rounded-full">
+                      {occurrence.urn && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-100 text-brand-800 rounded-full">
                           <Building2 className="w-4 h-4" />
-                          <span className="text-sm font-semibold">{occurrence.scheme}</span>
+                          <span className="text-sm font-bold">URN: {occurrence.urn}</span>
                         </div>
                       )}
                     </div>
@@ -194,10 +214,10 @@ const DailyOccurrenceView = () => {
 
                     {/* Additional Details */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                      {occurrence.urn && (
+                      {occurrence.scheme && (
                         <div>
-                          <label className="text-xs font-semibold text-gray-600">URN</label>
-                          <p className="text-sm text-gray-800 font-mono">{occurrence.urn}</p>
+                          <label className="text-xs font-semibold text-gray-600">Scheme</label>
+                          <p className="text-sm text-gray-800">{occurrence.scheme}</p>
                         </div>
                       )}
                       {occurrence.recoveryRequired && (
