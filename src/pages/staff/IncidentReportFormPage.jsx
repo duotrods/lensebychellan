@@ -214,6 +214,47 @@ const IncidentReportFormPage = () => {
     return uploadedFiles;
   };
 
+  // Calculate time differences in minutes
+  const calculateTimeDifferences = (data) => {
+    const calculateMinutes = (time1, time2) => {
+      if (!time1 || !time2) return null;
+
+      // Parse time in HH:MM format
+      const [hours1, mins1] = time1.split(':').map(Number);
+      const [hours2, mins2] = time2.split(':').map(Number);
+
+      const totalMins1 = hours1 * 60 + mins1;
+      const totalMins2 = hours2 * 60 + mins2;
+
+      let diff = totalMins2 - totalMins1;
+
+      // Handle crossing midnight
+      if (diff < 0) diff += 24 * 60;
+
+      return diff;
+    };
+
+    const result = { ...data };
+
+    // Time Spotted to On Site (for "Time to Site" chart)
+    if (data.timeSpotted && data.timeOnSite) {
+      const mins = calculateMinutes(data.timeSpotted, data.timeOnSite);
+      if (mins !== null) {
+        result.timeSpottedToOn = `${mins} mins`;
+      }
+    }
+
+    // Time On Site to Cleared (for "Time to Recover" chart)
+    if (data.timeOnSite && data.timeCleared) {
+      const mins = calculateMinutes(data.timeOnSite, data.timeCleared);
+      if (mins !== null) {
+        result.timeOnsiteToCleared = `${mins} mins`;
+      }
+    }
+
+    return result;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -228,9 +269,12 @@ const IncidentReportFormPage = () => {
       // Upload files first
       const uploadedFiles = await uploadFiles();
 
+      // Calculate time differences
+      const dataWithTimings = calculateTimeDifferences(formData);
+
       if (editId) {
         // Update existing form
-        const updateData = { ...formData };
+        const updateData = { ...dataWithTimings };
 
         // Only update files if new files were uploaded
         if (uploadedFiles.length > 0) {
@@ -250,7 +294,7 @@ const IncidentReportFormPage = () => {
         // Submit new form
         await staffService.submitIncidentReport(
           {
-            ...formData,
+            ...dataWithTimings,
             files: uploadedFiles,
           },
           userProfile.uid,

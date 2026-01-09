@@ -282,14 +282,18 @@ const IncidentReportView = () => {
             <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
               Time Information
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="text-sm font-semibold text-gray-600">Time Spotted to On Site</label>
-                <p className="text-gray-800">{report.timeSpottedToOn || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">Time Spotted</label>
+                <p className="text-gray-800">{report.timeSpotted || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Time Onsite to Cleared</label>
-                <p className="text-gray-800">{report.timeOnsiteToCleared || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">Time On Site</label>
+                <p className="text-gray-800">{report.timeOnSite || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-600">Time Cleared</label>
+                <p className="text-gray-800">{report.timeCleared || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-semibold text-gray-600">Closed Log Collar Number</label>

@@ -223,37 +223,33 @@ const IncidentReportDetailPage = () => {
           </div>
 
           {/* Recovery Requested */}
-          <div className="mb-8 pb-8 border-b">
-            <h4 className="text-lg font-bold text-gray-800 mb-4">Recovery Requested</h4>
-            <div className="overflow-x-auto">
-              <table className="table w-full border border-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="border border-gray-300 text-center">LIGHT</th>
-                    <th className="border border-gray-300 text-center">HEAVY</th>
-                    <th className="border border-gray-300 text-center">IPV</th>
-                    <th className="border border-gray-300 text-center">HETOS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border border-gray-300 text-center font-medium">
-                      {report.recoveryRequested?.light || 0}
-                    </td>
-                    <td className="border border-gray-300 text-center font-medium">
-                      {report.recoveryRequested?.heavy || 0}
-                    </td>
-                    <td className="border border-gray-300 text-center font-medium">
-                      {report.recoveryRequested?.ipv || 0}
-                    </td>
-                    <td className="border border-gray-300 text-center font-medium">
-                      {report.recoveryRequested?.hetos || 0}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          {report.recoveryRequested && (
+            <div className='mb-8 pb-8 border-b'>
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                Recovery Requested
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-600">Light</label>
+                  <p className="text-gray-800">{report.recoveryRequested.light || 0}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600">Heavy</label>
+                  <p className="text-gray-800">{report.recoveryRequested.heavy || 0}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600">IPV</label>
+                  <p className="text-gray-800">{report.recoveryRequested.ipv || 0}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-600">HETOS</label>
+                  <p className="text-gray-800">{report.recoveryRequested.hetos || 0}</p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          
 
           {/* Time Information */}
           <div className="mb-8 pb-8 border-b">
@@ -283,36 +279,37 @@ const IncidentReportDetailPage = () => {
             </div>
           </div>
 
+
           {/* Vehicles Involved */}
-          <div className="mb-8 pb-8 border-b">
-            <h4 className="text-lg font-bold text-gray-800 mb-4">Vehicles Involved</h4>
-            {report.vehicles && report.vehicles.length > 0 ? (
+          {report.vehicles && report.vehicles.length > 0 && (
+            <div className="mb-8 pb-8 border-b">
+              <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                Vehicles Involved
+              </h4>
               <div className="overflow-x-auto">
-                <table className="table w-full border border-gray-300">
+                <table className="table w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="border border-gray-300">Type</th>
-                      <th className="border border-gray-300">Make</th>
-                      <th className="border border-gray-300">Model</th>
-                      <th className="border border-gray-300">VIN</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Type</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Make</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Model</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">VIN</th>
                     </tr>
                   </thead>
                   <tbody>
                     {report.vehicles.map((vehicle, index) => (
-                      <tr key={index}>
-                        <td className="border border-gray-300">{vehicle.type || 'N/A'}</td>
-                        <td className="border border-gray-300">{vehicle.make || 'N/A'}</td>
-                        <td className="border border-gray-300">{vehicle.model || 'N/A'}</td>
-                        <td className="border border-gray-300">{vehicle.vin || 'N/A'}</td>
+                      <tr key={index} className="border-b">
+                        <td className="px-4 py-2">{vehicle.type || 'N/A'}</td>
+                        <td className="px-4 py-2">{vehicle.make || 'N/A'}</td>
+                        <td className="px-4 py-2">{vehicle.model || 'N/A'}</td>
+                        <td className="px-4 py-2">{vehicle.vin || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            ) : (
-              <p className="text-gray-500">No vehicles specified</p>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Description */}
           <div className="mb-8">

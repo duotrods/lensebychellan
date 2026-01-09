@@ -123,7 +123,7 @@ const NewClientDashboard = () => {
   // Chart component wrapper for consistent styling
   const ChartCard = ({ title, children, fullWidth = false, height = 380 }) => (
     <div className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? 'col-span-full' : ''}`}>
-      <h3 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">{title}</h3>
+      <h5 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">{title}</h5>
       <ResponsiveContainer width="100%" height={height}>
         {children}
       </ResponsiveContainer>
@@ -132,15 +132,15 @@ const NewClientDashboard = () => {
 
   // Common chart styling props
   const commonChartProps = {
-    cartesianGrid: { strokeDasharray: "3 3", stroke: "#e5e7eb" },
-    xAxis: { angle: -45, textAnchor: "end", height: 120, tick: { fontSize: 13 }, interval: 0 },
+    cartesianGrid: { strokeDasharray: "3 3", stroke: "#17af93" },
+    xAxis: {  tick: { fontSize: 13 }},
     yAxis: { tick: { fontSize: 13 } },
     tooltip: {
-      contentStyle: { backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' },
+      contentStyle: { backgroundColor: '#fff', border: '1px solid #17af93', borderRadius: '8px' },
       labelStyle: { fontWeight: 'bold' }
     },
     legend: { wrapperStyle: { paddingTop: '20px' } },
-    bar: { fill: "#3b82f6", radius: [8, 8, 0, 0] }
+    bar: { fill: "#17af93", radius: [8, 8, 0, 0] }
   };
 
   return (

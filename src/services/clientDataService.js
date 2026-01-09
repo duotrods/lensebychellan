@@ -224,16 +224,14 @@ class ClientDataService {
           incidents,
           "emergencyServices"
         ), // Array field
-        timeToRecover: this.groupByTimeDifference(
+        timeToRecover: this.groupByCalculatedTime(
           incidents,
-          "timeOnSite",
-          "timeCleared"
-        ), // Time from on site to cleared
-        timeToSite: this.groupByTimeDifference(
+          "timeOnsiteToCleared"
+        ), // Time from on site to cleared (pre-calculated)
+        timeToSite: this.groupByCalculatedTime(
           incidents,
-          "timeSpotted",
-          "timeOnSite"
-        ), // Time from spotted to on site
+          "timeSpottedToOn"
+        ), // Time from spotted to on site (pre-calculated)
         incursions: incidents.filter((i) => i.incursion === "YES").length, // Check for 'YES' string
         recentIncidents: incidents.slice(0, 10).map((incident) => ({
           type: incident.incidentType || "Unknown",
