@@ -371,22 +371,15 @@ const IncidentReportFormPage = () => {
                   Section <span className="text-red-500">*</span>
                 </span>
               </label>
-              <select
+              <input
+                type="text"
                 name="section"
                 value={formData.section}
                 onChange={handleChange}
-                className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                placeholder="Enter section (e.g., M3, A33, A417)"
                 required
-              >
-                <option value="">Please Select</option>
-                <option value="M3">M3</option>
-                <option value="A33">A33</option>
-                <option value="A34">A34</option>
-                <option value="A1">A1</option>
-                <option value="A417">A417</option>
-                <option value="A11">A11</option>
-                <option value="A47">A47</option>
-              </select>
+              />
             </div>
           </div>
 
@@ -657,6 +650,8 @@ const IncidentReportFormPage = () => {
                 <option value="RTC">RTC</option>
                 <option value="Call Log">Call Log</option>
                 <option value="Drive Off">Drive Off</option>
+                <option value="Pedestrian">Pedestrian</option>
+                <option value="Medical Incident">Medical Incident</option>
               </select>
             </div>
           </div>
