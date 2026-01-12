@@ -201,7 +201,8 @@ service cloud.firestore {
 
     // Audit Logs
     match /auditLogs/{logId} {
-      // Only admins can write audit logs
+      // Admins and Cloud Functions can write audit logs
+      // Cloud Functions use Admin SDK and bypass these rules
       allow create: if isSignedIn() && getUserRole() == 'admin';
       // Only admins can read audit logs
       allow read: if isSignedIn() && getUserRole() == 'admin';

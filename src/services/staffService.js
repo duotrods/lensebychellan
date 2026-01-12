@@ -101,7 +101,7 @@ class StaffService {
     }
   }
 
-  async getCCTVCheckForms(userId = null) {
+  async getCCTVCheckForms(userId = null, limitCount = 50) {
     try {
       const formsRef = collection(db, "cctvCheckForms");
       let q;
@@ -110,10 +110,11 @@ class StaffService {
         q = query(
           formsRef,
           where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
+          limit(limitCount)
         );
       } else {
-        q = query(formsRef, orderBy("createdAt", "desc"));
+        q = query(formsRef, orderBy("createdAt", "desc"), limit(limitCount));
       }
 
       const snapshot = await getDocs(q);
@@ -246,7 +247,7 @@ class StaffService {
     }
   }
 
-  async getIncidentReports(userId = null) {
+  async getIncidentReports(userId = null, limitCount = 50) {
     try {
       const reportsRef = collection(db, "incidentReports");
       let q;
@@ -255,10 +256,11 @@ class StaffService {
         q = query(
           reportsRef,
           where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
+          limit(limitCount)
         );
       } else {
-        q = query(reportsRef, orderBy("createdAt", "desc"));
+        q = query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount));
       }
 
       const snapshot = await getDocs(q);
@@ -522,7 +524,7 @@ class StaffService {
     }
   }
 
-  async getCCTVUploads(userId = null) {
+  async getCCTVUploads(userId = null, limitCount = 50) {
     try {
       const uploadsRef = collection(db, "cctvUploads");
       let q;
@@ -531,10 +533,11 @@ class StaffService {
         q = query(
           uploadsRef,
           where("uploadedBy.userId", "==", userId),
-          orderBy("uploadedAt", "desc")
+          orderBy("uploadedAt", "desc"),
+          limit(limitCount)
         );
       } else {
-        q = query(uploadsRef, orderBy("uploadedAt", "desc"));
+        q = query(uploadsRef, orderBy("uploadedAt", "desc"), limit(limitCount));
       }
 
       const snapshot = await getDocs(q);
@@ -644,7 +647,7 @@ class StaffService {
     }
   }
 
-  async getAssetDamageReports(userId = null) {
+  async getAssetDamageReports(userId = null, limitCount = 50) {
     try {
       const reportsRef = collection(db, "assetDamageReports");
       let q;
@@ -653,10 +656,11 @@ class StaffService {
         q = query(
           reportsRef,
           where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
+          limit(limitCount)
         );
       } else {
-        q = query(reportsRef, orderBy("createdAt", "desc"));
+        q = query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount));
       }
 
       const snapshot = await getDocs(q);
@@ -888,7 +892,7 @@ class StaffService {
     }
   }
 
-  async getDailyOccurrenceReports(userId = null) {
+  async getDailyOccurrenceReports(userId = null, limitCount = 50) {
     try {
       const reportsRef = collection(db, "dailyOccurrenceReports");
       let q;
@@ -897,10 +901,11 @@ class StaffService {
         q = query(
           reportsRef,
           where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
+          limit(limitCount)
         );
       } else {
-        q = query(reportsRef, orderBy("createdAt", "desc"));
+        q = query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount));
       }
 
       const snapshot = await getDocs(q);

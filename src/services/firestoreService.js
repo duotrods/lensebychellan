@@ -4,7 +4,6 @@ import {
   getDoc,
   updateDoc,
   addDoc,
-  deleteDoc,
   collection,
   getDocs,
   serverTimestamp,
@@ -13,7 +12,8 @@ import {
   limit,
   startAfter
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../config/firebase';
 import { USER_ROLES } from '../utils/constants';
 import { AppError } from '../utils/errorHandling';
 
@@ -362,7 +362,7 @@ class FirestoreService {
     }
   }
 
-  // Admin-only: Delete user
+  // Admin-only: Delete user (calls Cloud Function to delete from both Auth and Firestore)
   async deleteUser(targetUid, adminUid) {
     try {
       // Verify admin role
@@ -387,29 +387,24 @@ class FirestoreService {
         throw new AppError('Cannot delete yourself', 'firestore/invalid-operation');
       }
 
-      // Log audit trail before deletion
-      await this.createAuditLog({
-        action: 'user_deleted',
-        performedBy: adminUid,
-        targetUser: targetUid,
-        deletedUserData: {
-          email: targetUser.email,
-          displayName: targetUser.displayName,
-          role: targetUser.role,
-          company: targetUser.company
-        }
-      });
+      // Call the Cloud Function to delete user from both Auth and Firestore
+      const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
+      const result = await deleteUserAccount({ targetUid });
 
-      // Delete user document from Firestore
-      const userRef = doc(db, 'users', targetUid);
-      await deleteDoc(userRef);
-
-      return { success: true, message: 'User deleted successfully' };
+      return { success: true, message: result.data.message };
     } catch (error) {
       console.error('Delete user error details:', error);
+
+      // Handle Cloud Function errors
+      if (error.code) {
+        const message = error.message || 'Failed to delete user';
+        throw new AppError(message, error.code, error);
+      }
+
       if (error instanceof AppError) {
         throw error;
       }
+
       throw new AppError(
         `Failed to delete user: ${error.message || 'Unknown error'}`,
         'firestore/delete-error',

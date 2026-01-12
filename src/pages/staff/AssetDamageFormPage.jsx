@@ -7,6 +7,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import { storage } from "../../config/firebase";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import { compressImage } from "../../utils/imageCompression";
 
 import chellanlogo from "../../assets/chellanpng.png"
 
@@ -116,19 +117,22 @@ const AssetDamageFormPage = () => {
 
     setUploadingFiles(true);
     const uploadPromises = files.map(async (file) => {
+      // Compress image before uploading (skips non-images automatically)
+      const compressedFile = await compressImage(file);
+
       const fileName = `asset-damage/${userProfile.uid}/${Date.now()}_${
         file.name
       }`;
       const storageRef = ref(storage, fileName);
 
-      await uploadBytes(storageRef, file);
+      await uploadBytes(storageRef, compressedFile);
       const downloadURL = await getDownloadURL(storageRef);
 
       return {
         fileName: file.name,
         fileUrl: fileName,
         downloadUrl: downloadURL,
-        fileSize: file.size,
+        fileSize: compressedFile.size,
         fileType: file.type,
       };
     });
