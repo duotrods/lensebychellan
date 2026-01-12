@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
 import { SCHEMES } from "../../utils/schemes";
-import { Building2, Plus, Trash2, RefreshCw, User } from "lucide-react";
+import { Building2, Plus, Trash2, RefreshCw, User, Archive, ArchiveRestore } from "lucide-react";
 
 const SchemeAssignment = () => {
   const { userProfile } = useAuth();
@@ -117,6 +117,42 @@ const SchemeAssignment = () => {
     setShowAssignModal(true);
   };
 
+  const handleArchiveUser = async (user) => {
+    if (!confirm(`Archive user ${user.displayName}? They will not be able to log in.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await firestoreService.archiveUser(user.uid, userProfile.uid);
+      toast.success(`User ${user.displayName} archived successfully`);
+      loadUsers();
+    } catch (error) {
+      console.error('Failed to archive user:', error);
+      toast.error(error.message || "Failed to archive user");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnarchiveUser = async (user) => {
+    if (!confirm(`Unarchive user ${user.displayName}? They will be able to log in again.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await firestoreService.unarchiveUser(user.uid, userProfile.uid);
+      toast.success(`User ${user.displayName} unarchived successfully`);
+      loadUsers();
+    } catch (error) {
+      console.error('Failed to unarchive user:', error);
+      toast.error(error.message || "Failed to unarchive user");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -177,6 +213,9 @@ const SchemeAssignment = () => {
                   Active Scheme
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -184,7 +223,7 @@ const SchemeAssignment = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center">
+                  <td colSpan="6" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center">
                       <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mb-2" />
                       <p className="text-gray-500">Loading users...</p>
@@ -193,7 +232,7 @@ const SchemeAssignment = () => {
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center">
+                  <td colSpan="6" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center">
                       <User className="w-12 h-12 text-gray-300 mb-2" />
                       <p className="text-gray-500">No client users found</p>
@@ -250,14 +289,51 @@ const SchemeAssignment = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => openAssignModal(user)}
-                        disabled={loading}
-                        className="flex items-center gap-1 px-3 py-1 bg-teal-500 hover:bg-teal-600 text-white rounded text-sm transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Assign
-                      </button>
+                      {user.isArchived ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                          <Archive className="w-3 h-3" />
+                          Archived
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                          Active
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {!user.isArchived && (
+                          <button
+                            onClick={() => openAssignModal(user)}
+                            disabled={loading}
+                            className="flex items-center gap-1 px-3 py-1 bg-teal-500 hover:bg-teal-600 text-white rounded text-sm transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Assign
+                          </button>
+                        )}
+                        {user.isArchived ? (
+                          <button
+                            onClick={() => handleUnarchiveUser(user)}
+                            disabled={loading}
+                            className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
+                            title="Unarchive user"
+                          >
+                            <ArchiveRestore className="w-4 h-4" />
+                            Unarchive
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleArchiveUser(user)}
+                            disabled={loading}
+                            className="flex items-center gap-1 px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                            title="Archive user"
+                          >
+                            <Archive className="w-4 h-4" />
+                            Archive
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -19,6 +19,18 @@ export const AuthProvider = ({ children }) => {
         if (user) {
           // Fetch Firestore user profile
           const profile = await firestoreService.getUserDocument(user.uid);
+
+          // Check if user is archived
+          if (profile?.isArchived) {
+            // Log out archived users
+            await auth.signOut();
+            setCurrentUser(null);
+            setUserProfile(null);
+            setError(new Error('Your account has been archived. Please contact an administrator.'));
+            setLoading(false);
+            return;
+          }
+
           setUserProfile(profile);
 
           // Sync email verification status

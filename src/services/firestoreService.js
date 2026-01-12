@@ -97,6 +97,20 @@ class FirestoreService {
     }
   }
 
+  // Log activity to activities collection
+  async logActivity(activityData) {
+    try {
+      const activitiesRef = collection(db, 'activities');
+      await addDoc(activitiesRef, {
+        ...activityData,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Failed to log activity:', error);
+      // Don't throw error - activity logging is non-critical
+    }
+  }
+
   // Admin-only: Get all users
   async getAllUsers() {
     try {
@@ -359,6 +373,106 @@ class FirestoreService {
         throw error;
       }
       throw new AppError('Failed to promote user', 'firestore/update-error', error);
+    }
+  }
+
+  // Admin-only: Archive user
+  async archiveUser(targetUid, adminUid) {
+    try {
+      // Verify admin role
+      const adminUser = await this.getUserDocument(adminUid);
+      if (adminUser?.role !== USER_ROLES.ADMIN) {
+        throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+
+      // Get target user
+      const targetUser = await this.getUserDocument(targetUid);
+      if (!targetUser) {
+        throw new AppError('User not found', 'firestore/not-found');
+      }
+
+      // Prevent archiving other admins
+      if (targetUser.role === USER_ROLES.ADMIN) {
+        throw new AppError('Cannot archive admin users', 'firestore/permission-denied');
+      }
+
+      // Prevent self-archiving
+      if (targetUid === adminUid) {
+        throw new AppError('Cannot archive yourself', 'firestore/invalid-operation');
+      }
+
+      // Update user document to mark as archived
+      const userRef = doc(db, 'users', targetUid);
+      await updateDoc(userRef, {
+        isArchived: true,
+        archivedAt: serverTimestamp(),
+        archivedBy: adminUid,
+        updatedAt: serverTimestamp()
+      });
+
+      // Log activity
+      await this.logActivity({
+        userId: adminUid,
+        userName: adminUser.displayName || adminUser.email,
+        action: 'user_archived',
+        details: `Archived user: ${targetUser.displayName || targetUser.email}`,
+        targetUserId: targetUid,
+        targetUserEmail: targetUser.email,
+        targetUserName: targetUser.displayName
+      });
+
+      return { success: true, message: 'User archived successfully' };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to archive user', 'firestore/update-error', error);
+    }
+  }
+
+  // Admin-only: Unarchive user
+  async unarchiveUser(targetUid, adminUid) {
+    try {
+      // Verify admin role
+      const adminUser = await this.getUserDocument(adminUid);
+      if (adminUser?.role !== USER_ROLES.ADMIN) {
+        throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+
+      // Get target user
+      const targetUser = await this.getUserDocument(targetUid);
+      if (!targetUser) {
+        throw new AppError('User not found', 'firestore/not-found');
+      }
+
+      // Update user document to remove archive status
+      const userRef = doc(db, 'users', targetUid);
+      await updateDoc(userRef, {
+        isArchived: false,
+        archivedAt: null,
+        archivedBy: null,
+        unarchivedAt: serverTimestamp(),
+        unarchivedBy: adminUid,
+        updatedAt: serverTimestamp()
+      });
+
+      // Log activity
+      await this.logActivity({
+        userId: adminUid,
+        userName: adminUser.displayName || adminUser.email,
+        action: 'user_unarchived',
+        details: `Unarchived user: ${targetUser.displayName || targetUser.email}`,
+        targetUserId: targetUid,
+        targetUserEmail: targetUser.email,
+        targetUserName: targetUser.displayName
+      });
+
+      return { success: true, message: 'User unarchived successfully' };
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError('Failed to unarchive user', 'firestore/update-error', error);
     }
   }
 
