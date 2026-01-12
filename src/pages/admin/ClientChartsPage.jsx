@@ -391,7 +391,31 @@ const ClientChartsPage = () => {
             </div>
 
             {/* Incident Analytics Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                 {/* Chart 6: Time to Recover */}
+              <ChartCard title="Time to recover (mins)">
+                <BarChart data={timeToRecoverData.length > 0 ? timeToRecoverData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+                      {/* Chart 9: Time to Site */}
+              <ChartCard title="Time to Site (mins)">
+                <BarChart data={timeToSiteData.length > 0 ? timeToSiteData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
               {/* Chart 1: Fault */}
               <ChartCard title="Fault">
                 <BarChart data={faultData.length > 0 ? faultData : [{ name: "No Data", Number: 0 }]}>
@@ -452,18 +476,7 @@ const ClientChartsPage = () => {
                 </BarChart>
               </ChartCard>
 
-              {/* Chart 6: Time to Recover */}
-              <ChartCard title="Time to recover (mins)">
-                <BarChart data={timeToRecoverData.length > 0 ? timeToRecoverData : [{ name: "No Data", Number: 0 }]}>
-                  <CartesianGrid {...commonChartProps.cartesianGrid} />
-                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                  <YAxis {...commonChartProps.yAxis} />
-                  <Tooltip {...commonChartProps.tooltip} />
-                  <Legend {...commonChartProps.legend} />
-                  <Bar dataKey="Number" {...commonChartProps.bar} />
-                </BarChart>
-              </ChartCard>
-
+             
               {/* Chart 7: Traffic Conditions */}
               <ChartCard title="Traffic Conditions">
                 <BarChart data={trafficConditionsData.length > 0 ? trafficConditionsData : [{ name: "No Data", Number: 0 }]}>
@@ -488,17 +501,7 @@ const ClientChartsPage = () => {
                 </BarChart>
               </ChartCard>
 
-              {/* Chart 9: Time to Site */}
-              <ChartCard title="Time to Site (mins)">
-                <BarChart data={timeToSiteData.length > 0 ? timeToSiteData : [{ name: "No Data", Number: 0 }]}>
-                  <CartesianGrid {...commonChartProps.cartesianGrid} />
-                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                  <YAxis {...commonChartProps.yAxis} />
-                  <Tooltip {...commonChartProps.tooltip} />
-                  <Legend {...commonChartProps.legend} />
-                  <Bar dataKey="Number" {...commonChartProps.bar} />
-                </BarChart>
-              </ChartCard>
+        
 
               {/* Chart 10: Track of Incident */}
               <ChartCard title="Track of Incident">

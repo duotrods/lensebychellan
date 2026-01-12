@@ -16,10 +16,9 @@ const CCTVCheckFormPage = () => {
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    date: '',
-    time: '',
+    firstName: userProfile?.displayName || '', // Auto-fill full name
+    date: new Date().toISOString().split('T')[0], // Auto-fill current date
+    time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
 
     // A417 Section
     a417Cameras: [],
@@ -37,21 +36,24 @@ const CCTVCheckFormPage = () => {
   // Camera options for each section
   const cameraOptions = {
     a417: [
-      'ALL WORKING CORRECT', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
+      'NONE', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
       'CCTV 7', 'CCTV 8', 'CCTV 9', 'CCTV 10', 'CCTV 11', 'CCTV 12', 'CCTV 13', 'CCTV 14',
       'CCTV 21', 'CCTV 22', 'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28',
       'CCTV 29', 'CCTV 30', 'CCTV 31', 'CCTV 32'
     ],
     kierCore: [
-      'ALL WORKING CORRECT', '1100', '1101', '1102', '1103', '1104', '1105', '1106', '1107',
-      '1108', '1109', '1110', '1111'
+      'NONE', '1101', '1102', '1103', '1104', '1105', '1106', '1107',
+      '1108', '1109', '1110', '1111', '1112', '1114', '4701', '4702', '4703', '4704',
+      '4705', '4706', '4707', '4708', '4709', '4711', '4712', '4713', '4714', '4715',
+      '4716', '4717', '4718', '4719'
     ],
     m3: [
-      'ALL WORKING CORRECT', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
+      'NONE', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
       'CCTV 7', 'CCTV 8', 'CCTV 9', 'CCTV 10', 'CCTV 11', 'CCTV 12', 'CCTV 13', 'CCTV 14',
-      'CCTV 15', 'CCTV 16', 'CCTV 17', 'CCTV 18', 'CCTV 19', 'CCTV20', 'CCTV 21', 'CCTV 22',
-      'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28', '3301', '3302',
-      '3303', '3304', '3305', '3306', '3401', '3402', '3403', '3404', '3407', '3408', '3409', '3410'
+      'CCTV 15', 'CCTV 16', 'CCTV 17', 'CCTV 18', 'CCTV 19', 'CCTV 20', 'CCTV 21', 'CCTV 22',
+      'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28', 'CCTV 29', 'CCTV 30',
+      '3301', '3302', '3303', '3304', '3305', '3306', '3401', '3402', '3403', '3404', '3407',
+      '3408', '3409', '3410'
     ]
   };
 
@@ -70,8 +72,7 @@ const CCTVCheckFormPage = () => {
 
       if (form) {
         setFormData({
-          firstName: form.firstName || '',
-          lastName: form.lastName || '',
+          firstName: form.firstName ? (form.lastName ? `${form.firstName} ${form.lastName}` : form.firstName) : '',
           date: form.date || '',
           time: form.time || '',
           a417Cameras: form.a417Cameras || [],
@@ -97,12 +98,12 @@ const CCTVCheckFormPage = () => {
     setFormData(prev => {
       const currentValues = prev[section];
 
-      if (value === 'ALL WORKING CORRECT') {
-        // If "All Working" is selected, clear all others
+      if (value === 'NONE') {
+        // If "NONE" is selected, clear all others
         return { ...prev, [section]: currentValues.includes(value) ? [] : [value] };
       } else {
-        // Remove "All Working" if individual camera is selected
-        const filtered = currentValues.filter(v => v !== 'ALL WORKING CORRECT');
+        // Remove "NONE" if individual camera is selected
+        const filtered = currentValues.filter(v => v !== 'NONE');
 
         if (currentValues.includes(value)) {
           return { ...prev, [section]: filtered.filter(v => v !== value) };
@@ -116,7 +117,7 @@ const CCTVCheckFormPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.firstName || !formData.lastName || !formData.date || !formData.time) {
+    if (!formData.firstName || !formData.date || !formData.time) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -133,6 +134,7 @@ const CCTVCheckFormPage = () => {
           userProfile.displayName
         );
         toast.success('CCTV Check Form updated successfully!');
+        navigate('/dashboard/staff');
       } else {
         // Submit new form
         await staffService.submitCCTVCheckForm(
@@ -141,9 +143,20 @@ const CCTVCheckFormPage = () => {
           userProfile.displayName
         );
         toast.success('CCTV Check Form submitted successfully!');
-      }
 
-      navigate('/dashboard/staff');
+        // Reset form with fresh auto-filled values
+        setFormData({
+          firstName: userProfile?.displayName || '',
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().slice(0, 5),
+          a417Cameras: [],
+          a417Comments: '',
+          kierCore: [],
+          kierCoreComments: '',
+          m3Jct9: [],
+          m3Jct9Comments: ''
+        });
+      }
     } catch (error) {
       console.error('Error submitting form:', error);
       toast.error('Failed to submit form. Please try again.');
@@ -157,7 +170,7 @@ const CCTVCheckFormPage = () => {
       <label className="block text-sm font-semibold text-gray-700 mb-4">
         {title} <span className="text-red-500">*</span>
       </label>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-3">
         {options.map((option) => (
           <label
             key={option}
@@ -214,11 +227,11 @@ const CCTVCheckFormPage = () => {
             <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
           </div>
 
-          {/* Name Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Name, Date, and Time Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <label className="label">
-                <span className="label-text font-semibold mb-2">First Name <span className="text-red-500">*</span></span>
+                <span className="label-text font-semibold mb-2">Full Name <span className="text-red-500">*</span></span>
               </label>
               <input
                 type="text"
@@ -228,22 +241,6 @@ const CCTVCheckFormPage = () => {
                 required
               />
             </div>
-            <div>
-              <label className="label">
-                <span className="label-text font-semibold mb-2">Last Name <span className="text-red-500">*</span></span>
-              </label>
-              <input
-                type="text"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="input input-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Date and Time */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">Date <span className="text-red-500">*</span></span>

@@ -313,6 +313,47 @@ class ClientDataService {
     return hours * 60 + minutes;
   }
 
+  // Helper function to group pre-calculated time fields (e.g., "25 mins", "65 mins")
+  // This matches the logic used in admin ClientChartsPage.jsx
+  groupByCalculatedTime(data, field) {
+    // Determine which bucket ranges to use based on the field
+    const isTimeToSite = field === "timeSpottedToOn";
+
+    const ranges = isTimeToSite
+      ? { '0-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '20+': 0 }
+      : { '0-15': 0, '16-30': 0, '31-45': 0, '46-60': 0, '60+': 0 };
+
+    data.forEach((item) => {
+      const timeValue = item[field];
+
+      // Parse the pre-calculated time string (e.g., "25 mins" -> 25)
+      if (timeValue) {
+        const match = timeValue.match(/(\d+)/);
+        if (match) {
+          const mins = parseInt(match[1]);
+
+          if (isTimeToSite) {
+            // Time to Site buckets
+            if (mins <= 5) ranges['0-5']++;
+            else if (mins <= 10) ranges['6-10']++;
+            else if (mins <= 15) ranges['11-15']++;
+            else if (mins <= 20) ranges['16-20']++;
+            else ranges['20+']++;
+          } else {
+            // Time to Recover buckets
+            if (mins <= 15) ranges['0-15']++;
+            else if (mins <= 30) ranges['16-30']++;
+            else if (mins <= 45) ranges['31-45']++;
+            else if (mins <= 60) ranges['46-60']++;
+            else ranges['60+']++;
+          }
+        }
+      }
+    });
+
+    return ranges;
+  }
+
   // Helper function to group time data by ranges (legacy - for backward compatibility)
   // Converts time strings (HH:MM format) to minutes and groups them
   groupByTimeRange(data, field) {
@@ -494,7 +535,6 @@ class ClientDataService {
       const weeklyData = {};
       incidents.forEach((incident) => {
         const date = incident.createdAt.toDate();
-        const weekStart = this.getWeekStart(date);
         const weekKey = `Week ${this.getWeekNumber(date)}`;
 
         weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
@@ -527,6 +567,111 @@ class ClientDataService {
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  }
+
+  // Get aggregated statistics for a scheme by date range
+  async getSchemeStatsByDateRange(schemeId, startDateStr, endDateStr) {
+    try {
+      // Convert date strings (YYYY-MM-DD) to Date objects
+      const startDate = new Date(startDateStr);
+      startDate.setHours(0, 0, 0, 0); // Start of day
+
+      const endDate = new Date(endDateStr);
+      endDate.setHours(23, 59, 59, 999); // End of day
+
+      // Get recent incidents
+      const incidentsRef = collection(db, "incidentReports");
+      const incidentsQuery = query(
+        incidentsRef,
+        where("schemeIds", "array-contains", schemeId),
+        where("createdAt", ">=", Timestamp.fromDate(startDate)),
+        where("createdAt", "<=", Timestamp.fromDate(endDate))
+      );
+      const incidentsSnapshot = await getDocs(incidentsQuery);
+      const incidents = incidentsSnapshot.docs.map((doc) => doc.data());
+
+      // Calculate statistics (same as getSchemeStats)
+      const stats = {
+        totalIncidents: incidents.length,
+        incidentsByType: this.groupByField(incidents, "incidentType"),
+        incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"),
+        vehiclesDispatched: this.calculateVehiclesDispatched(incidents),
+        spottedBy: this.groupByField(incidents, "reportedBy"),
+        faultTypes: this.groupByField(incidents, "fault"),
+        vehicleTypes: this.groupVehicleTypes(incidents),
+        vehicleTypesDispatched: this.groupVehiclesDispatched(incidents),
+        trafficConditions: this.groupByField(incidents, "trafficConditions"),
+        trackOfIncident: this.groupByField(incidents, "track"),
+        emergencyServices: this.groupByFieldArray(
+          incidents,
+          "emergencyServices"
+        ),
+        timeToRecover: this.groupByCalculatedTime(
+          incidents,
+          "timeOnsiteToCleared"
+        ),
+        timeToSite: this.groupByCalculatedTime(
+          incidents,
+          "timeSpottedToOn"
+        ),
+        incursions: incidents.filter((i) => i.incursion === "YES").length,
+        recentIncidents: incidents.slice(0, 10).map((incident) => ({
+          type: incident.incidentType || "Unknown",
+          location: incident.markerPost || incident.section || "Unknown",
+          time: incident.createdAt,
+          status: incident.status || "Resolved",
+        })),
+      };
+
+      return stats;
+    } catch (error) {
+      throw new AppError(
+        "Failed to fetch scheme stats by date range",
+        "client-data/stats-error",
+        error
+      );
+    }
+  }
+
+  // Get time series data by date range
+  async getTimeSeriesDataByDateRange(schemeId, startDateStr, endDateStr) {
+    try {
+      // Convert date strings (YYYY-MM-DD) to Date objects
+      const startDate = new Date(startDateStr);
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(endDateStr);
+      endDate.setHours(23, 59, 59, 999);
+
+      const incidentsRef = collection(db, "incidentReports");
+      const q = query(
+        incidentsRef,
+        where("schemeIds", "array-contains", schemeId),
+        where("createdAt", ">=", Timestamp.fromDate(startDate)),
+        where("createdAt", "<=", Timestamp.fromDate(endDate)),
+        orderBy("createdAt", "asc")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const incidents = querySnapshot.docs.map((doc) => doc.data());
+
+      // Group by week
+      const weeklyData = {};
+      incidents.forEach((incident) => {
+        const date = incident.createdAt.toDate();
+        const weekKey = `Week ${this.getWeekNumber(date)}`;
+
+        weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
+      });
+
+      return Object.entries(weeklyData).map(([name, count]) => ({
+        name,
+        count,
+      }));
+    } catch (error) {
+      console.error("Failed to fetch time series data by date range:", error);
+      return [];
+    }
   }
 
   // Get all reports for a specific scheme (combines all report types)

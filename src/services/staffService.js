@@ -226,7 +226,7 @@ class StaffService {
           userId,
           name: userName,
         },
-        status: "action needed",
+        status: "submitted",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -626,7 +626,7 @@ class StaffService {
           userId,
           name: userName,
         },
-        status: "action needed",
+        status: "submitted",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

@@ -148,12 +148,12 @@ const DailyOccurrenceView = () => {
                   {report.submittedBy?.name || 'N/A'}
                 </p>
               </div>
-              <div>
+              {/* <div>
                 <label className="text-sm font-semibold text-gray-600">Status</label>
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                   {report.status || 'Submitted'}
                 </span>
-              </div>
+              </div> */}
               {report.lastEditedBy && (
                 <div className="md:col-span-2">
                   <label className="text-sm font-semibold text-gray-600">Last Edited By</label>

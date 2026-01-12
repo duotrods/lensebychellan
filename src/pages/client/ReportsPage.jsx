@@ -273,7 +273,7 @@ const ReportsPage = () => {
                       <th className="text-left text-white">Location</th>
                       <th className="text-left text-white">Date & Time</th>
                       <th className="text-left text-white">Submitted By</th>
-                      <th className="text-left text-white">Status</th>
+                      {/* <th className="text-left text-white">Status</th> */}
                       <th className="text-center text-white">Actions</th>
                     </tr>
                   </thead>
@@ -300,11 +300,11 @@ const ReportsPage = () => {
                         <td className="text-sm">
                           {report.submittedBy?.name || (typeof report.submittedBy === 'string' ? report.submittedBy : 'Staff')}
                         </td>
-                        <td>
+                        {/* <td>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(report.status)}`}>
                             {report.status || 'Pending'}
                           </span>
-                        </td>
+                        </td> */}
                         <td>
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -398,12 +398,12 @@ const ReportsPage = () => {
                   <p className="text-sm text-gray-500">Date & Time</p>
                   <p className="font-medium">{formatDate(selectedReport.timestamp || selectedReport.date)} {formatTime(selectedReport.timestamp || selectedReport.time)}</p>
                 </div>
-                <div>
+                {/* <div>
                   <p className="text-sm text-gray-500">Status</p>
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(selectedReport.status)}`}>
                     {selectedReport.status || 'Pending'}
                   </span>
-                </div>
+                </div> */}
               </div>
               <div className="space-y-4">
                 <div>

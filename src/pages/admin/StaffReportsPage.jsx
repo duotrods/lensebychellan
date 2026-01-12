@@ -319,7 +319,7 @@ const StaffReportsPage = () => {
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Submitted By</th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Scheme</th>
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Status</th>
+                      {/* <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Status</th> */}
                       <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -351,7 +351,7 @@ const StaffReportsPage = () => {
                         <td>
                           <span className="text-sm text-gray-600">{formatDate(report.createdAt)}</span>
                         </td>
-                        <td>
+                        {/* <td>
                           <span
                             className={`badge badge-sm ${
                               report.status === "submitted" || report.status === "action needed"
@@ -361,7 +361,7 @@ const StaffReportsPage = () => {
                           >
                             {report.status || "submitted"}
                           </span>
-                        </td>
+                        </td> */}
                         <td>
                           <div className="flex justify-center gap-2">
                             <button

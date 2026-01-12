@@ -19,15 +19,15 @@ const DailyOccurrenceFormPage = () => {
   const [formData, setFormData] = useState({
     occurrences: [
       {
-        date: "",
-        time: "",
+        date: new Date().toISOString().split('T')[0], // Auto-fill current date
+        time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
         location: "",
         description: "",
         actionTaken: "",
         urn: "",
         recoveryRequired: "",
         rcc: "",
-        nameInitials: "",
+        nameInitials: userProfile?.displayName || "", // Auto-fill full name
         scheme: "",
       },
     ],
@@ -86,15 +86,15 @@ const DailyOccurrenceFormPage = () => {
       occurrences: [
         ...prev.occurrences,
         {
-          date: "",
-          time: "",
+          date: new Date().toISOString().split('T')[0], // Auto-fill current date
+          time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
           location: "",
           description: "",
           actionTaken: "",
           urn: "",
           recoveryRequired: "",
           rcc: "",
-          nameInitials: "",
+          nameInitials: userProfile?.displayName || "", // Auto-fill full name
           scheme: "",
         },
       ],
@@ -124,6 +124,7 @@ const DailyOccurrenceFormPage = () => {
           userProfile.displayName
         );
         toast.success("Daily Occurrence Report updated successfully!");
+        navigate("/dashboard/staff");
       } else {
         const result = await staffService.submitDailyOccurrenceReport(
           formData,
@@ -140,9 +141,25 @@ const DailyOccurrenceFormPage = () => {
         } else {
           toast.success(`Daily Occurrence Report ${result.referenceId} created successfully!`);
         }
-      }
 
-      navigate("/dashboard/staff");
+        // Reset form with fresh auto-filled values
+        setFormData({
+          occurrences: [
+            {
+              date: new Date().toISOString().split('T')[0],
+              time: new Date().toTimeString().slice(0, 5),
+              location: "",
+              description: "",
+              actionTaken: "",
+              urn: "",
+              recoveryRequired: "",
+              rcc: "",
+              nameInitials: userProfile?.displayName || "",
+              scheme: "",
+            },
+          ],
+        });
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Failed to submit form. Please try again.");

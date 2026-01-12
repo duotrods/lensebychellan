@@ -23,9 +23,9 @@ const IncidentReportFormPage = () => {
   const [formData, setFormData] = useState({
     scheme: "",
     section: "",
-    date: "",
-    firstName: "",
-    lastName: "",
+    date: new Date().toISOString().split('T')[0], // Auto-fill current date (YYYY-MM-DD)
+    firstName: userProfile?.displayName || "", // Auto-fill from user profile
+    time: new Date().toTimeString().slice(0, 5), // Auto-fill current time (HH:MM)
     weatherConditions: "",
     nhLog: "",
     collarNumber: "",
@@ -67,7 +67,7 @@ const IncidentReportFormPage = () => {
           section: report.section || "",
           date: report.date || "",
           firstName: report.firstName || "",
-          lastName: report.lastName || "",
+          time: report.time || report.lastName || "", // Support old "lastName" field for backward compatibility
           weatherConditions: report.weatherConditions || "",
           nhLog: report.nhLog || "",
           collarNumber: report.collarNumber || "",
@@ -294,6 +294,7 @@ const IncidentReportFormPage = () => {
           userProfile.displayName
         );
         toast.success("Incident Report updated successfully!");
+        navigate("/dashboard/staff");
       } else {
         // Submit new form
         await staffService.submitIncidentReport(
@@ -305,9 +306,37 @@ const IncidentReportFormPage = () => {
           userProfile.displayName
         );
         toast.success("Incident Report submitted successfully!");
-      }
 
-      navigate("/dashboard/staff");
+        // Reset form with fresh auto-filled values
+        setFormData({
+          scheme: "",
+          section: "",
+          date: new Date().toISOString().split('T')[0],
+          firstName: userProfile?.displayName || "",
+          time: new Date().toTimeString().slice(0, 5),
+          weatherConditions: "",
+          nhLog: "",
+          collarNumber: "",
+          incursion: "NO",
+          reportedBy: "",
+          cameraNumber: "",
+          trafficConditions: "",
+          markerPost: "",
+          track: "",
+          incidentType: "",
+          affectedLanes: [],
+          emergencyServices: [],
+          recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
+          timeSpotted: "",
+          timeOnSite: "",
+          timeCleared: "",
+          closedLogCollar: "",
+          fault: "",
+          vehicles: [{ type: "", make: "", model: "", vin: "" }],
+          description: "",
+        });
+        setFiles([]);
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Failed to submit form. Please try again.");
@@ -424,13 +453,13 @@ const IncidentReportFormPage = () => {
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Last Name <span className="text-red-500">*</span>
+                  Time <span className="text-red-500">*</span>
                 </span>
               </label>
               <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
+                type="time"
+                name="time"
+                value={formData.time}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 required

@@ -23,10 +23,9 @@ const AssetDamageFormPage = () => {
   const [formData, setFormData] = useState({
     scheme: "",
     section: "",
-    date: "",
-    time: "",
-    firstName: "",
-    lastName: "",
+    date: new Date().toISOString().split('T')[0], // Auto-fill current date
+    time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
+    firstName: userProfile?.displayName || "", // Auto-fill full name from user profile
     location: "",
     markerPost: "",
     track: "",
@@ -66,8 +65,10 @@ const AssetDamageFormPage = () => {
           section: report.section || "",
           date: report.date || "",
           time: report.time || "",
-          firstName: report.firstName || "",
-          lastName: report.lastName || "",
+          // Combine firstName and lastName for backward compatibility
+          firstName: report.firstName
+            ? (report.lastName ? `${report.firstName} ${report.lastName}` : report.firstName)
+            : "",
           location: report.location || "",
           markerPost: report.markerPost || "",
           track: report.track || "",
@@ -174,6 +175,7 @@ const AssetDamageFormPage = () => {
           userProfile.displayName
         );
         toast.success("Asset Damage Report updated successfully!");
+        navigate("/dashboard/staff");
       } else {
         // Submit new form
         await staffService.submitAssetDamageReport(
@@ -185,9 +187,30 @@ const AssetDamageFormPage = () => {
           userProfile.displayName
         );
         toast.success("Asset Damage Report submitted successfully!");
-      }
 
-      navigate("/dashboard/staff");
+        // Reset form with fresh auto-filled values
+        setFormData({
+          scheme: "",
+          section: "",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().slice(0, 5),
+          firstName: userProfile?.displayName || "",
+          location: "",
+          markerPost: "",
+          track: "",
+          assetType: "",
+          damageType: "",
+          severity: "Low",
+          weatherConditions: "",
+          reportedBy: "",
+          cameraNumber: "",
+          estimatedCost: "",
+          description: "",
+          actionTaken: "",
+          notificationSent: [],
+        });
+        setFiles([]);
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Failed to submit form. Please try again.");
@@ -310,7 +333,7 @@ const AssetDamageFormPage = () => {
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  First Name <span className="text-red-500">*</span>
+                  Full Name <span className="text-red-500">*</span>
                 </span>
               </label>
               <input
@@ -319,22 +342,7 @@ const AssetDamageFormPage = () => {
                 value={formData.firstName}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="label">
-                <span className="label-text font-semibold mb-2">
-                  Last Name <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                placeholder="e.g., John Smith"
                 required
               />
             </div>

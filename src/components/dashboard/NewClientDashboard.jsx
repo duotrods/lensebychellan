@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
@@ -12,15 +12,44 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { AlertTriangle, Car, Camera, Filter, Clock, TrendingUp } from "lucide-react";
+import { AlertTriangle, Car, Camera, Calendar } from "lucide-react";
 import { SCHEMES } from "../../utils/schemes";
+import { DateRangePicker } from 'react-date-range';
+import 'react-date-range/dist/styles.css'; // main css file
+import 'react-date-range/dist/theme/default.css'; // theme css file
+import { addDays } from 'date-fns';
 
 const NewClientDashboard = () => {
   const { userProfile } = useAuth();
-  const [dateRange, setDateRange] = useState('30');
+  const datePickerRef = useRef(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Set default date range to last 30 days
+  const [dateRange, setDateRange] = useState([
+    {
+      startDate: addDays(new Date(), -30),
+      endDate: new Date(),
+      key: 'selection'
+    }
+  ]);
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
-  const days = parseInt(dateRange);
+
+  // Convert date range to string format for queries
+  const startDate = dateRange[0].startDate.toISOString().split('T')[0];
+  const endDate = dateRange[0].endDate.toISOString().split('T')[0];
+
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setShowDatePicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Get the active scheme name for display
   const getActiveSchemeName = () => {
@@ -47,9 +76,9 @@ const NewClientDashboard = () => {
 
   // Cached query for stats
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['schemeStats', schemeId, days],
-    queryFn: () => clientDataService.getSchemeStats(schemeId, days),
-    enabled: !!schemeId,
+    queryKey: ['schemeStats', schemeId, startDate, endDate],
+    queryFn: () => clientDataService.getSchemeStatsByDateRange(schemeId, startDate, endDate),
+    enabled: !!schemeId && !!startDate && !!endDate,
   });
 
   // Cached query for uptime
@@ -61,9 +90,9 @@ const NewClientDashboard = () => {
 
   // Cached query for time series
   const { data: timeSeriesData = [], isLoading: timeSeriesLoading } = useQuery({
-    queryKey: ['timeSeriesData', schemeId, days],
-    queryFn: () => clientDataService.getTimeSeriesData(schemeId, days),
-    enabled: !!schemeId,
+    queryKey: ['timeSeriesData', schemeId, startDate, endDate],
+    queryFn: () => clientDataService.getTimeSeriesDataByDateRange(schemeId, startDate, endDate),
+    enabled: !!schemeId && !!startDate && !!endDate,
   });
 
   const loading = statsLoading || uptimeLoading || timeSeriesLoading;
@@ -157,19 +186,36 @@ const NewClientDashboard = () => {
         </div>
 
         {/* Date Range Filter */}
-        <div className="flex items-center gap-3">
-          <Filter className="w-5 h-5 text-gray-500" />
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="select select-bordered select-md bg-white border border-gray-200 p8"
+        <div className="relative" ref={datePickerRef}>
+          <button
+            onClick={() => setShowDatePicker(!showDatePicker)}
+            className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
           >
-            <option value="7">Last 7 days</option>
-            <option value="14">Last 14 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="60">Last 60 days</option>
-            <option value="90">Last 90 days</option>
-          </select>
+            <Calendar className="w-5 h-5 text-teal-600" />
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-gray-700">
+                {dateRange[0].startDate.toLocaleDateString('en-GB')}
+              </span>
+              <span className="text-gray-400">→</span>
+              <span className="font-medium text-gray-700">
+                {dateRange[0].endDate.toLocaleDateString('en-GB')}
+              </span>
+            </div>
+          </button>
+
+          {showDatePicker && (
+            <div className="absolute right-0 top-full mt-2 z-50 shadow-xl rounded-lg overflow-hidden border border-gray-200">
+              <DateRangePicker
+                ranges={dateRange}
+                onChange={(item) => setDateRange([item.selection])}
+                moveRangeOnFirstSelection={false}
+                months={2}
+                direction="horizontal"
+                showDateDisplay={false}
+                rangeColors={['#17af93']}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -201,7 +247,31 @@ const NewClientDashboard = () => {
           </div>
 
           {/* All Charts in 2 Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Chart 6: Time to Recover */}
+            <ChartCard title="Time to recover (mins)">
+              <BarChart data={timeToRecoverData}>
+                <CartesianGrid {...commonChartProps.cartesianGrid} />
+                <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                <YAxis {...commonChartProps.yAxis} />
+                <Tooltip {...commonChartProps.tooltip} />
+                <Legend {...commonChartProps.legend} />
+                <Bar dataKey="Number" {...commonChartProps.bar} />
+              </BarChart>
+            </ChartCard>
+
+            {/* Chart 9: Time to Site */}
+            <ChartCard title="Time to Site (mins)">
+              <BarChart data={timeToSiteData}>
+                <CartesianGrid {...commonChartProps.cartesianGrid} />
+                <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                <YAxis {...commonChartProps.yAxis} />
+                <Tooltip {...commonChartProps.tooltip} />
+                <Legend {...commonChartProps.legend} />
+                <Bar dataKey="Number" {...commonChartProps.bar} />
+              </BarChart>
+            </ChartCard>
+
             {/* Chart 1: Fault */}
             <ChartCard title="Fault">
               <BarChart data={faultData}>
@@ -262,18 +332,6 @@ const NewClientDashboard = () => {
               </BarChart>
             </ChartCard>
 
-            {/* Chart 6: Time to Recover */}
-            <ChartCard title="Time to recover (mins)">
-              <BarChart data={timeToRecoverData}>
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
             {/* Chart 7: Traffic Conditions */}
             <ChartCard title="Traffic Conditions">
               <BarChart data={trafficConditionsData}>
@@ -298,17 +356,7 @@ const NewClientDashboard = () => {
               </BarChart>
             </ChartCard>
 
-            {/* Chart 9: Time to Site */}
-            <ChartCard title="Time to Site (mins)">
-              <BarChart data={timeToSiteData}>
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
+            
 
             {/* Chart 10: Track of Incident */}
             <ChartCard title="Track of Incident">
@@ -357,129 +405,17 @@ const NewClientDashboard = () => {
                     : [{ name: "No Data", Number: 0 }]
                 }
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#17af93" />
                 <XAxis dataKey="name" tick={{ fontSize: 13 }} />
                 <YAxis tick={{ fontSize: 13 }} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #17af93', borderRadius: '8px' }}
                   labelStyle={{ fontWeight: 'bold' }}
                 />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                <Bar dataKey="Number" fill="#22c55e" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="Number" fill="#17af93" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ChartCard>
-          </div>
-
-          {/* Performance Metrics */}
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <div className="flex items-center gap-2 mb-6">
-              <TrendingUp className="w-5 h-5 text-teal-600" />
-              <h3 className="text-xl font-bold text-gray-800 border-b-0">Performance Metrics</h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* CCTV Performance */}
-              <div className="p-6 bg-green-50 rounded-xl border border-green-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <Camera className="w-5 h-5 text-green-600" />
-                  <h4 className="font-semibold text-green-800">CCTV Performance</h4>
-                </div>
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600">Uptime</span>
-                    <span className="font-bold text-green-700">{cctvUptime?.uptime || 0}%</span>
-                  </div>
-                  <div className="w-full bg-green-200 rounded-full h-3">
-                    <div
-                      className="bg-green-600 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${cctvUptime?.uptime || 0}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-3">
-                    {cctvUptime?.workingChecks || 0} of {cctvUptime?.totalChecks || 0} checks passed
-                  </p>
-                </div>
-              </div>
-
-              {/* Response Efficiency */}
-              <div className="p-6 bg-blue-50 rounded-xl border border-blue-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <Clock className="w-5 h-5 text-blue-600" />
-                  <h4 className="font-semibold text-blue-800">Response Time</h4>
-                </div>
-                <div className="mt-4">
-                  <p className="text-3xl font-bold text-blue-700">
-                    {stats?.totalIncidents > 0 ? '8-15 min' : 'N/A'}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-2">Average time to site</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Based on {stats?.totalIncidents || 0} incidents
-                  </p>
-                </div>
-              </div>
-
-              {/* Incident Resolution */}
-              <div className="p-6 bg-orange-50 rounded-xl border border-orange-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
-                  <h4 className="font-semibold text-orange-800">Total Activity</h4>
-                </div>
-                <div className="mt-4">
-                  <p className="text-3xl font-bold text-orange-700">{stats?.totalIncidents || 0}</p>
-                  <p className="text-xs text-gray-600 mt-2">Incidents reported</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Last {dateRange} days
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">
-              Recent Incidents
-            </h3>
-            {stats?.recentIncidents && stats.recentIncidents.length > 0 ? (
-              <div className="space-y-4">
-                {stats.recentIncidents.map((incident, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      <div>
-                        <p className="font-semibold text-gray-800">
-                          {incident.type}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {incident.location} •{" "}
-                          {incident.time
-                            ? new Date(
-                                incident.time.seconds * 1000
-                              ).toLocaleDateString()
-                            : "N/A"}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        incident.status === "Resolved"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {incident.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center text-gray-500">
-                <p>No recent incidents for this scheme</p>
-              </div>
-            )}
           </div>
         </>
       )}
