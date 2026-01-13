@@ -15,12 +15,15 @@ import {
   FolderOpen,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
+import CCTVCheckReminder from "../staff/CCTVCheckReminder";
+import { useCCTVReminder } from "../../hooks/useCCTVReminder";
 
 const StaffSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [formsOpen, setFormsOpen] = useState(false);
+  const { showReminder, dismissReminder } = useCCTVReminder();
 
   const handleSignOut = async () => {
     await authService.signOut();
@@ -74,6 +77,9 @@ const StaffSidebarLayout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* CCTV Check Reminder Modal */}
+      {showReminder && <CCTVCheckReminder onDismiss={dismissReminder} />}
+
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-lg flex flex-col">
         {/* Logo */}

@@ -15,9 +15,18 @@ const CCTVCheckFormPage = () => {
   const editId = searchParams.get('edit');
   const [loading, setLoading] = useState(false);
 
+  // Helper function to format date as DD/MM/YYYY
+  const formatDateToBritish = (date) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const [formData, setFormData] = useState({
     firstName: userProfile?.displayName || '', // Auto-fill full name
-    date: new Date().toISOString().split('T')[0], // Auto-fill current date
+    date: formatDateToBritish(new Date()), // Auto-fill current date in DD/MM/YYYY
     time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
 
     // A417 Section
@@ -122,6 +131,9 @@ const CCTVCheckFormPage = () => {
       return;
     }
 
+    // Debug: Log what we're submitting
+    console.log('Submitting CCTV form with data:', formData);
+
     setLoading(true);
 
     try {
@@ -147,7 +159,7 @@ const CCTVCheckFormPage = () => {
         // Reset form with fresh auto-filled values
         setFormData({
           firstName: userProfile?.displayName || '',
-          date: new Date().toISOString().split('T')[0],
+          date: formatDateToBritish(new Date()),
           time: new Date().toTimeString().slice(0, 5),
           a417Cameras: [],
           a417Comments: '',
@@ -165,7 +177,7 @@ const CCTVCheckFormPage = () => {
     }
   };
 
-  const renderCheckboxSection = (title, section, options) => (
+  const renderCheckboxSection = (title, cameraSection, commentSection, options) => (
     <div className="mb-8">
       <label className="block text-sm font-semibold text-gray-700 mb-4">
         {title} <span className="text-red-500">*</span>
@@ -178,8 +190,8 @@ const CCTVCheckFormPage = () => {
           >
             <input
               type="checkbox"
-              checked={formData[section].includes(option)}
-              onChange={() => handleCheckboxChange(section, option)}
+              checked={formData[cameraSection].includes(option)}
+              onChange={() => handleCheckboxChange(cameraSection, option)}
               className="checkbox checkbox-sm checkbox-neutral"
             />
             <span className="text-sm text-gray-700">
@@ -195,8 +207,8 @@ const CCTVCheckFormPage = () => {
           Comments for {title.split(' ')[0]}
         </label>
         <textarea
-          value={formData[`${section}Comments`]}
-          onChange={(e) => setFormData({ ...formData, [`${section}Comments`]: e.target.value })}
+          value={formData[commentSection]}
+          onChange={(e) => setFormData({ ...formData, [commentSection]: e.target.value })}
           placeholder="Please list actions taken e.g informed p&d of faults along with type of fault"
           rows={3}
           className="textarea w-full textarea-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100"
@@ -243,12 +255,14 @@ const CCTVCheckFormPage = () => {
             </div>
             <div>
               <label className="label">
-                <span className="label-text font-semibold mb-2">Date <span className="text-red-500">*</span></span>
+                <span className="label-text font-semibold mb-2">Date (DD/MM/YYYY) <span className="text-red-500">*</span></span>
               </label>
               <input
-                type="date"
+                type="text"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                placeholder="DD/MM/YYYY"
+                pattern="\d{2}/\d{2}/\d{4}"
                 className="input input-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 required
               />
@@ -273,18 +287,21 @@ const CCTVCheckFormPage = () => {
           {renderCheckboxSection(
             'A417 (only tick cameras that are not working correctly)',
             'a417Cameras',
+            'a417Comments',
             cameraOptions.a417
           )}
 
           {renderCheckboxSection(
             'A11/A47 Kier/Core (only tick cameras that are not working correctly)',
             'kierCore',
+            'kierCoreComments',
             cameraOptions.kierCore
           )}
 
           {renderCheckboxSection(
             'M3 Jct 9 (only tick cameras that are not working correctly)',
             'm3Jct9',
+            'm3Jct9Comments',
             cameraOptions.m3
           )}
 

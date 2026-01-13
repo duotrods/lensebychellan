@@ -20,10 +20,19 @@ const AssetDamageFormPage = () => {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [files, setFiles] = useState([]);
 
+  // Helper function to format date as DD/MM/YYYY
+  const formatDateToBritish = (date) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const [formData, setFormData] = useState({
     scheme: "",
     section: "",
-    date: new Date().toISOString().split('T')[0], // Auto-fill current date
+    date: formatDateToBritish(new Date()), // Auto-fill current date in DD/MM/YYYY
     time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
     firstName: userProfile?.displayName || "", // Auto-fill full name from user profile
     location: "",
@@ -192,7 +201,7 @@ const AssetDamageFormPage = () => {
         setFormData({
           scheme: "",
           section: "",
-          date: new Date().toISOString().split('T')[0],
+          date: formatDateToBritish(new Date()),
           time: new Date().toTimeString().slice(0, 5),
           firstName: userProfile?.displayName || "",
           location: "",
@@ -301,14 +310,16 @@ const AssetDamageFormPage = () => {
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Date <span className="text-red-500">*</span>
+                  Date (DD/MM/YYYY) <span className="text-red-500">*</span>
                 </span>
               </label>
               <input
-                type="date"
+                type="text"
                 name="date"
                 value={formData.date}
                 onChange={handleChange}
+                placeholder="DD/MM/YYYY"
+                pattern="\d{2}/\d{2}/\d{4}"
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 required
               />

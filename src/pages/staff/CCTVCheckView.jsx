@@ -81,9 +81,15 @@ const CCTVCheckView = () => {
   };
 
   const renderCameraSection = (title, cameras, comments) => {
-    if (!cameras || cameras.length === 0) return null;
+    // Debug: Log what we're receiving
+    console.log(`${title}:`, { cameras, comments });
 
-    const isAllWorking = cameras.includes('ALL WORKING CORRECT');
+    // Show section if there are cameras OR if there are comments (non-empty)
+    const hasComments = comments && comments.trim() !== "";
+    if ((!cameras || cameras.length === 0) && !hasComments) return null;
+
+    const isNone = cameras && cameras.includes('NONE');
+    const hasIssues = cameras && cameras.length > 0 && !isNone;
 
     return (
       <div>
@@ -91,12 +97,12 @@ const CCTVCheckView = () => {
           {title}
         </h4>
         <div className="mb-3">
-          {isAllWorking ? (
+          {isNone ? (
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="w-5 h-5" />
-              <span className="font-semibold">All Working Correct</span>
+              <span className="font-semibold">NONE</span>
             </div>
-          ) : (
+          ) : hasIssues ? (
             <div>
               <div className="flex items-center gap-2 text-orange-600 mb-2">
                 <XCircle className="w-5 h-5" />
@@ -113,9 +119,11 @@ const CCTVCheckView = () => {
                 ))}
               </div>
             </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No cameras selected</p>
           )}
         </div>
-        {comments && (
+        {comments && comments.trim() !== "" && (
           <div className="mt-3">
             <label className="text-sm font-semibold text-gray-600">Comments:</label>
             <p className="text-gray-800 bg-gray-50 p-3 rounded-lg mt-1 whitespace-pre-wrap">

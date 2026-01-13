@@ -67,14 +67,43 @@ class StaffService {
         "cctvCheck"
       );
 
-      // Extract schemeId from scheme field
-      const schemeId = extractSchemeId(formData.scheme);
+      // Dynamically determine which schemes have data (issues or comments)
+      const schemeIds = [];
+
+      // Check A417 section
+      const hasA417Data = (formData.a417Cameras && formData.a417Cameras.length > 0) ||
+                          (formData.a417Comments && formData.a417Comments.trim() !== "");
+      if (hasA417Data) {
+        schemeIds.push("A417");
+      }
+
+      // Check A11/A47 Kier/Core section
+      const hasKierCoreData = (formData.kierCore && formData.kierCore.length > 0) ||
+                              (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
+      if (hasKierCoreData) {
+        schemeIds.push("A47");
+      }
+
+      // Check M3 Jct 9 section
+      const hasM3Data = (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
+                        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
+      if (hasM3Data) {
+        schemeIds.push("M3");
+      }
+
+      // If no data in any section, default to all schemes
+      if (schemeIds.length === 0) {
+        schemeIds.push("all-schemes");
+      }
+
+      // Use the first scheme as the primary schemeId for backward compatibility
+      const schemeId = schemeIds[0];
 
       const formsRef = collection(db, "cctvCheckForms");
       const docRef = await addDoc(formsRef, {
         ...formData,
         schemeId, // Keep for backward compatibility
-        schemeIds: [schemeId], // New array format for multi-scheme support
+        schemeIds, // New array format for multi-scheme support
         referenceId,
         submittedBy: {
           userId,
@@ -145,15 +174,42 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy,
       });
 
-      // Recalculate schemeIds when scheme is updated
-      const schemeId = formData.scheme
-        ? extractSchemeId(formData.scheme)
-        : currentData.schemeId;
+      // Dynamically determine which schemes have data (issues or comments)
+      const schemeIds = [];
+
+      // Check A417 section
+      const hasA417Data = (formData.a417Cameras && formData.a417Cameras.length > 0) ||
+                          (formData.a417Comments && formData.a417Comments.trim() !== "");
+      if (hasA417Data) {
+        schemeIds.push("A417");
+      }
+
+      // Check A11/A47 Kier/Core section
+      const hasKierCoreData = (formData.kierCore && formData.kierCore.length > 0) ||
+                              (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
+      if (hasKierCoreData) {
+        schemeIds.push("A47");
+      }
+
+      // Check M3 Jct 9 section
+      const hasM3Data = (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
+                        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
+      if (hasM3Data) {
+        schemeIds.push("M3");
+      }
+
+      // If no data in any section, default to all schemes
+      if (schemeIds.length === 0) {
+        schemeIds.push("all-schemes");
+      }
+
+      // Use the first scheme as the primary schemeId for backward compatibility
+      const schemeId = schemeIds[0];
 
       await updateDoc(formRef, {
         ...formData,
         schemeId, // Keep for backward compatibility
-        schemeIds: [schemeId], // Update array for client filtering
+        schemeIds, // Update array for client filtering
         editHistory,
         lastEditedBy: { userId, name: userName },
         updatedAt: serverTimestamp(),

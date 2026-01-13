@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Edit, Trash2, CheckCircle, XCircle, Download } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { clientDataService } from '../../services/clientDataService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 
@@ -21,12 +22,12 @@ const CCTVCheckView = () => {
   const loadForm = async () => {
     try {
       setLoading(true);
-      // Pass null to get all forms, not just current user's
-      const forms = await clientDataService.getCCTVCheckForms(null);
-      const foundForm = forms.find(f => f.id === id);
+      // Get the specific form by ID
+      const formRef = doc(db, 'cctvCheckForms', id);
+      const formDoc = await getDoc(formRef);
 
-      if (foundForm) {
-        setForm(foundForm);
+      if (formDoc.exists()) {
+        setForm({ id: formDoc.id, ...formDoc.data() });
       } else {
         toast.error('Form not found');
         navigate('/dashboard/client/reports');
@@ -64,9 +65,13 @@ const CCTVCheckView = () => {
   };
 
   const renderCameraSection = (title, cameras, comments) => {
-    if (!cameras || cameras.length === 0) return null;
 
-    const isAllWorking = cameras.includes('ALL WORKING CORRECT');
+    // Show section if there are cameras OR if there are comments (non-empty)
+    const hasComments = comments && comments.trim() !== "";
+    if ((!cameras || cameras.length === 0) && !hasComments) return null;
+
+    const isNone = cameras && cameras.includes('NONE');
+    const hasIssues = cameras && cameras.length > 0 && !isNone;
 
     return (
       <div>
@@ -74,12 +79,12 @@ const CCTVCheckView = () => {
           {title}
         </h4>
         <div className="mb-3">
-          {isAllWorking ? (
+          {isNone ? (
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="w-5 h-5" />
-              <span className="font-semibold">All Working Correct</span>
+              <span className="font-semibold">NONE</span>
             </div>
-          ) : (
+          ) : hasIssues ? (
             <div>
               <div className="flex items-center gap-2 text-orange-600 mb-2">
                 <XCircle className="w-5 h-5" />
@@ -96,9 +101,11 @@ const CCTVCheckView = () => {
                 ))}
               </div>
             </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No cameras selected</p>
           )}
         </div>
-        {comments && (
+        {comments && comments.trim() !== "" && (
           <div className="mt-3">
             <label className="text-sm font-semibold text-gray-600">Comments:</label>
             <p className="text-gray-800 bg-gray-50 p-3 rounded-lg mt-1 whitespace-pre-wrap">
@@ -204,11 +211,22 @@ const CCTVCheckView = () => {
             </div>
           </div>
 
-          {/* Camera Sections */}
+          {/* Camera Sections - Only show section relevant to this client's active scheme */}
           <div className="space-y-6">
-            {renderCameraSection('A417', form.a417Cameras, form.a417Comments)}
-            {renderCameraSection('A11/A47 Kier/Core', form.kierCore, form.kierCoreComments)}
-            {renderCameraSection('M3 Jct 9', form.m3Jct9, form.m3Jct9Comments)}
+            {(() => {
+              const currentSchemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+
+              // Show only the section matching the current active scheme
+              if (currentSchemeId === 'A417' && form.schemeIds?.includes('A417')) {
+                return renderCameraSection('A417', form.a417Cameras, form.a417Comments);
+              } else if (currentSchemeId === 'A47' && form.schemeIds?.includes('A47')) {
+                return renderCameraSection('A11/A47 Kier/Core', form.kierCore, form.kierCoreComments);
+              } else if (currentSchemeId === 'M3' && form.schemeIds?.includes('M3')) {
+                return renderCameraSection('M3 Jct 9', form.m3Jct9, form.m3Jct9Comments);
+              }
+
+              return null;
+            })()}
           </div>
 
           {/* Metadata */}

@@ -16,10 +16,19 @@ const DailyOccurrenceFormPage = () => {
   const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
 
+  // Helper function to format date as DD/MM/YYYY
+  const formatDateToBritish = (date) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const [formData, setFormData] = useState({
     occurrences: [
       {
-        date: new Date().toISOString().split('T')[0], // Auto-fill current date
+        date: formatDateToBritish(new Date()), // Auto-fill current date in DD/MM/YYYY
         time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
         location: "",
         description: "",
@@ -86,7 +95,7 @@ const DailyOccurrenceFormPage = () => {
       occurrences: [
         ...prev.occurrences,
         {
-          date: new Date().toISOString().split('T')[0], // Auto-fill current date
+          date: formatDateToBritish(new Date()), // Auto-fill current date in DD/MM/YYYY
           time: new Date().toTimeString().slice(0, 5), // Auto-fill current time
           location: "",
           description: "",
@@ -146,7 +155,7 @@ const DailyOccurrenceFormPage = () => {
         setFormData({
           occurrences: [
             {
-              date: new Date().toISOString().split('T')[0],
+              date: formatDateToBritish(new Date()),
               time: new Date().toTimeString().slice(0, 5),
               location: "",
               description: "",
@@ -260,15 +269,17 @@ const DailyOccurrenceFormPage = () => {
                     <div>
                       <label className="label">
                         <span className="label-text font-semibold mb-2">
-                          Date <span className="text-red-500">*</span>
+                          Date (DD/MM/YYYY) <span className="text-red-500">*</span>
                         </span>
                       </label>
                       <input
-                        type="date"
+                        type="text"
                         value={occurrence.date}
                         onChange={(e) =>
                           handleOccurrenceChange(index, "date", e.target.value)
                         }
+                        placeholder="DD/MM/YYYY"
+                        pattern="\d{2}/\d{2}/\d{4}"
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                         required
                       />

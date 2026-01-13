@@ -178,14 +178,20 @@ export const generateReportPDF = (report, reportType) => {
   // Basic Information Section
   addSectionHeader("BASIC INFORMATION");
 
-  addField(
-    "Report Date",
-    formatDate(report.createdAt || report.timestamp || report.date)
-  );
-  addField(
-    "Report Time",
-    formatTime(report.createdAt || report.timestamp || report.time)
-  );
+  // For CCTV Check forms, date and time are already in the correct format
+  if (reportType === "cctv-check") {
+    if (report.date) addField("Report Date", report.date);
+    if (report.time) addField("Report Time", report.time);
+  } else {
+    addField(
+      "Report Date",
+      formatDate(report.createdAt || report.timestamp || report.date)
+    );
+    addField(
+      "Report Time",
+      formatTime(report.createdAt || report.timestamp || report.time)
+    );
+  }
 
   if (report.scheme || report.schemeId) {
     addField("Scheme/Location", report.scheme || report.schemeId);
@@ -281,14 +287,85 @@ export const generateReportPDF = (report, reportType) => {
       break;
 
     case "cctv-check":
-      if (report.allWorking !== undefined) {
-        addField("All Systems Working", report.allWorking ? "Yes" : "No", true);
+      // Display submitted by name
+      if (report.firstName) {
+        addField("Checked By", report.firstName);
       }
-      if (report.status) addField("Status", report.status);
-      if (report.camerasChecked)
-        addField("Cameras Checked", report.camerasChecked);
-      if (report.issuesFound) addField("Issues Found", report.issuesFound);
-      if (report.notes) addField("Notes", report.notes);
+
+      // A417 Section
+      if (report.a417Cameras || report.a417Comments) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("A417", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.a417Cameras && report.a417Cameras.length > 0) {
+          const isNone = report.a417Cameras.includes('NONE');
+          if (isNone) {
+            addField("Status", "NONE - All cameras working correctly", true);
+          } else {
+            addField("Issues Reported", report.a417Cameras.join(", "), true);
+          }
+        }
+        if (report.a417Comments && report.a417Comments.trim() !== "") {
+          addField("Comments", report.a417Comments);
+        }
+        yPosition += 3;
+      }
+
+      // A11/A47 Kier/Core Section
+      if (report.kierCore || report.kierCoreComments) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("A11/A47 Kier/Core", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.kierCore && report.kierCore.length > 0) {
+          const isNone = report.kierCore.includes('NONE');
+          if (isNone) {
+            addField("Status", "NONE - All cameras working correctly", true);
+          } else {
+            addField("Issues Reported", report.kierCore.join(", "), true);
+          }
+        }
+        if (report.kierCoreComments && report.kierCoreComments.trim() !== "") {
+          addField("Comments", report.kierCoreComments);
+        }
+        yPosition += 3;
+      }
+
+      // M3 Jct 9 Section
+      if (report.m3Jct9 || report.m3Jct9Comments) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("M3 Jct 9", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.m3Jct9 && report.m3Jct9.length > 0) {
+          const isNone = report.m3Jct9.includes('NONE');
+          if (isNone) {
+            addField("Status", "NONE - All cameras working correctly", true);
+          } else {
+            addField("Issues Reported", report.m3Jct9.join(", "), true);
+          }
+        }
+        if (report.m3Jct9Comments && report.m3Jct9Comments.trim() !== "") {
+          addField("Comments", report.m3Jct9Comments);
+        }
+        yPosition += 3;
+      }
       break;
   }
 
