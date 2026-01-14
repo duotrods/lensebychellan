@@ -45,19 +45,19 @@ const CCTVCheckFormPage = () => {
   // Camera options for each section
   const cameraOptions = {
     a417: [
-      'NONE', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
+      'All Working Correctly', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
       'CCTV 7', 'CCTV 8', 'CCTV 9', 'CCTV 10', 'CCTV 11', 'CCTV 12', 'CCTV 13', 'CCTV 14',
       'CCTV 21', 'CCTV 22', 'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28',
       'CCTV 29', 'CCTV 30', 'CCTV 31', 'CCTV 32'
     ],
     kierCore: [
-      'NONE', '1101', '1102', '1103', '1104', '1105', '1106', '1107',
+      'All Working Correctly', '1101', '1102', '1103', '1104', '1105', '1106', '1107',
       '1108', '1109', '1110', '1111', '1112', '1114', '4701', '4702', '4703', '4704',
       '4705', '4706', '4707', '4708', '4709', '4711', '4712', '4713', '4714', '4715',
       '4716', '4717', '4718', '4719'
     ],
     m3: [
-      'NONE', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
+      'All Working Correctly', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
       'CCTV 7', 'CCTV 8', 'CCTV 9', 'CCTV 10', 'CCTV 11', 'CCTV 12', 'CCTV 13', 'CCTV 14',
       'CCTV 15', 'CCTV 16', 'CCTV 17', 'CCTV 18', 'CCTV 19', 'CCTV 20', 'CCTV 21', 'CCTV 22',
       'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28', 'CCTV 29', 'CCTV 30',
@@ -107,12 +107,12 @@ const CCTVCheckFormPage = () => {
     setFormData(prev => {
       const currentValues = prev[section];
 
-      if (value === 'NONE') {
-        // If "NONE" is selected, clear all others
+      if (value === 'All Working Correctly') {
+        // If "All Working Correctly" is selected, clear all others
         return { ...prev, [section]: currentValues.includes(value) ? [] : [value] };
       } else {
-        // Remove "NONE" if individual camera is selected
-        const filtered = currentValues.filter(v => v !== 'NONE');
+        // Remove "All Working Correctly" if individual camera is selected
+        const filtered = currentValues.filter(v => v !== 'All Working Correctly');
 
         if (currentValues.includes(value)) {
           return { ...prev, [section]: filtered.filter(v => v !== value) };
