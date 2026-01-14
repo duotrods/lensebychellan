@@ -43,13 +43,13 @@ const CCTVCheckReminder = ({ onDismiss }) => {
 
           {/* Actions */}
           <div className="flex flex-col gap-3">
-            <button
+            {/* <button
               onClick={handleStartCheck}
               className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <Video className="w-5 h-5" />
               Start CCTV Check
-            </button>
+            </button> */}
             <button
               onClick={onDismiss}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
