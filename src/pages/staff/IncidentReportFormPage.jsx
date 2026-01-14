@@ -410,7 +410,7 @@ const IncidentReportFormPage = () => {
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Section <span className="text-red-500">*</span>
+                  Section
                 </span>
               </label>
               <input
@@ -420,7 +420,6 @@ const IncidentReportFormPage = () => {
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 placeholder="Enter section (e.g., M3, A33, A417)"
-                required
               />
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import { SCHEMES } from "../../utils/schemes";
@@ -21,6 +21,11 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { jsPDF } from 'jspdf';
+import { DateRangePicker } from 'react-date-range';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
+import { addDays } from 'date-fns';
 
 // Chart Card Component
 const ChartCard = ({ title, children, fullWidth = false, height = 300 }) => (
@@ -37,6 +42,18 @@ const ClientChartsPage = () => {
   const [selectedScheme, setSelectedScheme] = useState("");
   const [reports, setReports] = useState([]);
   const [schemes, setSchemes] = useState([]);
+  const [isExporting, setIsExporting] = useState(false);
+  const datePickerRef = useRef(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Set default date range to last 30 days
+  const [dateRange, setDateRange] = useState([
+    {
+      startDate: addDays(new Date(), -30),
+      endDate: new Date(),
+      key: 'selection'
+    }
+  ]);
 
   const COLORS = {
     primary: "#17af93",
@@ -59,6 +76,18 @@ const ClientChartsPage = () => {
     loadAllData();
   }, []);
 
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setShowDatePicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const loadAllData = async () => {
     try {
       setLoading(true);
@@ -69,11 +98,34 @@ const ClientChartsPage = () => {
         staffService.getDailyOccurrenceReports(null),
       ]);
 
+      // Helper function to map forms with schemeIds to scheme field
+      const mapSchemeIds = (forms, type) => {
+        return forms.flatMap((f) => {
+          // If form has schemeIds array, create a copy for each scheme
+          if (f.schemeIds && f.schemeIds.length > 0) {
+            return f.schemeIds.map(schemeId => {
+              const schemeObj = SCHEMES.find(s => s.id === schemeId);
+              return {
+                ...f,
+                scheme: schemeObj?.fullName || schemeId,
+                type
+              };
+            });
+          }
+          // If it has a scheme field already, use it
+          return [{ ...f, type }];
+        });
+      };
+
+      // Map CCTV forms and Daily Occurrence reports (both use schemeIds)
+      const cctvFormsWithScheme = mapSchemeIds(cctvForms, "CCTV Check");
+      const dailyLogsWithScheme = mapSchemeIds(dailyOccurrenceReports, "Daily Logs");
+
       const allReports = [
-        ...cctvForms.map((f) => ({ ...f, type: "CCTV Check" })),
+        ...cctvFormsWithScheme,
         ...incidentReports.map((f) => ({ ...f, type: "Incident Report" })),
         ...assetDamageReports.map((f) => ({ ...f, type: "Asset Damage" })),
-        ...dailyOccurrenceReports.map((f) => ({ ...f, type: "Daily Logs" })),
+        ...dailyLogsWithScheme,
       ];
 
       setReports(allReports);
@@ -97,10 +149,28 @@ const ClientChartsPage = () => {
     }
   };
 
-  // Filter reports by selected scheme
+  // Convert date range to timestamps for filtering
+  const startDate = dateRange[0].startDate;
+  const endDate = new Date(dateRange[0].endDate);
+  endDate.setHours(23, 59, 59, 999); // Include the entire end date
+
+  // Filter reports by selected scheme and date range
   const getFilteredReports = () => {
-    if (!selectedScheme) return reports;
-    return reports.filter((r) => r.scheme === selectedScheme);
+    let filtered = reports;
+
+    // Filter by scheme
+    if (selectedScheme) {
+      filtered = filtered.filter((r) => r.scheme === selectedScheme);
+    }
+
+    // Filter by date range
+    filtered = filtered.filter((r) => {
+      if (!r.createdAt) return false;
+      const reportDate = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
+      return reportDate >= startDate && reportDate <= endDate;
+    });
+
+    return filtered;
   };
 
   // Get incident reports only
@@ -281,6 +351,166 @@ const ClientChartsPage = () => {
     return Object.entries(monthlyCounts).map(([name, count]) => ({ name, count, Number: count }));
   };
 
+  // Helper function to draw a bar chart in PDF
+  const drawBarChart = (pdf, data, title, x, y, width, height) => {
+    if (!data || data.length === 0) return;
+
+    // Draw chart background
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(x, y, width, height, 'F');
+    pdf.setDrawColor(229, 231, 235);
+    pdf.rect(x, y, width, height, 'S');
+
+    // Draw title at the top with better positioning
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(31, 41, 55);
+    pdf.text(title, x + width / 2, y + 6, { align: 'center' });
+
+    // Adjusted margins - less bottom margin since labels are closer
+    const margin = { top: 12, right: 10, bottom: 18, left: 10 };
+    const chartWidth = width - margin.left - margin.right;
+    const chartHeight = height - margin.top - margin.bottom;
+
+    // Calculate max value
+    const maxValue = Math.max(...data.map(d => d.Number));
+    const barWidth = chartWidth / data.length * 0.7;
+    const gap = chartWidth / data.length * 0.3;
+
+    // Draw bars
+    data.forEach((item, index) => {
+      const barHeight = (item.Number / maxValue) * chartHeight;
+      const barX = x + margin.left + (index * (barWidth + gap));
+      const barY = y + margin.top + chartHeight - barHeight;
+
+      // Draw bar
+      pdf.setFillColor(23, 175, 147); // Teal color
+      pdf.roundedRect(barX, barY, barWidth, barHeight, 2, 2, 'F');
+
+      // Draw value on top of bar
+      pdf.setFontSize(8);
+      pdf.setTextColor(31, 41, 55);
+      pdf.text(String(item.Number), barX + barWidth / 2, barY - 2, { align: 'center' });
+
+      // Draw label below bar - much closer now
+      pdf.setFontSize(7);
+      pdf.setTextColor(107, 114, 128);
+      const label = item.name.length > 12 ? item.name.substring(0, 12) + '...' : item.name;
+      const labelY = y + margin.top + chartHeight + 5; // Just 5mm below the chart area
+      pdf.text(label, barX + barWidth / 2, labelY, { align: 'center', maxWidth: barWidth });
+    });
+  };
+
+  // Export dashboard as PDF
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    toast.loading('Generating PDF...', { id: 'export-pdf' });
+
+    try {
+      // Create PDF in landscape orientation
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Add header to the PDF
+      const headerHeight = 25;
+      pdf.setFillColor(23, 175, 147); // Teal color
+      pdf.rect(0, 0, pdfWidth, headerHeight, 'F');
+
+      // Header text - left side
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Client Charts & Analytics', 15, 12);
+
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Scheme: ${selectedScheme}`, 15, 19);
+
+      // Stats - right side
+      const statsText = `Total Incidents: ${stats.incident} | Total Reports: ${stats.total}`;
+      pdf.text(statsText, pdfWidth - 15, 15, { align: 'right' });
+
+      // Content area
+      const contentStartY = headerHeight + 10;
+      const chartWidth = (pdfWidth - 30) / 2; // 2 columns with margins
+      const chartHeight = 60;
+      const chartGap = 10;
+
+      let currentY = contentStartY;
+      let currentX = 15;
+      let chartCount = 0;
+
+      // Helper to add new page if needed
+      const checkNewPage = () => {
+        if (currentY + chartHeight > pdfHeight - 10) {
+          pdf.addPage();
+
+          // Add header to new page
+          pdf.setFillColor(23, 175, 147);
+          pdf.rect(0, 0, pdfWidth, headerHeight, 'F');
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(18);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Client Charts & Analytics', 15, 12);
+          pdf.setFontSize(11);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(`Scheme: ${selectedScheme}`, 15, 19);
+          pdf.text(statsText, pdfWidth - 15, 15, { align: 'right' });
+
+          currentY = contentStartY;
+          currentX = 15;
+          chartCount = 0;
+        }
+      };
+
+      // Draw all charts in 2-column layout
+      const charts = [
+        { data: timeToSiteData, title: 'Time to Site (mins)' },
+        { data: timeToRecoverData, title: 'Time to Recover (mins)' },
+        { data: faultData, title: 'Fault' },
+        { data: incidentTypeData, title: 'Incident Type' },
+        { data: vehiclesDispatchedData, title: 'Vehicles Dispatched' },
+        { data: spottedByData, title: 'Spotted By' },
+        { data: laneAffectedData, title: 'Lane Affected' },
+        { data: trafficConditionsData, title: 'Traffic Conditions' },
+        { data: emergencyServicesData, title: 'Emergency Services Attended' },
+        { data: trackData, title: 'Track of Incident' },
+        { data: vehicleTypeData, title: 'Vehicle Type' },
+        { data: incursionsData, title: 'Incursions' },
+      ];
+
+      charts.forEach((chart) => {
+        if (chart.data && chart.data.length > 0) {
+          checkNewPage();
+
+          drawBarChart(pdf, chart.data, chart.title, currentX, currentY, chartWidth - 5, chartHeight);
+
+          chartCount++;
+          if (chartCount % 2 === 0) {
+            // Move to next row
+            currentY += chartHeight + chartGap;
+            currentX = 15;
+          } else {
+            // Move to next column
+            currentX = 15 + chartWidth + 5;
+          }
+        }
+      });
+
+      // Save the PDF
+      const fileName = `client_charts_${selectedScheme.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+
+      toast.success('Charts exported successfully!', { id: 'export-pdf' });
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+      toast.error('Failed to export charts', { id: 'export-pdf' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Statistics
   const filtered = getFilteredReports();
   const stats = {
@@ -315,21 +545,67 @@ const ClientChartsPage = () => {
           <p className="text-gray-600">Visual analytics of all reports and submissions per scheme</p>
         </div>
 
-        {/* Filter */}
+        {/* Filter and Export */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <div className="flex items-center gap-4">
-            <Filter className="w-5 h-5 text-gray-400" />
-            <select
-              value={selectedScheme}
-              onChange={(e) => setSelectedScheme(e.target.value)}
-              className="select bg-white border-gray-300 rounded-lg w-full max-w-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
-            >
-              {schemes.map((scheme) => (
-                <option key={scheme} value={scheme}>
-                  {scheme}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-4 flex-1">
+              <Filter className="w-5 h-5 text-gray-400" />
+              <select
+                value={selectedScheme}
+                onChange={(e) => setSelectedScheme(e.target.value)}
+                className="select bg-white border-gray-300 rounded-lg w-full max-w-md focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
+              >
+                {schemes.map((scheme) => (
+                  <option key={scheme} value={scheme}>
+                    {scheme}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Date Range Picker */}
+              <div className="relative" ref={datePickerRef}>
+                <button
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                >
+                  <Calendar className="w-5 h-5 text-teal-600" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-gray-700">
+                      {dateRange[0].startDate.toLocaleDateString('en-GB')}
+                    </span>
+                    <span className="text-gray-400">→</span>
+                    <span className="font-medium text-gray-700">
+                      {dateRange[0].endDate.toLocaleDateString('en-GB')}
+                    </span>
+                  </div>
+                </button>
+
+                {showDatePicker && (
+                  <div className="absolute right-0 top-full mt-2 z-50 shadow-xl rounded-lg overflow-hidden border border-gray-200">
+                    <DateRangePicker
+                      ranges={dateRange}
+                      onChange={(item) => setDateRange([item.selection])}
+                      moveRangeOnFirstSelection={false}
+                      months={2}
+                      direction="horizontal"
+                      showDateDisplay={false}
+                      rangeColors={['#17af93']}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleExportPDF}
+                disabled={isExporting || loading}
+                className="flex items-center gap-2 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-teal-600 hover:shadow-md transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                <Download className="w-5 h-5" />
+                <span className="font-medium">Export Charts</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -340,7 +616,7 @@ const ClientChartsPage = () => {
         ) : (
           <>
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
               <div className="bg-white rounded-xl shadow-md p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -349,18 +625,6 @@ const ClientChartsPage = () => {
                   </div>
                   <div className="bg-gray-100 p-3 rounded-lg">
                     <BarChart3 className="w-6 h-6 text-gray-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">CCTV Checks</p>
-                    <p className="text-3xl font-bold text-purple-600 mt-1">{stats.cctvCheck}</p>
-                  </div>
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <TrendingUp className="w-6 h-6 text-purple-600" />
                   </div>
                 </div>
               </div>
@@ -388,13 +652,37 @@ const ClientChartsPage = () => {
                   </div>
                 </div>
               </div>
+
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm">Daily Logs</p>
+                    <p className="text-3xl font-bold text-green-600 mt-1">{stats.dailyLogs}</p>
+                  </div>
+                  <div className="bg-green-100 p-3 rounded-lg">
+                    <Calendar className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 text-sm">CCTV Checks</p>
+                    <p className="text-3xl font-bold text-purple-600 mt-1">{stats.cctvCheck}</p>
+                  </div>
+                  <div className="bg-purple-100 p-3 rounded-lg">
+                    <TrendingUp className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Incident Analytics Charts Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                 {/* Chart 6: Time to Recover */}
-              <ChartCard title="Time to recover (mins)">
-                <BarChart data={timeToRecoverData.length > 0 ? timeToRecoverData : [{ name: "No Data", Number: 0 }]}>
+                        {/* Chart 9: Time to Site */}
+              <ChartCard title="Time to Site (mins)">
+                <BarChart data={timeToSiteData.length > 0 ? timeToSiteData : [{ name: "No Data", Number: 0 }]}>
                   <CartesianGrid {...commonChartProps.cartesianGrid} />
                   <XAxis dataKey="name" {...commonChartProps.xAxis} />
                   <YAxis {...commonChartProps.yAxis} />
@@ -403,10 +691,10 @@ const ClientChartsPage = () => {
                   <Bar dataKey="Number" {...commonChartProps.bar} />
                 </BarChart>
               </ChartCard>
-
-                      {/* Chart 9: Time to Site */}
-              <ChartCard title="Time to Site (mins)">
-                <BarChart data={timeToSiteData.length > 0 ? timeToSiteData : [{ name: "No Data", Number: 0 }]}>
+              
+                {/* Chart 6: Time to Recover */}
+              <ChartCard title="Time to recover (mins)">
+                <BarChart data={timeToRecoverData.length > 0 ? timeToRecoverData : [{ name: "No Data", Number: 0 }]}>
                   <CartesianGrid {...commonChartProps.cartesianGrid} />
                   <XAxis dataKey="name" {...commonChartProps.xAxis} />
                   <YAxis {...commonChartProps.yAxis} />

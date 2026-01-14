@@ -5,8 +5,9 @@ import lenselogo from "../assets/chellanpng.png";
  * Generate PDF for any report type
  * @param {Object} report - The report data
  * @param {string} reportType - Type of report (incident, asset-damage, daily-occurrence, cctv-check)
+ * @param {string} filterSchemeId - Optional scheme ID to filter CCTV sections (for client view)
  */
-export const generateReportPDF = (report, reportType) => {
+export const generateReportPDF = (report, reportType, filterSchemeId = null) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -292,8 +293,8 @@ export const generateReportPDF = (report, reportType) => {
         addField("Checked By", report.firstName);
       }
 
-      // A417 Section
-      if (report.a417Cameras || report.a417Comments) {
+      // A417 Section - only show if no filter OR filter matches A417
+      if ((!filterSchemeId || filterSchemeId === 'A417') && (report.a417Cameras || report.a417Comments)) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
@@ -317,8 +318,8 @@ export const generateReportPDF = (report, reportType) => {
         yPosition += 3;
       }
 
-      // A11/A47 Kier/Core Section
-      if (report.kierCore || report.kierCoreComments) {
+      // A11/A47 Kier/Core Section - only show if no filter OR filter matches A47
+      if ((!filterSchemeId || filterSchemeId === 'A47') && (report.kierCore || report.kierCoreComments)) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
@@ -342,8 +343,8 @@ export const generateReportPDF = (report, reportType) => {
         yPosition += 3;
       }
 
-      // M3 Jct 9 Section
-      if (report.m3Jct9 || report.m3Jct9Comments) {
+      // M3 Jct 9 Section - only show if no filter OR filter matches M3
+      if ((!filterSchemeId || filterSchemeId === 'M3') && (report.m3Jct9 || report.m3Jct9Comments)) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");

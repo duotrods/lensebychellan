@@ -44,7 +44,8 @@ const CCTVCheckView = () => {
 
   const handleDownloadPDF = () => {
     try {
-      generateReportPDF(form, 'cctv-check');
+      const currentSchemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+      generateReportPDF(form, 'cctv-check', currentSchemeId);
       toast.success('Downloaded CCTV check report as PDF');
     } catch (error) {
       console.error('Failed to generate PDF:', error);
