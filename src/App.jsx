@@ -32,6 +32,7 @@ import Footer from './components/footer';
 import SignInPage from './pages/SignInPage';
 import SignUpPage from './pages/SignUpPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import AuthActionPage from './pages/auth/AuthActionPage';
 import Dashboard from './pages/Dashboard';
 import FormsSelectionPage from './pages/staff/FormsSelectionPage';
 import CCTVCheckFormPage from './pages/staff/CCTVCheckFormPage';
@@ -94,6 +95,7 @@ const App = () => {
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/__/auth/action" element={<AuthActionPage />} />
 
             {/* Protected dashboard routes */}
             <Route
