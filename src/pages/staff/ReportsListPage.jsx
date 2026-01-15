@@ -112,22 +112,18 @@ const ReportsListPage = () => {
     setCurrentPage(1); // Reset to first page when filters change
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return "N/A";
-    const date = timestamp.toDate();
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    // If it's already a string (form.date), return as-is
+    if (typeof dateString === 'string') {
+      return dateString;
+    }
+    // If it's a timestamp, convert it
+    const date = dateString.toDate();
     return date.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
-    });
-  };
-
-  const formatTime = (timestamp) => {
-    if (!timestamp) return "";
-    const date = timestamp.toDate();
-    return date.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
     });
   };
 
@@ -331,10 +327,10 @@ const ReportsListPage = () => {
                             </div>
                           </td>
                           <td className="text-sm text-gray-600">
-                            {formatDate(report.createdAt)}
+                            {formatDate(report.date)}
                           </td>
                           <td className="text-sm text-gray-600">
-                            {formatTime(report.createdAt)}
+                            {report.time || 'N/A'}
                           </td>
                           <td className="text-center">
                             <div className="flex items-center justify-center gap-2">

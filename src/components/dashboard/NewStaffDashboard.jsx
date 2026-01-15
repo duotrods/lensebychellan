@@ -89,9 +89,14 @@ const NewStaffDashboard = () => {
     }
   ];
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    // If it's already a string (form.date), return as-is or format it
+    if (typeof dateString === 'string') {
+      return dateString;
+    }
+    // If it's a timestamp, convert it
+    const date = dateString.toDate();
     return date.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'long',
@@ -272,7 +277,7 @@ const NewStaffDashboard = () => {
                                 )}
                               </div>
                             </td>
-                            <td className="text-sm text-gray-600 px-6 py-4">{formatDate(form.createdAt)}</td>
+                            <td className="text-sm text-gray-600 px-6 py-4">{formatDate(form.date)}</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center justify-center gap-2">
                                 <button

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, Clock, MapPin, Calendar, Building2 } from 'lucide-react';
+import { ArrowLeft, Download, Clock, MapPin, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { clientDataService } from '../../services/clientDataService';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
@@ -180,9 +180,8 @@ const DailyOccurrenceView = () => {
                         Occurrence #{index + 1}
                       </h5>
                       {occurrence.urn && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-100 text-brand-800 rounded-full">
-                          <Building2 className="w-4 h-4" />
-                          <span className="text-sm font-bold">URN: {occurrence.urn}</span>
+                        <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-800 rounded-full">
+                          <span className="text-sm"><span className="font-bold">URN:</span> {occurrence.urn}</span>
                         </div>
                       )}
                     </div>

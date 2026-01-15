@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, Edit, Trash2, Clock, MapPin, Calendar, Building2 } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Trash2, Clock, MapPin, Calendar } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
@@ -191,10 +191,9 @@ const DailyOccurrenceView = () => {
                       <h5 className="text-md font-semibold text-gray-800">
                         Occurrence #{index + 1}
                       </h5>
-                      {occurrence.scheme && (
-                        <div className="flex items-center gap-2 px-3 py-1 bg-teal-100 text-teal-800 rounded-full">
-                          <Building2 className="w-4 h-4" />
-                          <span className="text-sm font-semibold">{occurrence.scheme}</span>
+                      {occurrence.urn && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-800 rounded-full">
+                          <span className="text-sm"><span className="font-bold">URN:</span> {occurrence.urn}</span>
                         </div>
                       )}
                     </div>
@@ -226,10 +225,10 @@ const DailyOccurrenceView = () => {
 
                     {/* Additional Details */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                      {occurrence.urn && (
+                      {occurrence.scheme && (
                         <div>
-                          <label className="text-xs font-semibold text-gray-600">URN</label>
-                          <p className="text-sm text-gray-800 font-mono">{occurrence.urn}</p>
+                          <label className="text-xs font-semibold text-gray-600">Scheme</label>
+                          <p className="text-sm text-gray-800">{occurrence.scheme}</p>
                         </div>
                       )}
                       {occurrence.recoveryRequired && (

@@ -89,7 +89,8 @@ const CCTVCheckView = () => {
     if ((!cameras || cameras.length === 0) && !hasComments) return null;
 
     const isNone = cameras && cameras.includes('NONE');
-    const hasIssues = cameras && cameras.length > 0 && !isNone;
+    const isAllWorking = cameras && cameras.length === 1 && cameras[0] === 'All Working Correctly';
+    const hasIssues = cameras && cameras.length > 0 && !isNone && !isAllWorking;
 
     return (
       <div>
@@ -101,6 +102,11 @@ const CCTVCheckView = () => {
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle className="w-5 h-5" />
               <span className="font-semibold">NONE</span>
+            </div>
+          ) : isAllWorking ? (
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-semibold">All Working Correctly</span>
             </div>
           ) : hasIssues ? (
             <div>
