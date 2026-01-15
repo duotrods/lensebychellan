@@ -30,8 +30,8 @@ const NewStaffDashboard = () => {
 
     try {
       setLoading(true);
-      // Load statistics
-      const dashboardStats = await staffService.getDashboardStats(userProfile.uid);
+      // Load statistics - pass null to get all staff combined totals
+      const dashboardStats = await staffService.getDashboardStats(null);
       setStats(dashboardStats);
 
       // Load latest forms - pass null to get all forms from all staff
@@ -61,29 +61,29 @@ const NewStaffDashboard = () => {
   const statCards = [
     {
       title: 'Incident Report Form',
-      count: stats?.incidentReportThisWeek || 0,
-      subtitle: 'total forms submitted this week',
+      count: stats?.incidentReportTotal || 0,
+      subtitle: 'Total Submissions',
       icon: FileText,
       color: 'from-teal-500 to-teal-600'
     },
     {
       title: 'CCTV Check Sheet',
-      count: stats?.cctvCheckThisWeek || 0,
-      subtitle: 'total forms submitted this week',
+      count: stats?.cctvCheckTotal || 0,
+      subtitle: 'Total Submissions',
       icon: Camera,
       color: 'from-blue-500 to-blue-600'
     },
     {
       title: 'Daily Logs',
-      count: stats?.dailyLogsThisWeek || 0,
-      subtitle: 'total forms submitted this week',
+      count: stats?.dailyLogsTotal || 0,
+      subtitle: 'Total Submissions',
       icon: Calendar,
       color: 'from-purple-500 to-purple-600'
     },
     {
       title: 'Asset Damage Logs',
-      count: stats?.assetDamageThisWeek || 0,
-      subtitle: 'total forms submitted this week',
+      count: stats?.assetDamageTotal || 0,
+      subtitle: 'Total Submissions',
       icon: AlertTriangle,
       color: 'from-orange-500 to-orange-600'
     }
@@ -97,6 +97,21 @@ const NewStaffDashboard = () => {
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const getFormTypeIcon = (type) => {
+    switch (type) {
+      case 'Incident Report':
+        return { icon: FileText, color: 'from-teal-500 to-teal-600' };
+      case 'CCTV Check Sheet':
+        return { icon: Camera, color: 'from-blue-500 to-blue-600' };
+      case 'Daily Occurrence':
+        return { icon: Calendar, color: 'from-purple-500 to-purple-600' };
+      case 'Asset Damage':
+        return { icon: AlertTriangle, color: 'from-orange-500 to-orange-600' };
+      default:
+        return { icon: FileText, color: 'from-gray-500 to-gray-600' };
+    }
   };
 
   // Pagination
@@ -187,15 +202,17 @@ const NewStaffDashboard = () => {
                   key={index}
                   className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className={`w-12 h-12 rounded-lg bg-linear-to-br ${card.color} flex items-center justify-center`}>
-                      <card.icon className="w-6 h-6 text-white" />
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center shrink-0`}>
+                      <card.icon className="w-5 h-5 text-white" />
                     </div>
-                    <h6 className="text-sm font-medium text-gray-600 mb-2">{card.title}</h6>
+                    <h6 className="text-sm font-medium text-gray-600 leading-tight">{card.title}</h6>
                   </div>
-                  
-                  <span className="text-4xl font-bold text-gray-700 mb-1">{card.count}</span>
-                  <p className=" text-gray-500">{card.subtitle}</p>
+
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold text-gray-800">{card.count}</span>
+                    <p className="text-sm text-gray-500 mt-1">{card.subtitle}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -213,10 +230,10 @@ const NewStaffDashboard = () => {
                 <table className="table w-full">
                   <thead className="bg-gray-50">
                     <tr className='border-b-2'>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Type of Form</th>
                       <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Reference No.</th>
                       <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Created By</th>
                       <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Date Filled</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Type of Form</th>
                       <th className="text-center text-sm font-semibold text-gray-600 px-6 py-3">Actions</th>
                     </tr>
                   </thead>
@@ -228,52 +245,62 @@ const NewStaffDashboard = () => {
                         </td>
                       </tr>
                     ) : (
-                      currentForms.map((form) => (
-                        <tr key={form.id} className="hover:bg-gray-50 border-b">
-                          <td className="text-sm text-gray-800 font-mono font-semibold px-6 py-4">
-                            {form.referenceId || form.id.slice(0, 12)}
-                          </td>
-                          <td className="text-sm px-6 py-4">
-                            <div>
-                              <div className="text-gray-800">
-                                {form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || 'N/A'}
-                              </div>
-                              {form.lastEditedBy && (
-                                <div className="text-xs text-blue-600 mt-1">
-                                  Edited by: {form.lastEditedBy?.name || 'Unknown'}
+                      currentForms.map((form) => {
+                        const { icon: FormIcon, color } = getFormTypeIcon(form.type);
+                        return (
+                          <tr key={form.id} className="hover:bg-gray-50 border-b">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shrink-0`}>
+                                  <FormIcon className="w-4 h-4 text-white" />
                                 </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="text-sm text-gray-600 px-6 py-4">{formatDate(form.createdAt)}</td>
-                          <td className="text-sm text-gray-800 px-6 py-4">{form.type}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleViewForm(form)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="View"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleEditForm(form)}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDownloadForm(form)}
-                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                title="Download PDF"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                                <span className="text-sm font-medium text-gray-800">{form.type}</span>
+                              </div>
+                            </td>
+                            <td className="text-sm text-gray-800 font-mono font-semibold px-6 py-4">
+                              {form.referenceId || form.id.slice(0, 12)}
+                            </td>
+                            <td className="text-sm px-6 py-4">
+                              <div>
+                                <div className="text-gray-800">
+                                  {form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || 'N/A'}
+                                </div>
+                                {form.lastEditedBy && (
+                                  <div className="text-xs text-blue-600 mt-1">
+                                    Edited by: {form.lastEditedBy?.name || 'Unknown'}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="text-sm text-gray-600 px-6 py-4">{formatDate(form.createdAt)}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleViewForm(form)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="View"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleEditForm(form)}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadForm(form)}
+                                  className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                  title="Download PDF"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
