@@ -1,39 +1,34 @@
 import { useState, useEffect } from "react";
 
-const REMINDER_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
-const CHECK_INTERVAL = 60 * 1000; // Check every minute
-const LOGIN_TIME_KEY = "cctv_check_login_time";
-const LAST_REMINDER_KEY = "cctv_check_last_reminder";
+const CHECK_INTERVAL = 30 * 1000; // Check every 30 seconds
+const LAST_SHOWN_HOUR_KEY = "cctv_check_last_shown_hour";
 
 export const useCCTVReminder = () => {
   const [showReminder, setShowReminder] = useState(false);
 
   useEffect(() => {
-    // Set login time when component mounts (user logs in)
-    const loginTime = localStorage.getItem(LOGIN_TIME_KEY);
-    if (!loginTime) {
-      const now = Date.now().toString();
-      localStorage.setItem(LOGIN_TIME_KEY, now);
-      localStorage.setItem(LAST_REMINDER_KEY, now);
-    }
-
-    // Check if reminder should be shown
+    // Check if reminder should be shown at the start of each hour
     const checkReminder = () => {
-      const lastReminderTime = parseInt(
-        localStorage.getItem(LAST_REMINDER_KEY) || Date.now()
-      );
-      const currentTime = Date.now();
-      const timeSinceLastReminder = currentTime - lastReminderTime;
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
 
-      if (timeSinceLastReminder >= REMINDER_INTERVAL) {
+      // Get the last hour we showed the reminder
+      const lastShownHour = localStorage.getItem(LAST_SHOWN_HOUR_KEY);
+
+      // Show reminder if:
+      // 1. We're within the first 5 minutes of an hour (gives window to catch it)
+      // 2. We haven't shown the reminder for this hour yet
+      if (currentMinute < 5 && lastShownHour !== currentHour.toString()) {
         setShowReminder(true);
+        localStorage.setItem(LAST_SHOWN_HOUR_KEY, currentHour.toString());
       }
     };
 
     // Check immediately
     checkReminder();
 
-    // Set up interval to check every minute
+    // Set up interval to check every 30 seconds
     const intervalId = setInterval(checkReminder, CHECK_INTERVAL);
 
     return () => {
@@ -43,13 +38,14 @@ export const useCCTVReminder = () => {
 
   const dismissReminder = () => {
     setShowReminder(false);
-    // Update last reminder time
-    localStorage.setItem(LAST_REMINDER_KEY, Date.now().toString());
+    // Don't update the hour - let the next hour trigger naturally
   };
 
   const resetTimer = () => {
     // This can be called when user submits a CCTV check form
-    localStorage.setItem(LAST_REMINDER_KEY, Date.now().toString());
+    // Mark current hour as shown
+    const currentHour = new Date().getHours();
+    localStorage.setItem(LAST_SHOWN_HOUR_KEY, currentHour.toString());
     setShowReminder(false);
   };
 
