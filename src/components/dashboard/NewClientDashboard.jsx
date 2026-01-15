@@ -197,8 +197,8 @@ const NewClientDashboard = () => {
     const chartWidth = width - margin.left - margin.right;
     const chartHeight = height - margin.top - margin.bottom;
 
-    // Calculate max value
-    const maxValue = Math.max(...data.map(d => d.Number));
+    // Calculate max value - ensure it's at least 1 to avoid division by zero
+    const maxValue = Math.max(...data.map(d => d.Number), 1);
     const barWidth = chartWidth / data.length * 0.7;
     const gap = chartWidth / data.length * 0.3;
 
@@ -208,14 +208,22 @@ const NewClientDashboard = () => {
       const barX = x + margin.left + (index * (barWidth + gap));
       const barY = y + margin.top + chartHeight - barHeight;
 
-      // Draw bar
-      pdf.setFillColor(23, 175, 147); // Teal color
-      pdf.roundedRect(barX, barY, barWidth, barHeight, 2, 2, 'F');
+      // Only draw bar if height is valid and greater than 0
+      if (barHeight > 0 && !isNaN(barHeight) && !isNaN(barX) && !isNaN(barY) && barWidth > 0) {
+        // Draw bar - use regular rect if height is too small for rounded corners
+        pdf.setFillColor(23, 175, 147); // Teal color
+        if (barHeight >= 4) {
+          pdf.roundedRect(barX, barY, barWidth, barHeight, 2, 2, 'F');
+        } else {
+          pdf.rect(barX, barY, barWidth, barHeight, 'F');
+        }
+      }
 
       // Draw value on top of bar
       pdf.setFontSize(8);
       pdf.setTextColor(31, 41, 55);
-      pdf.text(String(item.Number), barX + barWidth / 2, barY - 2, { align: 'center' });
+      const valueY = barHeight > 0 ? barY - 2 : y + margin.top + chartHeight - 2;
+      pdf.text(String(item.Number), barX + barWidth / 2, valueY, { align: 'center' });
 
       // Draw label below bar - much closer now
       pdf.setFontSize(7);
