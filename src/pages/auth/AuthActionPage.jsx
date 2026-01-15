@@ -146,14 +146,14 @@ const AuthActionPage = () => {
         {/* Card */}
         <div className="bg-white rounded-xl shadow-lg p-8">
           {/* Title */}
-          <div className="flex items-center justify-center gap-3 mb-6">
+          {/* <div className="flex items-center justify-center gap-3 mb-6">
             <div className="p-3 bg-teal-100 rounded-full text-teal-600">
               {getIcon()}
             </div>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 text-center mb-6">
+          </div> */}  
+          <h3 className="text-2xl font-bold text-gray-800 text-center mb-6">
             {getTitle()}
-          </h1>
+          </h3>
 
           {/* Loading State */}
           {status === 'loading' && (
@@ -171,7 +171,7 @@ const AuthActionPage = () => {
               </div>
               <p className="text-gray-700 mb-6">{message}</p>
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/signin')}
                 className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
               >
                 Go to Login
@@ -187,7 +187,7 @@ const AuthActionPage = () => {
               </div>
               <p className="text-gray-700 mb-6">{message}</p>
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/signin')}
                 className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
               >
                 Go to Login
