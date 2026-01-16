@@ -38,9 +38,9 @@ const DailyLogsDetailPage = () => {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = () => {
     try {
-      await generateReportPDF({ ...report, type: 'Daily Logs' });
+      generateReportPDF(report, 'daily-occurrence');
       toast.success('PDF downloaded successfully');
     } catch (error) {
       console.error('Failed to generate PDF:', error);

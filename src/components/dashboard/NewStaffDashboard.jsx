@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import NoticeBoard from '../staff/NoticeBoard';
-import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Download } from 'lucide-react';
+import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Download, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 
@@ -19,6 +19,8 @@ const NewStaffDashboard = () => {
   const [latestForms, setLatestForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const formsPerPage = 10;
 
   useEffect(() => {
@@ -107,25 +109,96 @@ const NewStaffDashboard = () => {
   const getFormTypeIcon = (type) => {
     switch (type) {
       case 'Incident Report':
-        return { icon: FileText, color: 'from-teal-500 to-teal-600' };
+        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
       case 'CCTV Check Sheet':
-        return { icon: Camera, color: 'from-blue-500 to-blue-600' };
+        return <Eye className="w-5 h-5 text-green-500" />;
       case 'Daily Occurrence':
-        return { icon: Calendar, color: 'from-purple-500 to-purple-600' };
+        return <Calendar className="w-5 h-5 text-blue-500" />;
       case 'Asset Damage':
-        return { icon: AlertTriangle, color: 'from-orange-500 to-orange-600' };
+        return <FileText className="w-5 h-5 text-red-500" />;
       default:
-        return { icon: FileText, color: 'from-gray-500 to-gray-600' };
+        return <FileText className="w-5 h-5 text-gray-500" />;
     }
   };
+
+  const getFormTypeBadge = (type) => {
+    const badges = {
+      'Incident Report': 'badge-warning',
+      'Asset Damage': 'badge-error',
+      'Daily Occurrence': 'badge-info',
+      'CCTV Check Sheet': 'badge-success'
+    };
+    return badges[type] || 'badge-ghost';
+  };
+
+  // Get scheme(s) from form - handles different form structures
+  const getFormScheme = (form) => {
+    // For Daily Occurrence - has occurrences array with scheme in each
+    if (form.type === 'Daily Occurrence' && form.occurrences) {
+      const schemes = [...new Set(form.occurrences.map(o => o.scheme).filter(Boolean))];
+      if (schemes.length === 0) return 'N/A';
+      if (schemes.length === 1) return schemes[0];
+      return schemes.join(', ');
+    }
+    // For CCTV Check Sheet - covers all schemes
+    if (form.type === 'CCTV Check Sheet') {
+      return 'All Schemes';
+    }
+    // For Incident Report and Asset Damage - single scheme field
+    return form.scheme || 'N/A';
+  };
+
+  // Get the appropriate date from form
+  const getFormDate = (form) => {
+    // For Daily Occurrence (array-based) - use createdAt
+    if (form.type === 'Daily Occurrence') {
+      if (form.createdAt) {
+        return formatDate(form.createdAt);
+      }
+      return 'N/A';
+    }
+    // For other forms - use form.date if available, otherwise createdAt
+    if (form.date) {
+      return form.date;
+    }
+    // Fallback to createdAt
+    if (form.createdAt) {
+      return formatDate(form.createdAt);
+    }
+    return 'N/A';
+  };
+
+  // Filter and search forms
+  const filteredForms = latestForms.filter(form => {
+    const submitterName = form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || '';
+    const schemeValue = getFormScheme(form).toLowerCase();
+    const matchesSearch =
+      form.referenceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      form.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      submitterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      schemeValue.includes(searchTerm.toLowerCase());
+
+    const formTypeMap = {
+      'CCTV Check Sheet': 'cctv-check',
+      'Incident Report': 'incident',
+      'Asset Damage': 'asset-damage',
+      'Daily Occurrence': 'daily-occurrence'
+    };
+    const matchesType = filterType === 'all' || formTypeMap[form.type] === filterType;
+
+    return matchesSearch && matchesType;
+  });
 
   // Pagination
   const indexOfLastForm = currentPage * formsPerPage;
   const indexOfFirstForm = indexOfLastForm - formsPerPage;
-  const currentForms = latestForms.slice(indexOfFirstForm, indexOfLastForm);
-  const totalPages = Math.ceil(latestForms.length / formsPerPage);
+  const currentForms = filteredForms.slice(indexOfFirstForm, indexOfLastForm);
+  const totalPages = Math.ceil(filteredForms.length / formsPerPage);
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  // Reset to page 1 when search/filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType]);
 
   const handleViewForm = (form) => {
     if (form.type === "CCTV Check Sheet") {
@@ -222,90 +295,119 @@ const NewStaffDashboard = () => {
               ))}
             </div>
 
-            {/* All Forms Table - Full Width */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-800">All Forms Submitted</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Showing {currentForms.length} of {latestForms.length} forms
-                </p>
-              </div>
+            {/* Search and Filter */}
+            <div className="bg-white rounded-lg shadow p-4 mb-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Search */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search by reference ID, type, staff name, or scheme..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="input input-bordered w-full pl-10 bg-white border-gray-300"
+                  />
+                </div>
 
+                {/* Filter */}
+                <div className="flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-gray-500" />
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="select select-bordered bg-white border-gray-300"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="incident">Incident Reports</option>
+                    <option value="asset-damage">Asset Damage</option>
+                    <option value="daily-occurrence">Daily Occurrence</option>
+                    <option value="cctv-check">CCTV Checks</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* All Forms Table - Full Width */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="table w-full">
-                  <thead className="bg-gray-50">
-                    <tr className='border-b-2'>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Type of Form</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Reference No.</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Created By</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-6 py-3">Date Filled</th>
-                      <th className="text-center text-sm font-semibold text-gray-600 px-6 py-3">Actions</th>
+                  <thead className="bg-teal-500">
+                    <tr>
+                      <th className="text-left text-white">Type</th>
+                      <th className="text-left text-white">Reference ID</th>
+                      <th className="text-left text-white">Created By</th>
+                      <th className="text-left text-white">Scheme</th>
+                      <th className="text-left text-white">Date</th>
+                      <th className="text-center text-white">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {currentForms.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="text-center py-12 text-gray-500">
-                          No forms submitted yet
+                        <td colSpan="6" className="text-center py-12">
+                          <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 text-lg">No forms found</p>
+                          <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
                         </td>
                       </tr>
                     ) : (
-                      currentForms.map((form) => {
-                        const { icon: FormIcon, color } = getFormTypeIcon(form.type);
-                        return (
-                          <tr key={form.id} className="hover:bg-gray-50 border-b">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shrink-0`}>
-                                  <FormIcon className="w-4 h-4 text-white" />
+                      currentForms.map((form) => (
+                        <tr key={form.id} className="hover:bg-gray-50">
+                          <td>
+                            <div className="flex items-center gap-2">
+                              {getFormTypeIcon(form.type)}
+                              <span className={`badge ${getFormTypeBadge(form.type)} badge-sm`}>
+                                {form.type.toUpperCase()}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="font-mono text-sm font-semibold">
+                            {form.referenceId || form.id.slice(0, 12)}
+                          </td>
+                          <td className="text-sm">
+                            <div>
+                              <div className="text-gray-800">
+                                {form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || 'N/A'}
+                              </div>
+                              {form.lastEditedBy && (
+                                <div className="text-xs text-blue-600 mt-1">
+                                  Edited by: {form.lastEditedBy?.name || 'Unknown'}
                                 </div>
-                                <span className="text-sm font-medium text-gray-800">{form.type}</span>
-                              </div>
-                            </td>
-                            <td className="text-sm text-gray-800 font-mono font-semibold px-6 py-4">
-                              {form.referenceId || form.id.slice(0, 12)}
-                            </td>
-                            <td className="text-sm px-6 py-4">
-                              <div>
-                                <div className="text-gray-800">
-                                  {form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || 'N/A'}
-                                </div>
-                                {form.lastEditedBy && (
-                                  <div className="text-xs text-blue-600 mt-1">
-                                    Edited by: {form.lastEditedBy?.name || 'Unknown'}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="text-sm text-gray-600 px-6 py-4">{formatDate(form.date)}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() => handleViewForm(form)}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="View"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleEditForm(form)}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadForm(form)}
-                                  className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                                  title="Download PDF"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-sm text-gray-600 max-w-xs truncate">
+                            {getFormScheme(form)}
+                          </td>
+                          <td className="text-sm text-gray-600">{getFormDate(form)}</td>
+                          <td>
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleViewForm(form)}
+                                className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
+                                title="View"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleEditForm(form)}
+                                className="btn btn-sm btn-ghost text-green-600 hover:text-green-800"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDownloadForm(form)}
+                                className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
+                                title="Download PDF"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -313,32 +415,29 @@ const NewStaffDashboard = () => {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="p-4 border-t flex justify-center gap-2">
-                  <button
-                    onClick={() => paginate(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  {[...Array(totalPages)].map((_, index) => (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Showing {indexOfFirstForm + 1} to {Math.min(indexOfLastForm, filteredForms.length)} of {filteredForms.length} forms
+                  </p>
+                  <div className="flex items-center gap-2">
                     <button
-                      key={index + 1}
-                      onClick={() => paginate(index + 1)}
-                      className={`px-3 py-1 text-sm rounded ${
-                        index + 1 === currentPage ? 'bg-teal-500 text-white' : 'text-gray-600 hover:bg-gray-100'
-                      }`}
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="btn btn-sm btn-outline"
                     >
-                      {index + 1}
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
-                  ))}
-                  <button
-                    onClick={() => paginate(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
+                    <span className="text-sm font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

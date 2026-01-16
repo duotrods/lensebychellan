@@ -38,9 +38,9 @@ const AssetDamageDetailPage = () => {
     }
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = () => {
     try {
-      await generateReportPDF({ ...report, type: 'Asset Damage' });
+      generateReportPDF(report, 'asset-damage');
       toast.success('PDF downloaded successfully');
     } catch (error) {
       console.error('Failed to generate PDF:', error);

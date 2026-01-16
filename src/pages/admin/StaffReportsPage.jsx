@@ -12,7 +12,8 @@ import {
   Download,
   Filter,
   Search,
-  Users,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
@@ -139,9 +140,17 @@ const StaffReportsPage = () => {
     }
   };
 
-  const handleDownloadPDF = async (report) => {
+  const handleDownloadPDF = (report) => {
     try {
-      await generateReportPDF(report);
+      // Map display type to PDF generator type
+      const typeMap = {
+        "CCTV Check": "cctv-check",
+        "Incident Report": "incident",
+        "Asset Damage": "asset-damage",
+        "Daily Logs": "daily-occurrence",
+      };
+      const reportType = typeMap[report.type] || "incident";
+      generateReportPDF(report, reportType);
       toast.success("PDF downloaded successfully");
     } catch (error) {
       console.error("Failed to generate PDF:", error);
@@ -163,6 +172,68 @@ const StaffReportsPage = () => {
       month: "short",
       year: "numeric",
     });
+  };
+
+  const getFormTypeIcon = (type) => {
+    switch (type) {
+      case "Incident Report":
+        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
+      case "CCTV Check":
+        return <Eye className="w-5 h-5 text-green-500" />;
+      case "Daily Logs":
+        return <Calendar className="w-5 h-5 text-blue-500" />;
+      case "Asset Damage":
+        return <FileText className="w-5 h-5 text-red-500" />;
+      default:
+        return <FileText className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getFormTypeBadge = (type) => {
+    const badges = {
+      "Incident Report": "badge-warning",
+      "Asset Damage": "badge-error",
+      "Daily Logs": "badge-info",
+      "CCTV Check": "badge-success",
+    };
+    return badges[type] || "badge-ghost";
+  };
+
+  // Get scheme(s) from form - handles different form structures
+  const getFormScheme = (report) => {
+    // For Daily Logs - has occurrences array with scheme in each
+    if (report.type === "Daily Logs" && report.occurrences) {
+      const schemes = [...new Set(report.occurrences.map((o) => o.scheme).filter(Boolean))];
+      if (schemes.length === 0) return "N/A";
+      if (schemes.length === 1) return schemes[0];
+      return schemes.join(", ");
+    }
+    // For CCTV Check - covers all schemes
+    if (report.type === "CCTV Check") {
+      return "All Schemes";
+    }
+    // For Incident Report and Asset Damage - single scheme field
+    return report.scheme || "N/A";
+  };
+
+  // Get the appropriate date from form
+  const getFormDate = (report) => {
+    // For Daily Logs (array-based) - use createdAt
+    if (report.type === "Daily Logs") {
+      if (report.createdAt) {
+        return formatDate(report.createdAt);
+      }
+      return "N/A";
+    }
+    // For other forms - use form.date if available, otherwise createdAt
+    if (report.date) {
+      return report.date;
+    }
+    // Fallback to createdAt
+    if (report.createdAt) {
+      return formatDate(report.createdAt);
+    }
+    return "N/A";
   };
 
   // Statistics
@@ -312,15 +383,14 @@ const StaffReportsPage = () => {
             <>
               <div className="overflow-x-auto">
                 <table className="table w-full">
-                  <thead className="bg-brand-500">
+                  <thead className="bg-teal-500">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Reference ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Submitted By</th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Scheme</th>
-                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Date</th>
-                      {/* <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Status</th> */}
-                      <th className="px-6 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Actions</th>
+                      <th className="text-left text-white">Type</th>
+                      <th className="text-left text-white">Reference ID</th>
+                      <th className="text-left text-white">Submitted By</th>
+                      <th className="text-left text-white">Scheme</th>
+                      <th className="text-left text-white">Date</th>
+                      <th className="text-center text-white">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -328,52 +398,43 @@ const StaffReportsPage = () => {
                       <tr key={report.id} className="hover:bg-gray-50">
                         <td>
                           <div className="flex items-center gap-2">
-                            <div className={`p-2 rounded-lg ${report.color}`}>
-                              <report.icon className="w-4 h-4" />
+                            {getFormTypeIcon(report.type)}
+                            <span className={`badge ${getFormTypeBadge(report.type)} badge-sm`}>
+                              {report.type.toUpperCase()}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="font-mono text-sm font-semibold">
+                          {report.referenceId || report.id.slice(0, 12)}
+                        </td>
+                        <td className="text-sm">
+                          <div>
+                            <div className="text-gray-800">
+                              {report.submittedBy?.name || `${report.firstName || ""} ${report.lastName || ""}`.trim() || "N/A"}
                             </div>
-                            <span className="font-medium text-sm">{report.type}</span>
+                            {report.lastEditedBy && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                Edited by: {report.lastEditedBy?.name || "Unknown"}
+                              </div>
+                            )}
                           </div>
                         </td>
-                        <td>
-                          <span className="font-mono text-sm font-semibold text-gray-800">
-                            {report.referenceId || "N/A"}
-                          </span>
+                        <td className="text-sm text-gray-600 max-w-xs truncate">
+                          {getFormScheme(report)}
                         </td>
+                        <td className="text-sm text-gray-600">{getFormDate(report)}</td>
                         <td>
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm">{report.submittedBy?.name || "Unknown"}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="text-sm text-gray-600">{report.scheme || "N/A"}</span>
-                        </td>
-                        <td>
-                          <span className="text-sm text-gray-600">{formatDate(report.createdAt)}</span>
-                        </td>
-                        {/* <td>
-                          <span
-                            className={`badge badge-sm ${
-                              report.status === "submitted" || report.status === "action needed"
-                                ? "badge-warning"
-                                : "badge-success"
-                            }`}
-                          >
-                            {report.status || "submitted"}
-                          </span>
-                        </td> */}
-                        <td>
-                          <div className="flex justify-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleViewReport(report)}
-                              className="btn btn-sm btn-ghost text-teal-600 hover:bg-teal-50"
-                              title="View Details"
+                              className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
+                              title="View"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDownloadPDF(report)}
-                              className="btn btn-sm btn-ghost text-blue-600 hover:bg-blue-50"
+                              className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
                               title="Download PDF"
                             >
                               <Download className="w-4 h-4" />
@@ -388,24 +449,27 @@ const StaffReportsPage = () => {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-between items-center p-4 mt-6 border-t border-gray-300">
-                  <div className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </div>
-                  <div className="flex gap-2">
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Showing {indexOfFirstReport + 1} to {Math.min(indexOfLastReport, filteredReports.length)} of {filteredReports.length} reports
+                  </p>
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      Previous
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
+                    <span className="text-sm font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
                     <button
                       onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
                       className="btn btn-sm btn-outline"
                     >
-                      Next
+                      <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

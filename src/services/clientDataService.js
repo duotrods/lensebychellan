@@ -228,10 +228,7 @@ class ClientDataService {
           incidents,
           "timeOnsiteToCleared"
         ), // Time from on site to cleared (pre-calculated)
-        timeToSite: this.groupByCalculatedTime(
-          incidents,
-          "timeSpottedToOn"
-        ), // Time from spotted to on site (pre-calculated)
+        timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"), // Time from spotted to on site (pre-calculated)
         incursions: incidents.filter((i) => i.incursion === "YES").length, // Check for 'YES' string
         recentIncidents: incidents.slice(0, 10).map((incident) => ({
           type: incident.incidentType || "Unknown",
@@ -320,8 +317,8 @@ class ClientDataService {
     const isTimeToSite = field === "timeSpottedToOn";
 
     const ranges = isTimeToSite
-      ? { '0-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '20+': 0 }
-      : { '0-15': 0, '16-30': 0, '31-45': 0, '46-60': 0, '60+': 0 };
+      ? { "0-5": 0, "6-10": 0, "11-15": 0, "16-20": 0, "20+": 0 }
+      : { "0-15": 0, "16-30": 0, "31-45": 0, "46-60": 0, "60+": 0 };
 
     data.forEach((item) => {
       const timeValue = item[field];
@@ -334,18 +331,18 @@ class ClientDataService {
 
           if (isTimeToSite) {
             // Time to Site buckets
-            if (mins <= 5) ranges['0-5']++;
-            else if (mins <= 10) ranges['6-10']++;
-            else if (mins <= 15) ranges['11-15']++;
-            else if (mins <= 20) ranges['16-20']++;
-            else ranges['20+']++;
+            if (mins <= 5) ranges["0-5"]++;
+            else if (mins <= 10) ranges["6-10"]++;
+            else if (mins <= 15) ranges["11-15"]++;
+            else if (mins <= 20) ranges["16-20"]++;
+            else ranges["20+"]++;
           } else {
             // Time to Recover buckets
-            if (mins <= 15) ranges['0-15']++;
-            else if (mins <= 30) ranges['16-30']++;
-            else if (mins <= 45) ranges['31-45']++;
-            else if (mins <= 60) ranges['46-60']++;
-            else ranges['60+']++;
+            if (mins <= 15) ranges["0-15"]++;
+            else if (mins <= 30) ranges["16-30"]++;
+            else if (mins <= 45) ranges["31-45"]++;
+            else if (mins <= 60) ranges["46-60"]++;
+            else ranges["60+"]++;
           }
         }
       }
@@ -610,10 +607,7 @@ class ClientDataService {
           incidents,
           "timeOnsiteToCleared"
         ),
-        timeToSite: this.groupByCalculatedTime(
-          incidents,
-          "timeSpottedToOn"
-        ),
+        timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"),
         incursions: incidents.filter((i) => i.incursion === "YES").length,
         recentIncidents: incidents.slice(0, 10).map((incident) => ({
           type: incident.incidentType || "Unknown",
@@ -655,18 +649,31 @@ class ClientDataService {
       const querySnapshot = await getDocs(q);
       const incidents = querySnapshot.docs.map((doc) => doc.data());
 
-      // Group by week
-      const weeklyData = {};
+      // Group by month (e.g., "January 2026")
+      const monthlyData = {};
+      const monthOrder = []; // Track order of months for sorting
       incidents.forEach((incident) => {
         const date = incident.createdAt.toDate();
-        const weekKey = `Week ${this.getWeekNumber(date)}`;
+        const monthKey = date.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
 
-        weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = 0;
+          monthOrder.push({
+            key: monthKey,
+            date: new Date(date.getFullYear(), date.getMonth(), 1),
+          });
+        }
+        monthlyData[monthKey]++;
       });
 
-      return Object.entries(weeklyData).map(([name, count]) => ({
-        name,
-        count,
+      // Sort by date and return
+      monthOrder.sort((a, b) => a.date - b.date);
+      return monthOrder.map(({ key }) => ({
+        name: key,
+        count: monthlyData[key],
       }));
     } catch (error) {
       console.error("Failed to fetch time series data by date range:", error);

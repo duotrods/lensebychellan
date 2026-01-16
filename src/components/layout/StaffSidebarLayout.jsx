@@ -8,7 +8,6 @@ import {
   Video,
   LogOut,
   ChevronDown,
-  FolderOpen,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import CCTVCheckReminder from "../staff/CCTVCheckReminder";
@@ -58,11 +57,6 @@ const StaffSidebarLayout = ({ children }) => {
         },
         { name: "Asset Damage", path: "/dashboard/staff/forms/asset-damage" },
       ],
-    },
-    {
-      name: "Reports",
-      path: "/dashboard/staff/reports",
-      icon: FolderOpen,
     },
     {
       name: "CCTV Uploads",
