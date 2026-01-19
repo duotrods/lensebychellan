@@ -6,6 +6,7 @@ import NoticeBoard from '../staff/NoticeBoard';
 import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Download, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
+import { isDemoUser, DEMO_SCHEME_ID } from '../../utils/schemes';
 
 const NewStaffDashboard = () => {
   const navigate = useNavigate();
@@ -32,9 +33,8 @@ const NewStaffDashboard = () => {
 
     try {
       setLoading(true);
-      // Load statistics - pass null to get all staff combined totals
-      const dashboardStats = await staffService.getDashboardStats(null);
-      setStats(dashboardStats);
+
+      const isDemo = isDemoUser(userProfile);
 
       // Load latest forms - pass null to get all forms from all staff
       const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
@@ -45,12 +45,36 @@ const NewStaffDashboard = () => {
       ]);
 
       // Combine and sort by date - show all forms, not just top 7
-      const allForms = [
+      let allForms = [
         ...cctvForms.map(f => ({ ...f, type: 'CCTV Check Sheet' })),
         ...incidentReports.map(f => ({ ...f, type: 'Incident Report' })),
         ...assetDamageReports.map(f => ({ ...f, type: 'Asset Damage' })),
         ...dailyOccurrenceReports.map(f => ({ ...f, type: 'Daily Occurrence' }))
       ].sort((a, b) => b.createdAt - a.createdAt);
+
+      // Filter forms based on demo status
+      if (isDemo) {
+        // Demo user: only show DMO1 forms
+        allForms = allForms.filter(form => {
+          const schemeId = form.schemeId || form.scheme?.split(' ')[0];
+          return schemeId === DEMO_SCHEME_ID;
+        });
+      } else {
+        // Regular staff: exclude DMO1 forms
+        allForms = allForms.filter(form => {
+          const schemeId = form.schemeId || form.scheme?.split(' ')[0];
+          return schemeId !== DEMO_SCHEME_ID;
+        });
+      }
+
+      // Calculate stats based on filtered forms
+      const filteredStats = {
+        cctvCheckTotal: allForms.filter(f => f.type === 'CCTV Check Sheet').length,
+        incidentReportTotal: allForms.filter(f => f.type === 'Incident Report').length,
+        dailyLogsTotal: allForms.filter(f => f.type === 'Daily Occurrence').length,
+        assetDamageTotal: allForms.filter(f => f.type === 'Asset Damage').length,
+      };
+      setStats(filteredStats);
 
       setLatestForms(allForms);
     } catch (error) {

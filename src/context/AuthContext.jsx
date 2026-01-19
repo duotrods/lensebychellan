@@ -2,7 +2,6 @@ import { createContext, useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { firestoreService } from '../services/firestoreService';
-import { isDemoUser } from '../utils/schemes';
 
 export const AuthContext = createContext({});
 
@@ -74,7 +73,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     isAuthenticated: !!currentUser,
-    isEmailVerified: currentUser?.emailVerified || isDemoUser(userProfile),
+    isEmailVerified: currentUser?.emailVerified || false,
     role: userProfile?.role || null,
     updateActiveScheme
   };

@@ -91,6 +91,13 @@ class StaffService {
         schemeIds.push("M3");
       }
 
+      // Check Demo section
+      const hasDemoData = (formData.demoCameras && formData.demoCameras.length > 0) ||
+                          (formData.demoComments && formData.demoComments.trim() !== "");
+      if (hasDemoData) {
+        schemeIds.push("DMO1");
+      }
+
       // If no data in any section, default to all schemes
       if (schemeIds.length === 0) {
         schemeIds.push("all-schemes");
@@ -196,6 +203,13 @@ class StaffService {
                         (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
       if (hasM3Data) {
         schemeIds.push("M3");
+      }
+
+      // Check Demo section
+      const hasDemoData = (formData.demoCameras && formData.demoCameras.length > 0) ||
+                          (formData.demoComments && formData.demoComments.trim() !== "");
+      if (hasDemoData) {
+        schemeIds.push("DMO1");
       }
 
       // If no data in any section, default to all schemes

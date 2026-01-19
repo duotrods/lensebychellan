@@ -8,6 +8,7 @@ import { staffService } from "../../services/staffService";
 import { storage } from "../../config/firebase";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { compressImage } from "../../utils/imageCompression";
+import { SCHEMES, isDemoUser } from "../../utils/schemes";
 
 import chellanlogo from "../../assets/chellanpng.png"
 
@@ -395,15 +396,14 @@ const IncidentReportFormPage = () => {
                 required
               >
                 <option value="">Please Select</option>
-                <option value="A417 Missing Link - Kier">
-                  A417 Missing Link - Kier
-                </option>
-                <option value="M3 Jct 9 - Balfour Beatty">
-                  M3 Jct 9 - Balfour Beatty
-                </option>
-                <option value="A47 Thickthorn - Core">
-                  A47 Thickthorn - Core
-                </option>
+                {SCHEMES
+                  .filter(scheme => isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo)
+                  .map(scheme => (
+                    <option key={scheme.id} value={scheme.fullName}>
+                      {scheme.fullName}
+                    </option>
+                  ))
+                }
               </select>
             </div>
 

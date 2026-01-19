@@ -21,7 +21,7 @@ const StaffSidebarLayout = ({ children }) => {
   const [formsOpen, setFormsOpen] = useState(false);
   const { showReminder, dismissReminder } = useCCTVReminder();
 
-  const handleSignOut = async () => {
+const handleSignOut = async () => {
     await authService.signOut();
     navigate("/");
   };

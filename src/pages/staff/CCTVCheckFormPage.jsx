@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
+import { isDemoUser } from '../../utils/schemes';
 
 import chellanlogo from "../../assets/chellanpng.png"
 
@@ -24,6 +25,8 @@ const CCTVCheckFormPage = () => {
     return `${day}/${month}/${year}`;
   };
 
+  const isDemo = isDemoUser(userProfile);
+
   const [formData, setFormData] = useState({
     firstName: userProfile?.displayName || '', // Auto-fill full name
     date: formatDateToBritish(new Date()), // Auto-fill current date in DD/MM/YYYY
@@ -39,7 +42,11 @@ const CCTVCheckFormPage = () => {
 
     // M3 Jct 9 Section
     m3Jct9: [],
-    m3Jct9Comments: ''
+    m3Jct9Comments: '',
+
+    // Demo Section
+    demoCameras: [],
+    demoComments: ''
   });
 
   // Camera options for each section
@@ -63,6 +70,10 @@ const CCTVCheckFormPage = () => {
       'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28', 'CCTV 29', 'CCTV 30',
       '3301', '3302', '3303', '3304', '3305', '3306', '3401', '3402', '3403', '3404', '3407',
       '3408', '3409', '3410'
+    ],
+    demo: [
+      'All Working Correctly', 'DEMO-CAM-1', 'DEMO-CAM-2', 'DEMO-CAM-3', 'DEMO-CAM-4',
+      'DEMO-CAM-5', 'DEMO-CAM-6', 'DEMO-CAM-7', 'DEMO-CAM-8'
     ]
   };
 
@@ -166,7 +177,9 @@ const CCTVCheckFormPage = () => {
           kierCore: [],
           kierCoreComments: '',
           m3Jct9: [],
-          m3Jct9Comments: ''
+          m3Jct9Comments: '',
+          demoCameras: [],
+          demoComments: ''
         });
       }
     } catch (error) {
@@ -283,26 +296,39 @@ const CCTVCheckFormPage = () => {
 
           <div className="divider before:h-px after:h-px  before:bg-gray-500 after:bg-gray-500 text-gray-500"></div>
 
-          {/* Camera Sections */}
-          {renderCheckboxSection(
-            'A417 (only tick cameras that are not working correctly)',
-            'a417Cameras',
-            'a417Comments',
-            cameraOptions.a417
-          )}
+          {/* Camera Sections - Show demo section for demo users, regular sections for regular staff */}
+          {isDemo ? (
+            <>
+              {renderCheckboxSection(
+                'DMO1 Demo Scheme (only tick cameras that are not working correctly)',
+                'demoCameras',
+                'demoComments',
+                cameraOptions.demo
+              )}
+            </>
+          ) : (
+            <>
+              {renderCheckboxSection(
+                'A417 (only tick cameras that are not working correctly)',
+                'a417Cameras',
+                'a417Comments',
+                cameraOptions.a417
+              )}
 
-          {renderCheckboxSection(
-            'A11/A47 Kier/Core (only tick cameras that are not working correctly)',
-            'kierCore',
-            'kierCoreComments',
-            cameraOptions.kierCore
-          )}
+              {renderCheckboxSection(
+                'A11/A47 Kier/Core (only tick cameras that are not working correctly)',
+                'kierCore',
+                'kierCoreComments',
+                cameraOptions.kierCore
+              )}
 
-          {renderCheckboxSection(
-            'M3 Jct 9 (only tick cameras that are not working correctly)',
-            'm3Jct9',
-            'm3Jct9Comments',
-            cameraOptions.m3
+              {renderCheckboxSection(
+                'M3 Jct 9 (only tick cameras that are not working correctly)',
+                'm3Jct9',
+                'm3Jct9Comments',
+                cameraOptions.m3
+              )}
+            </>
           )}
 
           {/* Submit Buttons */}

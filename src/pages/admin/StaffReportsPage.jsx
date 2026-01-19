@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
-import { SCHEMES } from "../../utils/schemes";
+import { SCHEMES, DEMO_SCHEME_ID } from "../../utils/schemes";
 import {
   FileText,
   Camera,
@@ -81,7 +81,13 @@ const StaffReportsPage = () => {
         })),
       ].sort((a, b) => b.createdAt - a.createdAt);
 
-      setReports(allReports);
+      // Exclude demo scheme (DMO1) forms from admin view
+      const filteredReports = allReports.filter(report => {
+        const schemeId = report.schemeId || report.scheme?.split(' ')[0];
+        return schemeId !== DEMO_SCHEME_ID;
+      });
+
+      setReports(filteredReports);
     } catch (error) {
       console.error("Failed to load reports:", error);
       toast.error("Failed to load reports");

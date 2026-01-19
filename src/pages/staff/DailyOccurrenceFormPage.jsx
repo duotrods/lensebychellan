@@ -5,7 +5,7 @@ import { ArrowLeft, X, Plus } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
-import { SCHEMES } from "../../utils/schemes";
+import { SCHEMES, isDemoUser } from "../../utils/schemes";
 
 import chellanlogo from "../../assets/chellanpng.png"
 
@@ -255,12 +255,15 @@ const DailyOccurrenceFormPage = () => {
                       required
                     >
                       <option value="">Please Select</option>
-                      <option value="All Schemes">All Schemes</option>
-                      {SCHEMES.map((scheme) => (
-                        <option key={scheme.id} value={scheme.fullName}>
-                          {scheme.fullName}
-                        </option>
-                      ))}
+                      {!isDemoUser(userProfile) && <option value="All Schemes">All Schemes</option>}
+                      {SCHEMES
+                        .filter(scheme => isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo)
+                        .map((scheme) => (
+                          <option key={scheme.id} value={scheme.fullName}>
+                            {scheme.fullName}
+                          </option>
+                        ))
+                      }
                     </select>
                   </div>
 
