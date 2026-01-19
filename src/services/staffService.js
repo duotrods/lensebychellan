@@ -1066,6 +1066,18 @@ class StaffService {
       throw error;
     }
   }
+
+  // Generic delete report function for admin use
+  async deleteReport(collectionName, reportId) {
+    try {
+      const reportRef = doc(db, collectionName, reportId);
+      await deleteDoc(reportRef);
+      return reportId;
+    } catch (error) {
+      console.error(`Failed to delete report from ${collectionName}:`, error);
+      throw error;
+    }
+  }
 }
 
 export const staffService = new StaffService();

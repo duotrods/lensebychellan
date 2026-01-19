@@ -1,3 +1,6 @@
+// Demo scheme ID constant
+export const DEMO_SCHEME_ID = 'DMO1';
+
 // List of all schemes/clients in the system
 export const SCHEMES = [
   {
@@ -17,6 +20,13 @@ export const SCHEMES = [
     fullName: 'A47 Thickthorn - Core',
     shortName: 'A47 Thickthorn',
     contractor: 'Core'
+  },
+  {
+    id: 'DMO1',
+    fullName: 'DMO1 Demo Scheme - Demo',
+    shortName: 'Demo Scheme',
+    contractor: 'Demo',
+    isDemo: true
   }
 ];
 
@@ -38,4 +48,26 @@ export const extractSchemeId = (fullName) => {
   }
   const scheme = getSchemeByFullName(fullName);
   return scheme ? scheme.id : fullName.split(' ')[0]; // Fallback to first word
+};
+
+// Helper function to check if a user is a demo account
+export const isDemoUser = (userProfile) => {
+  if (!userProfile) return false;
+
+  // Check if user has demo scheme assigned
+  if (userProfile.schemeIds && userProfile.schemeIds.includes(DEMO_SCHEME_ID)) {
+    return true;
+  }
+
+  // Backward compatibility: check single schemeId
+  if (userProfile.schemeId === DEMO_SCHEME_ID) {
+    return true;
+  }
+
+  return false;
+};
+
+// Helper function to check if a scheme ID is the demo scheme
+export const isDemoScheme = (schemeId) => {
+  return schemeId === DEMO_SCHEME_ID;
 };

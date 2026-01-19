@@ -87,7 +87,7 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // CCTV Check Forms
@@ -111,7 +111,7 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // Asset Damage Reports
@@ -135,7 +135,7 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // Daily Occurrence Reports
@@ -160,7 +160,7 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // CCTV Uploads
@@ -184,7 +184,7 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // Activities (for notice board)

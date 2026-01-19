@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import SchemeSwitcher from "../client/SchemeSwitcher";
+import { isDemoUser } from "../../utils/schemes";
 
 const ClientSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
@@ -56,6 +57,15 @@ const ClientSidebarLayout = ({ children }) => {
             <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
           </Link>
         </div>
+
+        {/* Demo Mode Badge */}
+        {isDemoUser(userProfile) && (
+          <div className="mx-4 mt-4 px-3 py-2 bg-amber-100 border border-amber-300 rounded-lg">
+            <p className="text-xs font-bold text-amber-800 text-center uppercase tracking-wide">
+              Demo Mode
+            </p>
+          </div>
+        )}
 
         {/* Scheme Info */}
         <div className="px-6 py-4 bg-teal-50 border-b">

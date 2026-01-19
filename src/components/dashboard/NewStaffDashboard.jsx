@@ -168,6 +168,28 @@ const NewStaffDashboard = () => {
     return 'N/A';
   };
 
+  // Get the appropriate time from form
+  const getFormTime = (form) => {
+    // For Daily Occurrence (array-based) - use createdAt time
+    if (form.type === 'Daily Occurrence') {
+      if (form.createdAt) {
+        const date = form.createdAt.toDate ? form.createdAt.toDate() : new Date(form.createdAt);
+        return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      }
+      return 'N/A';
+    }
+    // For other forms - use form.time if available, otherwise createdAt time
+    if (form.time) {
+      return form.time;
+    }
+    // Fallback to createdAt time
+    if (form.createdAt) {
+      const date = form.createdAt.toDate ? form.createdAt.toDate() : new Date(form.createdAt);
+      return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    }
+    return 'N/A';
+  };
+
   // Filter and search forms
   const filteredForms = latestForms.filter(form => {
     const submitterName = form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || '';
@@ -338,7 +360,7 @@ const NewStaffDashboard = () => {
                       <th className="text-left text-white">Reference ID</th>
                       <th className="text-left text-white">Created By</th>
                       <th className="text-left text-white">Scheme</th>
-                      <th className="text-left text-white">Date</th>
+                      <th className="text-left text-white">Date & Time</th>
                       <th className="text-center text-white">Actions</th>
                     </tr>
                   </thead>
@@ -380,7 +402,10 @@ const NewStaffDashboard = () => {
                           <td className="text-sm text-gray-600 max-w-xs truncate">
                             {getFormScheme(form)}
                           </td>
-                          <td className="text-sm text-gray-600">{getFormDate(form)}</td>
+                          <td className="text-sm">
+                            <div className="text-gray-800 font-medium">{getFormDate(form)}</div>
+                            <div className="text-gray-400">{getFormTime(form)}</div>
+                          </td>
                           <td>
                             <div className="flex items-center justify-center gap-2">
                               <button

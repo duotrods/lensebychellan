@@ -14,6 +14,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
@@ -27,6 +28,9 @@ const StaffReportsPage = () => {
   const [filterType, setFilterType] = useState("all");
   const [filterScheme, setFilterScheme] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const reportsPerPage = 10;
 
   useEffect(() => {
@@ -236,6 +240,64 @@ const StaffReportsPage = () => {
     return "N/A";
   };
 
+  // Get the appropriate time from form
+  const getFormTime = (report) => {
+    // For Daily Logs (array-based) - use createdAt time
+    if (report.type === "Daily Logs") {
+      if (report.createdAt) {
+        const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+        return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      }
+      return "N/A";
+    }
+    // For other forms - use form.time if available, otherwise createdAt time
+    if (report.time) {
+      return report.time;
+    }
+    // Fallback to createdAt time
+    if (report.createdAt) {
+      const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+      return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    }
+    return "N/A";
+  };
+
+  // Handle delete report
+  const handleDeleteClick = (report) => {
+    setReportToDelete(report);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!reportToDelete) return;
+
+    setDeleting(true);
+    try {
+      // Map report type to collection name
+      const collectionMap = {
+        "CCTV Check": "cctvCheckForms",
+        "Incident Report": "incidentReports",
+        "Asset Damage": "assetDamageReports",
+        "Daily Logs": "dailyOccurrenceReports",
+      };
+      const collectionName = collectionMap[reportToDelete.type];
+
+      if (collectionName) {
+        await staffService.deleteReport(collectionName, reportToDelete.id);
+        toast.success("Report deleted successfully");
+        // Remove from local state
+        setReports((prev) => prev.filter((r) => r.id !== reportToDelete.id));
+      }
+    } catch (error) {
+      console.error("Failed to delete report:", error);
+      toast.error("Failed to delete report");
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
+      setReportToDelete(null);
+    }
+  };
+
   // Statistics
   const stats = {
     total: reports.length,
@@ -389,7 +451,7 @@ const StaffReportsPage = () => {
                       <th className="text-left text-white">Reference ID</th>
                       <th className="text-left text-white">Submitted By</th>
                       <th className="text-left text-white">Scheme</th>
-                      <th className="text-left text-white">Date</th>
+                      <th className="text-left text-white">Date & Time</th>
                       <th className="text-center text-white">Actions</th>
                     </tr>
                   </thead>
@@ -422,7 +484,10 @@ const StaffReportsPage = () => {
                         <td className="text-sm text-gray-600 max-w-xs truncate">
                           {getFormScheme(report)}
                         </td>
-                        <td className="text-sm text-gray-600">{getFormDate(report)}</td>
+                        <td className="text-sm">
+                          <div className="text-gray-800 font-medium">{getFormDate(report)}</div>
+                          <div className="text-gray-400">{getFormTime(report)}</div>
+                        </td>
                         <td>
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -438,6 +503,13 @@ const StaffReportsPage = () => {
                               title="Download PDF"
                             >
                               <Download className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(report)}
+                              className="btn btn-sm btn-ghost text-red-600 hover:text-red-800"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -478,6 +550,49 @@ const StaffReportsPage = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Delete Report</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this {reportToDelete?.type}?
+              <br />
+              <span className="font-semibold text-gray-800">
+                Reference: {reportToDelete?.referenceId || reportToDelete?.id?.slice(0, 12)}
+              </span>
+              <br />
+              <span className="text-red-600 text-sm mt-2 block">
+                This action cannot be undone.
+              </span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setReportToDelete(null);
+                }}
+                className="btn btn-outline"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="btn bg-red-600 hover:bg-red-700 text-white border-none"
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminSidebarLayout>
   );
 };

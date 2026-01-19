@@ -12,6 +12,7 @@ import {
 import headerLogo from "../../assets/headerlogo.svg";
 import CCTVCheckReminder from "../staff/CCTVCheckReminder";
 import { useCCTVReminder } from "../../hooks/useCCTVReminder";
+import { isDemoUser } from "../../utils/schemes";
 
 const StaffSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
@@ -78,6 +79,15 @@ const StaffSidebarLayout = ({ children }) => {
             <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
           </Link>
         </div>
+
+        {/* Demo Mode Badge */}
+        {isDemoUser(userProfile) && (
+          <div className="mx-4 mt-4 px-3 py-2 bg-amber-100 border border-amber-300 rounded-lg">
+            <p className="text-xs font-bold text-amber-800 text-center uppercase tracking-wide">
+              Demo Mode
+            </p>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
