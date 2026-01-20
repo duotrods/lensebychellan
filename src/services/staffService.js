@@ -871,7 +871,8 @@ class StaffService {
         );
         let schemeIds;
         if (hasAllSchemes) {
-          schemeIds = SCHEMES.map((scheme) => scheme.id);
+          // Exclude demo scheme from "All Schemes"
+          schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
         } else {
           schemeIds = [
             ...new Set(
@@ -922,7 +923,8 @@ class StaffService {
       );
       let schemeIds;
       if (hasAllSchemes) {
-        schemeIds = SCHEMES.map((scheme) => scheme.id);
+        // Exclude demo scheme from "All Schemes"
+        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
       } else {
         schemeIds = [
           ...new Set(
@@ -1014,8 +1016,8 @@ class StaffService {
 
       let schemeIds;
       if (hasAllSchemes) {
-        // Include all scheme IDs when "All Schemes" is selected
-        schemeIds = SCHEMES.map((scheme) => scheme.id);
+        // Include all scheme IDs except demo when "All Schemes" is selected
+        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
       } else if (formData.occurrences) {
         // Extract unique scheme IDs from occurrences
         schemeIds = [

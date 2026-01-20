@@ -578,14 +578,44 @@ class ClientDataService {
 
       // Get recent incidents
       const incidentsRef = collection(db, "incidentReports");
-      const incidentsQuery = query(
-        incidentsRef,
-        where("schemeIds", "array-contains", schemeId),
-        where("createdAt", ">=", Timestamp.fromDate(startDate)),
-        where("createdAt", "<=", Timestamp.fromDate(endDate))
-      );
-      const incidentsSnapshot = await getDocs(incidentsQuery);
-      const incidents = incidentsSnapshot.docs.map((doc) => doc.data());
+      let incidents = [];
+
+      try {
+        // Try compound query with date range (requires index)
+        const incidentsQuery = query(
+          incidentsRef,
+          where("schemeIds", "array-contains", schemeId),
+          where("createdAt", ">=", Timestamp.fromDate(startDate)),
+          where("createdAt", "<=", Timestamp.fromDate(endDate))
+        );
+        const incidentsSnapshot = await getDocs(incidentsQuery);
+        incidents = incidentsSnapshot.docs.map((doc) => doc.data());
+        console.log(`Found ${incidents.length} incidents for scheme ${schemeId} in date range`);
+      } catch (indexError) {
+        // If index doesn't exist, fall back to fetching all and filtering in memory
+        if (
+          indexError.code === "failed-precondition" ||
+          indexError.message?.includes("index")
+        ) {
+          console.warn("Index not available for date range query, filtering in memory");
+          const simpleQuery = query(
+            incidentsRef,
+            where("schemeIds", "array-contains", schemeId)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const allIncidents = snapshot.docs.map((doc) => doc.data());
+
+          // Filter by date range in memory
+          incidents = allIncidents.filter((incident) => {
+            if (!incident.createdAt) return false;
+            const incidentDate = incident.createdAt.toDate();
+            return incidentDate >= startDate && incidentDate <= endDate;
+          });
+          console.log(`Filtered ${incidents.length} incidents from ${allIncidents.length} total for scheme ${schemeId}`);
+        } else {
+          throw indexError;
+        }
+      }
 
       // Calculate statistics (same as getSchemeStats)
       const stats = {
@@ -638,16 +668,49 @@ class ClientDataService {
       endDate.setHours(23, 59, 59, 999);
 
       const incidentsRef = collection(db, "incidentReports");
-      const q = query(
-        incidentsRef,
-        where("schemeIds", "array-contains", schemeId),
-        where("createdAt", ">=", Timestamp.fromDate(startDate)),
-        where("createdAt", "<=", Timestamp.fromDate(endDate)),
-        orderBy("createdAt", "asc")
-      );
+      let incidents = [];
 
-      const querySnapshot = await getDocs(q);
-      const incidents = querySnapshot.docs.map((doc) => doc.data());
+      try {
+        // Try compound query with date range and ordering (requires index)
+        const q = query(
+          incidentsRef,
+          where("schemeIds", "array-contains", schemeId),
+          where("createdAt", ">=", Timestamp.fromDate(startDate)),
+          where("createdAt", "<=", Timestamp.fromDate(endDate)),
+          orderBy("createdAt", "asc")
+        );
+        const querySnapshot = await getDocs(q);
+        incidents = querySnapshot.docs.map((doc) => doc.data());
+      } catch (indexError) {
+        // If index doesn't exist, fall back to fetching all and filtering in memory
+        if (
+          indexError.code === "failed-precondition" ||
+          indexError.message?.includes("index")
+        ) {
+          console.warn("Index not available for time series query, filtering in memory");
+          const simpleQuery = query(
+            incidentsRef,
+            where("schemeIds", "array-contains", schemeId)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const allIncidents = snapshot.docs.map((doc) => doc.data());
+
+          // Filter by date range and sort in memory
+          incidents = allIncidents
+            .filter((incident) => {
+              if (!incident.createdAt) return false;
+              const incidentDate = incident.createdAt.toDate();
+              return incidentDate >= startDate && incidentDate <= endDate;
+            })
+            .sort((a, b) => {
+              const timeA = a.createdAt?.seconds || 0;
+              const timeB = b.createdAt?.seconds || 0;
+              return timeA - timeB;
+            });
+        } else {
+          throw indexError;
+        }
+      }
 
       // Group by month (e.g., "January 2026")
       const monthlyData = {};
