@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, Calendar, Clock, MapPin } from 'lucide-react';
+import { ArrowLeft, Download, Calendar, Clock, MapPin, X } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import AdminSidebarLayout from '../../components/layout/AdminSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
@@ -10,6 +11,7 @@ import chellanlogo from "../../assets/chellanpng.png";
 const DailyLogsDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
 
@@ -45,6 +47,37 @@ const DailyLogsDetailPage = () => {
     } catch (error) {
       console.error('Failed to generate PDF:', error);
       toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleRemoveOccurrence = async (index) => {
+    const occurrence = report.occurrences[index];
+    const confirmMessage = report.occurrences.length === 1
+      ? 'This is the last occurrence. Removing it will delete the entire report. Are you sure?'
+      : `Are you sure you want to remove Occurrence #${index + 1} (${occurrence.date} ${occurrence.time})? This action cannot be undone.`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const result = await staffService.removeOccurrenceFromReport(
+        id,
+        index,
+        userProfile.uid,
+        userProfile.displayName
+      );
+
+      if (result.deleted) {
+        toast.success('Report deleted (last occurrence removed)');
+        navigate('/dashboard/admin/staff-reports');
+      } else {
+        toast.success(`Occurrence #${index + 1} removed successfully`);
+        loadReport();
+      }
+    } catch (error) {
+      console.error('Failed to remove occurrence:', error);
+      toast.error('Failed to remove occurrence');
     }
   };
 
@@ -110,11 +143,20 @@ const DailyLogsDetailPage = () => {
             {report.occurrences && report.occurrences.length > 0 ? (
               report.occurrences.map((occurrence, index) => (
                 <div key={index} className="border-2 border-gray-200 rounded-xl p-6">
-                  <div className="flex items-center gap-2 mb-6">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    <h4 className="text-lg font-bold text-gray-800">
-                      Occurrence #{index + 1}
-                    </h4>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                      <h4 className="text-lg font-bold text-gray-800">
+                        Occurrence #{index + 1}
+                      </h4>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveOccurrence(index)}
+                      className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Remove this occurrence"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

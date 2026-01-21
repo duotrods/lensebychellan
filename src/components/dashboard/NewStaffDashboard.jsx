@@ -36,7 +36,7 @@ const NewStaffDashboard = () => {
 
       const isDemo = isDemoUser(userProfile);
 
-      // Load latest forms - pass null to get all forms from all staff
+      // Load latest forms - pass null to get all forms from all staff (no limit)
       const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
         staffService.getCCTVCheckForms(null),
         staffService.getIncidentReports(null),

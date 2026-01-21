@@ -137,20 +137,30 @@ class StaffService {
     }
   }
 
-  async getCCTVCheckForms(userId = null, limitCount = 50) {
+  async getCCTVCheckForms(userId = null, limitCount = null) {
     try {
       const formsRef = collection(db, "cctvCheckForms");
       let q;
 
       if (userId) {
-        q = query(
-          formsRef,
-          where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc"),
-          limit(limitCount)
-        );
+        // When fetching for a specific user, apply limit if provided
+        q = limitCount
+          ? query(
+              formsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc"),
+              limit(limitCount)
+            )
+          : query(
+              formsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc")
+            );
       } else {
-        q = query(formsRef, orderBy("createdAt", "desc"), limit(limitCount));
+        // When fetching all, no limit unless explicitly provided
+        q = limitCount
+          ? query(formsRef, orderBy("createdAt", "desc"), limit(limitCount))
+          : query(formsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
@@ -317,20 +327,30 @@ class StaffService {
     }
   }
 
-  async getIncidentReports(userId = null, limitCount = 50) {
+  async getIncidentReports(userId = null, limitCount = null) {
     try {
       const reportsRef = collection(db, "incidentReports");
       let q;
 
       if (userId) {
-        q = query(
-          reportsRef,
-          where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc"),
-          limit(limitCount)
-        );
+        // When fetching for a specific user, apply limit if provided
+        q = limitCount
+          ? query(
+              reportsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc"),
+              limit(limitCount)
+            )
+          : query(
+              reportsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc")
+            );
       } else {
-        q = query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount));
+        // When fetching all, no limit unless explicitly provided
+        q = limitCount
+          ? query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount))
+          : query(reportsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
@@ -717,20 +737,30 @@ class StaffService {
     }
   }
 
-  async getAssetDamageReports(userId = null, limitCount = 50) {
+  async getAssetDamageReports(userId = null, limitCount = null) {
     try {
       const reportsRef = collection(db, "assetDamageReports");
       let q;
 
       if (userId) {
-        q = query(
-          reportsRef,
-          where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc"),
-          limit(limitCount)
-        );
+        // When fetching for a specific user, apply limit if provided
+        q = limitCount
+          ? query(
+              reportsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc"),
+              limit(limitCount)
+            )
+          : query(
+              reportsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc")
+            );
       } else {
-        q = query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount));
+        // When fetching all, no limit unless explicitly provided
+        q = limitCount
+          ? query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount))
+          : query(reportsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
@@ -964,20 +994,30 @@ class StaffService {
     }
   }
 
-  async getDailyOccurrenceReports(userId = null, limitCount = 50) {
+  async getDailyOccurrenceReports(userId = null, limitCount = null) {
     try {
       const reportsRef = collection(db, "dailyOccurrenceReports");
       let q;
 
       if (userId) {
-        q = query(
-          reportsRef,
-          where("submittedBy.userId", "==", userId),
-          orderBy("createdAt", "desc"),
-          limit(limitCount)
-        );
+        // When fetching for a specific user, apply limit if provided
+        q = limitCount
+          ? query(
+              reportsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc"),
+              limit(limitCount)
+            )
+          : query(
+              reportsRef,
+              where("submittedBy.userId", "==", userId),
+              orderBy("createdAt", "desc")
+            );
       } else {
-        q = query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount));
+        // When fetching all, no limit unless explicitly provided
+        q = limitCount
+          ? query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount))
+          : query(reportsRef, orderBy("createdAt", "desc"));
       }
 
       const snapshot = await getDocs(q);
@@ -1079,6 +1119,98 @@ class StaffService {
       return reportId;
     } catch (error) {
       console.error("Failed to delete daily occurrence report:", error);
+      throw error;
+    }
+  }
+
+  // Remove a single occurrence from a daily occurrence report (admin only)
+  async removeOccurrenceFromReport(reportId, occurrenceIndex, userId, userName) {
+    try {
+      const reportRef = doc(db, "dailyOccurrenceReports", reportId);
+      const reportDoc = await getDoc(reportRef);
+
+      if (!reportDoc.exists()) {
+        throw new Error("Report not found");
+      }
+
+      const currentData = reportDoc.data();
+      const occurrences = currentData.occurrences || [];
+
+      if (occurrenceIndex < 0 || occurrenceIndex >= occurrences.length) {
+        throw new Error("Invalid occurrence index");
+      }
+
+      // Get the occurrence being removed for logging
+      const removedOccurrence = occurrences[occurrenceIndex];
+
+      // Remove the occurrence at the specified index
+      const updatedOccurrences = occurrences.filter((_, i) => i !== occurrenceIndex);
+
+      // If no occurrences left, delete the entire report
+      if (updatedOccurrences.length === 0) {
+        await deleteDoc(reportRef);
+
+        await this.logActivity({
+          type: "form_deleted",
+          staffId: userId,
+          staffName: userName,
+          description: `${userName} deleted Daily Occurrence Report ${currentData.referenceId} (last occurrence removed)`,
+          relatedFormId: reportId,
+        });
+
+        return { deleted: true, reportId };
+      }
+
+      // Recalculate schemeIds from remaining occurrences
+      const hasAllSchemes = updatedOccurrences.some(
+        (occ) => occ.scheme === "All Schemes"
+      );
+
+      let schemeIds;
+      if (hasAllSchemes) {
+        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
+      } else {
+        schemeIds = [
+          ...new Set(
+            updatedOccurrences
+              .map((occ) => extractSchemeId(occ.scheme))
+              .filter(Boolean)
+          ),
+        ];
+      }
+
+      // Update edit history
+      const editHistory = currentData.editHistory || [];
+      editHistory.push({
+        editedBy: { userId, name: userName },
+        editedAt: new Date(),
+        action: "occurrence_removed",
+        removedOccurrence: {
+          date: removedOccurrence.date,
+          time: removedOccurrence.time,
+          scheme: removedOccurrence.scheme,
+        },
+      });
+
+      await updateDoc(reportRef, {
+        occurrences: updatedOccurrences,
+        schemeIds,
+        editHistory,
+        lastEditedBy: { userId, name: userName },
+        updatedAt: serverTimestamp(),
+      });
+
+      await this.logActivity({
+        type: "occurrence_removed",
+        staffId: userId,
+        staffName: userName,
+        description: `${userName} removed occurrence #${occurrenceIndex + 1} from Daily Occurrence Report ${currentData.referenceId}`,
+        relatedFormId: reportId,
+      });
+
+      return { deleted: false, reportId, remainingOccurrences: updatedOccurrences.length };
+    } catch (error) {
+      console.error("Failed to remove occurrence from report:", error);
       throw error;
     }
   }
