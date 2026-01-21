@@ -38,6 +38,7 @@ const CCTVUploadsPage = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);  //Drag files
 
   useEffect(() => {
     loadUploads();
@@ -59,8 +60,7 @@ const CCTVUploadsPage = () => {
     }
   };
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
+  const validateAndAddFiles = (files) => {
     const validFiles = files.filter((file) => {
       const isVideo = file.type.startsWith("video/");
       const isUnder500MB = file.size <= 500 * 1024 * 1024; // 500MB limit
@@ -79,6 +79,42 @@ const CCTVUploadsPage = () => {
     });
 
     setSelectedFiles((prev) => [...prev, ...validFiles]);
+  };
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    validateAndAddFiles(files);
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!uploadingFiles) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (uploadingFiles) return;
+
+    const files = Array.from(e.dataTransfer.files);
+    validateAndAddFiles(files);
   };
 
   const removeFile = (index) => {
@@ -375,7 +411,17 @@ const CCTVUploadsPage = () => {
                   </span>
                 </label>
 
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-teal-500 transition-colors">
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isDragging
+                      ? "border-teal-500 bg-teal-50"
+                      : "border-gray-300 hover:border-teal-500"
+                  }`}
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
                   <input
                     type="file"
                     multiple
@@ -386,12 +432,18 @@ const CCTVUploadsPage = () => {
                     disabled={uploadingFiles}
                   />
                   <label htmlFor="video-upload" className="cursor-pointer">
-                    <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-teal-500" : "text-gray-400"}`} />
                     <p className="text-gray-600 mb-2">
-                      <span className="text-teal-600 font-semibold">
-                        Click to upload
-                      </span>{" "}
-                      or drag and drop
+                      {isDragging ? (
+                        <span className="text-teal-600 font-semibold">Drop files here</span>
+                      ) : (
+                        <>
+                          <span className="text-teal-600 font-semibold">
+                            Click to upload
+                          </span>{" "}
+                          or drag and drop
+                        </>
+                      )}
                     </p>
                     <p className="text-sm text-gray-500">
                       Video files only (Max 500MB per file)
