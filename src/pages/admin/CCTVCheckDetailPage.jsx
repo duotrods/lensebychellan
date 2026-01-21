@@ -59,8 +59,10 @@ const CCTVCheckDetailPage = () => {
   };
 
   const renderCameraSection = (title, cameras, comments) => {
-    const hasAllWorking = cameras?.includes('ALL WORKING CORRECT');
-    const nonWorkingCameras = cameras?.filter(c => c !== 'ALL WORKING CORRECT') || [];
+    // Check for various "all working" values that might be stored
+    const allWorkingValues = ['ALL WORKING CORRECT', 'allWorking', 'All Working Correctly', 'All Working'];
+    const hasAllWorking = cameras?.some(c => allWorkingValues.includes(c));
+    const nonWorkingCameras = cameras?.filter(c => !allWorkingValues.includes(c)) || [];
 
     return (
       <div className="mb-8 pb-8 border-b">
@@ -208,56 +210,64 @@ const CCTVCheckDetailPage = () => {
           <div className="mb-8 pb-8 border-b">
             <h4 className="text-lg font-bold text-gray-800 mb-4">Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-purple-50 rounded-lg p-4">
-                <p className="text-sm text-purple-600 font-semibold uppercase mb-2">A417 Status</p>
-                {report.a417Cameras?.includes('ALL WORKING CORRECT') ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Check className="w-5 h-5" />
-                    <span className="font-medium">All Working</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <X className="w-5 h-5" />
-                    <span className="font-medium">
-                      {report.a417Cameras?.filter(c => c !== 'ALL WORKING CORRECT').length || 0} Issues
-                    </span>
-                  </div>
-                )}
-              </div>
+              {(() => {
+                const allWorkingValues = ['ALL WORKING CORRECT', 'allWorking', 'All Working Correctly', 'All Working'];
+                const a417AllWorking = report.a417Cameras?.some(c => allWorkingValues.includes(c));
+                const kierCoreAllWorking = report.kierCore?.some(c => allWorkingValues.includes(c));
+                const m3Jct9AllWorking = report.m3Jct9?.some(c => allWorkingValues.includes(c));
+                const a417Issues = report.a417Cameras?.filter(c => !allWorkingValues.includes(c)).length || 0;
+                const kierCoreIssues = report.kierCore?.filter(c => !allWorkingValues.includes(c)).length || 0;
+                const m3Jct9Issues = report.m3Jct9?.filter(c => !allWorkingValues.includes(c)).length || 0;
 
-              <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-sm text-blue-600 font-semibold uppercase mb-2">A11/A47 Status</p>
-                {report.kierCore?.includes('ALL WORKING CORRECT') ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Check className="w-5 h-5" />
-                    <span className="font-medium">All Working</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <X className="w-5 h-5" />
-                    <span className="font-medium">
-                      {report.kierCore?.filter(c => c !== 'ALL WORKING CORRECT').length || 0} Issues
-                    </span>
-                  </div>
-                )}
-              </div>
+                return (
+                  <>
+                    <div className="bg-purple-50 rounded-lg p-4">
+                      <p className="text-sm text-purple-600 font-semibold uppercase mb-2">A417 Status</p>
+                      {a417AllWorking ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <Check className="w-5 h-5" />
+                          <span className="font-medium">All Working</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <X className="w-5 h-5" />
+                          <span className="font-medium">{a417Issues} Issues</span>
+                        </div>
+                      )}
+                    </div>
 
-              <div className="bg-teal-50 rounded-lg p-4">
-                <p className="text-sm text-teal-600 font-semibold uppercase mb-2">M3 Jct 9 Status</p>
-                {report.m3Jct9?.includes('ALL WORKING CORRECT') ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Check className="w-5 h-5" />
-                    <span className="font-medium">All Working</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-red-600">
-                    <X className="w-5 h-5" />
-                    <span className="font-medium">
-                      {report.m3Jct9?.filter(c => c !== 'ALL WORKING CORRECT').length || 0} Issues
-                    </span>
-                  </div>
-                )}
-              </div>
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-blue-600 font-semibold uppercase mb-2">A11/A47 Status</p>
+                      {kierCoreAllWorking ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <Check className="w-5 h-5" />
+                          <span className="font-medium">All Working</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <X className="w-5 h-5" />
+                          <span className="font-medium">{kierCoreIssues} Issues</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-teal-50 rounded-lg p-4">
+                      <p className="text-sm text-teal-600 font-semibold uppercase mb-2">M3 Jct 9 Status</p>
+                      {m3Jct9AllWorking ? (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <Check className="w-5 h-5" />
+                          <span className="font-medium">All Working</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-red-600">
+                          <X className="w-5 h-5" />
+                          <span className="font-medium">{m3Jct9Issues} Issues</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
