@@ -41,11 +41,10 @@ const AssetDamageFormPage = () => {
     track: "",
     assetType: "",
     damageType: "",
-    severity: "Low",
-    weatherConditions: "",
+    incidentnum: "",
+    nhLog: "",
     reportedBy: "",
     cameraNumber: "",
-    estimatedCost: "",
     description: "",
     actionTaken: "",
     notificationSent: [],
@@ -84,11 +83,10 @@ const AssetDamageFormPage = () => {
           track: report.track || "",
           assetType: report.assetType || "",
           damageType: report.damageType || "",
-          severity: report.severity || "Low",
-          weatherConditions: report.weatherConditions || "",
+          incidentnum: report.incidentnum || "",
+          nhLog: report.nhLog || "",
           reportedBy: report.reportedBy || "",
           cameraNumber: report.cameraNumber || "",
-          estimatedCost: report.estimatedCost || "",
           description: report.description || "",
           actionTaken: report.actionTaken || "",
           notificationSent: report.notificationSent || [],
@@ -210,11 +208,10 @@ const AssetDamageFormPage = () => {
           track: "",
           assetType: "",
           damageType: "",
-          severity: "Low",
-          weatherConditions: "",
+          incidentnum: "",
+          nhLog: "",
           reportedBy: "",
           cameraNumber: "",
-          estimatedCost: "",
           description: "",
           actionTaken: "",
           notificationSent: [],
@@ -283,30 +280,22 @@ const AssetDamageFormPage = () => {
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Section <span className="text-red-500">*</span>
+                  Section
                 </span>
               </label>
-              <select
+              <input
+                type="text"
                 name="section"
                 value={formData.section}
                 onChange={handleChange}
-                className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                required
-              >
-                <option value="">Please Select</option>
-                <option value="M3">M3</option>
-                <option value="A33">A33</option>
-                <option value="A34">A34</option>
-                <option value="A1">A1</option>
-                <option value="A417">A417</option>
-                <option value="A11">A11</option>
-                <option value="A47">A47</option>
-              </select>
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                placeholder="e.g., M3, A33, A34, etc."
+              />
             </div>
           </div>
 
           {/* Date, Time and Name */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
@@ -475,55 +464,40 @@ const AssetDamageFormPage = () => {
             </div>
           </div>
 
-          {/* Severity and Weather */}
+          
+          {/* Incident Report # and NH Log */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Severity <span className="text-red-500">*</span>
+                  Incident Report Number <span className="text-red-500">*</span>
                 </span>
               </label>
-              <div className="flex gap-6">
-                {["Low", "Medium", "High", "Critical"].map((level) => (
-                  <label
-                    key={level}
-                    className="cursor-pointer flex items-center gap-2"
-                  >
-                    <input
-                      type="radio"
-                      name="severity"
-                      value={level}
-                      checked={formData.severity === level}
-                      onChange={handleChange}
-                      className="radio radio-accent"
-                    />
-                    <span>{level}</span>
-                  </label>
-                ))}
-              </div>
+              <input
+                type="text"
+                name="incidentnum"
+                value={formData.incidentnum}
+                onChange={handleChange}
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                placeholder="eg., IN01, INO2 ..."
+                required
+              />
             </div>
-
+            
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
-                  Weather Conditions <span className="text-red-500">*</span>
+                  NH Log <span className="text-red-500">*</span>
                 </span>
               </label>
-              <select
-                name="weatherConditions"
-                value={formData.weatherConditions}
+              <input
+                type="text"
+                name="nhLog"
+                value={formData.nhLog}
                 onChange={handleChange}
-                className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 required
-              >
-                <option value="">Please Select</option>
-                <option value="Dry">Dry</option>
-                <option value="Wet">Wet</option>
-                <option value="Raining">Raining</option>
-                <option value="Fog">Fog</option>
-                <option value="Snow">Snow</option>
-                <option value="Sunny">Sunny</option>
-              </select>
+              />
             </div>
           </div>
 
@@ -568,25 +542,6 @@ const AssetDamageFormPage = () => {
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
               />
             </div>
-          </div>
-
-          {/* Estimated Cost */}
-          <div>
-            <label className="label">
-              <span className="label-text font-semibold mb-2">
-                Estimated Repair Cost (£)
-              </span>
-            </label>
-            <input
-              type="number"
-              name="estimatedCost"
-              placeholder="e.g., 500"
-              value={formData.estimatedCost}
-              onChange={handleChange}
-              className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-              min="0"
-              step="0.01"
-            />
           </div>
 
           {/* Notifications Sent */}

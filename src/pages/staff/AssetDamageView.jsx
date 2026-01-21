@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
@@ -80,21 +80,6 @@ const AssetDamageView = () => {
     });
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'Critical':
-        return 'bg-red-100 text-red-800';
-      case 'High':
-        return 'bg-orange-100 text-orange-800';
-      case 'Medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   if (loading) {
     return (
       <StaffSidebarLayout>
@@ -164,16 +149,6 @@ const AssetDamageView = () => {
 
         {/* Report Content */}
         <div className="bg-white rounded-xl shadow-md p-8 space-y-6">
-          {/* Severity Badge */}
-          {report.severity && (
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-orange-600" />
-              <span className={`px-4 py-2 rounded-full font-semibold text-lg ${getSeverityColor(report.severity)}`}>
-                Severity: {report.severity}
-              </span>
-            </div>
-          )}
-
           {/* Basic Information */}
           <div>
             <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
@@ -247,10 +222,6 @@ const AssetDamageView = () => {
                 <p className="text-gray-800">{report.damageType || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Weather Conditions</label>
-                <p className="text-gray-800">{report.weatherConditions || 'N/A'}</p>
-              </div>
-              <div>
                 <label className="text-sm font-semibold text-gray-600">Reported By</label>
                 <p className="text-gray-800">{report.reportedBy || 'N/A'}</p>
               </div>
@@ -260,10 +231,16 @@ const AssetDamageView = () => {
                   <p className="text-gray-800">{report.cameraNumber}</p>
                 </div>
               )}
-              {report.estimatedCost && (
+              {report.incidentnum && (
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">Estimated Repair Cost</label>
-                  <p className="text-gray-800">£{parseFloat(report.estimatedCost).toFixed(2)}</p>
+                  <label className="text-sm font-semibold text-gray-600">Incident Report Number</label>
+                  <p className="text-gray-800">{report.incidentnum}</p>
+                </div>
+              )}
+              {report.nhLog && (
+                <div>
+                  <label className="text-sm font-semibold text-gray-600">NH Log</label>
+                  <p className="text-gray-800">{report.nhLog}</p>
                 </div>
               )}
             </div>
