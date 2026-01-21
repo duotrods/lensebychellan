@@ -160,6 +160,45 @@ const ReportsPage = () => {
     return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Helper to parse DD/MM/YYYY date format
+  const parseBritishDate = (dateStr) => {
+    if (!dateStr) return null;
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+    return null;
+  };
+
+  // Get display date for a report - use form date for incidents, asset damage, cctv checks
+  const getReportDisplayDate = (report) => {
+    // For incident, asset-damage, and cctv-check reports, use the form's date field
+    if ((report.reportType === 'incident' || report.reportType === 'asset-damage' || report.reportType === 'cctv-check') && report.date) {
+      // Date is in DD/MM/YYYY format, convert to display format
+      const date = parseBritishDate(report.date);
+      if (date) {
+        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+      return report.date;
+    }
+    // For daily occurrence and other reports, use timestamp (createdAt)
+    return formatDate(report.timestamp);
+  };
+
+  // Get display time for a report
+  const getReportDisplayTime = (report) => {
+    // For incident reports, use timeSpotted field
+    if (report.reportType === 'incident' && report.timeSpotted) {
+      return report.timeSpotted;
+    }
+    // For asset-damage and cctv-check reports, use the form's time field
+    if ((report.reportType === 'asset-damage' || report.reportType === 'cctv-check') && report.time) {
+      return report.time;
+    }
+    // For daily occurrence and other reports, use timestamp (createdAt)
+    return formatTime(report.timestamp);
+  };
+
   const reportStats = {
     total: reports.length,
     incident: reports.filter(r => r.reportType === 'incident').length,
@@ -293,8 +332,8 @@ const ReportsPage = () => {
                         <td className="max-w-xs truncate">{report.location || 'N/A'}</td>
                         <td>
                           <div className="text-sm">
-                            <p className="font-medium">{formatDate(report.timestamp || report.date)}</p>
-                            <p className="text-gray-500">{formatTime(report.timestamp || report.time)}</p>
+                            <p className="font-medium">{getReportDisplayDate(report)}</p>
+                            <p className="text-gray-500">{getReportDisplayTime(report)}</p>
                           </div>
                         </td>
                         <td className="text-sm">
