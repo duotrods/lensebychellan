@@ -409,7 +409,10 @@ const NewStaffDashboard = () => {
                             </div>
                           </td>
                           <td className="font-mono text-sm font-semibold">
-                            {form.referenceId || form.id.slice(0, 12)}
+                            <div>{form.referenceId || form.id.slice(0, 12)}</div>
+                            {form.type === 'Incident Report' && form.incursion === 'YES' && (
+                              <span className="badge badge-error badge-xs mt-1">Incursion</span>
+                            )}
                           </td>
                           <td className="text-sm">
                             <div>

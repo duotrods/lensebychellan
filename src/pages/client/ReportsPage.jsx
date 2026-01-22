@@ -327,7 +327,12 @@ const ReportsPage = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="font-mono text-sm font-semibold">{report.referenceId}</td>
+                        <td className="font-mono text-sm font-semibold">
+                          <div>{report.referenceId}</div>
+                          {report.reportType === 'incident' && report.incursion === 'YES' && (
+                            <span className="badge badge-error badge-xs mt-1">Incursion</span>
+                          )}
+                        </td>
                         <td className="max-w-xs truncate">{report.type || report.title || 'N/A'}</td>
                         <td className="max-w-xs truncate">{report.location || 'N/A'}</td>
                         <td>

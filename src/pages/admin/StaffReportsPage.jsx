@@ -473,7 +473,10 @@ const StaffReportsPage = () => {
                           </div>
                         </td>
                         <td className="font-mono text-sm font-semibold">
-                          {report.referenceId || report.id.slice(0, 12)}
+                          <div>{report.referenceId || report.id.slice(0, 12)}</div>
+                          {report.type === "Incident Report" && report.incursion === "YES" && (
+                            <span className="badge badge-error badge-xs mt-1">Incursion</span>
+                          )}
                         </td>
                         <td className="text-sm">
                           <div>
