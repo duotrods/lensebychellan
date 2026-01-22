@@ -5,6 +5,7 @@ import { ArrowLeft, Upload, X } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
+import { sendAssetDamageNotification } from "../../services/emailService";
 import { storage } from "../../config/firebase";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { compressImage } from "../../utils/imageCompression";
@@ -182,11 +183,30 @@ const AssetDamageFormPage = () => {
           userProfile.uid,
           userProfile.displayName
         );
-        toast.success("Asset Damage Report updated successfully!");
+
+        // Send email notifications for update
+        if (formData.notificationSent && formData.notificationSent.length > 0) {
+          const emailResult = await sendAssetDamageNotification(
+            {
+              ...formData,
+              id: editId,
+              submittedBy: userProfile.displayName
+            },
+            formData.notificationSent,
+            true // isUpdate
+          );
+          if (emailResult.emailsSent > 0) {
+            toast.success(`Report updated! ${emailResult.emailsSent} notification(s) sent.`);
+          } else {
+            toast.success("Asset Damage Report updated successfully!");
+          }
+        } else {
+          toast.success("Asset Damage Report updated successfully!");
+        }
         navigate("/dashboard/staff");
       } else {
         // Submit new form
-        await staffService.submitAssetDamageReport(
+        const result = await staffService.submitAssetDamageReport(
           {
             ...formData,
             files: uploadedFiles,
@@ -194,7 +214,27 @@ const AssetDamageFormPage = () => {
           userProfile.uid,
           userProfile.displayName
         );
-        toast.success("Asset Damage Report submitted successfully!");
+
+        // Send email notifications for new submission
+        if (formData.notificationSent && formData.notificationSent.length > 0) {
+          const emailResult = await sendAssetDamageNotification(
+            {
+              ...formData,
+              id: result?.id,
+              referenceId: result?.referenceId,
+              submittedBy: userProfile.displayName
+            },
+            formData.notificationSent,
+            false // isUpdate
+          );
+          if (emailResult.emailsSent > 0) {
+            toast.success(`Report submitted! ${emailResult.emailsSent} notification(s) sent.`);
+          } else {
+            toast.success("Asset Damage Report submitted successfully!");
+          }
+        } else {
+          toast.success("Asset Damage Report submitted successfully!");
+        }
 
         // Reset form with fresh auto-filled values
         setFormData({
@@ -544,40 +584,6 @@ const AssetDamageFormPage = () => {
             </div>
           </div>
 
-          {/* Notifications Sent */}
-          <div>
-            <label className="label">
-              <span className="label-text font-semibold mb-2">
-                Notifications Sent To
-              </span>
-            </label>
-            <div className="flex flex-wrap gap-6">
-              {[
-                "Maintenance Team",
-                "TM Manager",
-                "Safety Officer",
-                "Client",
-                "Police",
-                "N/A",
-              ].map((recipient) => (
-                <label
-                  key={recipient}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.notificationSent.includes(recipient)}
-                    onChange={() =>
-                      handleCheckbox("notificationSent", recipient)
-                    }
-                    className="checkbox checkbox-sm checkbox-neutral"
-                  />
-                  <span className="text-sm">{recipient}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
           {/* Description */}
           <div>
             <label className="label">
@@ -658,6 +664,38 @@ const AssetDamageFormPage = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Notifications Sent */}
+          <div>
+            <label className="label">
+              <span className="label-text font-semibold mb-2">
+                Notify the Following
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-6">
+              {[
+                "Maintenance Team",
+                "TM Manager",
+                "Safety Officer",
+                "N/A",
+              ].map((recipient) => (
+                <label
+                  key={recipient}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.notificationSent.includes(recipient)}
+                    onChange={() =>
+                      handleCheckbox("notificationSent", recipient)
+                    }
+                    className="checkbox checkbox-sm checkbox-neutral"
+                  />
+                  <span className="text-sm">{recipient}</span>
+                </label>
+              ))}
             </div>
           </div>
 
