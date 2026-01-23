@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import lenselogo from "../assets/chellanpng.png";
+import { SCHEMES } from "./schemes";
 
 // Cache for compressed logo to avoid re-processing
 let cachedCompressedLogo = null;
@@ -233,7 +234,12 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
     );
   }
 
-  if (report.scheme || report.schemeId) {
+  // For CCTV check reports with filterSchemeId, show the filtered scheme name
+  if (reportType === "cctv-check" && filterSchemeId) {
+    const schemeObj = SCHEMES.find(s => s.id === filterSchemeId);
+    const schemeName = schemeObj ? schemeObj.fullName : filterSchemeId;
+    addField("Scheme/Location", schemeName);
+  } else if (report.scheme || report.schemeId) {
     addField("Scheme/Location", report.scheme || report.schemeId);
   }
 
@@ -403,6 +409,31 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         }
         if (report.m3Jct9Comments && report.m3Jct9Comments.trim() !== "") {
           addField("Comments", report.m3Jct9Comments);
+        }
+        yPosition += 3;
+      }
+
+      // Demo Section - only show if no filter OR filter matches DMO1
+      if ((!filterSchemeId || filterSchemeId === 'DMO1') && (report.demoCameras || report.demoComments)) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Demo Scheme", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.demoCameras && report.demoCameras.length > 0) {
+          const isNone = report.demoCameras.includes('NONE');
+          if (isNone) {
+            addField("Status", "NONE - All cameras working correctly", true);
+          } else {
+            addField("Issues Reported", report.demoCameras.join(", "), true);
+          }
+        }
+        if (report.demoComments && report.demoComments.trim() !== "") {
+          addField("Comments", report.demoComments);
         }
         yPosition += 3;
       }

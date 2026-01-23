@@ -140,7 +140,9 @@ const ReportsPage = () => {
 
   const handleDownloadReport = async (report) => {
     try {
-      await generateReportPDF(report, report.reportType);
+      // For CCTV check reports, pass the active scheme ID to filter the PDF content
+      const activeSchemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+      await generateReportPDF(report, report.reportType, activeSchemeId);
       toast.success(`Downloaded ${report.referenceId || 'report'} as PDF`);
     } catch (error) {
       console.error('Failed to generate PDF:', error);
