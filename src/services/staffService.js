@@ -899,16 +899,28 @@ class StaffService {
             (occ) => occ.date === firstOccurrenceDate
           );
           if (hasMatchingDate) {
-            // Check if existing report is demo or real
-            const existingSchemeId = data.occurrences[0]?.scheme
-              ? extractSchemeId(data.occurrences[0].scheme)
-              : null;
-            const isExistingDemo = existingSchemeId === DEMO_SCHEME_ID;
+            // Use the report's schemeIds array directly (more reliable than extracting from occurrences)
+            // This correctly handles "All Schemes" which stores ["A417", "M3", "A47"] without DMO1
+            const reportSchemeIds = data.schemeIds || [];
 
-            // Only merge if both are demo OR both are real (not mixed)
-            if (isNewSubmissionDemo === isExistingDemo) {
-              existingReport = { id: docSnap.id, ...data };
-              break;
+            const hasAnyDemo = reportSchemeIds.includes(DEMO_SCHEME_ID);
+            const hasOnlyDemo = reportSchemeIds.length > 0 &&
+              reportSchemeIds.every(id => id === DEMO_SCHEME_ID);
+
+            // For demo submission: only merge with reports that are EXCLUSIVELY demo
+            // For real submission: only merge with reports that have NO demo schemes
+            if (isNewSubmissionDemo) {
+              // Demo staff: only merge with purely demo reports (schemeIds contains only DMO1)
+              if (hasOnlyDemo) {
+                existingReport = { id: docSnap.id, ...data };
+                break;
+              }
+            } else {
+              // Real staff: only merge with reports that have NO demo schemes at all
+              if (!hasAnyDemo) {
+                existingReport = { id: docSnap.id, ...data };
+                break;
+              }
             }
           }
         }
