@@ -58,9 +58,9 @@ const CCTVCheckView = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     try {
-      generateReportPDF(form, 'cctv-check');
+      await generateReportPDF(form, 'cctv-check');
       toast.success('Downloaded CCTV check report as PDF');
     } catch (error) {
       console.error('Failed to generate PDF:', error);

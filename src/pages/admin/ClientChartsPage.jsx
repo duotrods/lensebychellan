@@ -407,8 +407,13 @@ const ClientChartsPage = () => {
     toast.loading('Generating PDF...', { id: 'export-pdf' });
 
     try {
-      // Create PDF in landscape orientation
-      const pdf = new jsPDF('l', 'mm', 'a4');
+      // Create PDF in landscape orientation with compression enabled
+      const pdf = new jsPDF({
+        orientation: 'l',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 

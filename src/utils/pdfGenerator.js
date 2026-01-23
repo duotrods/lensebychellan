@@ -1,14 +1,52 @@
 import { jsPDF } from "jspdf";
 import lenselogo from "../assets/chellanpng.png";
 
+// Cache for compressed logo to avoid re-processing
+let cachedCompressedLogo = null;
+
+/**
+ * Compress logo image to reduce PDF size
+ * Converts PNG to compressed JPEG and caches the result
+ */
+const getCompressedLogo = () => {
+  return new Promise((resolve) => {
+    if (cachedCompressedLogo) {
+      resolve(cachedCompressedLogo);
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      // 3x display size for retina quality (logo displays at 50x25)
+      canvas.width = 150;
+      canvas.height = 75;
+      const ctx = canvas.getContext('2d');
+      // White background for transparency
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // Compress to JPEG at 70% quality
+      cachedCompressedLogo = canvas.toDataURL('image/jpeg', 0.7);
+      resolve(cachedCompressedLogo);
+    };
+    img.onerror = () => {
+      // Fallback to original if compression fails
+      resolve(lenselogo);
+    };
+    img.src = lenselogo;
+  });
+};
+
 /**
  * Generate PDF for any report type
  * @param {Object} report - The report data
  * @param {string} reportType - Type of report (incident, asset-damage, daily-occurrence, cctv-check)
  * @param {string} filterSchemeId - Optional scheme ID to filter CCTV sections (for client view)
  */
-export const generateReportPDF = (report, reportType, filterSchemeId = null) => {
-  const doc = new jsPDF();
+export const generateReportPDF = async (report, reportType, filterSchemeId = null) => {
+  const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
@@ -74,12 +112,13 @@ export const generateReportPDF = (report, reportType, filterSchemeId = null) => 
   doc.setFillColor(255, 255, 255); // White background
   doc.rect(0, 0, pageWidth, 40, "F");
 
-  // Add logo centered on top
+  // Add compressed logo centered on top
   try {
+    const compressedLogo = await getCompressedLogo();
     const logoWidth = 50; // Width
     const logoHeight = 25; // Height (adjust ratio to prevent distortion)
     const logoX = (pageWidth - logoWidth) / 2; // Center horizontally
-    doc.addImage(lenselogo, "PNG", logoX, 5, logoWidth, logoHeight);
+    doc.addImage(compressedLogo, "JPEG", logoX, 5, logoWidth, logoHeight, undefined, 'FAST');
   } catch (error) {
     console.error("Error adding logo:", error);
   }
@@ -434,8 +473,8 @@ export const generateReportPDF = (report, reportType, filterSchemeId = null) => 
  * Generate PDF for CCTV recording details
  * @param {Object} recording - The CCTV recording data
  */
-export const generateCCTVRecordingPDF = (recording) => {
-  const doc = new jsPDF();
+export const generateCCTVRecordingPDF = async (recording) => {
+  const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   let yPosition = 20;
@@ -457,12 +496,13 @@ export const generateCCTVRecordingPDF = (recording) => {
   doc.setFillColor(255, 255, 255); // White background
   doc.rect(0, 0, pageWidth, 40, "F");
 
-  // Add logo centered on top
+  // Add compressed logo centered on top
   try {
+    const compressedLogo = await getCompressedLogo();
     const logoWidth = 50; // Width
     const logoHeight = 25; // Height (adjust ratio to prevent distortion)
     const logoX = (pageWidth - logoWidth) / 2; // Center horizontally
-    doc.addImage(lenselogo, "PNG", logoX, 5, logoWidth, logoHeight);
+    doc.addImage(compressedLogo, "JPEG", logoX, 5, logoWidth, logoHeight, undefined, 'FAST');
   } catch (error) {
     console.error("Error adding logo:", error);
   }

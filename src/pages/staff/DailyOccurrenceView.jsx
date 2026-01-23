@@ -57,9 +57,9 @@ const DailyOccurrenceView = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     try {
-      generateReportPDF(report, 'daily-occurrence');
+      await generateReportPDF(report, 'daily-occurrence');
       toast.success('Downloaded daily occurrence report as PDF');
     } catch (error) {
       console.error('Failed to generate PDF:', error);

@@ -138,9 +138,9 @@ const ReportsPage = () => {
     }
   };
 
-  const handleDownloadReport = (report) => {
+  const handleDownloadReport = async (report) => {
     try {
-      generateReportPDF(report, report.reportType);
+      await generateReportPDF(report, report.reportType);
       toast.success(`Downloaded ${report.referenceId || 'report'} as PDF`);
     } catch (error) {
       console.error('Failed to generate PDF:', error);

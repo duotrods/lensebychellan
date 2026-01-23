@@ -150,7 +150,7 @@ const StaffReportsPage = () => {
     }
   };
 
-  const handleDownloadPDF = (report) => {
+  const handleDownloadPDF = async (report) => {
     try {
       // Map display type to PDF generator type
       const typeMap = {
@@ -160,7 +160,7 @@ const StaffReportsPage = () => {
         "Daily Logs": "daily-occurrence",
       };
       const reportType = typeMap[report.type] || "incident";
-      generateReportPDF(report, reportType);
+      await generateReportPDF(report, reportType);
       toast.success("PDF downloaded successfully");
     } catch (error) {
       console.error("Failed to generate PDF:", error);

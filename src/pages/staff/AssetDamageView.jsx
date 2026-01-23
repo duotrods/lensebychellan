@@ -58,9 +58,9 @@ const AssetDamageView = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     try {
-      generateReportPDF(report, 'asset-damage');
+      await generateReportPDF(report, 'asset-damage');
       toast.success('Downloaded asset damage report as PDF');
     } catch (error) {
       console.error('Failed to generate PDF:', error);

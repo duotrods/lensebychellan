@@ -271,7 +271,7 @@ const NewStaffDashboard = () => {
     }
   };
 
-  const handleDownloadForm = (form) => {
+  const handleDownloadForm = async (form) => {
     try {
       let reportType;
       if (form.type === "CCTV Check Sheet") {
@@ -284,7 +284,7 @@ const NewStaffDashboard = () => {
         reportType = 'daily-occurrence';
       }
 
-      generateReportPDF(form, reportType);
+      await generateReportPDF(form, reportType);
       toast.success(`Downloaded ${form.type} as PDF`);
     } catch (error) {
       console.error('Failed to download PDF:', error);
