@@ -14,20 +14,23 @@ import { db } from '../config/firebase';
 /**
  * Service for generating unique reference IDs with prefixes
  * Format: PREFIX + number (e.g., IN01, IN02, AD01, etc.)
+ * Demo accounts use separate counters with -DEMO suffix (e.g., IN01-DEMO, DO01-DEMO)
  */
 class ReferenceIdService {
   /**
    * Generate next reference ID for a given type
    * @param {string} type - The form type (incident, assetDamage, dailyOccurrence, cctvCheck)
+   * @param {boolean} isDemo - Whether this is a demo account submission
    * @returns {Promise<string>} The generated reference ID
    */
-  async generateReferenceId(type) {
+  async generateReferenceId(type, isDemo = false) {
     const config = this.getTypeConfig(type);
+    const counterName = isDemo ? `${config.counterName}_demo` : config.counterName;
 
     try {
       // Use a transaction to ensure atomicity
       const referenceId = await runTransaction(db, async (transaction) => {
-        const counterRef = doc(db, 'counters', config.counterName);
+        const counterRef = doc(db, 'counters', counterName);
         const counterDoc = await transaction.get(counterRef);
 
         let nextNumber = 1;
@@ -42,7 +45,10 @@ class ReferenceIdService {
 
         // Format the number with leading zeros
         const formattedNumber = String(nextNumber).padStart(config.digits, '0');
-        return `${config.prefix}${formattedNumber}`;
+        // Add -DEMO suffix for demo accounts
+        return isDemo
+          ? `${config.prefix}${formattedNumber}-DEMO`
+          : `${config.prefix}${formattedNumber}`;
       });
 
       return referenceId;

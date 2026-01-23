@@ -54,15 +54,35 @@ const NewStaffDashboard = () => {
 
       // Filter forms based on demo status
       if (isDemo) {
-        // Demo user: only show DMO1 forms
+        // Demo user: only show forms that are EXCLUSIVELY demo (only DMO1, no real schemes)
         allForms = allForms.filter(form => {
-          const schemeId = form.schemeId || form.scheme?.split(' ')[0];
+          // Check schemeIds array first (used by Daily Occurrence and newer forms)
+          if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
+            // Must contain ONLY DMO1 (no real schemes mixed in)
+            return form.schemeIds.every(id => id === DEMO_SCHEME_ID);
+          }
+          // For forms with single schemeId field
+          if (form.schemeId) {
+            return form.schemeId === DEMO_SCHEME_ID;
+          }
+          // Extract from scheme field as last resort
+          const schemeId = form.scheme?.split(' ')[0];
           return schemeId === DEMO_SCHEME_ID;
         });
       } else {
-        // Regular staff: exclude DMO1 forms
+        // Regular staff: exclude forms that are EXCLUSIVELY demo
         allForms = allForms.filter(form => {
-          const schemeId = form.schemeId || form.scheme?.split(' ')[0];
+          // Check schemeIds array first (used by Daily Occurrence and newer forms)
+          if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
+            // Show if it has ANY real scheme (not exclusively demo)
+            return !form.schemeIds.every(id => id === DEMO_SCHEME_ID);
+          }
+          // For forms with single schemeId field
+          if (form.schemeId) {
+            return form.schemeId !== DEMO_SCHEME_ID;
+          }
+          // Extract from scheme field as last resort
+          const schemeId = form.scheme?.split(' ')[0];
           return schemeId !== DEMO_SCHEME_ID;
         });
       }
@@ -327,7 +347,7 @@ const NewStaffDashboard = () => {
                   className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${card.color} flex items-center justify-center shrink-0`}>
+                    <div className={`w-10 h-10 rounded-lg bg-linear-to-br ${card.color} flex items-center justify-center shrink-0`}>
                       <card.icon className="w-5 h-5 text-white" />
                     </div>
                     <h6 className="text-sm font-medium text-gray-600 leading-tight">{card.title}</h6>

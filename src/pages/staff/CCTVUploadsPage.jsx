@@ -16,6 +16,7 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { isDemoUser, DEMO_SCHEME_ID, SCHEMES, extractSchemeId } from "../../utils/schemes";
 
 const CCTVUploadsPage = () => {
   const { userProfile } = useAuth();
@@ -51,7 +52,21 @@ const CCTVUploadsPage = () => {
       setLoadingUploads(true);
       // Pass null to get ALL uploads from all staff members
       const cctvUploads = await staffService.getCCTVUploads(null);
-      setUploads(cctvUploads);
+
+      // Filter uploads based on demo/real user status
+      const isDemo = isDemoUser(userProfile);
+      const filteredUploads = cctvUploads.filter(upload => {
+        const uploadSchemeId = upload.schemeId || extractSchemeId(upload.scheme);
+        if (isDemo) {
+          // Demo user: only show demo uploads
+          return uploadSchemeId === DEMO_SCHEME_ID;
+        } else {
+          // Real staff: exclude demo uploads
+          return uploadSchemeId !== DEMO_SCHEME_ID;
+        }
+      });
+
+      setUploads(filteredUploads);
     } catch (error) {
       console.error("Failed to load CCTV uploads:", error);
       toast.error("Failed to load uploads");
@@ -280,15 +295,14 @@ const CCTVUploadsPage = () => {
                     required
                   >
                     <option value="">Please Select</option>
-                    <option value="A417 Missing Link - Kier">
-                      A417 Missing Link - Kier
-                    </option>
-                    <option value="M3 Jct 9 - Balfour Beatty">
-                      M3 Jct 9 - Balfour Beatty
-                    </option>
-                    <option value="A47 Thickthorn - Core">
-                      A47 Thickthorn - Core
-                    </option>
+                    {SCHEMES
+                      .filter(scheme => isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo)
+                      .map((scheme) => (
+                        <option key={scheme.id} value={scheme.fullName}>
+                          {scheme.fullName}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
 

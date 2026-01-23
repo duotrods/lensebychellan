@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { referenceIdService } from "./referenceIdService";
-import { extractSchemeId, SCHEMES } from "../utils/schemes";
+import { extractSchemeId, SCHEMES, DEMO_SCHEME_ID } from "../utils/schemes";
 
 class StaffService {
   // ============================================
@@ -62,11 +62,6 @@ class StaffService {
 
   async submitCCTVCheckForm(formData, userId, userName) {
     try {
-      // Generate reference ID
-      const referenceId = await referenceIdService.generateReferenceId(
-        "cctvCheck"
-      );
-
       // Dynamically determine which schemes have data (issues or comments)
       const schemeIds = [];
 
@@ -105,6 +100,15 @@ class StaffService {
 
       // Use the first scheme as the primary schemeId for backward compatibility
       const schemeId = schemeIds[0];
+
+      // Check if this is a demo submission (only has DMO1 scheme)
+      const isDemo = schemeIds.length === 1 && schemeIds[0] === DEMO_SCHEME_ID;
+
+      // Generate reference ID (with separate counter for demo)
+      const referenceId = await referenceIdService.generateReferenceId(
+        "cctvCheck",
+        isDemo
+      );
 
       const formsRef = collection(db, "cctvCheckForms");
       const docRef = await addDoc(formsRef, {
@@ -288,13 +292,17 @@ class StaffService {
 
   async submitIncidentReport(formData, userId, userName) {
     try {
-      // Generate reference ID
-      const referenceId = await referenceIdService.generateReferenceId(
-        "incident"
-      );
-
       // Extract schemeId from scheme field (e.g., "A417 Missing Link - Kier" -> "A417")
       const schemeId = extractSchemeId(formData.scheme);
+
+      // Check if this is a demo submission
+      const isDemo = schemeId === DEMO_SCHEME_ID;
+
+      // Generate reference ID (with separate counter for demo)
+      const referenceId = await referenceIdService.generateReferenceId(
+        "incident",
+        isDemo
+      );
 
       const reportsRef = collection(db, "incidentReports");
       const docRef = await addDoc(reportsRef, {
@@ -698,13 +706,17 @@ class StaffService {
 
   async submitAssetDamageReport(formData, userId, userName) {
     try {
-      // Generate reference ID
-      const referenceId = await referenceIdService.generateReferenceId(
-        "assetDamage"
-      );
-
       // Extract schemeId from scheme field
       const schemeId = extractSchemeId(formData.scheme);
+
+      // Check if this is a demo submission
+      const isDemo = schemeId === DEMO_SCHEME_ID;
+
+      // Generate reference ID (with separate counter for demo)
+      const referenceId = await referenceIdService.generateReferenceId(
+        "assetDamage",
+        isDemo
+      );
 
       const reportsRef = collection(db, "assetDamageReports");
       const docRef = await addDoc(reportsRef, {
@@ -872,7 +884,13 @@ class StaffService {
       const snapshot = await getDocs(dateQuery);
       let existingReport = null;
 
-      // Find existing report with matching date
+      // Determine if the new submission is from a demo scheme
+      const newSubmissionSchemeId = formData.occurrences[0]?.scheme
+        ? extractSchemeId(formData.occurrences[0].scheme)
+        : null;
+      const isNewSubmissionDemo = newSubmissionSchemeId === DEMO_SCHEME_ID;
+
+      // Find existing report with matching date AND same demo/real status
       for (const docSnap of snapshot.docs) {
         const data = docSnap.data();
         if (data.occurrences && data.occurrences.length > 0) {
@@ -881,8 +899,17 @@ class StaffService {
             (occ) => occ.date === firstOccurrenceDate
           );
           if (hasMatchingDate) {
-            existingReport = { id: docSnap.id, ...data };
-            break;
+            // Check if existing report is demo or real
+            const existingSchemeId = data.occurrences[0]?.scheme
+              ? extractSchemeId(data.occurrences[0].scheme)
+              : null;
+            const isExistingDemo = existingSchemeId === DEMO_SCHEME_ID;
+
+            // Only merge if both are demo OR both are real (not mixed)
+            if (isNewSubmissionDemo === isExistingDemo) {
+              existingReport = { id: docSnap.id, ...data };
+              break;
+            }
           }
         }
       }
@@ -943,8 +970,10 @@ class StaffService {
       }
 
       // No existing report found - create a new one
+      // Generate reference ID (with separate counter for demo)
       const referenceId = await referenceIdService.generateReferenceId(
-        "dailyOccurrence"
+        "dailyOccurrence",
+        isNewSubmissionDemo
       );
 
       // Extract unique schemeIds from all occurrences
