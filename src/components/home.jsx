@@ -21,7 +21,7 @@ const home = () => {
           <div className="container max-w-7xl mx-auto px-4 py-4 lg:px-8">
             <div className=" text-white mb-8 max-w-6xl">
               <h1 className="mb-5 text-center sm:text-left lg:text-left">
-                LENSE: The Robust Solution Empowering Chellan Highways Safety Services Ltd clients.
+                LENSE: The Robust Solution Empowering Chellan Highways Safety Services Ltd clients. Test
               </h1>
               <p className="mb-5 text-center sm:text-left lg:text-left">
                 Access real-time & control for your highway schemes.
