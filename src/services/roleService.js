@@ -1,11 +1,11 @@
-import { firestoreService } from './firestoreService';
-import { AppError } from '../utils/errorHandling';
+import { firestoreService } from "./firestoreService";
+import { AppError } from "../utils/errorHandling";
 
 class RoleService {
   async completeGoogleSignUpWithRole(user, role, additionalData) {
     // After Google sign-in, create user document with selected role
-    if (!['staff', 'client', 'liveoperator'].includes(role)) {
-      throw new AppError('Invalid role selection', 'role/invalid');
+    if (!["staff", "client", "liveoperator"].includes(role)) {
+      throw new AppError("Invalid role selection", "role/invalid");
     }
 
     await firestoreService.createUserDocument(user.uid, {
@@ -14,17 +14,17 @@ class RoleService {
       emailVerified: user.emailVerified,
       ...additionalData,
       metadata: {
-        signInMethod: 'google',
+        signInMethod: "google",
         ipAddress: null,
-        userAgent: navigator.userAgent
-      }
+        userAgent: navigator.userAgent,
+      },
     });
   }
 
   async requestAdminCreation(adminUid, newAdminEmail) {
     // This would create a request for another admin to approve
     // Implementation depends on workflow requirements
-    throw new AppError('Not implemented', 'role/not-implemented');
+    throw new AppError("Not implemented", "role/not-implemented");
   }
 }
 
