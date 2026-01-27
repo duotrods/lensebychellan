@@ -1,19 +1,22 @@
 export const USER_ROLES = {
   ADMIN: 'admin',
   STAFF: 'staff',
-  CLIENT: 'client'
+  CLIENT: 'client',
+  LIVEOPERATOR: 'liveoperator'
 };
 
 export const ROLE_LABELS = {
   admin: 'Administrator',
   staff: 'Staff Member',
-  client: 'Client'
+  client: 'Client',
+  liveoperator: 'Live Operator'
 };
 
 export const DASHBOARD_ROUTES = {
   admin: '/dashboard/admin',
   staff: '/dashboard/staff',
-  client: '/dashboard/client'
+  client: '/dashboard/client',
+  liveoperator: '/dashboard/liveoperator'
 };
 
 export const AUTH_ERRORS = {

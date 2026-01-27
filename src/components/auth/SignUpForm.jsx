@@ -38,7 +38,7 @@ const SignUpForm = () => {
 
     // Validate OTP code for both clients and staff
     if (!formData.otpCode.trim()) {
-      const codeType = formData.role === USER_ROLES.CLIENT ? "Scheme Access Code" : "Staff Invite Code";
+      const codeType = formData.role === USER_ROLES.CLIENT ? "Scheme Access Code" : "Invite Code";
       toast.error(`${codeType} is required for registration`);
       return;
     }
@@ -59,6 +59,13 @@ const SignUpForm = () => {
         );
       } else if (formData.role === USER_ROLES.STAFF) {
         await authService.signUpStaffWithOTP(
+          formData.email,
+          formData.password,
+          userData,
+          formData.otpCode
+        );
+      } else if (formData.role === USER_ROLES.LIVEOPERATOR) {
+        await authService.signUpLiveOperatorWithOTP(
           formData.email,
           formData.password,
           userData,
@@ -164,6 +171,9 @@ const SignUpForm = () => {
             </option>
             <option value={USER_ROLES.STAFF}>
               {ROLE_LABELS[USER_ROLES.STAFF]}
+            </option>
+            <option value={USER_ROLES.LIVEOPERATOR}>
+              {ROLE_LABELS[USER_ROLES.LIVEOPERATOR]}
             </option>
           </select>
         </div>

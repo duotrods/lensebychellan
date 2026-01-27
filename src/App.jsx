@@ -54,6 +54,9 @@ import CCTVCheckDetailPage from './pages/admin/CCTVCheckDetailPage';
 import AssetDamageDetailPage from './pages/admin/AssetDamageDetailPage';
 import DailyLogsDetailPage from './pages/admin/DailyLogsDetailPage';
 
+// Live Operator pages
+import LiveOperatorIncidentDetailPage from './pages/liveoperator/IncidentDetailPage';
+
 // Client pages
 import AnalyticsPage from './pages/client/AnalyticsPage';
 import ReportsPage from './pages/client/ReportsPage';
@@ -294,6 +297,25 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                   <CCTVUploadsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Live Operator Routes */}
+            <Route
+              path="/dashboard/liveoperator"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.LIVEOPERATOR]}>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/liveoperator/incident/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.LIVEOPERATOR]}>
+                  <LiveOperatorIncidentDetailPage />
                 </ProtectedRoute>
               }
             />
