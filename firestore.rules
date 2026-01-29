@@ -74,17 +74,19 @@ service cloud.firestore {
       allow get: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
+        getUserRole() == 'liveoperator' ||
         (getUserRole() == 'client' && (
           hasSchemeAccess(resource.data.schemeIds) ||
           hasOldSchemeAccess(resource.data.schemeId)
         ))
       );
 
-      // List/query documents - allow clients to query their schemes
+      // List/query documents - allow clients and live operators to query
       allow list: if isSignedIn() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        getUserRole() == 'client'
+        getUserRole() == 'client' ||
+        getUserRole() == 'liveoperator'
       );
 
       allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');

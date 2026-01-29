@@ -290,7 +290,7 @@ class StaffService {
   // INCIDENT REPORTS
   // ============================================
 
-  async submitIncidentReport(formData, userId, userName) {
+  async submitIncidentReport(formData, userId, userName, status = "submitted") {
     try {
       // Extract schemeId from scheme field (e.g., "A417 Missing Link - Kier" -> "A417")
       const schemeId = extractSchemeId(formData.scheme);
@@ -314,7 +314,7 @@ class StaffService {
           userId,
           name: userName,
         },
-        status: "submitted",
+        status, // Use the provided status (defaults to "submitted", can be "live")
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

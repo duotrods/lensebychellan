@@ -31,7 +31,7 @@ const LiveOperatorDashboard = () => {
     }
   };
 
-  const liveIncidents = incidents.filter(r => r.status !== 'completed');
+  const liveIncidents = incidents.filter(r => r.status === 'live');
   const completedIncidents = incidents.filter(r => r.status === 'completed');
 
   const formatTime = (dateValue) => {
