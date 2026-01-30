@@ -598,7 +598,7 @@ const IncidentReportFormPage = () => {
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"
-            accept="image/*,video/*,.pdf"
+            accept="image/*"
           />
           <label htmlFor="file-upload" className="cursor-pointer">
             <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />

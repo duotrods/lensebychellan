@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import NoticeBoard from '../staff/NoticeBoard';
-import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Download, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Download, Search, Filter, ChevronLeft, ChevronRight, Radio, CheckCircle, Forward, FilePlus, FilePlus2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { isDemoUser, DEMO_SCHEME_ID } from '../../utils/schemes';
@@ -405,6 +405,7 @@ const NewStaffDashboard = () => {
                       <th className="text-left text-white">Created By</th>
                       <th className="text-left text-white">Scheme</th>
                       <th className="text-left text-white">Date & Time</th>
+                      <th className="text-center text-white"> Status </th>
                       <th className="text-center text-white">Actions</th>
                     </tr>
                   </thead>
@@ -454,14 +455,32 @@ const NewStaffDashboard = () => {
                             <div className="text-gray-400">{getFormTime(form)}</div>
                           </td>
                           <td>
+                            <div className="flex items-center justify-center gap-2 font-semibold">
+                              {form.type === 'Incident Report' && form.status === 'live' && (
+                              <div className="badge badge-error badge-soft">
+                                <Radio className="w-4 h-4 text-red-500" />
+                                Live
+                              </div>
+                            )}
+                            {form.type === 'Incident Report' && form.status === 'completed' &&(
+                              <div className="badge badge-success badge-soft">
+                                <CheckCircle className="w-4 h-4 text-brand-400" />
+                                Completed
+                              </div>
+                            )}
+                            </div>
+                          </td>
+                          <td>
                             <div className="flex items-center justify-center gap-2">
+                              {form.type === 'Incident Report' && form.status === 'live' ? (
                               <button
-                                onClick={() => handleViewForm(form)}
-                                className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
-                                title="View"
+                                onClick={() => handleEditForm(form)}
+                                className="btn btn-sm btn-ghost text-red-500 hover:text-red-800"
+                                title="Edit"
                               >
-                                <Eye className="w-4 h-4" />
+                                <FilePlus2 className="w-4 h-4" />
                               </button>
+                              ):(
                               <button
                                 onClick={() => handleEditForm(form)}
                                 className="btn btn-sm btn-ghost text-green-600 hover:text-green-800"
@@ -469,6 +488,15 @@ const NewStaffDashboard = () => {
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
+                              )}
+                              <button
+                                onClick={() => handleViewForm(form)}
+                                className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
+                                title="View"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              
                               <button
                                 onClick={() => handleDownloadForm(form)}
                                 className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
