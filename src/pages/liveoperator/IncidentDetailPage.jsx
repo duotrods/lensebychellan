@@ -381,22 +381,21 @@ const IncidentDetailPage = () => {
                 </div>
               </div>
 
-              {/* Files */}
+              {/* Attached Images */}
               {report.files && report.files.length > 0 && (
                 <div className="mb-8 pb-8 border-b">
-                  <h4 className="text-lg font-bold text-gray-800 mb-4">Attached Files</h4>
-                  <div className="space-y-2">
+                  <h4 className="text-lg font-bold text-gray-800 mb-4">Attached Images</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {report.files.map((file, index) => (
-                      <a
+                      <img
                         key={index}
-                        href={file.downloadUrl}
+                        src={file.downloadUrl}
+                        alt={file.fileName}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <FileText className="w-5 h-5 text-teal-600" />
-                        <span className="text-sm font-medium text-gray-800">{file.fileName}</span>
-                      </a>
+                        className="w-full h-48 object-cover rounded-lg"
+                        loading="lazy"
+                      />
                     ))}
                   </div>
                 </div>
