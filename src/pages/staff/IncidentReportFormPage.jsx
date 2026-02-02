@@ -24,6 +24,7 @@ const IncidentReportFormPage = () => {
   // Step management: 1 = initial report, 2 = complete report
   const [currentStep, setCurrentStep] = useState(1);
   const [isEditingLiveIncident, setIsEditingLiveIncident] = useState(false);
+  const [liveIncidentId, setLiveIncidentId] = useState(null);
 
   // Helper function to format date as DD/MM/YYYY
   const formatDateToBritish = (date) => {
@@ -315,15 +316,19 @@ const IncidentReportFormPage = () => {
       };
 
       // Submit as live incident
-      await staffService.submitIncidentReport(
+      const newIncidentId = await staffService.submitIncidentReport(
         step1Data,
         userProfile.uid,
         userProfile.displayName,
         "live" // Status = live
       );
 
-      toast.success("Live Incident created! You can complete the report later.");
-      navigate("/dashboard/staff");
+      toast.success("Live Incident created! Please complete the full report.");
+
+      // Store the new incident ID and continue to Step 2
+      setLiveIncidentId(newIncidentId);
+      setIsEditingLiveIncident(true);
+      setCurrentStep(2);
     } catch (error) {
       console.error("Error submitting Step 1:", error);
       toast.error("Failed to create live incident. Please try again.");
@@ -347,7 +352,10 @@ const IncidentReportFormPage = () => {
       const uploadedFiles = await uploadFiles();
       const dataWithTimings = calculateTimeDifferences(formData);
 
-      if (editId) {
+      // Use editId from URL or liveIncidentId from state
+      const incidentId = editId || liveIncidentId;
+
+      if (incidentId) {
         // Update existing form
         const updateData = { ...dataWithTimings };
 
@@ -363,7 +371,7 @@ const IncidentReportFormPage = () => {
         }
 
         await staffService.updateIncidentReport(
-          editId,
+          incidentId,
           updateData,
           userProfile.uid,
           userProfile.displayName
@@ -638,13 +646,6 @@ const IncidentReportFormPage = () => {
           Cancel
         </button>
         <div className="flex gap-4">
-          <button
-            type="button"
-            onClick={() => setCurrentStep(2)}
-            className="px-6 py-3 border border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 transition-colors"
-          >
-            Skip to Full Form
-          </button>
           <button
             type="submit"
             disabled={loading || uploadingFiles}
