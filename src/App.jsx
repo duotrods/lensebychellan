@@ -65,6 +65,7 @@ import ClientIncidentReportView from './pages/client/IncidentReportView';
 import ClientAssetDamageView from './pages/client/AssetDamageView';
 import ClientDailyOccurrenceView from './pages/client/DailyOccurrenceView';
 import ClientCCTVCheckView from './pages/client/CCTVCheckView';
+import ClientLiveIncidentsPage from './pages/client/LiveIncidentsPage';
 
 import { USER_ROLES } from './utils/constants';
 import './index.css';
@@ -325,6 +326,24 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/client/live-incidents"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientLiveIncidentsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/client/incident/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientIncidentReportView />
                 </ProtectedRoute>
               }
             />

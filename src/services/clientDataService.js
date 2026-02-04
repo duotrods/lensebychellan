@@ -11,6 +11,63 @@ import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
 
 class ClientDataService {
+  // Get live incidents for a specific scheme
+  async getLiveIncidentsByScheme(schemeId) {
+    try {
+      const incidentsRef = collection(db, "incidentReports");
+
+      try {
+        // Try compound query (requires index on schemeIds + status + createdAt)
+        const q = query(
+          incidentsRef,
+          where("schemeIds", "array-contains", schemeId),
+          where("status", "==", "live"),
+          orderBy("createdAt", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+      } catch (indexError) {
+        // If index doesn't exist, fall back to fetching by scheme and filtering in memory
+        if (
+          indexError.code === "failed-precondition" ||
+          indexError.message?.includes("index")
+        ) {
+          console.warn(
+            "Index not available for live incidents query, filtering in memory"
+          );
+          const simpleQuery = query(
+            incidentsRef,
+            where("schemeIds", "array-contains", schemeId)
+          );
+          const snapshot = await getDocs(simpleQuery);
+          const docs = snapshot.docs
+            .map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }))
+            .filter((doc) => doc.status === "live")
+            .sort((a, b) => {
+              const timeA = a.createdAt?.seconds || 0;
+              const timeB = b.createdAt?.seconds || 0;
+              return timeB - timeA;
+            });
+          return docs;
+        }
+        throw indexError;
+      }
+    } catch (error) {
+      console.error("Error fetching live incidents:", error);
+      throw new AppError(
+        "Failed to fetch live incidents",
+        "client-data/fetch-error",
+        error
+      );
+    }
+  }
+
   // Get incidents for a specific scheme
   async getSchemeIncidents(schemeId, limitCount = 100) {
     try {
@@ -22,7 +79,7 @@ class ClientDataService {
           incidentsRef,
           where("schemeIds", "array-contains", schemeId),
           orderBy("createdAt", "desc"),
-          limit(limitCount)
+          limit(limitCount),
         );
         const querySnapshot = await getDocs(q);
         const results = querySnapshot.docs.map((doc) => ({
@@ -30,7 +87,7 @@ class ClientDataService {
           ...doc.data(),
         }));
         console.log(
-          `Found ${results.length} incidents for scheme ${schemeId} using array-contains`
+          `Found ${results.length} incidents for scheme ${schemeId} using array-contains`,
         );
         return results;
       } catch (indexError) {
@@ -41,12 +98,12 @@ class ClientDataService {
         ) {
           // If index doesn't exist, try without ordering
           console.warn(
-            "Index not available for incidentReports, trying simplified query"
+            "Index not available for incidentReports, trying simplified query",
           );
           const simpleQuery = query(
             incidentsRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(limitCount)
+            limit(limitCount),
           );
           const snapshot = await getDocs(simpleQuery);
           const docs = snapshot.docs.map((doc) => ({
@@ -54,14 +111,14 @@ class ClientDataService {
             ...doc.data(),
           }));
           console.log(
-            `Found ${docs.length} incidents for scheme ${schemeId} (simplified query)`
+            `Found ${docs.length} incidents for scheme ${schemeId} (simplified query)`,
           );
           if (docs.length > 0) {
             console.log(
               "Sample incident schemeIds:",
               docs[0].schemeIds,
               "Sample incident data:",
-              docs[0]
+              docs[0],
             );
           }
           // Sort in memory
@@ -79,7 +136,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch scheme incidents",
         "client-data/fetch-error",
-        error
+        error,
       );
     }
   }
@@ -94,7 +151,7 @@ class ClientDataService {
           cctvRef,
           where("schemeIds", "array-contains", schemeId),
           orderBy("createdAt", "desc"),
-          limit(limitCount)
+          limit(limitCount),
         );
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => ({
@@ -108,12 +165,12 @@ class ClientDataService {
           indexError.message?.includes("index")
         ) {
           console.warn(
-            "Index not available for cctvCheckForms, trying simplified query"
+            "Index not available for cctvCheckForms, trying simplified query",
           );
           const simpleQuery = query(
             cctvRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(limitCount)
+            limit(limitCount),
           );
           const snapshot = await getDocs(simpleQuery);
           const docs = snapshot.docs.map((doc) => ({
@@ -133,7 +190,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch CCTV checks",
         "client-data/fetch-error",
-        error
+        error,
       );
     }
   }
@@ -148,7 +205,7 @@ class ClientDataService {
           logsRef,
           where("schemeIds", "array-contains", schemeId),
           orderBy("createdAt", "desc"),
-          limit(limitCount)
+          limit(limitCount),
         );
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => ({
@@ -162,12 +219,12 @@ class ClientDataService {
           indexError.message?.includes("index")
         ) {
           console.warn(
-            "Index not available for dailyOccurrenceReports, trying simplified query"
+            "Index not available for dailyOccurrenceReports, trying simplified query",
           );
           const simpleQuery = query(
             logsRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(limitCount)
+            limit(limitCount),
           );
           const snapshot = await getDocs(simpleQuery);
           const docs = snapshot.docs.map((doc) => ({
@@ -187,7 +244,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch daily logs",
         "client-data/fetch-error",
-        error
+        error,
       );
     }
   }
@@ -203,7 +260,7 @@ class ClientDataService {
       const incidentsQuery = query(
         incidentsRef,
         where("schemeIds", "array-contains", schemeId),
-        where("createdAt", ">=", Timestamp.fromDate(startDate))
+        where("createdAt", ">=", Timestamp.fromDate(startDate)),
       );
       const incidentsSnapshot = await getDocs(incidentsQuery);
       const incidents = incidentsSnapshot.docs.map((doc) => doc.data());
@@ -222,11 +279,11 @@ class ClientDataService {
         trackOfIncident: this.groupByField(incidents, "track"),
         emergencyServices: this.groupByFieldArray(
           incidents,
-          "emergencyServices"
+          "emergencyServices",
         ), // Array field
         timeToRecover: this.groupByCalculatedTime(
           incidents,
-          "timeOnsiteToCleared"
+          "timeOnsiteToCleared",
         ), // Time from on site to cleared (pre-calculated)
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"), // Time from spotted to on site (pre-calculated)
         incursions: incidents.filter((i) => i.incursion === "YES").length, // Check for 'YES' string
@@ -243,7 +300,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch scheme stats",
         "client-data/stats-error",
-        error
+        error,
       );
     }
   }
@@ -485,7 +542,7 @@ class ClientDataService {
       const q = query(
         cctvRef,
         where("schemeIds", "array-contains", schemeId),
-        where("createdAt", ">=", Timestamp.fromDate(thirtyDaysAgo))
+        where("createdAt", ">=", Timestamp.fromDate(thirtyDaysAgo)),
       );
 
       const querySnapshot = await getDocs(q);
@@ -496,7 +553,7 @@ class ClientDataService {
       }
 
       const workingChecks = checks.filter(
-        (check) => check.status === "operational" || check.allWorking === true
+        (check) => check.status === "operational" || check.allWorking === true,
       );
       const uptime = ((workingChecks.length / checks.length) * 100).toFixed(1);
 
@@ -522,7 +579,7 @@ class ClientDataService {
         incidentsRef,
         where("schemeIds", "array-contains", schemeId),
         where("createdAt", ">=", Timestamp.fromDate(startDate)),
-        orderBy("createdAt", "asc")
+        orderBy("createdAt", "asc"),
       );
 
       const querySnapshot = await getDocs(q);
@@ -558,7 +615,7 @@ class ClientDataService {
   // Helper: Get week number
   getWeekNumber(date) {
     const d = new Date(
-      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
     );
     const dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
@@ -586,21 +643,25 @@ class ClientDataService {
           incidentsRef,
           where("schemeIds", "array-contains", schemeId),
           where("createdAt", ">=", Timestamp.fromDate(startDate)),
-          where("createdAt", "<=", Timestamp.fromDate(endDate))
+          where("createdAt", "<=", Timestamp.fromDate(endDate)),
         );
         const incidentsSnapshot = await getDocs(incidentsQuery);
         incidents = incidentsSnapshot.docs.map((doc) => doc.data());
-        console.log(`Found ${incidents.length} incidents for scheme ${schemeId} in date range`);
+        console.log(
+          `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
+        );
       } catch (indexError) {
         // If index doesn't exist, fall back to fetching all and filtering in memory
         if (
           indexError.code === "failed-precondition" ||
           indexError.message?.includes("index")
         ) {
-          console.warn("Index not available for date range query, filtering in memory");
+          console.warn(
+            "Index not available for date range query, filtering in memory",
+          );
           const simpleQuery = query(
             incidentsRef,
-            where("schemeIds", "array-contains", schemeId)
+            where("schemeIds", "array-contains", schemeId),
           );
           const snapshot = await getDocs(simpleQuery);
           const allIncidents = snapshot.docs.map((doc) => doc.data());
@@ -611,7 +672,9 @@ class ClientDataService {
             const incidentDate = incident.createdAt.toDate();
             return incidentDate >= startDate && incidentDate <= endDate;
           });
-          console.log(`Filtered ${incidents.length} incidents from ${allIncidents.length} total for scheme ${schemeId}`);
+          console.log(
+            `Filtered ${incidents.length} incidents from ${allIncidents.length} total for scheme ${schemeId}`,
+          );
         } else {
           throw indexError;
         }
@@ -631,11 +694,11 @@ class ClientDataService {
         trackOfIncident: this.groupByField(incidents, "track"),
         emergencyServices: this.groupByFieldArray(
           incidents,
-          "emergencyServices"
+          "emergencyServices",
         ),
         timeToRecover: this.groupByCalculatedTime(
           incidents,
-          "timeOnsiteToCleared"
+          "timeOnsiteToCleared",
         ),
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"),
         incursions: incidents.filter((i) => i.incursion === "YES").length,
@@ -652,7 +715,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch scheme stats by date range",
         "client-data/stats-error",
-        error
+        error,
       );
     }
   }
@@ -677,7 +740,7 @@ class ClientDataService {
           where("schemeIds", "array-contains", schemeId),
           where("createdAt", ">=", Timestamp.fromDate(startDate)),
           where("createdAt", "<=", Timestamp.fromDate(endDate)),
-          orderBy("createdAt", "asc")
+          orderBy("createdAt", "asc"),
         );
         const querySnapshot = await getDocs(q);
         incidents = querySnapshot.docs.map((doc) => doc.data());
@@ -687,10 +750,12 @@ class ClientDataService {
           indexError.code === "failed-precondition" ||
           indexError.message?.includes("index")
         ) {
-          console.warn("Index not available for time series query, filtering in memory");
+          console.warn(
+            "Index not available for time series query, filtering in memory",
+          );
           const simpleQuery = query(
             incidentsRef,
-            where("schemeIds", "array-contains", schemeId)
+            where("schemeIds", "array-contains", schemeId),
           );
           const snapshot = await getDocs(simpleQuery);
           const allIncidents = snapshot.docs.map((doc) => doc.data());
@@ -757,7 +822,7 @@ class ClientDataService {
         (err) => {
           console.error("Failed to fetch asset damage:", err);
           return [];
-        }
+        },
       );
 
       const dailyLogs = await this.getSchemeDailyLogs(schemeId).catch((err) => {
@@ -769,7 +834,7 @@ class ClientDataService {
         (err) => {
           console.error("Failed to fetch CCTV checks:", err);
           return [];
-        }
+        },
       );
 
       // Transform and combine all reports
@@ -811,7 +876,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch all reports",
         "client-data/reports-error",
-        error
+        error,
       );
     }
   }
@@ -826,7 +891,7 @@ class ClientDataService {
           damageRef,
           where("schemeIds", "array-contains", schemeId),
           orderBy("createdAt", "desc"),
-          limit(limitCount)
+          limit(limitCount),
         );
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => ({
@@ -840,12 +905,12 @@ class ClientDataService {
           indexError.message?.includes("index")
         ) {
           console.warn(
-            "Index not available for assetDamageReports, trying simplified query"
+            "Index not available for assetDamageReports, trying simplified query",
           );
           const simpleQuery = query(
             damageRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(limitCount)
+            limit(limitCount),
           );
           const snapshot = await getDocs(simpleQuery);
           const docs = snapshot.docs.map((doc) => ({
@@ -865,7 +930,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch asset damage reports",
         "client-data/fetch-error",
-        error
+        error,
       );
     }
   }
@@ -880,7 +945,7 @@ class ClientDataService {
           recordingsRef,
           where("schemeIds", "array-contains", schemeId),
           orderBy("uploadedAt", "desc"),
-          limit(limitCount)
+          limit(limitCount),
         );
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => ({
@@ -895,12 +960,12 @@ class ClientDataService {
           indexError.message?.includes("index")
         ) {
           console.warn(
-            "Index not available for cctvUploads, trying simplified query"
+            "Index not available for cctvUploads, trying simplified query",
           );
           const simpleQuery = query(
             recordingsRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(limitCount)
+            limit(limitCount),
           );
           const snapshot = await getDocs(simpleQuery);
           const docs = snapshot.docs.map((doc) => ({
@@ -922,7 +987,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch CCTV recordings",
         "client-data/recordings-error",
-        error
+        error,
       );
     }
   }

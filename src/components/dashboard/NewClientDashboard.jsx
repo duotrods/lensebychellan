@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
@@ -12,7 +13,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { AlertTriangle, Car, Calendar, Download } from "lucide-react";
+import { AlertTriangle, Car, Calendar, Download, Radio, Eye } from "lucide-react";
 import { SCHEMES } from "../../utils/schemes";
 import { DateRangePicker } from 'react-date-range';
 import 'react-date-range/dist/styles.css'; // main css file
@@ -22,6 +23,7 @@ import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
 
 const NewClientDashboard = () => {
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const datePickerRef = useRef(null);
   const dashboardRef = useRef(null);
@@ -97,6 +99,14 @@ const NewClientDashboard = () => {
     queryKey: ['timeSeriesData', schemeId, startDate, endDate],
     queryFn: () => clientDataService.getTimeSeriesDataByDateRange(schemeId, startDate, endDate),
     enabled: !!schemeId && !!startDate && !!endDate,
+  });
+
+  // Cached query for live incidents
+  const { data: liveIncidents = [], isLoading: liveIncidentsLoading } = useQuery({
+    queryKey: ['liveIncidents', schemeId],
+    queryFn: () => clientDataService.getLiveIncidentsByScheme(schemeId),
+    enabled: !!schemeId,
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 
   const loading = statsLoading || uptimeLoading || timeSeriesLoading;
@@ -417,6 +427,30 @@ const NewClientDashboard = () => {
         </div>
       ) : (
         <div ref={dashboardRef}>
+          {/* Live Incidents Link Card */}
+          <div
+            onClick={() => navigate('/dashboard/client/live-incidents')}
+            className="mb-10 bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+          >
+            <div className=" px-6 py-4 flex items-center gap-3">
+              <div className="w-10 h-10rounded-full flex items-center justify-center">
+                <Radio className="w-6 h-6 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <span className="font-semibold text-xl">Live Incidents</span>
+                <p className=" text-sm">View and monitor live incidents for your scheme</p>
+              </div>
+              {liveIncidentsLoading ? (
+                <span className="loading loading-spinner loading-sm text-white"></span>
+              ) : (
+                <span className="bg-red-500 text-white px-4 py-2 rounded-full text-lg font-bold">
+                  {liveIncidents.length} Active
+                </span>
+              )}
+              <Eye className="w-6 h-6 text-red-500" />
+            </div>
+          </div>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
             {statsCards.map((stat, index) => (
@@ -466,7 +500,7 @@ const NewClientDashboard = () => {
 
             {/* Chart 1: Fault */}
             <ChartCard title="Fault">
-                <BarChart data={faultData} margin={{ top: 0, right: 0, left: -30, bottom: 10 }}>
+                <BarChart data={faultData} margin={{ top: 0, right: 0, left: -20, bottom: 10 }}>
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis
                   dataKey="name"
@@ -487,7 +521,7 @@ const NewClientDashboard = () => {
 
             {/* Chart 2: Incident Type */}
             <ChartCard title="Incident Type">
-                <BarChart data={incidentTypeData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
+                <BarChart data={incidentTypeData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
