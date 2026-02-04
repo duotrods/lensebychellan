@@ -466,9 +466,18 @@ const NewClientDashboard = () => {
 
             {/* Chart 1: Fault */}
             <ChartCard title="Fault">
-              <BarChart data={faultData}>
+                <BarChart data={faultData} margin={{ top: 0, right: 0, left: -30, bottom: 10 }}>
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                <XAxis
+                  dataKey="name"
+                  {...commonChartProps.xAxis}
+                  {...(faultData.length >= 7 && {
+                    angle: -45,
+                    textAnchor: "end",
+                    interval: 0,
+                    height: 60,
+                  })}
+                />
                 <YAxis {...commonChartProps.yAxis} />
                 <Tooltip {...commonChartProps.tooltip} />
                 <Legend {...commonChartProps.legend} />
@@ -478,7 +487,7 @@ const NewClientDashboard = () => {
 
             {/* Chart 2: Incident Type */}
             <ChartCard title="Incident Type">
-              <BarChart data={incidentTypeData}>
+                <BarChart data={incidentTypeData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
