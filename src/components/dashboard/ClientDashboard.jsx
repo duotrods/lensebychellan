@@ -21,7 +21,7 @@ const ClientDashboard = () => {
           </div>
           <p className="text-gray-600 mb-4">
             Real-time scheme monitoring with live dashboards and performance insights.
-          </p>
+          </p>D
           <button className="btn btn-sm bg-brand-500 hover:bg-brand-600 text-white">
             View Dashboard
           </button>

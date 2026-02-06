@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Download } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
 import { clientDataService } from '../../services/clientDataService';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
@@ -10,7 +9,6 @@ import { generateReportPDF } from '../../utils/pdfGenerator';
 const IncidentReportView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,15 +19,14 @@ const IncidentReportView = () => {
   const loadReport = async () => {
     try {
       setLoading(true);
-      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const allReports = await clientDataService.getAllReports(activeScheme);
-      const foundReport = allReports.find(r => r.id === id && r.reportType === 'incident');
+      // Use efficient single-document fetch (1 read instead of loading all reports!)
+      const foundReport = await clientDataService.getIncidentById(id);
 
       if (foundReport) {
         setReport(foundReport);
       } else {
         toast.error('Report not found');
-        navigate('/dashboard/client/reports');
+        navigate(-1);
       }
     } catch (error) {
       console.error('Failed to load report:', error);
@@ -126,257 +123,334 @@ const IncidentReportView = () => {
 
         {/* Report Content */}
         <div className="bg-white rounded-xl shadow-md p-8 space-y-6">
-          {/* Basic Information */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-              Basic Information
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* CONDITIONAL RENDER: Show different content based on status */}
+          {report.status === 'live' ? (
+            // ============ LIVE INCIDENT - Show only Step 1 fields ============
+            <>
+              {/* Basic Info for Live Incident */}
               <div>
-                <label className="text-sm font-semibold text-gray-600">Scheme</label>
-                <p className="text-gray-800">{report.scheme || 'N/A'}</p>
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                  Incident Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Scheme</label>
+                    <p className="text-gray-800">{report.scheme || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Section</label>
+                    <p className="text-gray-800">{report.section || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Marker Post</label>
+                    <p className="text-gray-800">{report.markerPost || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Date</label>
+                    <p className="text-gray-800">{report.date || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Name</label>
+                    <p className="text-gray-800">
+                      {report.firstName} {report.lastName}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Time Spotted</label>
+                    <p className="text-gray-800">{report.timeSpotted || 'N/A'}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Section</label>
-                <p className="text-gray-800">{report.section || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Date</label>
-                <p className="text-gray-800">{report.date || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Submitted By</label>
-                <p className="text-gray-800">
-                  {report.submittedBy?.name || `${report.firstName || ''} ${report.lastName || ''}`.trim() || 'N/A'}
+
+              {/* Images for Live Incident */}
+              {report.files && report.files.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                    Attached Images
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {report.files.map((file, index) => (
+                      <img
+                        key={index}
+                        src={file.downloadUrl}
+                        alt={file.fileName}
+                        className="w-full h-48 object-cover rounded-lg"
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Status Indicator */}
+              <div className="bg-yellow-50 rounded-lg p-6">
+                <span className="px-3 py-1 bg-yellow-500 text-white rounded-full text-sm font-medium">
+                  LIVE
+                </span>
+                <p className="text-sm text-gray-600 mt-3">
+                  This incident is currently live. Full details will be available once completed.
                 </p>
               </div>
-              {report.lastEditedBy && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-gray-600">Last Edited By</label>
-                  <p className="text-blue-600">{report.lastEditedBy?.name || 'Unknown'}</p>
+            </>
+          ) : (
+            // ============ COMPLETED INCIDENT - Show all fields ============
+            <>
+              {/* Basic Information */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                  Basic Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Scheme</label>
+                    <p className="text-gray-800">{report.scheme || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Section</label>
+                    <p className="text-gray-800">{report.section || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Date</label>
+                    <p className="text-gray-800">{report.date || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Submitted By</label>
+                    <p className="text-gray-800">
+                      {report.submittedBy?.name || `${report.firstName || ''} ${report.lastName || ''}`.trim() || 'N/A'}
+                    </p>
+                  </div>
+                  {report.lastEditedBy && (
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-semibold text-gray-600">Last Edited By</label>
+                      <p className="text-blue-600">{report.lastEditedBy?.name || 'Unknown'}</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Incident Details */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-              Incident Details
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Incident Details */}
               <div>
-                <label className="text-sm font-semibold text-gray-600">Weather Conditions</label>
-                <p className="text-gray-800">{report.weatherConditions || 'N/A'}</p>
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                  Incident Details
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Weather Conditions</label>
+                    <p className="text-gray-800">{report.weatherConditions || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Traffic Conditions</label>
+                    <p className="text-gray-800">{report.trafficConditions || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">NH Log</label>
+                    <p className="text-gray-800">{report.nhLog || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Collar Number</label>
+                    <p className="text-gray-800">{report.collarNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Incursion</label>
+                    <p className="text-gray-800">{report.incursion || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Reported By</label>
+                    <p className="text-gray-800">{report.reportedBy || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Camera Number</label>
+                    <p className="text-gray-800">{report.cameraNumber || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Marker Post</label>
+                    <p className="text-gray-800">{report.markerPost || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Track</label>
+                    <p className="text-gray-800">{report.track || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Incident Type</label>
+                    <p className="text-gray-800">{report.incidentType || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Fault</label>
+                    <p className="text-gray-800">{report.fault || 'N/A'}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Traffic Conditions</label>
-                <p className="text-gray-800">{report.trafficConditions || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">NH Log</label>
-                <p className="text-gray-800">{report.nhLog || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Collar Number</label>
-                <p className="text-gray-800">{report.collarNumber || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Incursion</label>
-                <p className="text-gray-800">{report.incursion || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Reported By</label>
-                <p className="text-gray-800">{report.reportedBy || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Camera Number</label>
-                <p className="text-gray-800">{report.cameraNumber || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Marker Post</label>
-                <p className="text-gray-800">{report.markerPost || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Track</label>
-                <p className="text-gray-800">{report.track || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Incident Type</label>
-                <p className="text-gray-800">{report.incidentType || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Fault</label>
-                <p className="text-gray-800">{report.fault || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
 
-          {/* Affected Lanes */}
-          {report.affectedLanes && report.affectedLanes.length > 0 && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                Affected Lanes
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {report.affectedLanes.map((lane, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
-                  >
-                    {lane}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Emergency Services */}
-          {report.emergencyServices && report.emergencyServices.length > 0 && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                Emergency Services
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {report.emergencyServices.map((service, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm"
-                  >
-                    {service}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recovery Requested */}
-          {report.recoveryRequested && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                Recovery Requested
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Affected Lanes */}
+              {report.affectedLanes && report.affectedLanes.length > 0 && (
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">Light</label>
-                  <p className="text-gray-800">{report.recoveryRequested.light || 0}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-600">Heavy</label>
-                  <p className="text-gray-800">{report.recoveryRequested.heavy || 0}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-600">IPV</label>
-                  <p className="text-gray-800">{report.recoveryRequested.ipv || 0}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-600">HETOS</label>
-                  <p className="text-gray-800">{report.recoveryRequested.hetos || 0}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Time Information */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-              Time Information
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Time Spotted</label>
-                <p className="text-gray-800">{report.timeSpotted || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Time On Site</label>
-                <p className="text-gray-800">{report.timeOnSite || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Time Cleared</label>
-                <p className="text-gray-800">{report.timeCleared || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-600">Closed Log Collar Number</label>
-                <p className="text-gray-800">{report.closedLogCollar || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Vehicles Involved */}
-          {report.vehicles && report.vehicles.length > 0 && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                Vehicles Involved
-              </h4>
-              <div className="overflow-x-auto">
-                <table className="table w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Type</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Make</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Model</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">VIN</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.vehicles.map((vehicle, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-2">{vehicle.type || 'N/A'}</td>
-                        <td className="px-4 py-2">{vehicle.make || 'N/A'}</td>
-                        <td className="px-4 py-2">{vehicle.model || 'N/A'}</td>
-                        <td className="px-4 py-2">{vehicle.vin || 'N/A'}</td>
-                      </tr>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                    Affected Lanes
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {report.affectedLanes.map((lane, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
+                      >
+                        {lane}
+                      </span>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Description */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-              Description of Incident
-            </h4>
-            <p className="text-gray-800 whitespace-pre-wrap">{report.description || 'N/A'}</p>
-          </div>
-
-          {/* Files */}
-          {report.files && report.files.length > 0 && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                Attachments
-              </h4>
-              <div className="space-y-2">
-                {report.files.map((file, index) => (
-                  <a
-                    key={index}
-                    href={file.downloadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <Download className="w-4 h-4 text-gray-600" />
-                    <span className="text-sm text-gray-800">{file.fileName}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Metadata */}
-          <div className="border-t pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500">
-              <div>
-                <label className="font-semibold">Created:</label> {formatDateTime(report.createdAt)}
-              </div>
-              {report.updatedAt && (
-                <div>
-                  <label className="font-semibold">Last Updated:</label> {formatDateTime(report.updatedAt)}
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
+
+              {/* Emergency Services */}
+              {report.emergencyServices && report.emergencyServices.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                    Emergency Services
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {report.emergencyServices.map((service, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm"
+                      >
+                        {service}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recovery Requested */}
+              {report.recoveryRequested && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                    Recovery Requested
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600">Light</label>
+                      <p className="text-gray-800">{report.recoveryRequested.light || 0}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600">Heavy</label>
+                      <p className="text-gray-800">{report.recoveryRequested.heavy || 0}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600">IPV</label>
+                      <p className="text-gray-800">{report.recoveryRequested.ipv || 0}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600">HETOS</label>
+                      <p className="text-gray-800">{report.recoveryRequested.hetos || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Time Information */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                  Time Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Time Spotted</label>
+                    <p className="text-gray-800">{report.timeSpotted || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Time On Site</label>
+                    <p className="text-gray-800">{report.timeOnSite || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Time Cleared</label>
+                    <p className="text-gray-800">{report.timeCleared || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">Closed Log Collar Number</label>
+                    <p className="text-gray-800">{report.closedLogCollar || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicles Involved */}
+              {report.vehicles && report.vehicles.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                    Vehicles Involved
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="table w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Type</th>
+                          <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Make</th>
+                          <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Model</th>
+                          <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">VIN</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.vehicles.map((vehicle, index) => (
+                          <tr key={index} className="border-b">
+                            <td className="px-4 py-2">{vehicle.type || 'N/A'}</td>
+                            <td className="px-4 py-2">{vehicle.make || 'N/A'}</td>
+                            <td className="px-4 py-2">{vehicle.model || 'N/A'}</td>
+                            <td className="px-4 py-2">{vehicle.vin || 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Description */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                  Description of Incident
+                </h4>
+                <p className="text-gray-800 whitespace-pre-wrap">{report.description || 'N/A'}</p>
+              </div>
+
+              {/* Files */}
+              {report.files && report.files.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                    Attachments
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {report.files.map((file, index) => (
+                      <img
+                        key={index}
+                        src={file.downloadUrl}
+                        alt={file.fileName}
+                        className="w-full h-48 object-cover rounded-lg"
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata */}
+              <div className="border-t pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500">
+                  <div>
+                    <label className="font-semibold">Created:</label> {formatDateTime(report.createdAt)}
+                  </div>
+                  {report.updatedAt && (
+                    <div>
+                      <label className="font-semibold">Last Updated:</label> {formatDateTime(report.updatedAt)}
+                    </div>
+                  )}
+                  <div>
+                    <label className="font-semibold">Status:</label>{' '}
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                      {report.status || 'completed'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </ClientSidebarLayout>

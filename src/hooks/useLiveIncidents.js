@@ -1,0 +1,198 @@
+import { useState, useEffect, useCallback } from "react";
+import { clientDataService } from "../services/clientDataService";
+
+/**
+ * Custom hook for real-time live incidents using Firebase onSnapshot
+ * This is much more cost-effective than polling because:
+ * - Only charges when data actually changes
+ * - No repeated reads every 30 seconds
+ * - Instant updates when incidents change status
+ */
+export function useLiveIncidents(schemeId) {
+  const [liveIncidents, setLiveIncidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!schemeId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Subscribe to real-time updates
+    const unsubscribe = clientDataService.subscribeLiveIncidents(
+      schemeId,
+      (incidents) => {
+        setLiveIncidents(incidents);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error in live incidents subscription:", err);
+        setError(err);
+        setLoading(false);
+      }
+    );
+
+    // Cleanup: unsubscribe when component unmounts or schemeId changes
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [schemeId]);
+
+  return { liveIncidents, loading, error };
+}
+
+/**
+ * Custom hook for real-time scheme incidents (both live and completed)
+ * Uses Firebase onSnapshot for efficient real-time updates
+ */
+export function useSchemeIncidents(schemeId) {
+  const [incidents, setIncidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!schemeId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // Subscribe to real-time updates
+    const unsubscribe = clientDataService.subscribeSchemeIncidents(
+      schemeId,
+      (allIncidents) => {
+        setIncidents(allIncidents);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error in scheme incidents subscription:", err);
+        setError(err);
+        setLoading(false);
+      }
+    );
+
+    // Cleanup: unsubscribe when component unmounts or schemeId changes
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [schemeId]);
+
+  // Derived data: split into live and completed
+  const liveIncidents = incidents.filter((r) => r.status === "live");
+  const completedIncidents = incidents.filter((r) => r.status === "completed");
+
+  return { incidents, liveIncidents, completedIncidents, loading, error };
+}
+
+/**
+ * Hook for paginated completed incidents - TRUE server-side pagination
+ * Only reads 10 documents at a time from Firebase (massive cost savings!)
+ *
+ * Example: 1000 completed incidents
+ * - Old way: 1000 reads every time
+ * - New way: 10 reads per page (only when user navigates)
+ */
+export function usePaginatedCompletedIncidents(schemeId, pageSize = 10) {
+  const [incidents, setIncidents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [cursors, setCursors] = useState([]); // Store cursors for each page
+  const [hasMore, setHasMore] = useState(true);
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // Fetch total count once
+  useEffect(() => {
+    if (!schemeId) return;
+
+    clientDataService.getCompletedIncidentsCount(schemeId)
+      .then(setTotalCount)
+      .catch(console.error);
+  }, [schemeId]);
+
+  // Fetch page data
+  const fetchPage = useCallback(async (page) => {
+    if (!schemeId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Get cursor for previous page (or null for first page)
+      const lastDoc = page > 1 ? cursors[page - 2] : null;
+
+      const result = await clientDataService.getCompletedIncidentsPaginated(
+        schemeId,
+        pageSize,
+        lastDoc
+      );
+
+      setIncidents(result.incidents);
+      setHasMore(result.hasMore);
+
+      // Store cursor for this page
+      if (result.lastDoc) {
+        setCursors(prev => {
+          const newCursors = [...prev];
+          newCursors[page - 1] = result.lastDoc;
+          return newCursors;
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching paginated incidents:", err);
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [schemeId, pageSize, cursors]);
+
+  // Fetch first page on mount
+  useEffect(() => {
+    fetchPage(1);
+  }, [schemeId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Navigation functions
+  const goToNextPage = useCallback(() => {
+    if (currentPage < totalPages && hasMore) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchPage(nextPage);
+    }
+  }, [currentPage, totalPages, hasMore, fetchPage]);
+
+  const goToPrevPage = useCallback(() => {
+    if (currentPage > 1) {
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      fetchPage(prevPage);
+    }
+  }, [currentPage, fetchPage]);
+
+  const goToFirstPage = useCallback(() => {
+    setCurrentPage(1);
+    setCursors([]); // Reset cursors
+    fetchPage(1);
+  }, [fetchPage]);
+
+  return {
+    incidents,
+    loading,
+    error,
+    currentPage,
+    totalPages,
+    totalCount,
+    hasMore,
+    goToNextPage,
+    goToPrevPage,
+    goToFirstPage,
+    pageSize,
+  };
+}

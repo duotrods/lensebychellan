@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
+import { useLiveIncidents } from "../../hooks/useLiveIncidents";
 import { clientDataService } from "../../services/clientDataService";
 import {
   BarChart,
@@ -101,13 +102,8 @@ const NewClientDashboard = () => {
     enabled: !!schemeId && !!startDate && !!endDate,
   });
 
-  // Cached query for live incidents
-  const { data: liveIncidents = [], isLoading: liveIncidentsLoading } = useQuery({
-    queryKey: ['liveIncidents', schemeId],
-    queryFn: () => clientDataService.getLiveIncidentsByScheme(schemeId),
-    enabled: !!schemeId,
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
-  });
+  // Real-time subscription for live incidents (no polling - only charges when data changes)
+  const { liveIncidents, loading: liveIncidentsLoading } = useLiveIncidents(schemeId);
 
   const loading = statsLoading || uptimeLoading || timeSeriesLoading;
 

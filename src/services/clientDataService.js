@@ -6,11 +6,216 @@ import {
   orderBy,
   limit,
   Timestamp,
+  onSnapshot,
+  startAfter,
+  getCountFromServer,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
 
 class ClientDataService {
+  // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
+  subscribeLiveIncidents(schemeId, callback, onError) {
+    const incidentsRef = collection(db, "incidentReports");
+
+    // Query for live incidents only
+    const q = query(
+      incidentsRef,
+      where("schemeIds", "array-contains", schemeId),
+      where("status", "==", "live"),
+      orderBy("createdAt", "desc"),
+      limit(50) // Limit to 50 most recent live incidents
+    );
+
+    // Return unsubscribe function
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const incidents = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(incidents);
+      },
+      (error) => {
+        // If index error, fall back to simpler query
+        if (error.code === "failed-precondition" || error.message?.includes("index")) {
+          console.warn("Index not available for live incidents, using fallback query");
+          const simpleQuery = query(
+            incidentsRef,
+            where("schemeIds", "array-contains", schemeId),
+            limit(100)
+          );
+          return onSnapshot(
+            simpleQuery,
+            (snapshot) => {
+              const incidents = snapshot.docs
+                .map((doc) => ({ id: doc.id, ...doc.data() }))
+                .filter((doc) => doc.status === "live")
+                .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+                .slice(0, 50);
+              callback(incidents);
+            },
+            onError
+          );
+        }
+        if (onError) onError(error);
+      }
+    );
+  }
+
+  // Real-time listener for all scheme incidents (live + completed)
+  subscribeSchemeIncidents(schemeId, callback, onError) {
+    const incidentsRef = collection(db, "incidentReports");
+
+    const q = query(
+      incidentsRef,
+      where("schemeIds", "array-contains", schemeId),
+      orderBy("createdAt", "desc"),
+      limit(100) // Limit to 100 most recent incidents
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const incidents = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(incidents);
+      },
+      (error) => {
+        if (error.code === "failed-precondition" || error.message?.includes("index")) {
+          console.warn("Index not available, using fallback query");
+          const simpleQuery = query(
+            incidentsRef,
+            where("schemeIds", "array-contains", schemeId),
+            limit(100)
+          );
+          return onSnapshot(
+            simpleQuery,
+            (snapshot) => {
+              const incidents = snapshot.docs
+                .map((doc) => ({ id: doc.id, ...doc.data() }))
+                .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+              callback(incidents);
+            },
+            onError
+          );
+        }
+        if (onError) onError(error);
+      }
+    );
+  }
+
+  // Paginated query for completed incidents (only reads 10 docs per page - saves costs!)
+  async getCompletedIncidentsPaginated(schemeId, pageSize = 10, lastDoc = null) {
+    try {
+      const incidentsRef = collection(db, "incidentReports");
+
+      // Build query with cursor if we have a last document
+      let q;
+      if (lastDoc) {
+        q = query(
+          incidentsRef,
+          where("schemeIds", "array-contains", schemeId),
+          where("status", "==", "completed"),
+          orderBy("createdAt", "desc"),
+          startAfter(lastDoc),
+          limit(pageSize)
+        );
+      } else {
+        q = query(
+          incidentsRef,
+          where("schemeIds", "array-contains", schemeId),
+          where("status", "==", "completed"),
+          orderBy("createdAt", "desc"),
+          limit(pageSize)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const incidents = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Return data + last doc for next page cursor
+      return {
+        incidents,
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+        hasMore: snapshot.docs.length === pageSize,
+      };
+    } catch (error) {
+      // Fallback for missing index
+      if (error.code === "failed-precondition" || error.message?.includes("index")) {
+        console.warn("Index not available for paginated query, using fallback");
+        const simpleQuery = query(
+          collection(db, "incidentReports"),
+          where("schemeIds", "array-contains", schemeId),
+          limit(100)
+        );
+        const snapshot = await getDocs(simpleQuery);
+        const allCompleted = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((doc) => doc.status === "completed")
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+        // Manual pagination on filtered results
+        const startIndex = lastDoc ? allCompleted.findIndex(d => d.id === lastDoc.id) + 1 : 0;
+        const incidents = allCompleted.slice(startIndex, startIndex + pageSize);
+
+        return {
+          incidents,
+          lastDoc: incidents.length > 0 ? { id: incidents[incidents.length - 1].id } : null,
+          hasMore: startIndex + pageSize < allCompleted.length,
+        };
+      }
+      throw error;
+    }
+  }
+
+  // Get total count of completed incidents (for pagination display)
+  async getCompletedIncidentsCount(schemeId) {
+    try {
+      const incidentsRef = collection(db, "incidentReports");
+      const q = query(
+        incidentsRef,
+        where("schemeIds", "array-contains", schemeId),
+        where("status", "==", "completed")
+      );
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn("Could not get count:", error);
+      return 0;
+    }
+  }
+
+  // Get a single incident by ID (1 read instead of loading all reports!)
+  async getIncidentById(incidentId) {
+    try {
+      const { doc, getDoc } = await import("firebase/firestore");
+      const docRef = doc(db, "incidentReports", incidentId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        return {
+          id: docSnap.id,
+          ...docSnap.data(),
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching incident by ID:", error);
+      throw new AppError(
+        "Failed to fetch incident",
+        "client-data/fetch-error",
+        error
+      );
+    }
+  }
+
   // Get live incidents for a specific scheme
   async getLiveIncidentsByScheme(schemeId) {
     try {

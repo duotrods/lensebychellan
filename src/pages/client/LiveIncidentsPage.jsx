@@ -1,8 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import { clientDataService } from '../../services/clientDataService';
-import { Eye, Download, Radio, CheckCircle, ArrowLeft } from 'lucide-react';
+import { useLiveIncidents, usePaginatedCompletedIncidents } from '../../hooks/useLiveIncidents';
+import { Eye, Download, Radio, CheckCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { SCHEMES } from "../../utils/schemes";
@@ -30,16 +29,22 @@ const LiveIncidentsPage = () => {
       return userProfile?.schemeName;
     };
 
-  // Query for all incidents for this scheme
-  const { data: incidents = [], isLoading: loading } = useQuery({
-    queryKey: ['schemeIncidents', schemeId],
-    queryFn: () => clientDataService.getSchemeIncidents(schemeId),
-    enabled: !!schemeId,
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
-  });
+  // Real-time subscription for LIVE incidents only (instant updates)
+  const { liveIncidents, loading: liveLoading } = useLiveIncidents(schemeId);
 
-  const liveIncidents = incidents.filter(r => r.status === 'live');
-  const completedIncidents = incidents.filter(r => r.status === 'completed');
+  // Server-side paginated completed incidents (only reads 10 docs per page!)
+  const {
+    incidents: completedIncidents,
+    loading: completedLoading,
+    currentPage,
+    totalPages,
+    totalCount,
+    goToNextPage,
+    goToPrevPage,
+    pageSize,
+  } = usePaginatedCompletedIncidents(schemeId, 10);
+
+  const loading = liveLoading;
 
   const formatTime = (dateValue) => {
     if (!dateValue) return 'N/A';
@@ -178,71 +183,104 @@ const LiveIncidentsPage = () => {
                   </div>
                   <span className="text-white font-semibold text-2xl">Completed Incidents</span>
                   <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
-                    {completedIncidents.length} Total
+                    {totalCount} Total
                   </span>
                 </div>
 
                 <div className="bg-white shadow-xs rounded-b-lg flex-1 overflow-hidden border border-t-0 border-gray-100">
-                  {completedIncidents.length === 0 ? (
+                  {completedLoading ? (
+                    <div className="p-6 flex justify-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                    </div>
+                  ) : completedIncidents.length === 0 ? (
                     <div className="p-6 text-center text-slate-400">
                       No completed incidents yet
                     </div>
                   ) : (
-                    <div className="divide-y divide-gray-100 overflow-y-auto">
-                      {completedIncidents.map((incident) => {
-                        const duration = calculateDuration(incident.timeSpotted, incident.timeCleared);
-                        return (
-                          <div
-                            key={incident.id}
-                            className="px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                            onClick={() => handleViewIncident(incident)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <span className="text-black font-mono">
-                                  {incident.timeSpotted || formatTime(incident.createdAt)}
-                                </span>
-                                <span className="text-green-500 font-bold">|</span>
-                                <span className="font-mono">
-                                  Cleared: {incident.timeCleared || 'N/A'}
-                                </span>
-                                <span className="text-green-500 font-bold">|</span>
-                                <span className="text-black font-medium">
-                                  {incident.referenceId || `Incident #${incident.id.slice(0, 4)}`}
-                                </span>
+                    <>
+                      <div className="divide-y divide-gray-100 overflow-y-auto">
+                        {completedIncidents.map((incident) => {
+                          const duration = calculateDuration(incident.timeSpotted, incident.timeCleared);
+                          return (
+                            <div
+                              key={incident.id}
+                              className="px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                              onClick={() => handleViewIncident(incident)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="text-black font-mono">
+                                    {incident.timeSpotted || formatTime(incident.createdAt)}
+                                  </span>
+                                  <span className="text-green-500 font-bold">|</span>
+                                  <span className="font-mono">
+                                    Cleared: {incident.timeCleared || 'N/A'}
+                                  </span>
+                                  <span className="text-green-500 font-bold">|</span>
+                                  <span className="text-black font-medium">
+                                    {incident.referenceId || `Incident #${incident.id.slice(0, 4)}`}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => handleDownloadPDF(incident, e)}
+                                    className="p-1.5 hover:bg-gray-200 rounded text-purple-500 hover:text-purple-600"
+                                    title="Download PDF"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
+                                    title="View Details"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={(e) => handleDownloadPDF(incident, e)}
-                                  className="p-1.5 hover:bg-gray-200 rounded text-purple-500 hover:text-purple-600"
-                                  title="Download PDF"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                                <button
-                                  className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
-                                  title="View Details"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
+                              <div className="flex items-center justify-between mt-1">
+                                {incident.incidentType && (
+                                  <p className="text-slate-400 text-sm">
+                                    {incident.incidentType}
+                                  </p>
+                                )}
+                                {duration && (
+                                  <span className="text-slate-400 text-sm">
+                                    Duration: <span className="text-black font-semibold">{duration}</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-1">
-                              {incident.incidentType && (
-                                <p className="text-slate-400 text-sm">
-                                  {incident.incidentType}
-                                </p>
-                              )}
-                              {duration && (
-                                <span className="text-slate-400 text-sm">
-                                  Duration: <span className="text-black font-semibold">{duration}</span>
-                                </span>
-                              )}
-                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
+                          <span className="text-sm text-gray-500">
+                            Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={goToPrevPage}
+                              disabled={currentPage === 1}
+                              className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <span className="text-sm font-medium px-2">
+                              {currentPage} / {totalPages}
+                            </span>
+                            <button
+                              onClick={goToNextPage}
+                              disabled={currentPage === totalPages}
+                              className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <ChevronRight className="w-5 h-5" />
+                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
