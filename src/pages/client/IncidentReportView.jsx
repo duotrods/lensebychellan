@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Image, X } from 'lucide-react';
 import { clientDataService } from '../../services/clientDataService';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
@@ -11,6 +11,24 @@ const IncidentReportView = () => {
   const navigate = useNavigate();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadedImages, setLoadedImages] = useState({}); // Track which images are loaded
+  const [viewingImage, setViewingImage] = useState(null); // For fullscreen view
+
+  // Load image on demand (saves Firebase Storage bandwidth!)
+  const handleLoadImage = (index) => {
+    setLoadedImages(prev => ({ ...prev, [index]: true }));
+  };
+
+  // Load all images at once
+  const handleLoadAllImages = () => {
+    if (report?.files) {
+      const allLoaded = {};
+      report.files.forEach((_, index) => {
+        allLoaded[index] = true;
+      });
+      setLoadedImages(allLoaded);
+    }
+  };
 
   useEffect(() => {
     loadReport();
@@ -162,21 +180,54 @@ const IncidentReportView = () => {
                 </div>
               </div>
 
-              {/* Images for Live Incident */}
+              {/* Images for Live Incident - Lazy loaded to save bandwidth */}
               {report.files && report.files.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                    Attached Images
-                  </h4>
+                  <div className="flex items-center justify-between mb-4 border-b pb-2">
+                    <h4 className="text-lg font-semibold text-gray-800">
+                      Attached Images ({report.files.length})
+                    </h4>
+                    {Object.keys(loadedImages).length < report.files.length && (
+                      <button
+                        onClick={handleLoadAllImages}
+                        className="text-sm text-teal-600 hover:text-teal-700 font-medium"
+                      >
+                        Load All Images
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {report.files.map((file, index) => (
-                      <img
-                        key={index}
-                        src={file.downloadUrl}
-                        alt={file.fileName}
-                        className="w-full h-48 object-cover rounded-lg"
-                        loading="lazy"
-                      />
+                      <div key={index} className="relative">
+                        {loadedImages[index] ? (
+                          <>
+                            <img
+                              src={file.downloadUrl}
+                              alt={file.fileName}
+                              className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setViewingImage(file.downloadUrl)}
+                            />
+                            <a
+                              href={file.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute bottom-2 right-2 p-2 bg-white/80 rounded-lg hover:bg-white transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Download className="w-4 h-4 text-gray-700" />
+                            </a>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleLoadImage(index)}
+                            className="w-full h-48 bg-gray-100 rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300"
+                          >
+                            <Image className="w-8 h-8 text-gray-400" />
+                            <span className="text-sm text-gray-500">Click to load image</span>
+                            <span className="text-xs text-gray-400">{file.fileName}</span>
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -410,21 +461,54 @@ const IncidentReportView = () => {
                 <p className="text-gray-800 whitespace-pre-wrap">{report.description || 'N/A'}</p>
               </div>
 
-              {/* Files */}
+              {/* Files - Lazy loaded to save bandwidth */}
               {report.files && report.files.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
-                    Attachments
-                  </h4>
+                  <div className="flex items-center justify-between mb-4 border-b pb-2">
+                    <h4 className="text-lg font-semibold text-gray-800">
+                      Attachments ({report.files.length})
+                    </h4>
+                    {Object.keys(loadedImages).length < report.files.length && (
+                      <button
+                        onClick={handleLoadAllImages}
+                        className="text-sm text-teal-600 hover:text-teal-700 font-medium"
+                      >
+                        Load All Images
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {report.files.map((file, index) => (
-                      <img
-                        key={index}
-                        src={file.downloadUrl}
-                        alt={file.fileName}
-                        className="w-full h-48 object-cover rounded-lg"
-                        loading="lazy"
-                      />
+                      <div key={index} className="relative">
+                        {loadedImages[index] ? (
+                          <>
+                            <img
+                              src={file.downloadUrl}
+                              alt={file.fileName}
+                              className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setViewingImage(file.downloadUrl)}
+                            />
+                            <a
+                              href={file.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute bottom-2 right-2 p-2 bg-white/80 rounded-lg hover:bg-white transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Download className="w-4 h-4 text-gray-700" />
+                            </a>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleLoadImage(index)}
+                            className="w-full h-48 bg-gray-100 rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300"
+                          >
+                            <Image className="w-8 h-8 text-gray-400" />
+                            <span className="text-sm text-gray-500">Click to load image</span>
+                            <span className="text-xs text-gray-400">{file.fileName}</span>
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -453,6 +537,37 @@ const IncidentReportView = () => {
           )}
         </div>
       </div>
+
+      {/* Fullscreen Image Viewer Modal */}
+      {viewingImage && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setViewingImage(null)}
+        >
+          <button
+            onClick={() => setViewingImage(null)}
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+          <img
+            src={viewingImage}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <a
+            href={viewingImage}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Download className="w-4 h-4" />
+            Download
+          </a>
+        </div>
+      )}
     </ClientSidebarLayout>
   );
 };
