@@ -12,6 +12,9 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
+  onSnapshot,
+  startAfter,
+  getCountFromServer,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { referenceIdService } from "./referenceIdService";
@@ -465,6 +468,101 @@ class StaffService {
     } catch (error) {
       console.error("Failed to delete incident report:", error);
       throw error;
+    }
+  }
+
+  // ============================================
+  // REAL-TIME SUBSCRIPTIONS (Cost-optimized)
+  // ============================================
+
+  /**
+   * Subscribe to real-time live incidents for Live Operator Dashboard
+   * Uses onSnapshot for instant updates - only charges when data changes
+   * @param {function} callback - Called with array of live incidents
+   * @param {function} onError - Called on error
+   * @returns {function} Unsubscribe function
+   */
+  subscribeLiveIncidents(callback, onError) {
+    const reportsRef = collection(db, "incidentReports");
+    const q = query(
+      reportsRef,
+      where("status", "==", "live"),
+      orderBy("createdAt", "desc"),
+      limit(50) // Reasonable limit for live incidents
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const incidents = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(incidents);
+      },
+      onError
+    );
+  }
+
+  /**
+   * Get count of completed incidents (efficient server-side count)
+   * Uses getCountFromServer - only 1 read regardless of document count
+   */
+  async getCompletedIncidentsCount() {
+    try {
+      const reportsRef = collection(db, "incidentReports");
+      const q = query(reportsRef, where("status", "==", "completed"));
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.error("Failed to get completed incidents count:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get paginated completed incidents - TRUE server-side pagination
+   * Only reads `pageSize` documents per request (massive cost savings!)
+   * @param {number} pageSize - Number of documents per page
+   * @param {DocumentSnapshot|null} lastDoc - Last document from previous page (cursor)
+   * @returns {Promise<{incidents: Array, lastDoc: DocumentSnapshot, hasMore: boolean}>}
+   */
+  async getCompletedIncidentsPaginated(pageSize = 10, lastDoc = null) {
+    try {
+      const reportsRef = collection(db, "incidentReports");
+      let q;
+
+      if (lastDoc) {
+        q = query(
+          reportsRef,
+          where("status", "==", "completed"),
+          orderBy("createdAt", "desc"),
+          startAfter(lastDoc),
+          limit(pageSize)
+        );
+      } else {
+        q = query(
+          reportsRef,
+          where("status", "==", "completed"),
+          orderBy("createdAt", "desc"),
+          limit(pageSize)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const incidents = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      return {
+        incidents,
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+        hasMore: snapshot.docs.length === pageSize,
+      };
+    } catch (error) {
+      console.error("Failed to get paginated completed incidents:", error);
+      return { incidents: [], lastDoc: null, hasMore: false };
     }
   }
 
