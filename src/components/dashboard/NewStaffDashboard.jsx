@@ -22,13 +22,17 @@ const NewStaffDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [cursors, setCursors] = useState({});
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const formsPerPage = 10;
 
   useEffect(() => {
-    loadDashboardData();
+    loadDashboardData(true);
+    loadTotalCount();
   }, [userProfile]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (resetPage = false) => {
     if (!userProfile) return;
 
     try {
@@ -36,26 +40,19 @@ const NewStaffDashboard = () => {
 
       const isDemo = isDemoUser(userProfile);
 
-      // Load latest forms - pass null to get all forms from all staff (no limit)
-      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
-        staffService.getCCTVCheckForms(null),
-        staffService.getIncidentReports(null),
-        staffService.getAssetDamageReports(null),
-        staffService.getDailyOccurrenceReports(null)
-      ]);
+      // Use server-side pagination - only fetch 10 forms
+      const result = await staffService.getAllFormsPaginated(
+        formsPerPage,
+        resetPage ? {} : cursors
+      );
 
-      // Combine and sort by date - show all forms, not just top 7
-      let allForms = [
-        ...cctvForms.map(f => ({ ...f, type: 'CCTV Check Sheet' })),
-        ...incidentReports.map(f => ({ ...f, type: 'Incident Report' })),
-        ...assetDamageReports.map(f => ({ ...f, type: 'Asset Damage' })),
-        ...dailyOccurrenceReports.map(f => ({ ...f, type: 'Daily Occurrence' }))
-      ].sort((a, b) => b.createdAt - a.createdAt);
+      console.log('Loaded forms:', result.forms.length);
 
       // Filter forms based on demo status
+      let filteredForms = result.forms;
       if (isDemo) {
         // Demo user: only show forms that are EXCLUSIVELY demo (only DMO1, no real schemes)
-        allForms = allForms.filter(form => {
+        filteredForms = result.forms.filter(form => {
           // Check schemeIds array first (used by Daily Occurrence and newer forms)
           if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
             // Must contain ONLY DMO1 (no real schemes mixed in)
@@ -71,7 +68,7 @@ const NewStaffDashboard = () => {
         });
       } else {
         // Regular staff: exclude forms that are EXCLUSIVELY demo
-        allForms = allForms.filter(form => {
+        filteredForms = result.forms.filter(form => {
           // Check schemeIds array first (used by Daily Occurrence and newer forms)
           if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
             // Show if it has ANY real scheme (not exclusively demo)
@@ -87,20 +84,36 @@ const NewStaffDashboard = () => {
         });
       }
 
-      // Calculate stats based on filtered forms
+      // Calculate stats based on current page (filtered forms)
       const filteredStats = {
-        cctvCheckTotal: allForms.filter(f => f.type === 'CCTV Check Sheet').length,
-        incidentReportTotal: allForms.filter(f => f.type === 'Incident Report').length,
-        dailyLogsTotal: allForms.filter(f => f.type === 'Daily Occurrence').length,
-        assetDamageTotal: allForms.filter(f => f.type === 'Asset Damage').length,
+        cctvCheckTotal: filteredForms.filter(f => f.type === 'CCTV Check Sheet').length,
+        incidentReportTotal: filteredForms.filter(f => f.type === 'Incident Report').length,
+        dailyLogsTotal: filteredForms.filter(f => f.type === 'Daily Occurrence').length,
+        assetDamageTotal: filteredForms.filter(f => f.type === 'Asset Damage').length,
       };
       setStats(filteredStats);
 
-      setLatestForms(allForms);
+      setLatestForms(filteredForms);
+      setCursors(result.cursors);
+      setHasMore(result.hasMore);
+
+      if (resetPage) {
+        setCurrentPage(1);
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
+      toast.error('Failed to load forms');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTotalCount = async () => {
+    try {
+      const count = await staffService.getAllFormsCount();
+      setTotalCount(count);
+    } catch (error) {
+      console.warn('Could not load total count:', error);
     }
   };
 
@@ -214,6 +227,10 @@ const NewStaffDashboard = () => {
 
   // Get the appropriate time from form
   const getFormTime = (form) => {
+    // For Incident Reports - always use timeSpotted
+    if (form.type === 'Incident Report' && form.timeSpotted) {
+      return form.timeSpotted;
+    }
     // For Daily Occurrence (array-based) - use createdAt time
     if (form.type === 'Daily Occurrence') {
       if (form.createdAt) {
@@ -234,7 +251,7 @@ const NewStaffDashboard = () => {
     return 'N/A';
   };
 
-  // Filter and search forms
+  // Filter and search forms (client-side filtering on current page only)
   const filteredForms = latestForms.filter(form => {
     const submitterName = form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || '';
     const schemeValue = getFormScheme(form).toLowerCase();
@@ -255,11 +272,24 @@ const NewStaffDashboard = () => {
     return matchesSearch && matchesType;
   });
 
-  // Pagination
-  const indexOfLastForm = currentPage * formsPerPage;
-  const indexOfFirstForm = indexOfLastForm - formsPerPage;
-  const currentForms = filteredForms.slice(indexOfFirstForm, indexOfLastForm);
-  const totalPages = Math.ceil(filteredForms.length / formsPerPage);
+  // Server-side pagination
+  const currentForms = filteredForms;
+  const totalPages = Math.ceil(totalCount / formsPerPage);
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (hasMore) {
+      setCurrentPage(prev => prev + 1);
+      loadDashboardData(false);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      loadDashboardData(true); // Reset to refetch from start
+    }
+  };
 
   // Reset to page 1 when search/filter changes
   useEffect(() => {
@@ -517,11 +547,11 @@ const NewStaffDashboard = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing {indexOfFirstForm + 1} to {Math.min(indexOfLastForm, filteredForms.length)} of {filteredForms.length} forms
+                    Showing page {currentPage} of {totalPages} ({totalCount} total forms)
                   </p>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      onClick={handlePrevPage}
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
@@ -531,8 +561,8 @@ const NewStaffDashboard = () => {
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
+                      onClick={handleNextPage}
+                      disabled={!hasMore || currentPage === totalPages}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />

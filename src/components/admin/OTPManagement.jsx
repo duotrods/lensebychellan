@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 import { otpService } from "../../services/otpService";
 import { useAuth } from "../../hooks/useAuth";
 import { SCHEMES } from "../../utils/schemes";
-import { Copy, Plus, CheckCircle, XCircle, RefreshCw, Users, Building2 } from "lucide-react";
+import { Copy, Plus, CheckCircle, XCircle, RefreshCw, Users, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 
 const OTPManagement = () => {
   const { userProfile } = useAuth();
@@ -19,35 +19,103 @@ const OTPManagement = () => {
     maxUses: 1,
   });
 
+  // Pagination state for client OTPs
+  const [clientLastDoc, setClientLastDoc] = useState(null);
+  const [clientHasMore, setClientHasMore] = useState(true);
+  const [clientTotalCount, setClientTotalCount] = useState(0);
+  const [clientCurrentPage, setClientCurrentPage] = useState(1);
+
+  // Pagination state for staff invite codes
+  const [staffLastDoc, setStaffLastDoc] = useState(null);
+  const [staffHasMore, setStaffHasMore] = useState(true);
+  const [staffTotalCount, setStaffTotalCount] = useState(0);
+  const [staffCurrentPage, setStaffCurrentPage] = useState(1);
+
+  const codesPerPage = 10;
+
   useEffect(() => {
-    loadAllCodes();
+    loadClientCodes(true);
+    loadStaffCodes(true);
+    loadTotalCounts();
   }, []);
 
-  const loadAllCodes = async () => {
+  const loadClientCodes = async (resetPage = false) => {
     setLoading(true);
     try {
-      // Load client codes
-      const clientCodes = await otpService.getAllOTPs().catch((err) => {
+      // Use server-side pagination for client OTPs
+      const result = await otpService.getAllOTPsPaginated(
+        codesPerPage,
+        resetPage ? null : clientLastDoc
+      ).catch((err) => {
         console.error('Error loading client OTPs:', err);
-        return [];
+        return { otps: [], lastDoc: null, hasMore: false };
       });
 
-      // Load staff codes (may not exist yet)
-      const staffCodes = await otpService.getAllStaffInviteCodes().catch((err) => {
-        console.error('Error loading staff invite codes:', err);
-        console.log('This is normal if no staff codes have been created yet');
-        return [];
-      });
+      setClientOTPs(result.otps);
+      setClientLastDoc(result.lastDoc);
+      setClientHasMore(result.hasMore);
 
-      setClientOTPs(clientCodes);
-      setStaffInviteCodes(staffCodes);
-      console.log(`Loaded ${clientCodes.length} client codes and ${staffCodes.length} staff codes`);
+      if (resetPage) {
+        setClientCurrentPage(1);
+      }
+
+      console.log(`Loaded ${result.otps.length} client codes`);
     } catch (error) {
-      console.error("Failed to load codes:", error);
-      toast.error("Failed to load codes: " + error.message);
+      console.error("Failed to load client codes:", error);
+      toast.error("Failed to load client codes");
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadStaffCodes = async (resetPage = false) => {
+    setLoading(true);
+    try {
+      // Use server-side pagination for staff invite codes
+      const result = await otpService.getAllStaffInviteCodesPaginated(
+        codesPerPage,
+        resetPage ? null : staffLastDoc
+      ).catch((err) => {
+        console.error('Error loading staff invite codes:', err);
+        console.log('This is normal if no staff codes have been created yet');
+        return { codes: [], lastDoc: null, hasMore: false };
+      });
+
+      setStaffInviteCodes(result.codes);
+      setStaffLastDoc(result.lastDoc);
+      setStaffHasMore(result.hasMore);
+
+      if (resetPage) {
+        setStaffCurrentPage(1);
+      }
+
+      console.log(`Loaded ${result.codes.length} staff codes`);
+    } catch (error) {
+      console.error("Failed to load staff codes:", error);
+      toast.error("Failed to load staff codes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTotalCounts = async () => {
+    try {
+      // Load all codes to get total counts
+      const [allClientOTPs, allStaffCodes] = await Promise.all([
+        otpService.getAllOTPs().catch(() => []),
+        otpService.getAllStaffInviteCodes().catch(() => [])
+      ]);
+      setClientTotalCount(allClientOTPs.length);
+      setStaffTotalCount(allStaffCodes.length);
+    } catch (error) {
+      console.warn('Could not load total counts:', error);
+    }
+  };
+
+  const loadAllCodes = () => {
+    loadClientCodes(true);
+    loadStaffCodes(true);
+    loadTotalCounts();
   };
 
   const handleCreateClientOTP = async (e) => {
@@ -128,6 +196,40 @@ const OTPManagement = () => {
     ? clientOTPs.filter(otp => !otp.isUsed).length
     : staffInviteCodes.filter(code => !code.isUsed && !isExpired(code.expiresAt)).length;
 
+  // Pagination handlers for client codes
+  const clientTotalPages = Math.ceil(clientTotalCount / codesPerPage);
+
+  const handleClientNextPage = () => {
+    if (clientHasMore) {
+      setClientCurrentPage(prev => prev + 1);
+      loadClientCodes(false);
+    }
+  };
+
+  const handleClientPrevPage = () => {
+    if (clientCurrentPage > 1) {
+      setClientCurrentPage(prev => prev - 1);
+      loadClientCodes(true);
+    }
+  };
+
+  // Pagination handlers for staff codes
+  const staffTotalPages = Math.ceil(staffTotalCount / codesPerPage);
+
+  const handleStaffNextPage = () => {
+    if (staffHasMore) {
+      setStaffCurrentPage(prev => prev + 1);
+      loadStaffCodes(false);
+    }
+  };
+
+  const handleStaffPrevPage = () => {
+    if (staffCurrentPage > 1) {
+      setStaffCurrentPage(prev => prev - 1);
+      loadStaffCodes(true);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -188,14 +290,16 @@ const OTPManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500 mb-1">Total Codes</p>
-          <p className="text-2xl font-bold text-gray-800">{displayCodes.length}</p>
+          <p className="text-2xl font-bold text-gray-800">
+            {activeTab === "client" ? clientTotalCount : staffTotalCount}
+          </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Available</p>
+          <p className="text-sm text-gray-500 mb-1">Available (Current Page)</p>
           <p className="text-2xl font-bold text-green-600">{availableCount}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Used</p>
+          <p className="text-sm text-gray-500 mb-1">Used (Current Page)</p>
           <p className="text-2xl font-bold text-gray-400">
             {displayCodes.filter((code) => code.isUsed).length}
           </p>
@@ -339,6 +443,61 @@ const OTPManagement = () => {
         {displayCodes.length === 0 && !loading && (
           <div className="text-center py-12">
             <p className="text-gray-500">No codes generated yet</p>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {activeTab === "client" && clientTotalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t">
+            <p className="text-sm text-gray-600">
+              Showing page {clientCurrentPage} of {clientTotalPages} ({clientTotalCount} total codes)
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClientPrevPage}
+                disabled={clientCurrentPage === 1}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium">
+                Page {clientCurrentPage} of {clientTotalPages}
+              </span>
+              <button
+                onClick={handleClientNextPage}
+                disabled={!clientHasMore || clientCurrentPage === clientTotalPages}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "staff" && staffTotalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t">
+            <p className="text-sm text-gray-600">
+              Showing page {staffCurrentPage} of {staffTotalPages} ({staffTotalCount} total codes)
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleStaffPrevPage}
+                disabled={staffCurrentPage === 1}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium">
+                Page {staffCurrentPage} of {staffTotalPages}
+              </span>
+              <button
+                onClick={handleStaffNextPage}
+                disabled={!staffHasMore || staffCurrentPage === staffTotalPages}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>

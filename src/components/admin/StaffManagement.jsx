@@ -2,30 +2,56 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
-import { Users, RefreshCw, User, Archive, ArchiveRestore, Mail, Shield } from "lucide-react";
+import { Users, RefreshCw, User, Archive, ArchiveRestore, Mail, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 
 const StaffManagement = () => {
   const { userProfile } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all"); // all, active, archived
+  const [lastDoc, setLastDoc] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   useEffect(() => {
-    loadUsers();
+    loadUsers(true);
+    loadTotalCount();
   }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = async (resetPage = false) => {
     setLoading(true);
     try {
-      const allUsers = await firestoreService.getAllUsers();
-      // Filter only staff users
-      const staffUsers = allUsers.filter(user => user.role === 'staff');
-      setUsers(staffUsers);
+      // Use server-side pagination - only fetch 10 staff users
+      const result = await firestoreService.getAllUsersPaginated(
+        usersPerPage,
+        resetPage ? null : lastDoc,
+        'staff' // Filter for staff role only
+      );
+
+      setUsers(result.users);
+      setLastDoc(result.lastDoc);
+      setHasMore(result.hasMore);
+
+      if (resetPage) {
+        setCurrentPage(1);
+      }
     } catch (error) {
       console.error('Failed to load users:', error);
       toast.error("Failed to load staff users");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTotalCount = async () => {
+    try {
+      const allUsers = await firestoreService.getAllUsers();
+      const staffCount = allUsers.filter(user => user.role === 'staff').length;
+      setTotalCount(staffCount);
+    } catch (error) {
+      console.warn('Could not load total count:', error);
     }
   };
 
@@ -65,7 +91,7 @@ const StaffManagement = () => {
     }
   };
 
-  // Filter users based on status
+  // Filter users based on status (client-side filtering on current page)
   const filteredUsers = users.filter(user => {
     if (filterStatus === "active") return !user.isArchived;
     if (filterStatus === "archived") return user.isArchived;
@@ -73,9 +99,26 @@ const StaffManagement = () => {
   });
 
   const stats = {
-    total: users.length,
+    total: totalCount, // Server-side total count
     active: users.filter(u => !u.isArchived).length,
     archived: users.filter(u => u.isArchived).length,
+  };
+
+  // Pagination handlers
+  const totalPages = Math.ceil(totalCount / usersPerPage);
+
+  const handleNextPage = () => {
+    if (hasMore) {
+      setCurrentPage(prev => prev + 1);
+      loadUsers(false);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      loadUsers(true); // Reset to refetch from start
+    }
   };
 
   return (
@@ -106,11 +149,11 @@ const StaffManagement = () => {
           <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Active Staff</p>
+          <p className="text-sm text-gray-500 mb-1">Active (Current Page)</p>
           <p className="text-2xl font-bold text-green-600">{stats.active}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Archived Staff</p>
+          <p className="text-sm text-gray-500 mb-1">Archived (Current Page)</p>
           <p className="text-2xl font-bold text-gray-600">{stats.archived}</p>
         </div>
       </div>
@@ -279,6 +322,34 @@ const StaffManagement = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t">
+            <p className="text-sm text-gray-600">
+              Showing page {currentPage} of {totalPages} ({totalCount} total staff)
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={!hasMore || currentPage === totalPages}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

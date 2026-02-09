@@ -1365,6 +1365,137 @@ class StaffService {
       throw error;
     }
   }
+
+  // ============================================
+  // SERVER-SIDE PAGINATION (Cost-optimized)
+  // ============================================
+
+  /**
+   * Get all forms with server-side pagination (COST-OPTIMIZED!)
+   * Only reads `pageSize` documents per request (massive cost savings!)
+   * @param {number} pageSize - Number of documents per page
+   * @param {object} cursors - Cursors for each collection type
+   * @returns {Promise<{forms: Array, cursors: object, hasMore: boolean}>}
+   */
+  async getAllFormsPaginated(pageSize = 10, cursors = {}) {
+    try {
+      // Fetch each form type with individual limits
+      const perTypeLimit = Math.ceil(pageSize / 4); // Distribute across 4 types
+
+      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
+        this.fetchPaginatedForms("cctvCheckForms", perTypeLimit, cursors.cctv),
+        this.fetchPaginatedForms("incidentReports", perTypeLimit, cursors.incident),
+        this.fetchPaginatedForms("assetDamageReports", perTypeLimit, cursors.assetDamage),
+        this.fetchPaginatedForms("dailyOccurrenceReports", perTypeLimit, cursors.dailyOccurrence)
+      ]);
+
+      // Transform and combine all forms
+      const allForms = [
+        ...cctvForms.docs.map(f => ({ ...f, type: 'CCTV Check Sheet' })),
+        ...incidentReports.docs.map(f => ({ ...f, type: 'Incident Report' })),
+        ...assetDamageReports.docs.map(f => ({ ...f, type: 'Asset Damage' })),
+        ...dailyOccurrenceReports.docs.map(f => ({ ...f, type: 'Daily Occurrence' }))
+      ];
+
+      // Sort by createdAt and take only pageSize items
+      const sortedForms = allForms
+        .sort((a, b) => {
+          const timeA = a.createdAt?.seconds || 0;
+          const timeB = b.createdAt?.seconds || 0;
+          return timeB - timeA;
+        })
+        .slice(0, pageSize);
+
+      return {
+        forms: sortedForms,
+        cursors: {
+          cctv: cctvForms.lastDoc,
+          incident: incidentReports.lastDoc,
+          assetDamage: assetDamageReports.lastDoc,
+          dailyOccurrence: dailyOccurrenceReports.lastDoc,
+        },
+        hasMore: cctvForms.hasMore || incidentReports.hasMore ||
+                 assetDamageReports.hasMore || dailyOccurrenceReports.hasMore,
+      };
+    } catch (error) {
+      console.error("Failed to get paginated forms:", error);
+      return { forms: [], cursors: {}, hasMore: false };
+    }
+  }
+
+  /**
+   * Helper method to fetch paginated documents from a collection
+   */
+  async fetchPaginatedForms(collectionName, limitCount, lastDoc) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      let q;
+
+      if (lastDoc) {
+        q = query(
+          collectionRef,
+          orderBy("createdAt", "desc"),
+          startAfter(lastDoc),
+          limit(limitCount)
+        );
+      } else {
+        q = query(
+          collectionRef,
+          orderBy("createdAt", "desc"),
+          limit(limitCount)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      return {
+        docs,
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+        hasMore: snapshot.docs.length === limitCount,
+      };
+    } catch (error) {
+      console.error(`Error fetching from ${collectionName}:`, error);
+      return { docs: [], lastDoc: null, hasMore: false };
+    }
+  }
+
+  /**
+   * Get total count of all forms (for pagination display)
+   * Uses getCountFromServer - only 1 read per collection regardless of document count
+   */
+  async getAllFormsCount() {
+    try {
+      const [cctvCount, incidentCount, assetCount, dailyCount] = await Promise.all([
+        this.getCollectionCountServer("cctvCheckForms"),
+        this.getCollectionCountServer("incidentReports"),
+        this.getCollectionCountServer("assetDamageReports"),
+        this.getCollectionCountServer("dailyOccurrenceReports"),
+      ]);
+
+      return cctvCount + incidentCount + assetCount + dailyCount;
+    } catch (error) {
+      console.warn("Could not get total forms count:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Helper to get count from a collection using server-side counting
+   */
+  async getCollectionCountServer(collectionName) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      const snapshot = await getCountFromServer(collectionRef);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn(`Could not get count for ${collectionName}:`, error);
+      return 0;
+    }
+  }
 }
 
 export const staffService = new StaffService();

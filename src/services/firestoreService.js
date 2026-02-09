@@ -122,6 +122,63 @@ class FirestoreService {
     }
   }
 
+  // Admin-only: Get all users with pagination and optional role filter
+  async getAllUsersPaginated(limitCount = 10, lastDoc = null, role = null) {
+    try {
+      const usersRef = collection(db, 'users');
+
+      // Build query with pagination and optional role filter
+      let q;
+      if (role) {
+        // With role filter
+        if (lastDoc) {
+          q = query(
+            usersRef,
+            where('role', '==', role),
+            orderBy('createdAt', 'desc'),
+            startAfter(lastDoc),
+            limit(limitCount)
+          );
+        } else {
+          q = query(
+            usersRef,
+            where('role', '==', role),
+            orderBy('createdAt', 'desc'),
+            limit(limitCount)
+          );
+        }
+      } else {
+        // All users
+        if (lastDoc) {
+          q = query(
+            usersRef,
+            orderBy('createdAt', 'desc'),
+            startAfter(lastDoc),
+            limit(limitCount)
+          );
+        } else {
+          q = query(
+            usersRef,
+            orderBy('createdAt', 'desc'),
+            limit(limitCount)
+          );
+        }
+      }
+
+      const snapshot = await getDocs(q);
+      const users = snapshot.docs.map(doc => doc.data());
+      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+      return {
+        users,
+        lastDoc: lastVisible,
+        hasMore: snapshot.docs.length === limitCount
+      };
+    } catch (error) {
+      throw new AppError('Failed to fetch users', 'firestore/read-error', error);
+    }
+  }
+
   // Admin-only: Get paginated users
   async getUsersPaginated(limitCount = 50, lastDoc = null) {
     try {

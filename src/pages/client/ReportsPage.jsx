@@ -20,23 +20,40 @@ const ReportsPage = () => {
   const [filterType, setFilterType] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [cursors, setCursors] = useState({});
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const reportsPerPage = 10;
 
   useEffect(() => {
     const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
     if (activeScheme) {
-      loadReports();
+      loadReports(true);
+      loadTotalCount();
     }
   }, [userProfile?.activeSchemeId, userProfile?.schemeId, userProfile?.schemeName]);
 
-  const loadReports = async () => {
+  const loadReports = async (resetPage = false) => {
     try {
       setLoading(true);
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
       console.log('Loading reports for scheme:', activeScheme);
-      const allReports = await clientDataService.getAllReports(activeScheme);
-      console.log('Loaded reports:', allReports.length);
-      setReports(allReports);
+
+      // Use server-side pagination - only fetch 10 reports
+      const result = await clientDataService.getAllReportsPaginated(
+        activeScheme,
+        reportsPerPage,
+        resetPage ? {} : cursors
+      );
+
+      console.log('Loaded reports:', result.reports.length);
+      setReports(result.reports);
+      setCursors(result.cursors);
+      setHasMore(result.hasMore);
+
+      if (resetPage) {
+        setCurrentPage(1);
+      }
     } catch (error) {
       console.error('Failed to load reports:', error);
       console.error('Error details:', error.message, error.cause);
@@ -51,7 +68,17 @@ const ReportsPage = () => {
     }
   };
 
-  // Filter and search reports
+  const loadTotalCount = async () => {
+    try {
+      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
+      const count = await clientDataService.getAllReportsCount(activeScheme);
+      setTotalCount(count);
+    } catch (error) {
+      console.warn('Could not load total count:', error);
+    }
+  };
+
+  // Filter and search reports (client-side filtering on current page only)
   const filteredReports = reports.filter(report => {
     const matchesSearch = report.referenceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -80,11 +107,24 @@ const ReportsPage = () => {
     return matchesSearch && matchesType;
   });
 
-  // Pagination
-  const indexOfLastReport = currentPage * reportsPerPage;
-  const indexOfFirstReport = indexOfLastReport - reportsPerPage;
-  const currentReports = filteredReports.slice(indexOfFirstReport, indexOfLastReport);
-  const totalPages = Math.ceil(filteredReports.length / reportsPerPage);
+  // Server-side pagination
+  const currentReports = filteredReports;
+  const totalPages = Math.ceil(totalCount / reportsPerPage);
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (hasMore) {
+      setCurrentPage(prev => prev + 1);
+      loadReports(false);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      loadReports(true); // Reset to refetch from start
+    }
+  };
 
   const getReportTypeIcon = (type) => {
     switch (type) {
@@ -189,7 +229,7 @@ const ReportsPage = () => {
 
   // Get display time for a report
   const getReportDisplayTime = (report) => {
-    // For incident reports, use timeSpotted field
+    // For incident reports - always use timeSpotted
     if (report.reportType === 'incident' && report.timeSpotted) {
       return report.timeSpotted;
     }
@@ -202,7 +242,7 @@ const ReportsPage = () => {
   };
 
   const reportStats = {
-    total: reports.length,
+    total: totalCount, // Server-side total count
     incident: reports.filter(r => r.reportType === 'incident').length,
     assetDamage: reports.filter(r => r.reportType === 'asset-damage').length,
     dailyOccurrence: reports.filter(r => r.reportType === 'daily-occurrence').length,
@@ -379,11 +419,11 @@ const ReportsPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing {indexOfFirstReport + 1} to {Math.min(indexOfLastReport, filteredReports.length)} of {filteredReports.length} reports
+                    Showing page {currentPage} of {totalPages} ({totalCount} total reports)
                   </p>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      onClick={handlePrevPage}
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
@@ -393,8 +433,8 @@ const ReportsPage = () => {
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
+                      onClick={handleNextPage}
+                      disabled={!hasMore || currentPage === totalPages}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />

@@ -8,7 +8,9 @@ import {
   where,
   updateDoc,
   serverTimestamp,
-  orderBy
+  orderBy,
+  limit,
+  startAfter
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { AppError } from '../utils/errorHandling';
@@ -96,6 +98,39 @@ class OTPService {
         id: doc.id,
         ...doc.data()
       }));
+    } catch (error) {
+      throw new AppError('Failed to fetch OTP codes', 'otp/fetch-error', error);
+    }
+  }
+
+  // Admin: Get all OTP codes with pagination
+  async getAllOTPsPaginated(limitCount = 10, lastDoc = null) {
+    try {
+      const otpsRef = collection(db, 'clientOTPs');
+      let q;
+
+      if (lastDoc) {
+        q = query(
+          otpsRef,
+          orderBy('createdAt', 'desc'),
+          startAfter(lastDoc),
+          limit(limitCount)
+        );
+      } else {
+        q = query(otpsRef, orderBy('createdAt', 'desc'), limit(limitCount));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const otps = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return {
+        otps,
+        lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
+        hasMore: querySnapshot.docs.length === limitCount
+      };
     } catch (error) {
       throw new AppError('Failed to fetch OTP codes', 'otp/fetch-error', error);
     }
@@ -250,6 +285,39 @@ class OTPService {
         id: doc.id,
         ...doc.data()
       }));
+    } catch (error) {
+      throw new AppError('Failed to fetch staff invite codes', 'staff-invite/fetch-error', error);
+    }
+  }
+
+  // Admin: Get all Staff Invite Codes with pagination
+  async getAllStaffInviteCodesPaginated(limitCount = 10, lastDoc = null) {
+    try {
+      const invitesRef = collection(db, 'staffInviteCodes');
+      let q;
+
+      if (lastDoc) {
+        q = query(
+          invitesRef,
+          orderBy('createdAt', 'desc'),
+          startAfter(lastDoc),
+          limit(limitCount)
+        );
+      } else {
+        q = query(invitesRef, orderBy('createdAt', 'desc'), limit(limitCount));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const codes = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return {
+        codes,
+        lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
+        hasMore: querySnapshot.docs.length === limitCount
+      };
     } catch (error) {
       throw new AppError('Failed to fetch staff invite codes', 'staff-invite/fetch-error', error);
     }

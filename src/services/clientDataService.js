@@ -1086,6 +1086,195 @@ class ClientDataService {
     }
   }
 
+  // Get all reports with server-side pagination (COST-OPTIMIZED!)
+  // Fetches reports from all collections and merges them with cursor-based pagination
+  async getAllReportsPaginated(schemeId, pageSize = 10, cursors = {}) {
+    try {
+      // Fetch each report type with individual limits
+      const perTypeLimit = Math.ceil(pageSize / 4); // Distribute across 4 types
+
+      // Fetch with cursors
+      const [incidents, assetDamage, dailyLogs, cctvChecks] = await Promise.all([
+        this.fetchPaginatedCollection(
+          "incidentReports",
+          schemeId,
+          perTypeLimit,
+          cursors.incidents
+        ),
+        this.fetchPaginatedCollection(
+          "assetDamageReports",
+          schemeId,
+          perTypeLimit,
+          cursors.assetDamage
+        ),
+        this.fetchPaginatedCollection(
+          "dailyOccurrenceReports",
+          schemeId,
+          perTypeLimit,
+          cursors.dailyLogs
+        ),
+        this.fetchPaginatedCollection(
+          "cctvCheckForms",
+          schemeId,
+          perTypeLimit,
+          cursors.cctvChecks
+        ),
+      ]);
+
+      // Transform and combine all reports
+      const allReports = [
+        ...incidents.docs.map((report) => ({
+          ...report,
+          reportType: "incident",
+          type: report.incidentType,
+          timestamp: report.createdAt,
+        })),
+        ...assetDamage.docs.map((report) => ({
+          ...report,
+          reportType: "asset-damage",
+          type: report.damageType,
+          timestamp: report.createdAt,
+        })),
+        ...dailyLogs.docs.map((report) => ({
+          ...report,
+          reportType: "daily-occurrence",
+          title: report.title || "Daily Log",
+          timestamp: report.createdAt,
+        })),
+        ...cctvChecks.docs.map((report) => ({
+          ...report,
+          reportType: "cctv-check",
+          title: "CCTV Check",
+          timestamp: report.createdAt,
+        })),
+      ];
+
+      // Sort by timestamp and take only pageSize items
+      const sortedReports = allReports
+        .sort((a, b) => {
+          const timeA = a.timestamp?.seconds || 0;
+          const timeB = b.timestamp?.seconds || 0;
+          return timeB - timeA;
+        })
+        .slice(0, pageSize);
+
+      return {
+        reports: sortedReports,
+        cursors: {
+          incidents: incidents.lastDoc,
+          assetDamage: assetDamage.lastDoc,
+          dailyLogs: dailyLogs.lastDoc,
+          cctvChecks: cctvChecks.lastDoc,
+        },
+        hasMore:
+          incidents.hasMore ||
+          assetDamage.hasMore ||
+          dailyLogs.hasMore ||
+          cctvChecks.hasMore,
+      };
+    } catch (error) {
+      console.error("Error in getAllReportsPaginated:", error);
+      throw new AppError(
+        "Failed to fetch paginated reports",
+        "client-data/reports-error",
+        error,
+      );
+    }
+  }
+
+  // Helper method to fetch paginated documents from a collection
+  async fetchPaginatedCollection(collectionName, schemeId, limitCount, lastDoc) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      let q;
+
+      if (lastDoc) {
+        q = query(
+          collectionRef,
+          where("schemeIds", "array-contains", schemeId),
+          orderBy("createdAt", "desc"),
+          startAfter(lastDoc),
+          limit(limitCount)
+        );
+      } else {
+        q = query(
+          collectionRef,
+          where("schemeIds", "array-contains", schemeId),
+          orderBy("createdAt", "desc"),
+          limit(limitCount)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      return {
+        docs,
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+        hasMore: snapshot.docs.length === limitCount,
+      };
+    } catch (error) {
+      // If index error, try fallback
+      if (error.code === "failed-precondition" || error.message?.includes("index")) {
+        console.warn(`Index not available for ${collectionName}, using fallback`);
+        const simpleQuery = query(
+          collection(db, collectionName),
+          where("schemeIds", "array-contains", schemeId),
+          limit(limitCount * 2) // Get more to sort
+        );
+        const snapshot = await getDocs(simpleQuery);
+        const docs = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+          .slice(0, limitCount);
+
+        return {
+          docs,
+          lastDoc: null,
+          hasMore: false,
+        };
+      }
+      console.error(`Error fetching from ${collectionName}:`, error);
+      return { docs: [], lastDoc: null, hasMore: false };
+    }
+  }
+
+  // Get total count of all reports for a scheme (for pagination display)
+  async getAllReportsCount(schemeId) {
+    try {
+      const [incidentCount, assetCount, dailyCount, cctvCount] = await Promise.all([
+        this.getCollectionCount("incidentReports", schemeId),
+        this.getCollectionCount("assetDamageReports", schemeId),
+        this.getCollectionCount("dailyOccurrenceReports", schemeId),
+        this.getCollectionCount("cctvCheckForms", schemeId),
+      ]);
+
+      return incidentCount + assetCount + dailyCount + cctvCount;
+    } catch (error) {
+      console.warn("Could not get total reports count:", error);
+      return 0;
+    }
+  }
+
+  // Helper to get count from a collection
+  async getCollectionCount(collectionName, schemeId) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      const q = query(
+        collectionRef,
+        where("schemeIds", "array-contains", schemeId)
+      );
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn(`Could not get count for ${collectionName}:`, error);
+      return 0;
+    }
+  }
+
   // Get asset damage reports for a specific scheme
   async getSchemeAssetDamage(schemeId, limitCount = 100) {
     try {

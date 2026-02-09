@@ -31,10 +31,14 @@ const StaffReportsPage = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [cursors, setCursors] = useState({});
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const reportsPerPage = 10;
 
   useEffect(() => {
-    loadAllReports();
+    loadAllReports(true);
+    loadTotalCount();
   }, []);
 
   useEffect(() => {
@@ -42,57 +46,77 @@ const StaffReportsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, filterType, filterScheme, searchQuery]);
 
-  const loadAllReports = async () => {
+  const loadAllReports = async (resetPage = false) => {
     try {
       setLoading(true);
-      // Get all reports (passing null to get all, not just specific user)
-      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
-        staffService.getCCTVCheckForms(null),
-        staffService.getIncidentReports(null),
-        staffService.getAssetDamageReports(null),
-        staffService.getDailyOccurrenceReports(null),
-      ]);
 
-      // Combine all reports with metadata
-      const allReports = [
-        ...cctvForms.map((f) => ({
-          ...f,
-          type: "CCTV Check",
-          icon: Camera,
-          color: "bg-purple-100 text-purple-600",
-        })),
-        ...incidentReports.map((f) => ({
-          ...f,
-          type: "Incident Report",
-          icon: FileText,
-          color: "bg-teal-100 text-teal-600",
-        })),
-        ...assetDamageReports.map((f) => ({
-          ...f,
-          type: "Asset Damage",
-          icon: AlertTriangle,
-          color: "bg-orange-100 text-orange-600",
-        })),
-        ...dailyOccurrenceReports.map((f) => ({
-          ...f,
-          type: "Daily Logs",
-          icon: Calendar,
-          color: "bg-blue-100 text-blue-600",
-        })),
-      ].sort((a, b) => b.createdAt - a.createdAt);
+      // Use server-side pagination - only fetch 10 forms
+      const result = await staffService.getAllFormsPaginated(
+        reportsPerPage,
+        resetPage ? {} : cursors
+      );
+
+      console.log('Loaded forms:', result.forms.length);
+
+      // Map forms to reports with display metadata
+      const mappedReports = result.forms.map(f => {
+        let type, icon, color;
+
+        // Determine type based on the form's type field
+        if (f.type === 'CCTV Check Sheet') {
+          type = "CCTV Check";
+          icon = Camera;
+          color = "bg-purple-100 text-purple-600";
+        } else if (f.type === 'Incident Report') {
+          type = "Incident Report";
+          icon = FileText;
+          color = "bg-teal-100 text-teal-600";
+        } else if (f.type === 'Asset Damage') {
+          type = "Asset Damage";
+          icon = AlertTriangle;
+          color = "bg-orange-100 text-orange-600";
+        } else if (f.type === 'Daily Occurrence') {
+          type = "Daily Logs";
+          icon = Calendar;
+          color = "bg-blue-100 text-blue-600";
+        }
+
+        return { ...f, type, icon, color };
+      });
 
       // Exclude demo scheme (DMO1) forms from admin view
-      const filteredReports = allReports.filter(report => {
+      const filteredReports = mappedReports.filter(report => {
+        // Check schemeIds array first
+        if (report.schemeIds && Array.isArray(report.schemeIds)) {
+          // Exclude if all schemeIds are demo
+          return !report.schemeIds.every(id => id === DEMO_SCHEME_ID);
+        }
+        // Check single schemeId field
         const schemeId = report.schemeId || report.scheme?.split(' ')[0];
         return schemeId !== DEMO_SCHEME_ID;
       });
 
       setReports(filteredReports);
+      setCursors(result.cursors);
+      setHasMore(result.hasMore);
+
+      if (resetPage) {
+        setCurrentPage(1);
+      }
     } catch (error) {
       console.error("Failed to load reports:", error);
       toast.error("Failed to load reports");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTotalCount = async () => {
+    try {
+      const count = await staffService.getAllFormsCount();
+      setTotalCount(count);
+    } catch (error) {
+      console.warn('Could not load total count:', error);
     }
   };
 
@@ -168,11 +192,24 @@ const StaffReportsPage = () => {
     }
   };
 
-  // Pagination
-  const indexOfLastReport = currentPage * reportsPerPage;
-  const indexOfFirstReport = indexOfLastReport - reportsPerPage;
-  const currentReports = filteredReports.slice(indexOfFirstReport, indexOfLastReport);
-  const totalPages = Math.ceil(filteredReports.length / reportsPerPage);
+  // Server-side pagination
+  const currentReports = filteredReports;
+  const totalPages = Math.ceil(totalCount / reportsPerPage);
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (hasMore) {
+      setCurrentPage(prev => prev + 1);
+      loadAllReports(false);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      loadAllReports(true); // Reset to refetch from start
+    }
+  };
 
   const formatDate = (timestamp) => {
     if (!timestamp) return "N/A";
@@ -248,6 +285,10 @@ const StaffReportsPage = () => {
 
   // Get the appropriate time from form
   const getFormTime = (report) => {
+    // For Incident Reports - always use timeSpotted
+    if (report.type === "Incident Report" && report.timeSpotted) {
+      return report.timeSpotted;
+    }
     // For Daily Logs (array-based) - use createdAt time
     if (report.type === "Daily Logs") {
       if (report.createdAt) {
@@ -306,7 +347,7 @@ const StaffReportsPage = () => {
 
   // Statistics
   const stats = {
-    total: reports.length,
+    total: totalCount, // Server-side total count
     cctvCheck: reports.filter((r) => r.type === "CCTV Check").length,
     incident: reports.filter((r) => r.type === "Incident Report").length,
     assetDamage: reports.filter((r) => r.type === "Asset Damage").length,
@@ -532,11 +573,11 @@ const StaffReportsPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing {indexOfFirstReport + 1} to {Math.min(indexOfLastReport, filteredReports.length)} of {filteredReports.length} reports
+                    Showing page {currentPage} of {totalPages} ({totalCount} total reports)
                   </p>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      onClick={handlePrevPage}
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
@@ -546,8 +587,8 @@ const StaffReportsPage = () => {
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
+                      onClick={handleNextPage}
+                      disabled={!hasMore || currentPage === totalPages}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />
