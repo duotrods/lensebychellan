@@ -55,7 +55,7 @@ const CCTVCheckFormPage = () => {
       'All Working Correctly', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
       'CCTV 7', 'CCTV 8', 'CCTV 9', 'CCTV 10', 'CCTV 11', 'CCTV 12', 'CCTV 13', 'CCTV 14',
       'CCTV 21', 'CCTV 22', 'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28',
-      'CCTV 29', 'CCTV 30', 'CCTV 31', 'CCTV 32'
+      'CCTV 29', 'CCTV 30', 'CCTV 31', 'CCTV 32', 'CCTV 33', 'CCTV 34','CCTV 35'
     ],
     kierCore: [
       'All Working Correctly', '1100','1101', '1102', '1103', '1104', '1105', '1106', '1107',
