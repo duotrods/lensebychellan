@@ -234,11 +234,15 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
     );
   }
 
-  // For CCTV check reports with filterSchemeId, show the filtered scheme name
-  if (reportType === "cctv-check" && filterSchemeId) {
-    const schemeObj = SCHEMES.find(s => s.id === filterSchemeId);
-    const schemeName = schemeObj ? schemeObj.fullName : filterSchemeId;
-    addField("Scheme/Location", schemeName);
+  // For CCTV check reports: show filtered scheme if client view, otherwise "All Schemes"
+  if (reportType === "cctv-check") {
+    if (filterSchemeId) {
+      const schemeObj = SCHEMES.find(s => s.id === filterSchemeId);
+      const schemeName = schemeObj ? schemeObj.fullName : filterSchemeId;
+      addField("Scheme/Location", schemeName);
+    } else {
+      addField("Scheme/Location", "All Schemes");
+    }
   } else if (report.scheme || report.schemeId) {
     addField("Scheme/Location", report.scheme || report.schemeId);
   }
