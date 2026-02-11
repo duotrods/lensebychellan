@@ -1484,6 +1484,31 @@ class StaffService {
   }
 
   /**
+   * Get count per form type (for stat cards)
+   * Uses getCountFromServer - only 4 reads total regardless of document count
+   */
+  async getAllFormsCountByType() {
+    try {
+      const [cctvCount, incidentCount, assetCount, dailyCount] = await Promise.all([
+        this.getCollectionCountServer("cctvCheckForms"),
+        this.getCollectionCountServer("incidentReports"),
+        this.getCollectionCountServer("assetDamageReports"),
+        this.getCollectionCountServer("dailyOccurrenceReports"),
+      ]);
+
+      return {
+        cctvCheckTotal: cctvCount,
+        incidentReportTotal: incidentCount,
+        assetDamageTotal: assetCount,
+        dailyLogsTotal: dailyCount,
+      };
+    } catch (error) {
+      console.warn("Could not get forms count by type:", error);
+      return { cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 };
+    }
+  }
+
+  /**
    * Helper to get count from a collection using server-side counting
    */
   async getCollectionCountServer(collectionName) {

@@ -30,6 +30,7 @@ const NewStaffDashboard = () => {
   useEffect(() => {
     loadDashboardData(true);
     loadTotalCount();
+    loadStatCounts();
   }, [userProfile]);
 
   const loadDashboardData = async (resetPage = false) => {
@@ -84,15 +85,6 @@ const NewStaffDashboard = () => {
         });
       }
 
-      // Calculate stats based on current page (filtered forms)
-      const filteredStats = {
-        cctvCheckTotal: filteredForms.filter(f => f.type === 'CCTV Check Sheet').length,
-        incidentReportTotal: filteredForms.filter(f => f.type === 'Incident Report').length,
-        dailyLogsTotal: filteredForms.filter(f => f.type === 'Daily Occurrence').length,
-        assetDamageTotal: filteredForms.filter(f => f.type === 'Asset Damage').length,
-      };
-      setStats(filteredStats);
-
       setLatestForms(filteredForms);
       setCursors(result.cursors);
       setHasMore(result.hasMore);
@@ -114,6 +106,15 @@ const NewStaffDashboard = () => {
       setTotalCount(count);
     } catch (error) {
       console.warn('Could not load total count:', error);
+    }
+  };
+
+  const loadStatCounts = async () => {
+    try {
+      const counts = await staffService.getAllFormsCountByType();
+      setStats(counts);
+    } catch (error) {
+      console.warn('Could not load stat counts:', error);
     }
   };
 
