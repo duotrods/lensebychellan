@@ -1217,13 +1217,13 @@ class ClientDataService {
         hasMore: snapshot.docs.length === limitCount,
       };
     } catch (error) {
-      // If index error, try fallback
+      // If index error, try fallback without ordering
       if (error.code === "failed-precondition" || error.message?.includes("index")) {
         console.warn(`Index not available for ${collectionName}, using fallback`);
         const simpleQuery = query(
           collection(db, collectionName),
           where("schemeIds", "array-contains", schemeId),
-          limit(limitCount * 2) // Get more to sort
+          limit(limitCount * 2)
         );
         const snapshot = await getDocs(simpleQuery);
         const docs = snapshot.docs
@@ -1259,14 +1259,115 @@ class ClientDataService {
     }
   }
 
+  // CCTV-specific paginated fetch: runs TWO separate array-contains queries and merges them.
+  // This avoids array-contains-any + orderBy (which needs a composite index that may not exist).
+  // Query 1: forms explicitly tagged with schemeId (forms with faults for this scheme)
+  // Query 2: forms tagged "all-schemes" (backward-compat clean-check forms from before the fix)
+  async getCCTVReportsPaginated(schemeId, pageSize, cursors) {
+    const cctvRef = collection(db, "cctvCheckForms");
+    const specificCursor = cursors?.specific ?? null;
+    const allSchemesCursor = cursors?.allSchemes ?? null;
+
+    try {
+      const buildQ = (value, cursor) => cursor
+        ? query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), startAfter(cursor), limit(pageSize))
+        : query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), limit(pageSize));
+
+      const [snap1, snap2] = await Promise.all([
+        getDocs(buildQ(schemeId, specificCursor)),
+        getDocs(buildQ("all-schemes", allSchemesCursor)),
+      ]);
+
+      // Merge, deduplicate (same form could theoretically match both), sort newest first
+      const seen = new Set();
+      const merged = [...snap1.docs, ...snap2.docs]
+        .filter(d => !seen.has(d.id) && seen.add(d.id))
+        .map(d => ({
+          id: d.id,
+          ...d.data(),
+          reportType: 'cctv-check',
+          title: 'CCTV Check',
+          timestamp: d.data().createdAt,
+        }))
+        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
+        .slice(0, pageSize);
+
+      return {
+        reports: merged,
+        lastDoc: {
+          specific: snap1.docs.length > 0 ? snap1.docs[snap1.docs.length - 1] : specificCursor,
+          allSchemes: snap2.docs.length > 0 ? snap2.docs[snap2.docs.length - 1] : allSchemesCursor,
+        },
+        hasMore: snap1.docs.length === pageSize || snap2.docs.length === pageSize,
+      };
+    } catch (error) {
+      console.error("Error fetching CCTV reports:", error);
+      return { reports: [], lastDoc: null, hasMore: false };
+    }
+  }
+
+  // Get reports for a single type with true server-side pagination
+  // Used when a type filter is active (fetches 10 of that type, not 10 mixed)
+  async getReportsByTypePaginated(schemeId, reportType, pageSize = 10, lastDoc = null) {
+    // CCTV uses a dual-query approach to include both scheme-specific and "all-schemes" forms
+    if (reportType === 'cctv-check') {
+      return await this.getCCTVReportsPaginated(schemeId, pageSize, lastDoc);
+    }
+
+    const collectionMap = {
+      'incident': 'incidentReports',
+      'asset-damage': 'assetDamageReports',
+      'daily-occurrence': 'dailyOccurrenceReports',
+    };
+    const collectionName = collectionMap[reportType];
+    if (!collectionName) return { reports: [], lastDoc: null, hasMore: false };
+
+    try {
+      const result = await this.fetchPaginatedCollection(collectionName, schemeId, pageSize, lastDoc);
+      const reports = result.docs.map((report) => {
+        if (reportType === 'incident') return { ...report, reportType: 'incident', type: report.incidentType, timestamp: report.createdAt };
+        if (reportType === 'asset-damage') return { ...report, reportType: 'asset-damage', type: report.damageType, timestamp: report.createdAt };
+        return { ...report, reportType: 'daily-occurrence', title: report.title || 'Daily Log', timestamp: report.createdAt };
+      });
+      return { reports, lastDoc: result.lastDoc, hasMore: result.hasMore };
+    } catch (error) {
+      console.error('Error fetching typed reports:', error);
+      return { reports: [], lastDoc: null, hasMore: false };
+    }
+  }
+
+  // Get count per report type for a scheme (for stat cards - 4 reads total)
+  async getAllReportsCountByType(schemeId) {
+    try {
+      const [incidentCount, assetCount, dailyCount, cctvCount] = await Promise.all([
+        this.getCollectionCount("incidentReports", schemeId),
+        this.getCollectionCount("assetDamageReports", schemeId),
+        this.getCollectionCount("dailyOccurrenceReports", schemeId),
+        this.getCollectionCount("cctvCheckForms", schemeId),
+      ]);
+
+      return {
+        incident: incidentCount,
+        assetDamage: assetCount,
+        dailyOccurrence: dailyCount,
+        cctvCheck: cctvCount,
+        total: incidentCount + assetCount + dailyCount + cctvCount,
+      };
+    } catch (error) {
+      console.warn("Could not get reports count by type:", error);
+      return { incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, total: 0 };
+    }
+  }
+
   // Helper to get count from a collection
   async getCollectionCount(collectionName, schemeId) {
     try {
       const collectionRef = collection(db, collectionName);
-      const q = query(
-        collectionRef,
-        where("schemeIds", "array-contains", schemeId)
-      );
+      // For cctvCheckForms, also count "all-schemes" docs (backward compatibility)
+      const schemeFilter = collectionName === "cctvCheckForms"
+        ? where("schemeIds", "array-contains-any", [schemeId, "all-schemes"])
+        : where("schemeIds", "array-contains", schemeId);
+      const q = query(collectionRef, schemeFilter);
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
     } catch (error) {

@@ -4,6 +4,7 @@ import {
   setDoc,
   getDoc,
   getDocs,
+  getCountFromServer,
   query,
   where,
   updateDoc,
@@ -320,6 +321,25 @@ class OTPService {
       };
     } catch (error) {
       throw new AppError('Failed to fetch staff invite codes', 'staff-invite/fetch-error', error);
+    }
+  }
+
+  /**
+   * Get total counts for OTP tables using aggregation - only 2 reads total
+   */
+  async getOTPCounts() {
+    try {
+      const [clientSnap, staffSnap] = await Promise.all([
+        getCountFromServer(query(collection(db, 'clientOTPs'))),
+        getCountFromServer(query(collection(db, 'staffInviteCodes'))),
+      ]);
+      return {
+        clientTotal: clientSnap.data().count,
+        staffTotal: staffSnap.data().count,
+      };
+    } catch (error) {
+      console.warn('Could not get OTP counts:', error);
+      return { clientTotal: 0, staffTotal: 0 };
     }
   }
 

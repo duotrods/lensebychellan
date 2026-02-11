@@ -34,11 +34,13 @@ const StaffReportsPage = () => {
   const [cursors, setCursors] = useState({});
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
   const reportsPerPage = 10;
 
   useEffect(() => {
     loadAllReports(true);
     loadTotalCount();
+    loadFormCounts();
   }, []);
 
   useEffect(() => {
@@ -117,6 +119,15 @@ const StaffReportsPage = () => {
       setTotalCount(count);
     } catch (error) {
       console.warn('Could not load total count:', error);
+    }
+  };
+
+  const loadFormCounts = async () => {
+    try {
+      const counts = await staffService.getAllFormsCountByType();
+      setFormCounts(counts);
+    } catch (error) {
+      console.warn('Could not load form counts:', error);
     }
   };
 
@@ -345,13 +356,13 @@ const StaffReportsPage = () => {
     }
   };
 
-  // Statistics
+  // Statistics - all counts from aggregation queries (no per-page counting)
   const stats = {
-    total: totalCount, // Server-side total count
-    cctvCheck: reports.filter((r) => r.type === "CCTV Check").length,
-    incident: reports.filter((r) => r.type === "Incident Report").length,
-    assetDamage: reports.filter((r) => r.type === "Asset Damage").length,
-    dailyLogs: reports.filter((r) => r.type === "Daily Logs").length,
+    total: totalCount,
+    cctvCheck: formCounts.cctvCheckTotal,
+    incident: formCounts.incidentReportTotal,
+    assetDamage: formCounts.assetDamageTotal,
+    dailyLogs: formCounts.dailyLogsTotal,
   };
 
   return (

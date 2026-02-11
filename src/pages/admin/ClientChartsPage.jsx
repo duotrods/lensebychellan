@@ -43,6 +43,7 @@ const ClientChartsPage = () => {
   const [reports, setReports] = useState([]);
   const [schemes, setSchemes] = useState([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
   const datePickerRef = useRef(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -74,6 +75,7 @@ const ClientChartsPage = () => {
 
   useEffect(() => {
     loadAllData();
+    loadFormCounts();
   }, []);
 
   // Close date picker when clicking outside
@@ -91,53 +93,18 @@ const ClientChartsPage = () => {
   const loadAllData = async () => {
     try {
       setLoading(true);
-      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
-        staffService.getCCTVCheckForms(null),
-        staffService.getIncidentReports(null),
-        staffService.getAssetDamageReports(null),
-        staffService.getDailyOccurrenceReports(null),
-      ]);
+      // Only load incident reports - all 12 charts are incident-based
+      const incidentReports = await staffService.getIncidentReports(null);
+      const reportsWithType = incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
+      setReports(reportsWithType);
 
-      // Helper function to map forms with schemeIds to scheme field
-      const mapSchemeIds = (forms, type) => {
-        return forms.flatMap((f) => {
-          // If form has schemeIds array, create a copy for each scheme
-          if (f.schemeIds && f.schemeIds.length > 0) {
-            return f.schemeIds.map(schemeId => {
-              const schemeObj = SCHEMES.find(s => s.id === schemeId);
-              return {
-                ...f,
-                scheme: schemeObj?.fullName || schemeId,
-                type
-              };
-            });
-          }
-          // If it has a scheme field already, use it
-          return [{ ...f, type }];
-        });
-      };
-
-      // Map CCTV forms and Daily Occurrence reports (both use schemeIds)
-      const cctvFormsWithScheme = mapSchemeIds(cctvForms, "CCTV Check");
-      const dailyLogsWithScheme = mapSchemeIds(dailyOccurrenceReports, "Daily Logs");
-
-      const allReports = [
-        ...cctvFormsWithScheme,
-        ...incidentReports.map((f) => ({ ...f, type: "Incident Report" })),
-        ...assetDamageReports.map((f) => ({ ...f, type: "Asset Damage" })),
-        ...dailyLogsWithScheme,
-      ];
-
-      setReports(allReports);
-
-      // Extract unique schemes from active SCHEMES constant only
+      // Extract unique schemes from loaded incident reports
       const activeSchemeNames = SCHEMES.map(s => s.fullName);
-      const uniqueSchemes = [...new Set(allReports.map((r) => r.scheme).filter(Boolean))]
+      const uniqueSchemes = [...new Set(reportsWithType.map((r) => r.scheme).filter(Boolean))]
         .filter(scheme => activeSchemeNames.includes(scheme))
         .sort();
       setSchemes(uniqueSchemes);
 
-      // Set first scheme as default
       if (uniqueSchemes.length > 0) {
         setSelectedScheme(uniqueSchemes[0]);
       }
@@ -146,6 +113,15 @@ const ClientChartsPage = () => {
       toast.error("Failed to load chart data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFormCounts = async () => {
+    try {
+      const counts = await staffService.getAllFormsCountByType();
+      setFormCounts(counts);
+    } catch (error) {
+      console.warn('Could not load form counts:', error);
     }
   };
 
@@ -516,14 +492,13 @@ const ClientChartsPage = () => {
     }
   };
 
-  // Statistics
-  const filtered = getFilteredReports();
+  // Statistics - use aggregation counts for cards (consistent with other pages)
   const stats = {
-    total: filtered.length,
-    cctvCheck: filtered.filter((r) => r.type === "CCTV Check").length,
-    incident: filtered.filter((r) => r.type === "Incident Report").length,
-    assetDamage: filtered.filter((r) => r.type === "Asset Damage").length,
-    dailyLogs: filtered.filter((r) => r.type === "Daily Logs").length,
+    total: formCounts.cctvCheckTotal + formCounts.incidentReportTotal + formCounts.assetDamageTotal + formCounts.dailyLogsTotal,
+    cctvCheck: formCounts.cctvCheckTotal,
+    incident: formCounts.incidentReportTotal,
+    assetDamage: formCounts.assetDamageTotal,
+    dailyLogs: formCounts.dailyLogsTotal,
   };
 
   // Extract chart data

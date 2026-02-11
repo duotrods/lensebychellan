@@ -21,8 +21,9 @@ const ReportsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState(null);
   const [cursors, setCursors] = useState({});
+  const [typeCursor, setTypeCursor] = useState(null);
   const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
+  const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, total: 0 });
   const reportsPerPage = 10;
 
   useEffect(() => {
@@ -33,31 +34,40 @@ const ReportsPage = () => {
     }
   }, [userProfile?.activeSchemeId, userProfile?.schemeId, userProfile?.schemeName]);
 
-  const loadReports = async (resetPage = false) => {
+  const loadReports = async (resetPage = false, overrideFilterType = null) => {
     try {
       setLoading(true);
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      console.log('Loading reports for scheme:', activeScheme);
+      const activeFilter = overrideFilterType !== null ? overrideFilterType : filterType;
 
-      // Use server-side pagination - only fetch 10 reports
-      const result = await clientDataService.getAllReportsPaginated(
-        activeScheme,
-        reportsPerPage,
-        resetPage ? {} : cursors
-      );
-
-      console.log('Loaded reports:', result.reports.length);
-      setReports(result.reports);
-      setCursors(result.cursors);
-      setHasMore(result.hasMore);
+      if (activeFilter === 'all') {
+        // Mixed pagination: fetch ~3 per collection type, merge and sort
+        const result = await clientDataService.getAllReportsPaginated(
+          activeScheme,
+          reportsPerPage,
+          resetPage ? {} : cursors
+        );
+        setReports(result.reports);
+        setCursors(result.cursors);
+        setHasMore(result.hasMore);
+      } else {
+        // Type-specific pagination: fetch full 10 from one collection
+        const result = await clientDataService.getReportsByTypePaginated(
+          activeScheme,
+          activeFilter,
+          reportsPerPage,
+          resetPage ? null : typeCursor
+        );
+        setReports(result.reports);
+        setTypeCursor(result.lastDoc);
+        setHasMore(result.hasMore);
+      }
 
       if (resetPage) {
         setCurrentPage(1);
       }
     } catch (error) {
       console.error('Failed to load reports:', error);
-      console.error('Error details:', error.message, error.cause);
-      // Check if it's an index error
       if (error.message?.includes('index') || error.cause?.message?.includes('index')) {
         toast.error('Firebase indexes are still building. Please wait 5-10 minutes and refresh.');
       } else {
@@ -71,33 +81,30 @@ const ReportsPage = () => {
   const loadTotalCount = async () => {
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const count = await clientDataService.getAllReportsCount(activeScheme);
-      setTotalCount(count);
+      const counts = await clientDataService.getAllReportsCountByType(activeScheme);
+      setReportTypeCounts(counts);
     } catch (error) {
       console.warn('Could not load total count:', error);
     }
   };
 
-  // Filter and search reports (client-side filtering on current page only)
+  // Filter and search reports (client-side search + daily-occurrence scheme check only)
+  // Type filtering is handled server-side when filterType !== 'all'
   const filteredReports = reports.filter(report => {
     const matchesSearch = report.referenceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.location?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // When 'all' view: also apply type filter client-side
     const matchesType = filterType === 'all' || report.reportType === filterType;
 
     // For daily occurrence reports, check if any occurrence matches the client's scheme
     if (report.reportType === 'daily-occurrence' && report.occurrences) {
-      // Get the active scheme name - if activeSchemeName is not set, look it up from the scheme ID
       let activeSchemeName = userProfile?.activeSchemeName || userProfile?.schemeName;
-
-      // If we have an activeSchemeId but no activeSchemeName, look it up
       if (!userProfile?.activeSchemeName && userProfile?.activeSchemeId) {
         const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
-        if (activeSchemeObj) {
-          activeSchemeName = activeSchemeObj.fullName;
-        }
+        if (activeSchemeObj) activeSchemeName = activeSchemeObj.fullName;
       }
-
       const hasMatchingOccurrence = report.occurrences.some(occurrence =>
         occurrence.scheme === activeSchemeName || occurrence.scheme === 'All Schemes'
       );
@@ -107,9 +114,18 @@ const ReportsPage = () => {
     return matchesSearch && matchesType;
   });
 
-  // Server-side pagination
+  // Use type-specific count for pagination when a filter is active
+  const getActiveCount = () => {
+    if (filterType === 'incident') return reportTypeCounts.incident;
+    if (filterType === 'asset-damage') return reportTypeCounts.assetDamage;
+    if (filterType === 'daily-occurrence') return reportTypeCounts.dailyOccurrence;
+    if (filterType === 'cctv-check') return reportTypeCounts.cctvCheck;
+    return reportTypeCounts.total;
+  };
+  const activeCount = getActiveCount();
+
   const currentReports = filteredReports;
-  const totalPages = Math.ceil(totalCount / reportsPerPage);
+  const totalPages = Math.ceil(activeCount / reportsPerPage);
 
   // Pagination handlers
   const handleNextPage = () => {
@@ -242,11 +258,11 @@ const ReportsPage = () => {
   };
 
   const reportStats = {
-    total: totalCount, // Server-side total count
-    incident: reports.filter(r => r.reportType === 'incident').length,
-    assetDamage: reports.filter(r => r.reportType === 'asset-damage').length,
-    dailyOccurrence: reports.filter(r => r.reportType === 'daily-occurrence').length,
-    cctvCheck: reports.filter(r => r.reportType === 'cctv-check').length
+    total: reportTypeCounts.total,             // Aggregation total (1 read per type)
+    incident: reportTypeCounts.incident,
+    assetDamage: reportTypeCounts.assetDamage,
+    dailyOccurrence: reportTypeCounts.dailyOccurrence,
+    cctvCheck: reportTypeCounts.cctvCheck,
   };
 
   // Get the active scheme name for display
@@ -323,7 +339,13 @@ const ReportsPage = () => {
               <Filter className="w-5 h-5 text-gray-500" />
               <select
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setFilterType(newType);
+                  setTypeCursor(null);
+                  setCursors({});
+                  loadReports(true, newType);
+                }}
                 className="select  select-bordered bg-white border-gray-300"
               >
                 <option value="all">All Types</option>
@@ -419,7 +441,7 @@ const ReportsPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing page {currentPage} of {totalPages} ({totalCount} total reports)
+                    Showing page {currentPage} of {totalPages} ({activeCount} total {filterType === 'all' ? 'reports' : filterType.replace(/-/g, ' ') + 's'})
                   </p>
                   <div className="flex items-center gap-2">
                     <button
