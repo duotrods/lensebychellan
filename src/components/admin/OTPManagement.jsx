@@ -100,13 +100,10 @@ const OTPManagement = () => {
 
   const loadTotalCounts = async () => {
     try {
-      // Load all codes to get total counts
-      const [allClientOTPs, allStaffCodes] = await Promise.all([
-        otpService.getAllOTPs().catch(() => []),
-        otpService.getAllStaffInviteCodes().catch(() => [])
-      ]);
-      setClientTotalCount(allClientOTPs.length);
-      setStaffTotalCount(allStaffCodes.length);
+      // Use aggregation - only 2 reads regardless of how many codes exist
+      const counts = await otpService.getOTPCounts();
+      setClientTotalCount(counts.clientTotal);
+      setStaffTotalCount(counts.staffTotal);
     } catch (error) {
       console.warn('Could not load total counts:', error);
     }

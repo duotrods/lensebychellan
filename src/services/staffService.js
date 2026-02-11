@@ -96,9 +96,10 @@ class StaffService {
         schemeIds.push("DMO1");
       }
 
-      // If no data in any section, default to all schemes
+      // If no data in any section (clean check - all cameras working),
+      // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("all-schemes");
+        schemeIds.push("A417", "A47", "M3");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility
@@ -229,9 +230,10 @@ class StaffService {
         schemeIds.push("DMO1");
       }
 
-      // If no data in any section, default to all schemes
+      // If no data in any section (clean check - all cameras working),
+      // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("all-schemes");
+        schemeIds.push("A417", "A47", "M3");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility

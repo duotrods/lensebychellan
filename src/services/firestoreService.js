@@ -6,8 +6,10 @@ import {
   addDoc,
   collection,
   getDocs,
+  getCountFromServer,
   serverTimestamp,
   query,
+  where,
   orderBy,
   limit,
   startAfter
@@ -130,12 +132,11 @@ class FirestoreService {
       // Build query with pagination and optional role filter
       let q;
       if (role) {
-        // With role filter
+        // With role filter - no orderBy to avoid needing a composite index
         if (lastDoc) {
           q = query(
             usersRef,
             where('role', '==', role),
-            orderBy('createdAt', 'desc'),
             startAfter(lastDoc),
             limit(limitCount)
           );
@@ -143,7 +144,6 @@ class FirestoreService {
           q = query(
             usersRef,
             where('role', '==', role),
-            orderBy('createdAt', 'desc'),
             limit(limitCount)
           );
         }
@@ -205,9 +205,9 @@ class FirestoreService {
 
       const snapshot = await getDocs(q);
 
-      // Get total count (for page calculation)
-      const totalSnapshot = await getDocs(usersRef);
-      const total = totalSnapshot.size;
+      // Get total count using aggregation - 1 read regardless of user count
+      const totalSnapshot = await getCountFromServer(query(usersRef));
+      const total = totalSnapshot.data().count;
 
       const users = snapshot.docs.map(doc => doc.data());
       const lastVisible = snapshot.docs[snapshot.docs.length - 1];
@@ -220,6 +220,27 @@ class FirestoreService {
       };
     } catch (error) {
       throw new AppError('Failed to fetch users', 'firestore/read-error', error);
+    }
+  }
+
+  /**
+   * Get user counts per role using aggregation - only 3 reads total
+   */
+  async getUsersCountByRole() {
+    try {
+      const usersRef = collection(db, 'users');
+      const [totalSnap, staffSnap, clientSnap] = await Promise.all([
+        getCountFromServer(query(usersRef)),
+        getCountFromServer(query(usersRef, where('role', '==', 'staff'))),
+        getCountFromServer(query(usersRef, where('role', '==', 'client'))),
+      ]);
+      return {
+        total: totalSnap.data().count,
+        staff: staffSnap.data().count,
+        client: clientSnap.data().count,
+      };
+    } catch (error) {
+      throw new AppError('Failed to count users by role', 'firestore/read-error', error);
     }
   }
 

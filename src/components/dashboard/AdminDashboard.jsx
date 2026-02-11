@@ -15,12 +15,14 @@ const AdminDashboard = () => {
   const [promoteModal, setPromoteModal] = useState({ isOpen: false, user: null });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
   const [actionLoading, setActionLoading] = useState(false);
-  const usersPerPage = 50;
+  const [roleCounts, setRoleCounts] = useState({ total: 0, staff: 0, client: 0 });
+  const usersPerPage = 10;
   const { userProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadUsers();
+    loadRoleCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
@@ -38,6 +40,15 @@ const AdminDashboard = () => {
       console.error('Failed to load users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRoleCounts = async () => {
+    try {
+      const counts = await firestoreService.getUsersCountByRole();
+      setRoleCounts(counts);
+    } catch (error) {
+      console.warn('Could not load role counts:', error);
     }
   };
 
@@ -123,21 +134,17 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow p-6">
           <h6 className="text-gray-600 mb-2">Total Users</h6>
-          <p className="text-3xl font-bold text-brand-500">{users.length}</p>
+          <p className="text-3xl font-bold text-brand-500">{roleCounts.total}</p>
         </div>
 
         <div className="bg-white rounded-xl shadow p-6">
           <h6 className="text-gray-600 mb-2">Staff Members</h6>
-          <p className="text-3xl font-bold text-brand-500">
-            {users.filter(u => u.role === 'staff').length}
-          </p>
+          <p className="text-3xl font-bold text-brand-500">{roleCounts.staff}</p>
         </div>
 
         <div className="bg-white rounded-xl shadow p-6">
           <h6 className="text-gray-600 mb-2">Clients</h6>
-          <p className="text-3xl font-bold text-brand-500">
-            {users.filter(u => u.role === 'client').length}
-          </p>
+          <p className="text-3xl font-bold text-brand-500">{roleCounts.client}</p>
         </div>
       </div>
 

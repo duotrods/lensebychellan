@@ -51,12 +51,11 @@ const SchemeAssignment = () => {
     }
   };
 
-  // Load total count of client users
+  // Load total count of client users using aggregation - 1 read
   const loadTotalCount = async () => {
     try {
-      const allUsers = await firestoreService.getAllUsers();
-      const clientCount = allUsers.filter(user => user.role === 'client').length;
-      setTotalCount(clientCount);
+      const counts = await firestoreService.getUsersCountByRole();
+      setTotalCount(counts.client);
     } catch (error) {
       console.warn('Could not load total count:', error);
     }

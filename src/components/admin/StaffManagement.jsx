@@ -45,11 +45,11 @@ const StaffManagement = () => {
     }
   };
 
+  // Load total count of staff users using aggregation - 1 read
   const loadTotalCount = async () => {
     try {
-      const allUsers = await firestoreService.getAllUsers();
-      const staffCount = allUsers.filter(user => user.role === 'staff').length;
-      setTotalCount(staffCount);
+      const counts = await firestoreService.getUsersCountByRole();
+      setTotalCount(counts.staff);
     } catch (error) {
       console.warn('Could not load total count:', error);
     }
