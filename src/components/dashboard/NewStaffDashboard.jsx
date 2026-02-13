@@ -23,8 +23,10 @@ const NewStaffDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [cursors, setCursors] = useState({});
+  const [typeCursor, setTypeCursor] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [typeCount, setTypeCount] = useState(0);
   const formsPerPage = 10;
 
   useEffect(() => {
@@ -33,65 +35,62 @@ const NewStaffDashboard = () => {
     loadStatCounts();
   }, [userProfile]);
 
-  const loadDashboardData = async (resetPage = false) => {
+  const loadDashboardData = async (resetPage = false, overrideFilter = null) => {
     if (!userProfile) return;
 
     try {
       setLoading(true);
 
       const isDemo = isDemoUser(userProfile);
+      const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
 
-      // Use server-side pagination - only fetch 10 forms
-      const result = await staffService.getAllFormsPaginated(
-        formsPerPage,
-        resetPage ? {} : cursors
-      );
+      let rawForms;
 
-      console.log('Loaded forms:', result.forms.length);
+      if (activeFilter === 'all') {
+        // Mixed pagination: ~3 per type, merged and sorted
+        const result = await staffService.getAllFormsPaginated(
+          formsPerPage,
+          resetPage ? {} : cursors
+        );
+        rawForms = result.forms;
+        setCursors(result.cursors);
+        setHasMore(result.hasMore);
+      } else {
+        // Type-specific server-side pagination: fetches exactly 10 of the selected type
+        const result = await staffService.getFormsByTypePaginated(
+          activeFilter,
+          formsPerPage,
+          resetPage ? null : typeCursor
+        );
+        rawForms = result.forms;
+        setTypeCursor(result.lastDoc);
+        setHasMore(result.hasMore);
+      }
 
       // Filter forms based on demo status
-      let filteredForms = result.forms;
+      let filteredForms = rawForms;
       if (isDemo) {
-        // Demo user: only show forms that are EXCLUSIVELY demo (only DMO1, no real schemes)
-        filteredForms = result.forms.filter(form => {
-          // Check schemeIds array first (used by Daily Occurrence and newer forms)
+        filteredForms = rawForms.filter(form => {
           if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
-            // Must contain ONLY DMO1 (no real schemes mixed in)
             return form.schemeIds.every(id => id === DEMO_SCHEME_ID);
           }
-          // For forms with single schemeId field
-          if (form.schemeId) {
-            return form.schemeId === DEMO_SCHEME_ID;
-          }
-          // Extract from scheme field as last resort
+          if (form.schemeId) return form.schemeId === DEMO_SCHEME_ID;
           const schemeId = form.scheme?.split(' ')[0];
           return schemeId === DEMO_SCHEME_ID;
         });
       } else {
-        // Regular staff: exclude forms that are EXCLUSIVELY demo
-        filteredForms = result.forms.filter(form => {
-          // Check schemeIds array first (used by Daily Occurrence and newer forms)
+        filteredForms = rawForms.filter(form => {
           if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
-            // Show if it has ANY real scheme (not exclusively demo)
             return !form.schemeIds.every(id => id === DEMO_SCHEME_ID);
           }
-          // For forms with single schemeId field
-          if (form.schemeId) {
-            return form.schemeId !== DEMO_SCHEME_ID;
-          }
-          // Extract from scheme field as last resort
+          if (form.schemeId) return form.schemeId !== DEMO_SCHEME_ID;
           const schemeId = form.scheme?.split(' ')[0];
           return schemeId !== DEMO_SCHEME_ID;
         });
       }
 
       setLatestForms(filteredForms);
-      setCursors(result.cursors);
-      setHasMore(result.hasMore);
-
-      if (resetPage) {
-        setCurrentPage(1);
-      }
+      if (resetPage) setCurrentPage(1);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       toast.error('Failed to load forms');
@@ -115,6 +114,21 @@ const NewStaffDashboard = () => {
       setStats(counts);
     } catch (error) {
       console.warn('Could not load stat counts:', error);
+    }
+  };
+
+  const handleFilterChange = async (newType) => {
+    setFilterType(newType);
+    setTypeCursor(null);
+    setCurrentPage(1);
+    loadDashboardData(true, newType);
+    if (newType !== 'all') {
+      try {
+        const count = await staffService.getFormCountForType(newType);
+        setTypeCount(count);
+      } catch {
+        setTypeCount(0);
+      }
     }
   };
 
@@ -273,9 +287,10 @@ const NewStaffDashboard = () => {
     return matchesSearch && matchesType;
   });
 
-  // Server-side pagination
+  // Server-side pagination — use type-specific count when a filter is active
   const currentForms = filteredForms;
-  const totalPages = Math.ceil(totalCount / formsPerPage);
+  const activeCount = filterType === 'all' ? totalCount : typeCount;
+  const totalPages = Math.ceil(activeCount / formsPerPage);
 
   // Pagination handlers
   const handleNextPage = () => {
@@ -288,14 +303,15 @@ const NewStaffDashboard = () => {
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
-      loadDashboardData(true); // Reset to refetch from start
+      setTypeCursor(null); // Going back always resets to page 1 fetch
+      loadDashboardData(true);
     }
   };
 
-  // Reset to page 1 when search/filter changes
+  // Reset to page 1 when search term changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterType]);
+  }, [searchTerm]);
 
   const handleViewForm = (form) => {
     if (form.type === "CCTV Check Sheet") {
@@ -412,7 +428,7 @@ const NewStaffDashboard = () => {
                   <Filter className="w-5 h-5 text-gray-500" />
                   <select
                     value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
+                    onChange={(e) => handleFilterChange(e.target.value)}
                     className="select select-bordered bg-white border-gray-300"
                   >
                     <option value="all">All Types</option>
@@ -548,7 +564,7 @@ const NewStaffDashboard = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing page {currentPage} of {totalPages} ({totalCount} total forms)
+                    Showing page {currentPage} of {totalPages} ({activeCount} total forms)
                   </p>
                   <div className="flex items-center gap-2">
                     <button

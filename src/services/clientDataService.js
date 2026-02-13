@@ -1217,24 +1217,26 @@ class ClientDataService {
         hasMore: snapshot.docs.length === limitCount,
       };
     } catch (error) {
-      // If index error, try fallback without ordering
+      // If index error, fall back to a query without orderBy
+      // startAfter still works without orderBy (uses doc ID order), so pagination is preserved.
+      // Docs are sorted in memory per page. Order across pages won't be perfectly chronological
+      // until the composite index is deployed, but navigation will work correctly.
       if (error.code === "failed-precondition" || error.message?.includes("index")) {
-        console.warn(`Index not available for ${collectionName}, using fallback`);
-        const simpleQuery = query(
-          collection(db, collectionName),
-          where("schemeIds", "array-contains", schemeId),
-          limit(limitCount * 2)
-        );
-        const snapshot = await getDocs(simpleQuery);
+        console.warn(`Index not available for ${collectionName}, using fallback (deploy indexes to fix ordering)`);
+        const collRef = collection(db, collectionName);
+        const fallbackQuery = lastDoc
+          ? query(collRef, where("schemeIds", "array-contains", schemeId), startAfter(lastDoc), limit(limitCount))
+          : query(collRef, where("schemeIds", "array-contains", schemeId), limit(limitCount));
+
+        const snapshot = await getDocs(fallbackQuery);
         const docs = snapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-          .slice(0, limitCount);
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
         return {
           docs,
-          lastDoc: null,
-          hasMore: false,
+          lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+          hasMore: snapshot.docs.length === limitCount,
         };
       }
       console.error(`Error fetching from ${collectionName}:`, error);
@@ -1268,42 +1270,43 @@ class ClientDataService {
     const specificCursor = cursors?.specific ?? null;
     const allSchemesCursor = cursors?.allSchemes ?? null;
 
-    try {
-      const buildQ = (value, cursor) => cursor
-        ? query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), startAfter(cursor), limit(pageSize))
-        : query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), limit(pageSize));
+    const buildQ = (value, cursor) => cursor
+      ? query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), startAfter(cursor), limit(pageSize))
+      : query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), limit(pageSize));
 
-      const [snap1, snap2] = await Promise.all([
-        getDocs(buildQ(schemeId, specificCursor)),
-        getDocs(buildQ("all-schemes", allSchemesCursor)),
-      ]);
+    // Run each query independently so one failing doesn't block the other
+    const fetchSafe = async (q) => {
+      try { return await getDocs(q); }
+      catch { return { docs: [] }; }
+    };
 
-      // Merge, deduplicate (same form could theoretically match both), sort newest first
-      const seen = new Set();
-      const merged = [...snap1.docs, ...snap2.docs]
-        .filter(d => !seen.has(d.id) && seen.add(d.id))
-        .map(d => ({
-          id: d.id,
-          ...d.data(),
-          reportType: 'cctv-check',
-          title: 'CCTV Check',
-          timestamp: d.data().createdAt,
-        }))
-        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
-        .slice(0, pageSize);
+    const [snap1, snap2] = await Promise.all([
+      fetchSafe(buildQ(schemeId, specificCursor)),
+      fetchSafe(buildQ("all-schemes", allSchemesCursor)),
+    ]);
 
-      return {
-        reports: merged,
-        lastDoc: {
-          specific: snap1.docs.length > 0 ? snap1.docs[snap1.docs.length - 1] : specificCursor,
-          allSchemes: snap2.docs.length > 0 ? snap2.docs[snap2.docs.length - 1] : allSchemesCursor,
-        },
-        hasMore: snap1.docs.length === pageSize || snap2.docs.length === pageSize,
-      };
-    } catch (error) {
-      console.error("Error fetching CCTV reports:", error);
-      return { reports: [], lastDoc: null, hasMore: false };
-    }
+    // Merge, deduplicate (same form could theoretically match both), sort newest first
+    const seen = new Set();
+    const merged = [...snap1.docs, ...snap2.docs]
+      .filter(d => !seen.has(d.id) && seen.add(d.id))
+      .map(d => ({
+        id: d.id,
+        ...d.data(),
+        reportType: 'cctv-check',
+        title: 'CCTV Check',
+        timestamp: d.data().createdAt,
+      }))
+      .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
+      .slice(0, pageSize);
+
+    return {
+      reports: merged,
+      lastDoc: {
+        specific: snap1.docs?.length > 0 ? snap1.docs[snap1.docs.length - 1] : specificCursor,
+        allSchemes: snap2.docs?.length > 0 ? snap2.docs[snap2.docs.length - 1] : allSchemesCursor,
+      },
+      hasMore: snap1.docs?.length === pageSize || snap2.docs?.length === pageSize,
+    };
   }
 
   // Get reports for a single type with true server-side pagination

@@ -1426,6 +1426,30 @@ class StaffService {
   }
 
   /**
+   * Get forms of a specific type with true server-side pagination
+   * Used when a type filter is active — fetches exactly pageSize of that type only
+   */
+  async getFormsByTypePaginated(formType, pageSize = 10, lastDoc = null) {
+    const configMap = {
+      'cctv-check':        { collection: 'cctvCheckForms',          label: 'CCTV Check Sheet' },
+      'incident':          { collection: 'incidentReports',         label: 'Incident Report' },
+      'asset-damage':      { collection: 'assetDamageReports',      label: 'Asset Damage' },
+      'daily-occurrence':  { collection: 'dailyOccurrenceReports',  label: 'Daily Occurrence' },
+    };
+    const config = configMap[formType];
+    if (!config) return { forms: [], lastDoc: null, hasMore: false };
+
+    try {
+      const result = await this.fetchPaginatedForms(config.collection, pageSize, lastDoc);
+      const forms = result.docs.map(f => ({ ...f, type: config.label }));
+      return { forms, lastDoc: result.lastDoc, hasMore: result.hasMore };
+    } catch (error) {
+      console.error(`Error fetching ${formType} forms:`, error);
+      return { forms: [], lastDoc: null, hasMore: false };
+    }
+  }
+
+  /**
    * Helper method to fetch paginated documents from a collection
    */
   async fetchPaginatedForms(collectionName, limitCount, lastDoc) {
@@ -1466,16 +1490,16 @@ class StaffService {
   }
 
   /**
-   * Get total count of all forms (for pagination display)
-   * Uses getCountFromServer - only 1 read per collection regardless of document count
+   * Get total count of all forms excluding demo submissions (for pagination display)
+   * Uses getCountFromServer - only 4 reads total
    */
   async getAllFormsCount() {
     try {
       const [cctvCount, incidentCount, assetCount, dailyCount] = await Promise.all([
-        this.getCollectionCountServer("cctvCheckForms"),
-        this.getCollectionCountServer("incidentReports"),
-        this.getCollectionCountServer("assetDamageReports"),
-        this.getCollectionCountServer("dailyOccurrenceReports"),
+        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
+        this.getCollectionCountServerExcludeDemo("incidentReports"),
+        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
+        this.getCollectionCountServerExcludeDemo("dailyOccurrenceReports"),
       ]);
 
       return cctvCount + incidentCount + assetCount + dailyCount;
@@ -1486,16 +1510,16 @@ class StaffService {
   }
 
   /**
-   * Get count per form type (for stat cards)
-   * Uses getCountFromServer - only 4 reads total regardless of document count
+   * Get count per form type excluding demo submissions (for stat cards)
+   * Uses getCountFromServer - only 4 reads total
    */
   async getAllFormsCountByType() {
     try {
       const [cctvCount, incidentCount, assetCount, dailyCount] = await Promise.all([
-        this.getCollectionCountServer("cctvCheckForms"),
-        this.getCollectionCountServer("incidentReports"),
-        this.getCollectionCountServer("assetDamageReports"),
-        this.getCollectionCountServer("dailyOccurrenceReports"),
+        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
+        this.getCollectionCountServerExcludeDemo("incidentReports"),
+        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
+        this.getCollectionCountServerExcludeDemo("dailyOccurrenceReports"),
       ]);
 
       return {
@@ -1511,7 +1535,39 @@ class StaffService {
   }
 
   /**
-   * Helper to get count from a collection using server-side counting
+   * Get count for a specific form type excluding demo submissions (for filtered pagination display)
+   */
+  async getFormCountForType(formType) {
+    const collectionMap = {
+      'cctv-check':        'cctvCheckForms',
+      'incident':          'incidentReports',
+      'asset-damage':      'assetDamageReports',
+      'daily-occurrence':  'dailyOccurrenceReports',
+    };
+    const collectionName = collectionMap[formType];
+    if (!collectionName) return 0;
+    return await this.getCollectionCountServerExcludeDemo(collectionName);
+  }
+
+  /**
+   * Helper: count documents in a collection excluding demo submissions.
+   * Every form stores schemeId = its primary scheme. Demo forms have schemeId = "DMO1".
+   * Querying schemeId != DMO1 gives us only real submissions. 1 read regardless of collection size.
+   */
+  async getCollectionCountServerExcludeDemo(collectionName) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      const q = query(collectionRef, where("schemeId", "!=", DEMO_SCHEME_ID));
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn(`Could not get non-demo count for ${collectionName}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Helper to get count from a collection using server-side counting (includes all docs)
    */
   async getCollectionCountServer(collectionName) {
     try {
