@@ -32,10 +32,20 @@ const StaffReportsPage = () => {
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [cursors, setCursors] = useState({});
+  const [typeCursor, setTypeCursor] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [typeCount, setTypeCount] = useState(0);
   const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
   const reportsPerPage = 10;
+
+  // Maps admin display filter values → staffService type keys
+  const adminTypeToServiceType = {
+    'CCTV Check':      'cctv-check',
+    'Incident Report': 'incident',
+    'Asset Damage':    'asset-damage',
+    'Daily Logs':      'daily-occurrence',
+  };
 
   useEffect(() => {
     loadAllReports(true);
@@ -46,22 +56,39 @@ const StaffReportsPage = () => {
   useEffect(() => {
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, filterType, filterScheme, searchQuery]);
+  }, [reports, filterScheme, searchQuery]);
 
-  const loadAllReports = async (resetPage = false) => {
+  const loadAllReports = async (resetPage = false, overrideFilter = null) => {
     try {
       setLoading(true);
 
-      // Use server-side pagination - only fetch 10 forms
-      const result = await staffService.getAllFormsPaginated(
-        reportsPerPage,
-        resetPage ? {} : cursors
-      );
+      const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
+      let rawForms;
 
-      console.log('Loaded forms:', result.forms.length);
+      if (activeFilter === 'all') {
+        // Mixed pagination: ~3 per type, merged and sorted
+        const result = await staffService.getAllFormsPaginated(
+          reportsPerPage,
+          resetPage ? {} : cursors
+        );
+        rawForms = result.forms;
+        setCursors(result.cursors);
+        setHasMore(result.hasMore);
+      } else {
+        // Type-specific server-side pagination: fetches exactly 10 of the selected type
+        const serviceType = adminTypeToServiceType[activeFilter] || activeFilter;
+        const result = await staffService.getFormsByTypePaginated(
+          serviceType,
+          reportsPerPage,
+          resetPage ? null : typeCursor
+        );
+        rawForms = result.forms;
+        setTypeCursor(result.lastDoc);
+        setHasMore(result.hasMore);
+      }
 
       // Map forms to reports with display metadata
-      const mappedReports = result.forms.map(f => {
+      const mappedReports = rawForms.map(f => {
         let type, icon, color;
 
         // Determine type based on the form's type field
@@ -99,8 +126,6 @@ const StaffReportsPage = () => {
       });
 
       setReports(filteredReports);
-      setCursors(result.cursors);
-      setHasMore(result.hasMore);
 
       if (resetPage) {
         setCurrentPage(1);
@@ -131,13 +156,26 @@ const StaffReportsPage = () => {
     }
   };
 
+  const handleFilterChange = async (newType) => {
+    setFilterType(newType);
+    setTypeCursor(null);
+    setCurrentPage(1);
+    loadAllReports(true, newType);
+    if (newType !== 'all') {
+      try {
+        const serviceType = adminTypeToServiceType[newType] || newType;
+        const count = await staffService.getFormCountForType(serviceType);
+        setTypeCount(count);
+      } catch {
+        setTypeCount(0);
+      }
+    }
+  };
+
   const applyFilters = () => {
     let filtered = [...reports];
 
-    // Filter by type
-    if (filterType !== "all") {
-      filtered = filtered.filter((r) => r.type === filterType);
-    }
+    // Type filtering is now handled server-side — skip client-side type filter
 
     // Filter by scheme
     if (filterScheme !== "all") {
@@ -203,9 +241,10 @@ const StaffReportsPage = () => {
     }
   };
 
-  // Server-side pagination
+  // Server-side pagination — use type-specific count when a filter is active
   const currentReports = filteredReports;
-  const totalPages = Math.ceil(totalCount / reportsPerPage);
+  const activeCount = filterType === 'all' ? totalCount : typeCount;
+  const totalPages = Math.ceil(activeCount / reportsPerPage);
 
   // Pagination handlers
   const handleNextPage = () => {
@@ -218,7 +257,8 @@ const StaffReportsPage = () => {
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
-      loadAllReports(true); // Reset to refetch from start
+      setTypeCursor(null); // Going back resets to page 1 fetch
+      loadAllReports(true);
     }
   };
 
@@ -455,7 +495,7 @@ const StaffReportsPage = () => {
             {/* Filter by Type */}
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={(e) => handleFilterChange(e.target.value)}
               className="select bg-white border-gray-300 rounded-lg w-full"
             >
               <option value="all">All Types</option>
@@ -483,7 +523,7 @@ const StaffReportsPage = () => {
           <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
             <Filter className="w-4 h-4" />
             <span>
-              Showing {filteredReports.length} of {reports.length} reports
+              Showing {filteredReports.length} of {activeCount} reports
             </span>
           </div>
         </div>
@@ -584,7 +624,7 @@ const StaffReportsPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing page {currentPage} of {totalPages} ({totalCount} total reports)
+                    Showing page {currentPage} of {totalPages} ({activeCount} total reports)
                   </p>
                   <div className="flex items-center gap-2">
                     <button
