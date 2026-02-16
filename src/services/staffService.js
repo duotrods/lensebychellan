@@ -1379,24 +1379,24 @@ class StaffService {
    * @param {object} cursors - Cursors for each collection type
    * @returns {Promise<{forms: Array, cursors: object, hasMore: boolean}>}
    */
-  async getAllFormsPaginated(pageSize = 10, cursors = {}) {
+  async getAllFormsPaginated(pageSize = 10, cursors = {}, schemeId = null) {
     try {
-      // Fetch each form type with individual limits
-      const perTypeLimit = Math.ceil(pageSize / 4); // Distribute across 4 types
+      // Fetch pageSize from each type so the merged result is truly chronological
+      const perTypeLimit = pageSize;
 
       const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
-        this.fetchPaginatedForms("cctvCheckForms", perTypeLimit, cursors.cctv),
-        this.fetchPaginatedForms("incidentReports", perTypeLimit, cursors.incident),
-        this.fetchPaginatedForms("assetDamageReports", perTypeLimit, cursors.assetDamage),
-        this.fetchPaginatedForms("dailyOccurrenceReports", perTypeLimit, cursors.dailyOccurrence)
+        this.fetchPaginatedForms("cctvCheckForms", perTypeLimit, cursors.cctv, schemeId),
+        this.fetchPaginatedForms("incidentReports", perTypeLimit, cursors.incident, schemeId),
+        this.fetchPaginatedForms("assetDamageReports", perTypeLimit, cursors.assetDamage, schemeId),
+        this.fetchPaginatedForms("dailyOccurrenceReports", perTypeLimit, cursors.dailyOccurrence, schemeId)
       ]);
 
-      // Transform and combine all forms
+      // Transform and combine all forms — tag each with its source for cursor tracking
       const allForms = [
-        ...cctvForms.docs.map(f => ({ ...f, type: 'CCTV Check Sheet' })),
-        ...incidentReports.docs.map(f => ({ ...f, type: 'Incident Report' })),
-        ...assetDamageReports.docs.map(f => ({ ...f, type: 'Asset Damage' })),
-        ...dailyOccurrenceReports.docs.map(f => ({ ...f, type: 'Daily Occurrence' }))
+        ...cctvForms.docs.map(f => ({ ...f, type: 'CCTV Check Sheet', _source: 'cctv' })),
+        ...incidentReports.docs.map(f => ({ ...f, type: 'Incident Report', _source: 'incident' })),
+        ...assetDamageReports.docs.map(f => ({ ...f, type: 'Asset Damage', _source: 'assetDamage' })),
+        ...dailyOccurrenceReports.docs.map(f => ({ ...f, type: 'Daily Occurrence', _source: 'dailyOccurrence' }))
       ];
 
       // Sort by createdAt and take only pageSize items
@@ -1408,14 +1408,21 @@ class StaffService {
         })
         .slice(0, pageSize);
 
+      // Only advance cursors for collections that had docs included in the final slice.
+      // This prevents skipping unseen docs from collections that were fetched but not displayed.
+      const newCursors = { ...cursors };
+      sortedForms.forEach(form => {
+        if (form._firestoreDoc) {
+          newCursors[form._source] = form._firestoreDoc;
+        }
+      });
+
+      // Clean internal tracking fields before returning
+      const cleanForms = sortedForms.map(({ _source, _firestoreDoc, ...rest }) => rest);
+
       return {
-        forms: sortedForms,
-        cursors: {
-          cctv: cctvForms.lastDoc,
-          incident: incidentReports.lastDoc,
-          assetDamage: assetDamageReports.lastDoc,
-          dailyOccurrence: dailyOccurrenceReports.lastDoc,
-        },
+        forms: cleanForms,
+        cursors: newCursors,
         hasMore: cctvForms.hasMore || incidentReports.hasMore ||
                  assetDamageReports.hasMore || dailyOccurrenceReports.hasMore,
       };
@@ -1429,7 +1436,7 @@ class StaffService {
    * Get forms of a specific type with true server-side pagination
    * Used when a type filter is active — fetches exactly pageSize of that type only
    */
-  async getFormsByTypePaginated(formType, pageSize = 10, lastDoc = null) {
+  async getFormsByTypePaginated(formType, pageSize = 10, lastDoc = null, schemeId = null) {
     const configMap = {
       'cctv-check':        { collection: 'cctvCheckForms',          label: 'CCTV Check Sheet' },
       'incident':          { collection: 'incidentReports',         label: 'Incident Report' },
@@ -1440,8 +1447,8 @@ class StaffService {
     if (!config) return { forms: [], lastDoc: null, hasMore: false };
 
     try {
-      const result = await this.fetchPaginatedForms(config.collection, pageSize, lastDoc);
-      const forms = result.docs.map(f => ({ ...f, type: config.label }));
+      const result = await this.fetchPaginatedForms(config.collection, pageSize, lastDoc, schemeId);
+      const forms = result.docs.map(({ _firestoreDoc, ...f }) => ({ ...f, type: config.label }));
       return { forms, lastDoc: result.lastDoc, hasMore: result.hasMore };
     } catch (error) {
       console.error(`Error fetching ${formType} forms:`, error);
@@ -1452,30 +1459,27 @@ class StaffService {
   /**
    * Helper method to fetch paginated documents from a collection
    */
-  async fetchPaginatedForms(collectionName, limitCount, lastDoc) {
+  async fetchPaginatedForms(collectionName, limitCount, lastDoc, schemeId = null) {
     try {
       const collectionRef = collection(db, collectionName);
-      let q;
-
-      if (lastDoc) {
-        q = query(
-          collectionRef,
-          orderBy("createdAt", "desc"),
-          startAfter(lastDoc),
-          limit(limitCount)
-        );
-      } else {
-        q = query(
-          collectionRef,
-          orderBy("createdAt", "desc"),
-          limit(limitCount)
-        );
+      // Build query constraints: optional scheme filter + orderBy + optional cursor + limit
+      const constraints = [];
+      if (schemeId) {
+        constraints.push(where("schemeIds", "array-contains", schemeId));
       }
+      constraints.push(orderBy("createdAt", "desc"));
+      if (lastDoc) {
+        constraints.push(startAfter(lastDoc));
+      }
+      constraints.push(limit(limitCount));
+
+      const q = query(collectionRef, ...constraints);
 
       const snapshot = await getDocs(q);
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        _firestoreDoc: doc, // Keep raw snapshot for cursor tracking
       }));
 
       return {
@@ -1499,7 +1503,8 @@ class StaffService {
         this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
         this.getCollectionCountServerExcludeDemo("incidentReports"),
         this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        this.getCollectionCountServerExcludeDemo("dailyOccurrenceReports"),
+        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
+        this.getCollectionCountServer("dailyOccurrenceReports"),
       ]);
 
       return cctvCount + incidentCount + assetCount + dailyCount;
@@ -1519,7 +1524,8 @@ class StaffService {
         this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
         this.getCollectionCountServerExcludeDemo("incidentReports"),
         this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        this.getCollectionCountServerExcludeDemo("dailyOccurrenceReports"),
+        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
+        this.getCollectionCountServer("dailyOccurrenceReports"),
       ]);
 
       return {
@@ -1546,6 +1552,10 @@ class StaffService {
     };
     const collectionName = collectionMap[formType];
     if (!collectionName) return 0;
+    // Daily occurrence forms don't have a top-level schemeId, use regular count
+    if (formType === 'daily-occurrence') {
+      return await this.getCollectionCountServer(collectionName);
+    }
     return await this.getCollectionCountServerExcludeDemo(collectionName);
   }
 
