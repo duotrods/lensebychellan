@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { clientDataService } from '../../services/clientDataService';
@@ -22,6 +22,7 @@ const ReportsPage = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
+  const pageCacheRef = useRef({});
   const [hasMore, setHasMore] = useState(true);
   const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, total: 0 });
   const reportsPerPage = 10;
@@ -34,34 +35,65 @@ const ReportsPage = () => {
     }
   }, [userProfile?.activeSchemeId, userProfile?.schemeId, userProfile?.schemeName]);
 
-  const loadReports = async (resetPage = false, overrideFilterType = null) => {
+  const loadReports = async (resetPage = false, overrideFilterType = null, cursorOverride = null, targetPage = null) => {
+    // Check page cache first
+    if (targetPage && pageCacheRef.current[targetPage]) {
+      const cached = pageCacheRef.current[targetPage];
+      setReports(cached.data);
+      setCursors(cached.cursors);
+      setTypeCursor(cached.typeCursor);
+      setHasMore(cached.hasMore);
+      setCurrentPage(targetPage);
+      return;
+    }
+
     try {
       setLoading(true);
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
       const activeFilter = overrideFilterType !== null ? overrideFilterType : filterType;
 
+      let newCursors = {};
+      let newTypeCursor = null;
+      let newHasMore = true;
+      let newReports;
+
       if (activeFilter === 'all') {
-        // Mixed pagination: fetch ~3 per collection type, merge and sort
+        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
         const result = await clientDataService.getAllReportsPaginated(
           activeScheme,
           reportsPerPage,
-          resetPage ? {} : cursors
+          effectiveCursors
         );
-        setReports(result.reports);
-        setCursors(result.cursors);
-        setHasMore(result.hasMore);
+        newReports = result.reports;
+        newCursors = result.cursors;
+        newHasMore = result.hasMore;
+        setCursors(newCursors);
+        setHasMore(newHasMore);
       } else {
-        // Type-specific pagination: fetch full 10 from one collection
+        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
         const result = await clientDataService.getReportsByTypePaginated(
           activeScheme,
           activeFilter,
           reportsPerPage,
-          resetPage ? null : typeCursor
+          effectiveTypeCursor
         );
-        setReports(result.reports);
-        setTypeCursor(result.lastDoc);
-        setHasMore(result.hasMore);
+        newReports = result.reports;
+        newTypeCursor = result.lastDoc;
+        newHasMore = result.hasMore;
+        setTypeCursor(newTypeCursor);
+        setHasMore(newHasMore);
       }
+
+      setReports(newReports);
+
+      // Cache this page's data
+      const pageNum = targetPage || (resetPage ? 1 : currentPage);
+      pageCacheRef.current[pageNum] = {
+        data: newReports,
+        cursors: newCursors,
+        typeCursor: newTypeCursor,
+        hasMore: newHasMore,
+      };
 
       if (resetPage) {
         setCurrentPage(1);
@@ -130,15 +162,17 @@ const ReportsPage = () => {
   // Pagination handlers
   const handleNextPage = () => {
     if (hasMore) {
-      setCurrentPage(prev => prev + 1);
-      loadReports(false);
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      loadReports(false, null, null, nextPage);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-      loadReports(true); // Reset to refetch from start
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      loadReports(false, null, null, prevPage);
     }
   };
 
@@ -344,6 +378,7 @@ const ReportsPage = () => {
                   setFilterType(newType);
                   setTypeCursor(null);
                   setCursors({});
+                  pageCacheRef.current = {};
                   loadReports(true, newType);
                 }}
                 className="select  select-bordered bg-white border-gray-300"

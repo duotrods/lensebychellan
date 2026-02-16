@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
@@ -24,6 +24,7 @@ const NewStaffDashboard = () => {
   const [filterType, setFilterType] = useState('all');
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
+  const pageCacheRef = useRef({}); // Cache: { [pageNumber]: { cursors, typeCursor, data, hasMore } }
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -35,8 +36,19 @@ const NewStaffDashboard = () => {
     loadStatCounts();
   }, [userProfile]);
 
-  const loadDashboardData = async (resetPage = false, overrideFilter = null) => {
+  const loadDashboardData = async (resetPage = false, overrideFilter = null, cursorOverride = null, targetPage = null) => {
     if (!userProfile) return;
+
+    // Check page cache first (targetPage is set by pagination handlers)
+    if (targetPage && pageCacheRef.current[targetPage]) {
+      const cached = pageCacheRef.current[targetPage];
+      setLatestForms(cached.data);
+      setCursors(cached.cursors);
+      setTypeCursor(cached.typeCursor);
+      setHasMore(cached.hasMore);
+      setCurrentPage(targetPage);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -45,26 +57,33 @@ const NewStaffDashboard = () => {
       const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
 
       let rawForms;
+      let newCursors = {};
+      let newTypeCursor = null;
+      let newHasMore = true;
 
       if (activeFilter === 'all') {
-        // Mixed pagination: ~3 per type, merged and sorted
+        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
         const result = await staffService.getAllFormsPaginated(
           formsPerPage,
-          resetPage ? {} : cursors
+          effectiveCursors
         );
         rawForms = result.forms;
-        setCursors(result.cursors);
-        setHasMore(result.hasMore);
+        newCursors = result.cursors;
+        newHasMore = result.hasMore;
+        setCursors(newCursors);
+        setHasMore(newHasMore);
       } else {
-        // Type-specific server-side pagination: fetches exactly 10 of the selected type
+        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
         const result = await staffService.getFormsByTypePaginated(
           activeFilter,
           formsPerPage,
-          resetPage ? null : typeCursor
+          effectiveTypeCursor
         );
         rawForms = result.forms;
-        setTypeCursor(result.lastDoc);
-        setHasMore(result.hasMore);
+        newTypeCursor = result.lastDoc;
+        newHasMore = result.hasMore;
+        setTypeCursor(newTypeCursor);
+        setHasMore(newHasMore);
       }
 
       // Filter forms based on demo status
@@ -90,6 +109,16 @@ const NewStaffDashboard = () => {
       }
 
       setLatestForms(filteredForms);
+
+      // Cache this page's data
+      const pageNum = targetPage || (resetPage ? 1 : currentPage);
+      pageCacheRef.current[pageNum] = {
+        data: filteredForms,
+        cursors: newCursors,
+        typeCursor: newTypeCursor,
+        hasMore: newHasMore,
+      };
+
       if (resetPage) setCurrentPage(1);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -120,6 +149,7 @@ const NewStaffDashboard = () => {
   const handleFilterChange = async (newType) => {
     setFilterType(newType);
     setTypeCursor(null);
+    pageCacheRef.current = {};
     setCurrentPage(1);
     loadDashboardData(true, newType);
     if (newType !== 'all') {
@@ -148,7 +178,7 @@ const NewStaffDashboard = () => {
       color: 'from-blue-500 to-blue-600'
     },
     {
-      title: 'Daily Logs',
+      title: 'Daily Occurence',
       count: stats?.dailyLogsTotal || 0,
       subtitle: 'Total Submissions',
       icon: Calendar,
@@ -295,16 +325,19 @@ const NewStaffDashboard = () => {
   // Pagination handlers
   const handleNextPage = () => {
     if (hasMore) {
-      setCurrentPage(prev => prev + 1);
-      loadDashboardData(false);
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      // loadDashboardData will check cache first, fetch only if not cached
+      loadDashboardData(false, null, null, nextPage);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-      setTypeCursor(null); // Going back always resets to page 1 fetch
-      loadDashboardData(true);
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      // loadDashboardData will check cache first — 0 reads if cached
+      loadDashboardData(false, null, null, prevPage);
     }
   };
 

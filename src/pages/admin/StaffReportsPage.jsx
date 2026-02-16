@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
@@ -33,6 +33,7 @@ const StaffReportsPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
+  const pageCacheRef = useRef({});
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -56,42 +57,63 @@ const StaffReportsPage = () => {
   useEffect(() => {
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, filterScheme, searchQuery]);
+  }, [reports, searchQuery]);
 
-  const loadAllReports = async (resetPage = false, overrideFilter = null) => {
+  const loadAllReports = async (resetPage = false, overrideFilter = null, overrideScheme = null, cursorOverride = null, targetPage = null) => {
+    // Check page cache first (targetPage is set by pagination handlers)
+    if (targetPage && pageCacheRef.current[targetPage]) {
+      const cached = pageCacheRef.current[targetPage];
+      setReports(cached.data);
+      setCursors(cached.cursors);
+      setTypeCursor(cached.typeCursor);
+      setHasMore(cached.hasMore);
+      setCurrentPage(targetPage);
+      return;
+    }
+
     try {
       setLoading(true);
 
       const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
+      const activeScheme = overrideScheme !== null ? overrideScheme : filterScheme;
+      const schemeId = activeScheme !== 'all' ? activeScheme : null;
       let rawForms;
+      let newCursors = {};
+      let newTypeCursor = null;
+      let newHasMore = true;
 
       if (activeFilter === 'all') {
-        // Mixed pagination: ~3 per type, merged and sorted
+        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
         const result = await staffService.getAllFormsPaginated(
           reportsPerPage,
-          resetPage ? {} : cursors
+          effectiveCursors,
+          schemeId
         );
         rawForms = result.forms;
-        setCursors(result.cursors);
-        setHasMore(result.hasMore);
+        newCursors = result.cursors;
+        newHasMore = result.hasMore;
+        setCursors(newCursors);
+        setHasMore(newHasMore);
       } else {
-        // Type-specific server-side pagination: fetches exactly 10 of the selected type
+        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
         const serviceType = adminTypeToServiceType[activeFilter] || activeFilter;
         const result = await staffService.getFormsByTypePaginated(
           serviceType,
           reportsPerPage,
-          resetPage ? null : typeCursor
+          effectiveTypeCursor,
+          schemeId
         );
         rawForms = result.forms;
-        setTypeCursor(result.lastDoc);
-        setHasMore(result.hasMore);
+        newTypeCursor = result.lastDoc;
+        newHasMore = result.hasMore;
+        setTypeCursor(newTypeCursor);
+        setHasMore(newHasMore);
       }
 
       // Map forms to reports with display metadata
       const mappedReports = rawForms.map(f => {
         let type, icon, color;
 
-        // Determine type based on the form's type field
         if (f.type === 'CCTV Check Sheet') {
           type = "CCTV Check";
           icon = Camera;
@@ -115,17 +137,23 @@ const StaffReportsPage = () => {
 
       // Exclude demo scheme (DMO1) forms from admin view
       const filteredReports = mappedReports.filter(report => {
-        // Check schemeIds array first
         if (report.schemeIds && Array.isArray(report.schemeIds)) {
-          // Exclude if all schemeIds are demo
           return !report.schemeIds.every(id => id === DEMO_SCHEME_ID);
         }
-        // Check single schemeId field
         const schemeId = report.schemeId || report.scheme?.split(' ')[0];
         return schemeId !== DEMO_SCHEME_ID;
       });
 
       setReports(filteredReports);
+
+      // Cache this page's data
+      const pageNum = targetPage || (resetPage ? 1 : currentPage);
+      pageCacheRef.current[pageNum] = {
+        data: filteredReports,
+        cursors: newCursors,
+        typeCursor: newTypeCursor,
+        hasMore: newHasMore,
+      };
 
       if (resetPage) {
         setCurrentPage(1);
@@ -159,6 +187,8 @@ const StaffReportsPage = () => {
   const handleFilterChange = async (newType) => {
     setFilterType(newType);
     setTypeCursor(null);
+    setCursors({});
+    pageCacheRef.current = {};
     setCurrentPage(1);
     loadAllReports(true, newType);
     if (newType !== 'all') {
@@ -172,43 +202,37 @@ const StaffReportsPage = () => {
     }
   };
 
+  const handleSchemeChange = (newScheme) => {
+    setFilterScheme(newScheme);
+    setTypeCursor(null);
+    setCursors({});
+    pageCacheRef.current = {};
+    setCurrentPage(1);
+    loadAllReports(true, null, newScheme);
+  };
+
   const applyFilters = () => {
     let filtered = [...reports];
 
-    // Type filtering is now handled server-side — skip client-side type filter
+    // Type and scheme filtering are now handled server-side
 
-    // Filter by scheme
-    if (filterScheme !== "all") {
-      filtered = filtered.filter((r) => r.scheme?.includes(filterScheme));
-    }
-
-    // Filter by search query (search in reference ID, staff name, scheme, etc.)
+    // Search is still client-side (filters current page by text)
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (r) =>
-          r.referenceId?.toLowerCase().includes(query) ||
-          r.submittedBy?.name?.toLowerCase().includes(query) ||
-          r.scheme?.toLowerCase().includes(query) ||
-          r.type?.toLowerCase().includes(query)
+          r.referenceId?.toLowerCase().includes(q) ||
+          r.submittedBy?.name?.toLowerCase().includes(q) ||
+          r.scheme?.toLowerCase().includes(q) ||
+          r.type?.toLowerCase().includes(q)
       );
     }
 
     setFilteredReports(filtered);
-    setCurrentPage(1);
   };
 
-  const getUniqueSchemes = () => {
-    const schemes = new Set();
-    const activeSchemeNames = SCHEMES.map(s => s.fullName);
-    reports.forEach((r) => {
-      // Only include schemes that are in the active SCHEMES list
-      if (r.scheme && activeSchemeNames.includes(r.scheme)) {
-        schemes.add(r.scheme);
-      }
-    });
-    return Array.from(schemes).sort();
-  };
+  // Non-demo schemes for the dropdown
+  const availableSchemes = SCHEMES.filter(s => !s.isDemo);
 
   const handleViewReport = (report) => {
     // Navigate to appropriate view page based on report type
@@ -249,16 +273,17 @@ const StaffReportsPage = () => {
   // Pagination handlers
   const handleNextPage = () => {
     if (hasMore) {
-      setCurrentPage(prev => prev + 1);
-      loadAllReports(false);
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      loadAllReports(false, null, null, null, nextPage);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-      setTypeCursor(null); // Going back resets to page 1 fetch
-      loadAllReports(true);
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      loadAllReports(false, null, null, null, prevPage);
     }
   };
 
@@ -508,13 +533,13 @@ const StaffReportsPage = () => {
             {/* Filter by Scheme */}
             <select
               value={filterScheme}
-              onChange={(e) => setFilterScheme(e.target.value)}
+              onChange={(e) => handleSchemeChange(e.target.value)}
               className="select bg-white border-gray-300 rounded-lg w-full"
             >
               <option value="all">All Schemes</option>
-              {getUniqueSchemes().map((scheme) => (
-                <option key={scheme} value={scheme}>
-                  {scheme}
+              {availableSchemes.map((scheme) => (
+                <option key={scheme.id} value={scheme.id}>
+                  {scheme.fullName}
                 </option>
               ))}
             </select>

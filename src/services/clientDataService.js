@@ -24,7 +24,7 @@ class ClientDataService {
       where("schemeIds", "array-contains", schemeId),
       where("status", "==", "live"),
       orderBy("createdAt", "desc"),
-      limit(50) // Limit to 50 most recent live incidents
+      limit(50), // Limit to 50 most recent live incidents
     );
 
     // Return unsubscribe function
@@ -39,12 +39,17 @@ class ClientDataService {
       },
       (error) => {
         // If index error, fall back to simpler query
-        if (error.code === "failed-precondition" || error.message?.includes("index")) {
-          console.warn("Index not available for live incidents, using fallback query");
+        if (
+          error.code === "failed-precondition" ||
+          error.message?.includes("index")
+        ) {
+          console.warn(
+            "Index not available for live incidents, using fallback query",
+          );
           const simpleQuery = query(
             incidentsRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(100)
+            limit(100),
           );
           return onSnapshot(
             simpleQuery,
@@ -52,15 +57,18 @@ class ClientDataService {
               const incidents = snapshot.docs
                 .map((doc) => ({ id: doc.id, ...doc.data() }))
                 .filter((doc) => doc.status === "live")
-                .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+                .sort(
+                  (a, b) =>
+                    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+                )
                 .slice(0, 50);
               callback(incidents);
             },
-            onError
+            onError,
           );
         }
         if (onError) onError(error);
-      }
+      },
     );
   }
 
@@ -72,7 +80,7 @@ class ClientDataService {
       incidentsRef,
       where("schemeIds", "array-contains", schemeId),
       orderBy("createdAt", "desc"),
-      limit(100) // Limit to 100 most recent incidents
+      limit(100), // Limit to 100 most recent incidents
     );
 
     return onSnapshot(
@@ -85,31 +93,41 @@ class ClientDataService {
         callback(incidents);
       },
       (error) => {
-        if (error.code === "failed-precondition" || error.message?.includes("index")) {
+        if (
+          error.code === "failed-precondition" ||
+          error.message?.includes("index")
+        ) {
           console.warn("Index not available, using fallback query");
           const simpleQuery = query(
             incidentsRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(100)
+            limit(100),
           );
           return onSnapshot(
             simpleQuery,
             (snapshot) => {
               const incidents = snapshot.docs
                 .map((doc) => ({ id: doc.id, ...doc.data() }))
-                .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                .sort(
+                  (a, b) =>
+                    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+                );
               callback(incidents);
             },
-            onError
+            onError,
           );
         }
         if (onError) onError(error);
-      }
+      },
     );
   }
 
   // Paginated query for completed incidents (only reads 10 docs per page - saves costs!)
-  async getCompletedIncidentsPaginated(schemeId, pageSize = 10, lastDoc = null) {
+  async getCompletedIncidentsPaginated(
+    schemeId,
+    pageSize = 10,
+    lastDoc = null,
+  ) {
     try {
       const incidentsRef = collection(db, "incidentReports");
 
@@ -122,7 +140,7 @@ class ClientDataService {
           where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
           startAfter(lastDoc),
-          limit(pageSize)
+          limit(pageSize),
         );
       } else {
         q = query(
@@ -130,7 +148,7 @@ class ClientDataService {
           where("schemeIds", "array-contains", schemeId),
           where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
-          limit(pageSize)
+          limit(pageSize),
         );
       }
 
@@ -148,26 +166,36 @@ class ClientDataService {
       };
     } catch (error) {
       // Fallback for missing index
-      if (error.code === "failed-precondition" || error.message?.includes("index")) {
+      if (
+        error.code === "failed-precondition" ||
+        error.message?.includes("index")
+      ) {
         console.warn("Index not available for paginated query, using fallback");
         const simpleQuery = query(
           collection(db, "incidentReports"),
           where("schemeIds", "array-contains", schemeId),
-          limit(100)
+          limit(100),
         );
         const snapshot = await getDocs(simpleQuery);
         const allCompleted = snapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
           .filter((doc) => doc.status === "completed")
-          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          .sort(
+            (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+          );
 
         // Manual pagination on filtered results
-        const startIndex = lastDoc ? allCompleted.findIndex(d => d.id === lastDoc.id) + 1 : 0;
+        const startIndex = lastDoc
+          ? allCompleted.findIndex((d) => d.id === lastDoc.id) + 1
+          : 0;
         const incidents = allCompleted.slice(startIndex, startIndex + pageSize);
 
         return {
           incidents,
-          lastDoc: incidents.length > 0 ? { id: incidents[incidents.length - 1].id } : null,
+          lastDoc:
+            incidents.length > 0
+              ? { id: incidents[incidents.length - 1].id }
+              : null,
           hasMore: startIndex + pageSize < allCompleted.length,
         };
       }
@@ -182,7 +210,7 @@ class ClientDataService {
       const q = query(
         incidentsRef,
         where("schemeIds", "array-contains", schemeId),
-        where("status", "==", "completed")
+        where("status", "==", "completed"),
       );
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
@@ -211,7 +239,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch incident",
         "client-data/fetch-error",
-        error
+        error,
       );
     }
   }
@@ -227,7 +255,7 @@ class ClientDataService {
           incidentsRef,
           where("schemeIds", "array-contains", schemeId),
           where("status", "==", "live"),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
         );
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map((doc) => ({
@@ -241,11 +269,11 @@ class ClientDataService {
           indexError.message?.includes("index")
         ) {
           console.warn(
-            "Index not available for live incidents query, filtering in memory"
+            "Index not available for live incidents query, filtering in memory",
           );
           const simpleQuery = query(
             incidentsRef,
-            where("schemeIds", "array-contains", schemeId)
+            where("schemeIds", "array-contains", schemeId),
           );
           const snapshot = await getDocs(simpleQuery);
           const docs = snapshot.docs
@@ -268,7 +296,7 @@ class ClientDataService {
       throw new AppError(
         "Failed to fetch live incidents",
         "client-data/fetch-error",
-        error
+        error,
       );
     }
   }
@@ -1090,60 +1118,66 @@ class ClientDataService {
   // Fetches reports from all collections and merges them with cursor-based pagination
   async getAllReportsPaginated(schemeId, pageSize = 10, cursors = {}) {
     try {
-      // Fetch each report type with individual limits
-      const perTypeLimit = Math.ceil(pageSize / 4); // Distribute across 4 types
+      // Fetch pageSize from each type so the merged result is truly chronological
+      const perTypeLimit = pageSize;
 
       // Fetch with cursors
-      const [incidents, assetDamage, dailyLogs, cctvChecks] = await Promise.all([
-        this.fetchPaginatedCollection(
-          "incidentReports",
-          schemeId,
-          perTypeLimit,
-          cursors.incidents
-        ),
-        this.fetchPaginatedCollection(
-          "assetDamageReports",
-          schemeId,
-          perTypeLimit,
-          cursors.assetDamage
-        ),
-        this.fetchPaginatedCollection(
-          "dailyOccurrenceReports",
-          schemeId,
-          perTypeLimit,
-          cursors.dailyLogs
-        ),
-        this.fetchPaginatedCollection(
-          "cctvCheckForms",
-          schemeId,
-          perTypeLimit,
-          cursors.cctvChecks
-        ),
-      ]);
+      const [incidents, assetDamage, dailyLogs, cctvChecks] = await Promise.all(
+        [
+          this.fetchPaginatedCollection(
+            "incidentReports",
+            schemeId,
+            perTypeLimit,
+            cursors.incidents,
+          ),
+          this.fetchPaginatedCollection(
+            "assetDamageReports",
+            schemeId,
+            perTypeLimit,
+            cursors.assetDamage,
+          ),
+          this.fetchPaginatedCollection(
+            "dailyOccurrenceReports",
+            schemeId,
+            perTypeLimit,
+            cursors.dailyLogs,
+          ),
+          this.fetchPaginatedCollection(
+            "cctvCheckForms",
+            schemeId,
+            perTypeLimit,
+            cursors.cctvChecks,
+          ),
+        ],
+      );
 
-      // Transform and combine all reports
+      // Transform and combine all reports — tag each with source for cursor tracking
       const allReports = [
         ...incidents.docs.map((report) => ({
           ...report,
           reportType: "incident",
+          _source: "incidents",
           type: report.incidentType,
           timestamp: report.createdAt,
         })),
         ...assetDamage.docs.map((report) => ({
           ...report,
           reportType: "asset-damage",
+          _source: "assetDamage",
           type: report.damageType,
           timestamp: report.createdAt,
         })),
         ...dailyLogs.docs.map((report) => ({
           ...report,
           reportType: "daily-occurrence",
+          _source: "dailyLogs",
           title: report.title || "Daily Log",
           timestamp: report.createdAt,
         })),
         ...cctvChecks.docs.map((report) => ({
           ...report,
           reportType: "cctv-check",
+          _source: "cctvChecks",
           title: "CCTV Check",
           timestamp: report.createdAt,
         })),
@@ -1158,14 +1192,23 @@ class ClientDataService {
         })
         .slice(0, pageSize);
 
+      // Only advance cursors for collections that had docs included in the final slice.
+      // This prevents skipping unseen docs from collections that were fetched but not displayed.
+      const newCursors = { ...cursors };
+      sortedReports.forEach((report) => {
+        if (report._firestoreDoc) {
+          newCursors[report._source] = report._firestoreDoc;
+        }
+      });
+
+      // Clean internal tracking fields before returning
+      const cleanReports = sortedReports.map(
+        ({ _source, _firestoreDoc, ...rest }) => rest,
+      );
+
       return {
-        reports: sortedReports,
-        cursors: {
-          incidents: incidents.lastDoc,
-          assetDamage: assetDamage.lastDoc,
-          dailyLogs: dailyLogs.lastDoc,
-          cctvChecks: cctvChecks.lastDoc,
-        },
+        reports: cleanReports,
+        cursors: newCursors,
         hasMore:
           incidents.hasMore ||
           assetDamage.hasMore ||
@@ -1183,7 +1226,12 @@ class ClientDataService {
   }
 
   // Helper method to fetch paginated documents from a collection
-  async fetchPaginatedCollection(collectionName, schemeId, limitCount, lastDoc) {
+  async fetchPaginatedCollection(
+    collectionName,
+    schemeId,
+    limitCount,
+    lastDoc,
+  ) {
     try {
       const collectionRef = collection(db, collectionName);
       let q;
@@ -1194,14 +1242,14 @@ class ClientDataService {
           where("schemeIds", "array-contains", schemeId),
           orderBy("createdAt", "desc"),
           startAfter(lastDoc),
-          limit(limitCount)
+          limit(limitCount),
         );
       } else {
         q = query(
           collectionRef,
           where("schemeIds", "array-contains", schemeId),
           orderBy("createdAt", "desc"),
-          limit(limitCount)
+          limit(limitCount),
         );
       }
 
@@ -1209,6 +1257,7 @@ class ClientDataService {
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        _firestoreDoc: doc, // Keep raw snapshot for cursor tracking
       }));
 
       return {
@@ -1221,17 +1270,33 @@ class ClientDataService {
       // startAfter still works without orderBy (uses doc ID order), so pagination is preserved.
       // Docs are sorted in memory per page. Order across pages won't be perfectly chronological
       // until the composite index is deployed, but navigation will work correctly.
-      if (error.code === "failed-precondition" || error.message?.includes("index")) {
-        console.warn(`Index not available for ${collectionName}, using fallback (deploy indexes to fix ordering)`);
+      if (
+        error.code === "failed-precondition" ||
+        error.message?.includes("index")
+      ) {
+        console.warn(
+          `Index not available for ${collectionName}, using fallback (deploy indexes to fix ordering)`,
+        );
         const collRef = collection(db, collectionName);
         const fallbackQuery = lastDoc
-          ? query(collRef, where("schemeIds", "array-contains", schemeId), startAfter(lastDoc), limit(limitCount))
-          : query(collRef, where("schemeIds", "array-contains", schemeId), limit(limitCount));
+          ? query(
+              collRef,
+              where("schemeIds", "array-contains", schemeId),
+              startAfter(lastDoc),
+              limit(limitCount),
+            )
+          : query(
+              collRef,
+              where("schemeIds", "array-contains", schemeId),
+              limit(limitCount),
+            );
 
         const snapshot = await getDocs(fallbackQuery);
         const docs = snapshot.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          .map((doc) => ({ id: doc.id, ...doc.data(), _firestoreDoc: doc }))
+          .sort(
+            (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+          );
 
         return {
           docs,
@@ -1247,12 +1312,13 @@ class ClientDataService {
   // Get total count of all reports for a scheme (for pagination display)
   async getAllReportsCount(schemeId) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount] = await Promise.all([
-        this.getCollectionCount("incidentReports", schemeId),
-        this.getCollectionCount("assetDamageReports", schemeId),
-        this.getCollectionCount("dailyOccurrenceReports", schemeId),
-        this.getCollectionCount("cctvCheckForms", schemeId),
-      ]);
+      const [incidentCount, assetCount, dailyCount, cctvCount] =
+        await Promise.all([
+          this.getCollectionCount("incidentReports", schemeId),
+          this.getCollectionCount("assetDamageReports", schemeId),
+          this.getCollectionCount("dailyOccurrenceReports", schemeId),
+          this.getCollectionCount("cctvCheckForms", schemeId),
+        ]);
 
       return incidentCount + assetCount + dailyCount + cctvCount;
     } catch (error) {
@@ -1270,14 +1336,29 @@ class ClientDataService {
     const specificCursor = cursors?.specific ?? null;
     const allSchemesCursor = cursors?.allSchemes ?? null;
 
-    const buildQ = (value, cursor) => cursor
-      ? query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), startAfter(cursor), limit(pageSize))
-      : query(cctvRef, where("schemeIds", "array-contains", value), orderBy("createdAt", "desc"), limit(pageSize));
+    const buildQ = (value, cursor) =>
+      cursor
+        ? query(
+            cctvRef,
+            where("schemeIds", "array-contains", value),
+            orderBy("createdAt", "desc"),
+            startAfter(cursor),
+            limit(pageSize),
+          )
+        : query(
+            cctvRef,
+            where("schemeIds", "array-contains", value),
+            orderBy("createdAt", "desc"),
+            limit(pageSize),
+          );
 
     // Run each query independently so one failing doesn't block the other
     const fetchSafe = async (q) => {
-      try { return await getDocs(q); }
-      catch { return { docs: [] }; }
+      try {
+        return await getDocs(q);
+      } catch {
+        return { docs: [] };
+      }
     };
 
     const [snap1, snap2] = await Promise.all([
@@ -1288,12 +1369,12 @@ class ClientDataService {
     // Merge, deduplicate (same form could theoretically match both), sort newest first
     const seen = new Set();
     const merged = [...snap1.docs, ...snap2.docs]
-      .filter(d => !seen.has(d.id) && seen.add(d.id))
-      .map(d => ({
+      .filter((d) => !seen.has(d.id) && seen.add(d.id))
+      .map((d) => ({
         id: d.id,
         ...d.data(),
-        reportType: 'cctv-check',
-        title: 'CCTV Check',
+        reportType: "cctv-check",
+        title: "CCTV Check",
         timestamp: d.data().createdAt,
       }))
       .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
@@ -1302,39 +1383,73 @@ class ClientDataService {
     return {
       reports: merged,
       lastDoc: {
-        specific: snap1.docs?.length > 0 ? snap1.docs[snap1.docs.length - 1] : specificCursor,
-        allSchemes: snap2.docs?.length > 0 ? snap2.docs[snap2.docs.length - 1] : allSchemesCursor,
+        specific:
+          snap1.docs?.length > 0
+            ? snap1.docs[snap1.docs.length - 1]
+            : specificCursor,
+        allSchemes:
+          snap2.docs?.length > 0
+            ? snap2.docs[snap2.docs.length - 1]
+            : allSchemesCursor,
       },
-      hasMore: snap1.docs?.length === pageSize || snap2.docs?.length === pageSize,
+      hasMore:
+        snap1.docs?.length === pageSize || snap2.docs?.length === pageSize,
     };
   }
 
   // Get reports for a single type with true server-side pagination
   // Used when a type filter is active (fetches 10 of that type, not 10 mixed)
-  async getReportsByTypePaginated(schemeId, reportType, pageSize = 10, lastDoc = null) {
+  async getReportsByTypePaginated(
+    schemeId,
+    reportType,
+    pageSize = 10,
+    lastDoc = null,
+  ) {
     // CCTV uses a dual-query approach to include both scheme-specific and "all-schemes" forms
-    if (reportType === 'cctv-check') {
+    if (reportType === "cctv-check") {
       return await this.getCCTVReportsPaginated(schemeId, pageSize, lastDoc);
     }
 
     const collectionMap = {
-      'incident': 'incidentReports',
-      'asset-damage': 'assetDamageReports',
-      'daily-occurrence': 'dailyOccurrenceReports',
+      incident: "incidentReports",
+      "asset-damage": "assetDamageReports",
+      "daily-occurrence": "dailyOccurrenceReports",
     };
     const collectionName = collectionMap[reportType];
     if (!collectionName) return { reports: [], lastDoc: null, hasMore: false };
 
     try {
-      const result = await this.fetchPaginatedCollection(collectionName, schemeId, pageSize, lastDoc);
+      const result = await this.fetchPaginatedCollection(
+        collectionName,
+        schemeId,
+        pageSize,
+        lastDoc,
+      );
       const reports = result.docs.map((report) => {
-        if (reportType === 'incident') return { ...report, reportType: 'incident', type: report.incidentType, timestamp: report.createdAt };
-        if (reportType === 'asset-damage') return { ...report, reportType: 'asset-damage', type: report.damageType, timestamp: report.createdAt };
-        return { ...report, reportType: 'daily-occurrence', title: report.title || 'Daily Log', timestamp: report.createdAt };
+        if (reportType === "incident")
+          return {
+            ...report,
+            reportType: "incident",
+            type: report.incidentType,
+            timestamp: report.createdAt,
+          };
+        if (reportType === "asset-damage")
+          return {
+            ...report,
+            reportType: "asset-damage",
+            type: report.damageType,
+            timestamp: report.createdAt,
+          };
+        return {
+          ...report,
+          reportType: "daily-occurrence",
+          title: report.title || "Daily Log",
+          timestamp: report.createdAt,
+        };
       });
       return { reports, lastDoc: result.lastDoc, hasMore: result.hasMore };
     } catch (error) {
-      console.error('Error fetching typed reports:', error);
+      console.error("Error fetching typed reports:", error);
       return { reports: [], lastDoc: null, hasMore: false };
     }
   }
@@ -1342,12 +1457,13 @@ class ClientDataService {
   // Get count per report type for a scheme (for stat cards - 4 reads total)
   async getAllReportsCountByType(schemeId) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount] = await Promise.all([
-        this.getCollectionCount("incidentReports", schemeId),
-        this.getCollectionCount("assetDamageReports", schemeId),
-        this.getCollectionCount("dailyOccurrenceReports", schemeId),
-        this.getCollectionCount("cctvCheckForms", schemeId),
-      ]);
+      const [incidentCount, assetCount, dailyCount, cctvCount] =
+        await Promise.all([
+          this.getCollectionCount("incidentReports", schemeId),
+          this.getCollectionCount("assetDamageReports", schemeId),
+          this.getCollectionCount("dailyOccurrenceReports", schemeId),
+          this.getCollectionCount("cctvCheckForms", schemeId),
+        ]);
 
       return {
         incident: incidentCount,
@@ -1358,7 +1474,13 @@ class ClientDataService {
       };
     } catch (error) {
       console.warn("Could not get reports count by type:", error);
-      return { incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, total: 0 };
+      return {
+        incident: 0,
+        assetDamage: 0,
+        dailyOccurrence: 0,
+        cctvCheck: 0,
+        total: 0,
+      };
     }
   }
 
@@ -1367,9 +1489,10 @@ class ClientDataService {
     try {
       const collectionRef = collection(db, collectionName);
       // For cctvCheckForms, also count "all-schemes" docs (backward compatibility)
-      const schemeFilter = collectionName === "cctvCheckForms"
-        ? where("schemeIds", "array-contains-any", [schemeId, "all-schemes"])
-        : where("schemeIds", "array-contains", schemeId);
+      const schemeFilter =
+        collectionName === "cctvCheckForms"
+          ? where("schemeIds", "array-contains-any", [schemeId, "all-schemes"])
+          : where("schemeIds", "array-contains", schemeId);
       const q = query(collectionRef, schemeFilter);
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
