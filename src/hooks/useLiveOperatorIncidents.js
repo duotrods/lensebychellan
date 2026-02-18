@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { staffService } from "../services/staffService";
 
 /**
@@ -57,6 +57,10 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
   const [cursors, setCursors] = useState([]); // Store cursors for each page
   const [hasMore, setHasMore] = useState(true);
 
+  // Page cache: stores fetched page data so revisiting a page costs 0 reads
+  // Key = page number, Value = { incidents, hasMore }
+  const pageCacheRef = useRef({});
+
   const totalPages = Math.ceil(totalCount / pageSize);
 
   // Fetch total count once
@@ -66,10 +70,20 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
       .catch(console.error);
   }, []);
 
-  // Fetch page data
+  // Fetch page data (checks cache first, only hits Firestore on cache miss)
   const fetchPage = useCallback(async (page) => {
-    setLoading(true);
     setError(null);
+
+    // Check cache first — if page was already fetched, use cached data (0 reads!)
+    const cached = pageCacheRef.current[page];
+    if (cached) {
+      setIncidents(cached.incidents);
+      setHasMore(cached.hasMore);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
 
     try {
       // Get cursor for previous page (or null for first page)
@@ -82,6 +96,12 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
 
       setIncidents(result.incidents);
       setHasMore(result.hasMore);
+
+      // Store in cache for instant access later
+      pageCacheRef.current[page] = {
+        incidents: result.incidents,
+        hasMore: result.hasMore,
+      };
 
       // Store cursor for this page
       if (result.lastDoc) {
@@ -127,6 +147,16 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
     fetchPage(1);
   }, [fetchPage]);
 
+  // Refresh completed list (go back to page 1 and re-fetch count)
+  // Called when a live incident gets completed so the completed list updates automatically
+  const refreshCompleted = useCallback(() => {
+    setCurrentPage(1);
+    setCursors([]);
+    pageCacheRef.current = {}; // Clear cache since data changed
+    fetchPage(1);
+    staffService.getCompletedIncidentsCount().then(setTotalCount).catch(console.error);
+  }, [fetchPage]);
+
   return {
     incidents,
     loading,
@@ -138,6 +168,7 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
     goToNextPage,
     goToPrevPage,
     goToFirstPage,
+    refreshCompleted,
     pageSize,
   };
 }

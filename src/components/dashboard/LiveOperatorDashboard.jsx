@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveOperatorIncidents, usePaginatedCompletedIncidentsForOperator } from '../../hooks/useLiveOperatorIncidents';
 import { Eye, Download, Radio, CheckCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
@@ -20,12 +20,24 @@ const LiveOperatorDashboard = () => {
     totalCount,
     goToNextPage,
     goToPrevPage,
+    refreshCompleted,
     pageSize,
-  } = usePaginatedCompletedIncidentsForOperator(10);
+  } = usePaginatedCompletedIncidentsForOperator(6);
+
+  // When a live incident gets completed, liveIncidents.length decreases.
+  // This triggers a refresh of the completed list so it shows up immediately.
+  const prevLiveCount = useRef(liveIncidents.length);
+  useEffect(() => {
+    // Only refresh when live count DECREASES (meaning an incident moved to completed)
+    if (prevLiveCount.current > 0 && liveIncidents.length < prevLiveCount.current) {
+      refreshCompleted();
+    }
+    prevLiveCount.current = liveIncidents.length;
+  }, [liveIncidents.length, refreshCompleted]);
 
   // Client-side pagination for live incidents (data is already loaded via real-time)
   const [liveCurrentPage, setLiveCurrentPage] = useState(1);
-  const livePageSize = 10;
+  const livePageSize = 6;
   const liveTotalPages = Math.ceil(liveIncidents.length / livePageSize);
   const paginatedLiveIncidents = liveIncidents.slice(
     (liveCurrentPage - 1) * livePageSize,
@@ -82,7 +94,7 @@ const LiveOperatorDashboard = () => {
           Live Operations <span className="text-teal-500">Dashboard</span>
         </h2>
         <p className="text-gray-500">Monitor incident reports in real-time</p>
-      </div>
+      </div> 
 
       {liveLoading ? (
         <div className="flex justify-center py-12">
