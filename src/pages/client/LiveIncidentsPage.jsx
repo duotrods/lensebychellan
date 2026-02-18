@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLiveIncidents, usePaginatedCompletedIncidents } from '../../hooks/useLiveIncidents';
@@ -41,8 +42,19 @@ const LiveIncidentsPage = () => {
     totalCount,
     goToNextPage,
     goToPrevPage,
+    refreshCompleted,
     pageSize,
-  } = usePaginatedCompletedIncidents(schemeId, 10);
+  } = usePaginatedCompletedIncidents(schemeId, 6);
+
+  // When a live incident gets completed, liveIncidents.length decreases.
+  // This triggers a refresh of the completed list so it shows up immediately.
+  const prevLiveCount = useRef(liveIncidents.length);
+  useEffect(() => {
+    if (prevLiveCount.current > 0 && liveIncidents.length < prevLiveCount.current) {
+      refreshCompleted();
+    }
+    prevLiveCount.current = liveIncidents.length;
+  }, [liveIncidents.length, refreshCompleted]);
 
   const loading = liveLoading;
 
@@ -101,9 +113,9 @@ const LiveIncidentsPage = () => {
           </button>
           <div>
             <h4 className=" font-bold text-gray-800">
-               <span className="font-semibold text-brand-400">{schemeId} ({getActiveSchemeName()})</span> Live Incidents 
+               Go Back to <span className="font-semibold text-brand-400">Dashboard</span>
             </h4>
-            <p className="text-gray-500">You can monitor here your live incidents and completed incidents </p>
+            
           </div>
         </div>
       </div>
@@ -113,7 +125,14 @@ const LiveIncidentsPage = () => {
           <span className="loading loading-spinner loading-lg text-teal-500"></span>
         </div>
       ) : (
-        <>
+          <>
+            <div className="mb-8 bg-white rounded-xl text-center p-6 shadow-sm">
+          <h4 className=" font-bold text-gray-800">
+               <span className="font-semibold text-brand-400">{schemeId} ({getActiveSchemeName()})</span> Live Incidents 
+            </h4>
+          <p className="text-gray-500">You can monitor here your live incidents and completed incidents </p>
+         
+      </div>
           {/* Incident Management Hub */}
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
