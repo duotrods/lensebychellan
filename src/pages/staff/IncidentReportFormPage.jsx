@@ -337,6 +337,43 @@ const IncidentReportFormPage = () => {
     }
   };
 
+  // Save progress on Step 2 without completing — keeps status as "live"
+  // Operator can return to the form later and find all fields already filled
+  const handleSave = async () => {
+    const incidentId = editId || liveIncidentId;
+    if (!incidentId) return;
+
+    setLoading(true);
+    try {
+      const uploadedFiles = await uploadFiles();
+      const updateData = { ...formData };
+
+      if (uploadedFiles.length > 0) {
+        updateData.files = uploadedFiles;
+      } else if (formData.files) {
+        updateData.files = formData.files;
+      }
+
+      // Explicitly keep status as live — do NOT complete it
+      updateData.status = "live";
+
+      await staffService.updateIncidentReport(
+        incidentId,
+        updateData,
+        userProfile.uid,
+        userProfile.displayName
+      );
+
+      toast.success("Progress saved! Incident is still live.");
+      navigate("/dashboard/staff");
+    } catch (error) {
+      console.error("Error saving progress:", error);
+      toast.error("Failed to save progress. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Step 2: Complete the report (or regular submit for non-live workflow)
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1380,23 +1417,36 @@ const IncidentReportFormPage = () => {
         >
           {!editId && !isEditingLiveIncident ? 'Back to Step 1' : 'Cancel'}
         </button>
-        <button
-          type="submit"
-          disabled={loading || uploadingFiles}
-          className={`px-8 py-3 text-white rounded-lg disabled:opacity-50 transition-colors font-semibold ${
-            isEditingLiveIncident
-              ? 'bg-green-500 hover:bg-green-600'
-              : 'bg-teal-500 hover:bg-teal-600'
-          }`}
-        >
-          {loading
-            ? (editId ? "Updating..." : "Submitting...")
-            : uploadingFiles
-            ? "Uploading Files..."
-            : isEditingLiveIncident
-            ? "Complete Incident Report"
-            : (editId ? "Update" : "Submit")}
-        </button>
+        <div className="flex gap-3">
+          {/* Save & Return — only shown on live incidents so operator can return later */}
+          {(isEditingLiveIncident || editId) && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loading || uploadingFiles}
+              className="px-6 py-3 border border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 disabled:opacity-50 transition-colors font-semibold"
+            >
+              {loading ? "Saving..." : "Save & Return"}
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={loading || uploadingFiles}
+            className={`px-8 py-3 text-white rounded-lg disabled:opacity-50 transition-colors font-semibold ${
+              isEditingLiveIncident
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-teal-500 hover:bg-teal-600'
+            }`}
+          >
+            {loading
+              ? (editId ? "Updating..." : "Submitting...")
+              : uploadingFiles
+              ? "Uploading Files..."
+              : isEditingLiveIncident
+              ? "Complete Incident Report"
+              : (editId ? "Update" : "Submit")}
+          </button>
+        </div>
       </div>
     </form>
   );
