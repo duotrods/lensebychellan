@@ -739,10 +739,9 @@ class StaffService {
       }
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((doc) => doc.deleted !== true);
     } catch (error) {
       console.error("Failed to get CCTV uploads:", error);
       return [];

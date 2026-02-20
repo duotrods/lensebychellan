@@ -19,6 +19,9 @@ import {
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 
+// Module-level variable — survives component unmount/remount, no serialization needed
+let _staffReportsRestore = null;
+
 const StaffReportsPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -34,6 +37,7 @@ const StaffReportsPage = () => {
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({});
+  const wasRestoredRef = useRef(false);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -49,7 +53,17 @@ const StaffReportsPage = () => {
   };
 
   useEffect(() => {
-    loadAllReports(true);
+    if (_staffReportsRestore) {
+      setCurrentPage(_staffReportsRestore.page);
+      setFilterType(_staffReportsRestore.filter);
+      setFilterScheme(_staffReportsRestore.scheme);
+      setReports(_staffReportsRestore.reports);
+      setHasMore(_staffReportsRestore.hasMore);
+      setLoading(false);
+      wasRestoredRef.current = true;
+    } else {
+      loadAllReports(true);
+    }
     loadTotalCount();
     loadFormCounts();
   }, []);
@@ -59,7 +73,9 @@ const StaffReportsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, searchQuery]);
 
-  const loadAllReports = async (resetPage = false, overrideFilter = null, overrideScheme = null, cursorOverride = null, targetPage = null) => {
+  const clearRestoreState = () => { _staffReportsRestore = null; };
+
+  const loadAllReports = async (resetPage = false, overrideFilter = null, overrideScheme = null, cursorOverride = null, targetPage = null, silent = false) => {
     // Check page cache first (targetPage is set by pagination handlers)
     if (targetPage && pageCacheRef.current[targetPage]) {
       const cached = pageCacheRef.current[targetPage];
@@ -72,7 +88,7 @@ const StaffReportsPage = () => {
     }
 
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
       const activeScheme = overrideScheme !== null ? overrideScheme : filterScheme;
@@ -185,6 +201,7 @@ const StaffReportsPage = () => {
   };
 
   const handleFilterChange = async (newType) => {
+    clearRestoreState();
     setFilterType(newType);
     setTypeCursor(null);
     setCursors({});
@@ -203,6 +220,7 @@ const StaffReportsPage = () => {
   };
 
   const handleSchemeChange = (newScheme) => {
+    clearRestoreState();
     setFilterScheme(newScheme);
     setTypeCursor(null);
     setCursors({});
@@ -235,6 +253,7 @@ const StaffReportsPage = () => {
   const availableSchemes = SCHEMES.filter(s => !s.isDemo);
 
   const handleViewReport = (report) => {
+    _staffReportsRestore = { page: currentPage, filter: filterType, scheme: filterScheme, reports, hasMore };
     // Navigate to appropriate view page based on report type
     if (report.type === "CCTV Check") {
       navigate(`/dashboard/admin/staff-reports/cctv/${report.id}`);
@@ -512,7 +531,14 @@ const StaffReportsPage = () => {
                 type="text"
                 placeholder="Search by reference, staff name, scheme..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (wasRestoredRef.current) {
+                    wasRestoredRef.current = false;
+                    clearRestoreState();
+                    loadAllReports(true, null, null, null, null, true);
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
