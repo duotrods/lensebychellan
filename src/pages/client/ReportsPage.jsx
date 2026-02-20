@@ -11,6 +11,9 @@ import toast from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { SCHEMES } from '../../utils/schemes';
 
+// Module-level variable — survives component unmount/remount, no serialization needed
+let _reportsRestore = null;
+
 const ReportsPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -23,6 +26,7 @@ const ReportsPage = () => {
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({});
+  const wasRestoredRef = useRef(false);
   const [hasMore, setHasMore] = useState(true);
   const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, total: 0 });
   const reportsPerPage = 10;
@@ -30,12 +34,23 @@ const ReportsPage = () => {
   useEffect(() => {
     const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
     if (activeScheme) {
-      loadReports(true);
+      if (_reportsRestore) {
+        setCurrentPage(_reportsRestore.page);
+        setFilterType(_reportsRestore.filter);
+        setReports(_reportsRestore.reports);
+        setHasMore(_reportsRestore.hasMore);
+        setLoading(false);
+        wasRestoredRef.current = true;
+      } else {
+        loadReports(true);
+      }
       loadTotalCount();
     }
   }, [userProfile?.activeSchemeId, userProfile?.schemeId, userProfile?.schemeName]);
 
-  const loadReports = async (resetPage = false, overrideFilterType = null, cursorOverride = null, targetPage = null) => {
+  const clearRestoreState = () => { _reportsRestore = null; };
+
+  const loadReports = async (resetPage = false, overrideFilterType = null, cursorOverride = null, targetPage = null, silent = false) => {
     // Check page cache first
     if (targetPage && pageCacheRef.current[targetPage]) {
       const cached = pageCacheRef.current[targetPage];
@@ -48,7 +63,7 @@ const ReportsPage = () => {
     }
 
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
       const activeFilter = overrideFilterType !== null ? overrideFilterType : filterType;
 
@@ -212,6 +227,7 @@ const ReportsPage = () => {
   };
 
   const handleViewReport = (report) => {
+    _reportsRestore = { page: currentPage, filter: filterType, reports, hasMore };
     // Navigate to appropriate view page based on report type
     const reportTypeRoutes = {
       'incident': `/dashboard/client/reports/incident/${report.id}`,
@@ -363,7 +379,15 @@ const ReportsPage = () => {
                 type="text"
                 placeholder="Search by reference ID, type, or location..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                  if (wasRestoredRef.current) {
+                    wasRestoredRef.current = false;
+                    clearRestoreState();
+                    loadReports(true, null, null, null, true);
+                  }
+                }}
                 className="input input-bordered w-full pl-4 bg-white border-gray-300"
               />
             </div>
@@ -375,6 +399,7 @@ const ReportsPage = () => {
                 value={filterType}
                 onChange={(e) => {
                   const newType = e.target.value;
+                  clearRestoreState();
                   setFilterType(newType);
                   setTypeCursor(null);
                   setCursors({});

@@ -8,6 +8,9 @@ import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { isDemoUser, DEMO_SCHEME_ID } from '../../utils/schemes';
 
+// Module-level variable — survives component unmount/remount, no serialization needed
+let _dashRestore = null;
+
 const NewStaffDashboard = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -25,18 +28,32 @@ const NewStaffDashboard = () => {
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({}); // Cache: { [pageNumber]: { cursors, typeCursor, data, hasMore } }
+  const wasRestoredRef = useRef(false);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
   const formsPerPage = 10;
 
   useEffect(() => {
-    loadDashboardData(true);
+    if (!userProfile) return;
+
     loadTotalCount();
     loadStatCounts();
-  }, [userProfile]);
 
-  const loadDashboardData = async (resetPage = false, overrideFilter = null, cursorOverride = null, targetPage = null) => {
+    if (_dashRestore) {
+      // Restore the exact page the user was on before viewing a report
+      setCurrentPage(_dashRestore.page);
+      setFilterType(_dashRestore.filter);
+      setLatestForms(_dashRestore.forms);
+      setHasMore(_dashRestore.hasMore);
+      setLoading(false);
+      wasRestoredRef.current = true;
+    } else {
+      loadDashboardData(true);
+    }
+  }, [userProfile?.uid]);
+
+  const loadDashboardData = async (resetPage = false, overrideFilter = null, cursorOverride = null, targetPage = null, silent = false) => {
     if (!userProfile) return;
 
     // Check page cache first (targetPage is set by pagination handlers)
@@ -51,7 +68,7 @@ const NewStaffDashboard = () => {
     }
 
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       const isDemo = isDemoUser(userProfile);
       const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
@@ -146,7 +163,12 @@ const NewStaffDashboard = () => {
     }
   };
 
+  const clearRestoreState = () => {
+    _dashRestore = null;
+  };
+
   const handleFilterChange = async (newType) => {
+    clearRestoreState();
     setFilterType(newType);
     setTypeCursor(null);
     pageCacheRef.current = {};
@@ -324,6 +346,7 @@ const NewStaffDashboard = () => {
 
   // Pagination handlers
   const handleNextPage = () => {
+    clearRestoreState();
     if (hasMore) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
@@ -333,6 +356,7 @@ const NewStaffDashboard = () => {
   };
 
   const handlePrevPage = () => {
+    clearRestoreState();
     if (currentPage > 1) {
       const prevPage = currentPage - 1;
       setCurrentPage(prevPage);
@@ -341,12 +365,8 @@ const NewStaffDashboard = () => {
     }
   };
 
-  // Reset to page 1 when search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
   const handleViewForm = (form) => {
+    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/reports/cctv-check/${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -359,7 +379,7 @@ const NewStaffDashboard = () => {
   };
 
   const handleEditForm = (form) => {
-    // Navigate to edit page based on type
+    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/forms/cctv-check?edit=${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -451,7 +471,15 @@ const NewStaffDashboard = () => {
                     type="text"
                     placeholder="Search by reference ID, type, staff name, or scheme..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                      if (wasRestoredRef.current) {
+                        wasRestoredRef.current = false;
+                        clearRestoreState();
+                        loadDashboardData(true, null, null, null, true);
+                      }
+                    }}
                     className="input input-bordered w-full pl-10 bg-white border-gray-300"
                   />
                 </div>
