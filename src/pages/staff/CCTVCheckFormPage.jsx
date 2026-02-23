@@ -44,6 +44,10 @@ const CCTVCheckFormPage = () => {
     m3Jct9: [],
     m3Jct9Comments: '',
 
+    A452: [],
+    A452Comments: '',
+
+
     // Demo Section
     demoCameras: [],
     demoComments: ''
@@ -55,7 +59,7 @@ const CCTVCheckFormPage = () => {
       'All Working Correctly', 'CCTV 1', 'CCTV 2', 'CCTV 3', 'CCTV 4', 'CCTV 5', 'CCTV 6',
       'CCTV 7', 'CCTV 8', 'CCTV 9', 'CCTV 10', 'CCTV 11', 'CCTV 12', 'CCTV 13', 'CCTV 14',
       'CCTV 21', 'CCTV 22', 'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28',
-      'CCTV 29', 'CCTV 30', 'CCTV 31', 'CCTV 32'
+      'CCTV 29', 'CCTV 30', 'CCTV 31', 'CCTV 32', 'CCTV 33', 'CCTV 34','CCTV 35'
     ],
     kierCore: [
       'All Working Correctly', '1100','1101', '1102', '1103', '1104', '1105', '1106', '1107',
@@ -70,6 +74,10 @@ const CCTVCheckFormPage = () => {
       'CCTV 23', 'CCTV 24', 'CCTV 25', 'CCTV 26', 'CCTV 27', 'CCTV 28', 'CCTV 29', 'CCTV 30',
       '3301', '3302', '3303', '3304', '3305', '3306', '3401', '3402', '3403', '3404', '3407',
       '3408', '3409', '3410'
+    ],
+    A452: [
+      'All Working Correctly', 'CAM 1', 'CAM 2', 'CAM 3', 'CAM 4', 'CAM 5', 'CAM 6',
+      'CAM 7'
     ],
     demo: [
       'All Working Correctly', 'DEMO-CAM-1', 'DEMO-CAM-2', 'DEMO-CAM-3', 'DEMO-CAM-4',
@@ -100,7 +108,9 @@ const CCTVCheckFormPage = () => {
           kierCore: form.kierCore || [],
           kierCoreComments: form.kierCoreComments || '',
           m3Jct9: form.m3Jct9 || [],
-          m3Jct9Comments: form.m3Jct9Comments || ''
+          m3Jct9Comments: form.m3Jct9Comments || '',
+          A452: form.A452 || [],
+          A452Comments: form.A452Comments || '',
         });
       } else {
         toast.error('Form not found');
@@ -178,6 +188,8 @@ const CCTVCheckFormPage = () => {
           kierCoreComments: '',
           m3Jct9: [],
           m3Jct9Comments: '',
+          A452: [],
+          A452Comments: '',
           demoCameras: [],
           demoComments: ''
         });
@@ -327,7 +339,14 @@ const CCTVCheckFormPage = () => {
                 'm3Jct9',
                 'm3Jct9Comments',
                 cameraOptions.m3
-              )}
+                )}
+                
+                {renderCheckboxSection(
+                  'A452 HS2 (only tick cameras that are not working correctly)',
+                  'A452',
+                  'A452Comments',
+                  cameraOptions.A452
+                )}
             </>
           )}
 

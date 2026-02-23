@@ -244,6 +244,7 @@ const CCTVCheckView = () => {
             {renderCameraSection('A417', form.a417Cameras, form.a417Comments)}
             {renderCameraSection('A11/A47 Kier/Core', form.kierCore, form.kierCoreComments)}
             {renderCameraSection('M3 Jct 9', form.m3Jct9, form.m3Jct9Comments)}
+            {renderCameraSection('A452 HS2', form.A452, form.A452Comments)}
           </div>
 
           {/* Metadata */}
