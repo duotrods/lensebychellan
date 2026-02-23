@@ -942,10 +942,13 @@ class StaffService {
       const docRef = await addDoc(collection(db, "cctvFaultsReports"), {
         ...formData,
         type: "CCTV Faults",
+        status: "live",
         schemeId,
         schemeIds: [schemeId],
         referenceId,
         submittedBy: { userId, name: userName },
+        clientAcknowledged: false,
+        clientNote: "",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -1016,6 +1019,37 @@ class StaffService {
       return reportId;
     } catch (error) {
       console.error("Failed to update CCTV fault report:", error);
+      throw error;
+    }
+  }
+
+  async completeCCTVFault(reportId, userId, userName) {
+    try {
+      const reportRef = doc(db, "cctvFaultsReports", reportId);
+      const reportDoc = await getDoc(reportRef);
+
+      if (!reportDoc.exists()) throw new Error("Report not found");
+
+      const { referenceId } = reportDoc.data();
+
+      await updateDoc(reportRef, {
+        status: "completed",
+        completedAt: serverTimestamp(),
+        completedBy: { userId, name: userName },
+        updatedAt: serverTimestamp(),
+      });
+
+      await this.logActivity({
+        type: "form_completed",
+        staffId: userId,
+        staffName: userName,
+        description: `${userName} marked CCTV Fault Report ${referenceId} as completed`,
+        relatedFormId: reportId,
+      });
+
+      return reportId;
+    } catch (error) {
+      console.error("Failed to complete CCTV fault report:", error);
       throw error;
     }
   }

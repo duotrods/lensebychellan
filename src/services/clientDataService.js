@@ -222,15 +222,16 @@ class ClientDataService {
 
   // ─── CCTV Faults (client-facing) ───────────────────────────────────────────
 
-  // Real-time listener for CCTV fault reports (onSnapshot - only charges when data changes)
+  // Real-time listener for LIVE CCTV fault reports (onSnapshot - only charges when data changes)
   subscribeCCTVFaults(schemeId, callback, onError) {
     const faultsRef = collection(db, "cctvFaultsReports");
 
     const q = query(
       faultsRef,
       where("schemeIds", "array-contains", schemeId),
+      where("status", "==", "live"),
       orderBy("createdAt", "desc"),
-      limit(20), // Only latest 20 for cost efficiency
+      limit(20),
     );
 
     return onSnapshot(
@@ -258,6 +259,7 @@ class ClientDataService {
             (snapshot) => {
               const faults = snapshot.docs
                 .map((doc) => ({ id: doc.id, ...doc.data() }))
+                .filter((doc) => doc.status === "live")
                 .sort(
                   (a, b) =>
                     (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
@@ -273,7 +275,24 @@ class ClientDataService {
     );
   }
 
-  // Paginated query for CCTV fault reports (only reads pageSize docs per page)
+  // Acknowledge a CCTV fault from the client side (checkbox + optional note)
+  async acknowledgeCCTVFault(faultId, clientNote = "") {
+    try {
+      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+      const faultRef = doc(db, "cctvFaultsReports", faultId);
+      await updateDoc(faultRef, {
+        clientAcknowledged: true,
+        clientNote,
+        acknowledgedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Failed to acknowledge CCTV fault:", error);
+      throw error;
+    }
+  }
+
+  // Paginated query for COMPLETED CCTV fault reports (history column)
   async getCCTVFaultsPaginated(schemeId, pageSize = 10, lastDoc = null) {
     try {
       const faultsRef = collection(db, "cctvFaultsReports");
@@ -283,6 +302,7 @@ class ClientDataService {
         q = query(
           faultsRef,
           where("schemeIds", "array-contains", schemeId),
+          where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
           startAfter(lastDoc),
           limit(pageSize),
@@ -291,6 +311,7 @@ class ClientDataService {
         q = query(
           faultsRef,
           where("schemeIds", "array-contains", schemeId),
+          where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
           limit(pageSize),
         );
@@ -321,6 +342,7 @@ class ClientDataService {
         const snapshot = await getDocs(simpleQuery);
         const allFaults = snapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((doc) => doc.status === "completed")
           .sort(
             (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
           );
@@ -341,12 +363,13 @@ class ClientDataService {
     }
   }
 
-  // Get total count of CCTV fault reports for a scheme (1 aggregate read)
+  // Get total count of COMPLETED CCTV fault reports for a scheme (1 aggregate read)
   async getCCTVFaultsCount(schemeId) {
     try {
       const q = query(
         collection(db, "cctvFaultsReports"),
         where("schemeIds", "array-contains", schemeId),
+        where("status", "==", "completed"),
       );
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;

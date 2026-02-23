@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
@@ -15,6 +15,8 @@ const CCTVFaultsFormPage = () => {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [reportMeta, setReportMeta] = useState(null); // status, clientAcknowledged, clientNote
 
   const formatDateToBritish = (date) => {
     const d = new Date(date);
@@ -58,6 +60,12 @@ const CCTVFaultsFormPage = () => {
           camera: report.camera || "",
           comments: report.comments || "",
         });
+        setReportMeta({
+          status: report.status || "live",
+          clientAcknowledged: report.clientAcknowledged || false,
+          clientNote: report.clientNote || "",
+          completedBy: report.completedBy || null,
+        });
       } else {
         toast.error("Form not found");
         navigate("/dashboard/staff");
@@ -67,6 +75,25 @@ const CCTVFaultsFormPage = () => {
       toast.error("Failed to load form data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!editId) return;
+    setCompleting(true);
+    try {
+      await staffService.completeCCTVFault(editId, userProfile.uid, userProfile.displayName);
+      toast.success("Fault marked as completed!");
+      setReportMeta((prev) => ({
+        ...prev,
+        status: "completed",
+        completedBy: { name: userProfile.displayName },
+      }));
+    } catch (error) {
+      console.error("Failed to complete fault:", error);
+      toast.error("Failed to mark as completed. Please try again.");
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -138,6 +165,38 @@ const CCTVFaultsFormPage = () => {
           <div className="flex justify-center items-center space-x-2 mb-8">
             <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
           </div>
+
+          {/* Edit mode — status + acknowledgment info */}
+          {editId && reportMeta && (
+            <div className="flex flex-col sm:flex-row gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-gray-600">Status:</span>
+                {reportMeta.status === "completed" ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                    <CheckCircle2 className="w-4 h-4" /> Completed
+                    {reportMeta.completedBy?.name && (
+                      <span className="font-normal text-green-600 ml-1">by {reportMeta.completedBy.name}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700 bg-red-100 px-3 py-1 rounded-full">
+                    Live
+                  </span>
+                )}
+              </div>
+              {reportMeta.clientAcknowledged && (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-sm text-gray-600">
+                    <span className="font-semibold">Client acknowledged</span>
+                    {reportMeta.clientNote && (
+                      <span className="text-gray-500 ml-1">— {reportMeta.clientNote}</span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Row 1: Full Name, Date, Time */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-gray-300 pt-8">
@@ -253,7 +312,7 @@ const CCTVFaultsFormPage = () => {
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-300">
+          <div className="flex flex-wrap justify-end gap-4 mt-8 pt-6 border-t border-gray-300">
             <button
               type="button"
               onClick={() => navigate(-1)}
@@ -261,6 +320,20 @@ const CCTVFaultsFormPage = () => {
             >
               Cancel
             </button>
+
+            {/* Mark Complete — only shown in edit mode when fault is still live */}
+            {editId && reportMeta?.status === "live" && (
+              <button
+                type="button"
+                onClick={handleComplete}
+                disabled={completing}
+                className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors font-semibold flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {completing ? "Marking Complete..." : "Mark as Complete"}
+              </button>
+            )}
+
             <button
               type="submit"
               disabled={loading}

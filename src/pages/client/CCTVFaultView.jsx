@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { clientDataService } from '../../services/clientDataService';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 
@@ -89,15 +89,43 @@ const CCTVFaultView = () => {
         {/* Fault Details Card */}
         <div className="bg-white rounded-xl shadow-md p-8 space-y-6">
           {/* Status Banner */}
-          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-lg">
-            <Camera className="w-6 h-6 text-red-500 shrink-0" />
-            <div>
-              <p className="font-semibold text-red-700">Camera Fault Reported</p>
-              <p className="text-sm text-red-500">
-                Camera <span className="font-bold">{fault.camera || 'N/A'}</span> — {fault.scheme || 'N/A'}
-              </p>
+          {fault.status === 'completed' ? (
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-lg">
+              <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+              <div>
+                <p className="font-semibold text-green-700">Fault Resolved</p>
+                <p className="text-sm text-green-600">
+                  Camera <span className="font-bold">{fault.camera || 'N/A'}</span> — {fault.scheme || 'N/A'}
+                  {fault.completedBy?.name && (
+                    <span className="ml-1">· Completed by <span className="font-bold">{fault.completedBy.name}</span></span>
+                  )}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-lg">
+              <Camera className="w-6 h-6 text-red-500 shrink-0" />
+              <div>
+                <p className="font-semibold text-red-700">Camera Fault — Live</p>
+                <p className="text-sm text-red-500">
+                  Camera <span className="font-bold">{fault.camera || 'N/A'}</span> — {fault.scheme || 'N/A'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Client Acknowledgment */}
+          {fault.clientAcknowledged && (
+            <div className="flex items-start gap-3 p-4 bg-teal-50 border border-teal-100 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-teal-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-teal-700 text-sm">Client Acknowledged</p>
+                {fault.clientNote && (
+                  <p className="text-sm text-teal-600 mt-0.5">{fault.clientNote}</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Details Grid */}
           <div>
