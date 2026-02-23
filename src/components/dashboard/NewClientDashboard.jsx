@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { useLiveIncidents } from "../../hooks/useLiveIncidents";
+import { useLiveCCTVFaults } from "../../hooks/useCCTVFaults";
 import { clientDataService } from "../../services/clientDataService";
 import {
   BarChart,
@@ -14,7 +15,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { AlertTriangle, Car, Calendar, Download, Radio, Eye } from "lucide-react";
+import { AlertTriangle, Car, Calendar, Download, Radio, Eye, CameraOff } from "lucide-react";
 import { SCHEMES } from "../../utils/schemes";
 import { DateRangePicker } from 'react-date-range';
 import 'react-date-range/dist/styles.css'; // main css file
@@ -104,6 +105,9 @@ const NewClientDashboard = () => {
 
   // Real-time subscription for live incidents (no polling - only charges when data changes)
   const { liveIncidents, loading: liveIncidentsLoading } = useLiveIncidents(schemeId);
+
+  // Real-time subscription for CCTV fault reports
+  const { faults: liveCCTVFaults, loading: cctvFaultsLoading } = useLiveCCTVFaults(schemeId);
 
   const loading = statsLoading || uptimeLoading || timeSeriesLoading;
 
@@ -423,10 +427,11 @@ const NewClientDashboard = () => {
         </div>
       ) : (
         <div ref={dashboardRef}>
-          {/* Live Incidents Link Card */}
+            {/* Live Incidents Link Card */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           <div
             onClick={() => navigate('/dashboard/client/live-incidents')}
-            className="mb-10 bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+            className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
           >
             <div className=" px-6 py-4 flex items-center gap-3">
               <div className="w-10 h-10rounded-full flex items-center justify-center">
@@ -445,7 +450,31 @@ const NewClientDashboard = () => {
               )}
               <Eye className="w-6 h-6 text-red-500" />
             </div>
-          </div>
+            </div>
+            
+            <div
+            onClick={() => navigate('/dashboard/client/live-camera-faults')}
+            className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+          >
+            <div className=" px-6 py-4 flex items-center gap-3">
+              <div className="w-10 h-10rounded-full flex items-center justify-center">
+                  <CameraOff className="w-6 h-6 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <span className="font-semibold text-xl">Live Camera Fault</span>
+                <p className=" text-sm">View and monitor live camera fault for your scheme</p>
+              </div>
+              {cctvFaultsLoading ? (
+                <span className="loading loading-spinner loading-sm text-white"></span>
+              ) : (
+                <span className="bg-red-500 text-white px-4 py-2 rounded-full text-lg font-bold">
+                  {liveCCTVFaults.length} Fault
+                </span>
+              )}
+              <Eye className="w-6 h-6 text-red-500" />
+            </div>
+              </div>
+              </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6 mb-10">

@@ -220,6 +220,161 @@ class ClientDataService {
     }
   }
 
+  // ─── CCTV Faults (client-facing) ───────────────────────────────────────────
+
+  // Real-time listener for CCTV fault reports (onSnapshot - only charges when data changes)
+  subscribeCCTVFaults(schemeId, callback, onError) {
+    const faultsRef = collection(db, "cctvFaultsReports");
+
+    const q = query(
+      faultsRef,
+      where("schemeIds", "array-contains", schemeId),
+      orderBy("createdAt", "desc"),
+      limit(20), // Only latest 20 for cost efficiency
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const faults = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(faults);
+      },
+      (error) => {
+        if (
+          error.code === "failed-precondition" ||
+          error.message?.includes("index")
+        ) {
+          console.warn("Index not available for CCTV faults, using fallback");
+          const simpleQuery = query(
+            faultsRef,
+            where("schemeIds", "array-contains", schemeId),
+            limit(50),
+          );
+          return onSnapshot(
+            simpleQuery,
+            (snapshot) => {
+              const faults = snapshot.docs
+                .map((doc) => ({ id: doc.id, ...doc.data() }))
+                .sort(
+                  (a, b) =>
+                    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+                )
+                .slice(0, 20);
+              callback(faults);
+            },
+            onError,
+          );
+        }
+        if (onError) onError(error);
+      },
+    );
+  }
+
+  // Paginated query for CCTV fault reports (only reads pageSize docs per page)
+  async getCCTVFaultsPaginated(schemeId, pageSize = 10, lastDoc = null) {
+    try {
+      const faultsRef = collection(db, "cctvFaultsReports");
+
+      let q;
+      if (lastDoc) {
+        q = query(
+          faultsRef,
+          where("schemeIds", "array-contains", schemeId),
+          orderBy("createdAt", "desc"),
+          startAfter(lastDoc),
+          limit(pageSize),
+        );
+      } else {
+        q = query(
+          faultsRef,
+          where("schemeIds", "array-contains", schemeId),
+          orderBy("createdAt", "desc"),
+          limit(pageSize),
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const faults = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      return {
+        faults,
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+        hasMore: snapshot.docs.length === pageSize,
+      };
+    } catch (error) {
+      if (
+        error.code === "failed-precondition" ||
+        error.message?.includes("index")
+      ) {
+        console.warn("Index not available for CCTV faults paginated, using fallback");
+        const simpleQuery = query(
+          collection(db, "cctvFaultsReports"),
+          where("schemeIds", "array-contains", schemeId),
+          limit(200),
+        );
+        const snapshot = await getDocs(simpleQuery);
+        const allFaults = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .sort(
+            (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+          );
+
+        const startIndex = lastDoc
+          ? allFaults.findIndex((d) => d.id === lastDoc.id) + 1
+          : 0;
+        const faults = allFaults.slice(startIndex, startIndex + pageSize);
+
+        return {
+          faults,
+          lastDoc:
+            faults.length > 0 ? { id: faults[faults.length - 1].id } : null,
+          hasMore: startIndex + pageSize < allFaults.length,
+        };
+      }
+      throw error;
+    }
+  }
+
+  // Get total count of CCTV fault reports for a scheme (1 aggregate read)
+  async getCCTVFaultsCount(schemeId) {
+    try {
+      const q = query(
+        collection(db, "cctvFaultsReports"),
+        where("schemeIds", "array-contains", schemeId),
+      );
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn("Could not get CCTV faults count:", error);
+      return 0;
+    }
+  }
+
+  // Get a single CCTV fault by ID (1 read)
+  async getCCTVFaultById(faultId) {
+    try {
+      const { doc, getDoc } = await import("firebase/firestore");
+      const docRef = doc(db, "cctvFaultsReports", faultId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching CCTV fault by ID:", error);
+      throw error;
+    }
+  }
+
+  // ─── End CCTV Faults ────────────────────────────────────────────────────────
+
   // Get a single incident by ID (1 read instead of loading all reports!)
   async getIncidentById(incidentId) {
     try {

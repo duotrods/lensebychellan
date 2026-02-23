@@ -67,6 +67,8 @@ import ClientAssetDamageView from './pages/client/AssetDamageView';
 import ClientDailyOccurrenceView from './pages/client/DailyOccurrenceView';
 import ClientCCTVCheckView from './pages/client/CCTVCheckView';
 import ClientLiveIncidentsPage from './pages/client/LiveIncidentsPage';
+import ClientLiveCameraFaultsPage from './pages/client/LiveCameraFaultsPage';
+import ClientCCTVFaultView from './pages/client/CCTVFaultView';
 
 import { USER_ROLES } from './utils/constants';
 import './index.css';
@@ -345,6 +347,24 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
                   <ClientLiveIncidentsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/client/live-camera-faults"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientLiveCameraFaultsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/client/cctv-fault/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientCCTVFaultView />
                 </ProtectedRoute>
               }
             />
