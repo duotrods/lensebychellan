@@ -931,6 +931,97 @@ class StaffService {
     }
   }
 
+  // ─── CCTV Faults ────────────────────────────────────────────────────────────
+
+  async submitCCTVFaultsReport(formData, userId, userName) {
+    try {
+      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : null;
+      const isDemo = schemeId === DEMO_SCHEME_ID;
+      const referenceId = await referenceIdService.generateReferenceId("cctvFaults", isDemo);
+
+      const docRef = await addDoc(collection(db, "cctvFaultsReports"), {
+        ...formData,
+        type: "CCTV Faults",
+        schemeId,
+        schemeIds: [schemeId],
+        referenceId,
+        submittedBy: { userId, name: userName },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      await this.logActivity({
+        type: "form_submitted",
+        staffId: userId,
+        staffName: userName,
+        description: `${userName} submitted CCTV Fault Report ${referenceId}`,
+        relatedFormId: docRef.id,
+      });
+
+      return { id: docRef.id, referenceId };
+    } catch (error) {
+      console.error("Failed to submit CCTV fault report:", error);
+      throw error;
+    }
+  }
+
+  async getCCTVFaultsReports() {
+    try {
+      const q = query(
+        collection(db, "cctvFaultsReports"),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error("Failed to get CCTV fault reports:", error);
+      return [];
+    }
+  }
+
+  async updateCCTVFaultsReport(reportId, formData, userId, userName) {
+    try {
+      const reportRef = doc(db, "cctvFaultsReports", reportId);
+      const reportDoc = await getDoc(reportRef);
+
+      if (!reportDoc.exists()) throw new Error("Report not found");
+
+      const currentData = reportDoc.data();
+      const editHistory = currentData.editHistory || [];
+      editHistory.push({
+        editedBy: { userId, name: userName },
+        editedAt: new Date(),
+        previousSubmittedBy: currentData.submittedBy,
+      });
+
+      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+
+      await updateDoc(reportRef, {
+        ...formData,
+        schemeId,
+        schemeIds: [schemeId],
+        editHistory,
+        lastEditedBy: { userId, name: userName },
+        updatedAt: serverTimestamp(),
+      });
+
+      await this.logActivity({
+        type: "form_edited",
+        staffId: userId,
+        staffName: userName,
+        description: `${userName} edited CCTV Fault Report ${currentData.referenceId}`,
+        relatedFormId: reportId,
+      });
+
+      return reportId;
+    } catch (error) {
+      console.error("Failed to update CCTV fault report:", error);
+      throw error;
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+
   async deleteAssetDamageReport(reportId, userId, userName) {
     try {
       const reportRef = doc(db, "assetDamageReports", reportId);
@@ -1383,11 +1474,12 @@ class StaffService {
       // Fetch pageSize from each type so the merged result is truly chronological
       const perTypeLimit = pageSize;
 
-      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports] = await Promise.all([
+      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports, cctvFaultsReports] = await Promise.all([
         this.fetchPaginatedForms("cctvCheckForms", perTypeLimit, cursors.cctv, schemeId),
         this.fetchPaginatedForms("incidentReports", perTypeLimit, cursors.incident, schemeId),
         this.fetchPaginatedForms("assetDamageReports", perTypeLimit, cursors.assetDamage, schemeId),
-        this.fetchPaginatedForms("dailyOccurrenceReports", perTypeLimit, cursors.dailyOccurrence, schemeId)
+        this.fetchPaginatedForms("dailyOccurrenceReports", perTypeLimit, cursors.dailyOccurrence, schemeId),
+        this.fetchPaginatedForms("cctvFaultsReports", perTypeLimit, cursors.cctvFaults, schemeId)
       ]);
 
       // Transform and combine all forms — tag each with its source for cursor tracking
@@ -1395,7 +1487,8 @@ class StaffService {
         ...cctvForms.docs.map(f => ({ ...f, type: 'CCTV Check Sheet', _source: 'cctv' })),
         ...incidentReports.docs.map(f => ({ ...f, type: 'Incident Report', _source: 'incident' })),
         ...assetDamageReports.docs.map(f => ({ ...f, type: 'Asset Damage', _source: 'assetDamage' })),
-        ...dailyOccurrenceReports.docs.map(f => ({ ...f, type: 'Daily Occurrence', _source: 'dailyOccurrence' }))
+        ...dailyOccurrenceReports.docs.map(f => ({ ...f, type: 'Daily Occurrence', _source: 'dailyOccurrence' })),
+        ...cctvFaultsReports.docs.map(f => ({ ...f, type: 'CCTV Faults', _source: 'cctvFaults' }))
       ];
 
       // Sort by createdAt and take only pageSize items
@@ -1423,7 +1516,7 @@ class StaffService {
         forms: cleanForms,
         cursors: newCursors,
         hasMore: cctvForms.hasMore || incidentReports.hasMore ||
-                 assetDamageReports.hasMore || dailyOccurrenceReports.hasMore,
+                 assetDamageReports.hasMore || dailyOccurrenceReports.hasMore || cctvFaultsReports.hasMore,
       };
     } catch (error) {
       console.error("Failed to get paginated forms:", error);
@@ -1441,6 +1534,7 @@ class StaffService {
       'incident':          { collection: 'incidentReports',         label: 'Incident Report' },
       'asset-damage':      { collection: 'assetDamageReports',      label: 'Asset Damage' },
       'daily-occurrence':  { collection: 'dailyOccurrenceReports',  label: 'Daily Occurrence' },
+      'cctv-faults':       { collection: 'cctvFaultsReports',       label: 'CCTV Faults' },
     };
     const config = configMap[formType];
     if (!config) return { forms: [], lastDoc: null, hasMore: false };
@@ -1498,15 +1592,16 @@ class StaffService {
    */
   async getAllFormsCount() {
     try {
-      const [cctvCount, incidentCount, assetCount, dailyCount] = await Promise.all([
+      const [cctvCount, incidentCount, assetCount, dailyCount, cctvFaultsCount] = await Promise.all([
         this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
         this.getCollectionCountServerExcludeDemo("incidentReports"),
         this.getCollectionCountServerExcludeDemo("assetDamageReports"),
         // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
         this.getCollectionCountServer("dailyOccurrenceReports"),
+        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
       ]);
 
-      return cctvCount + incidentCount + assetCount + dailyCount;
+      return cctvCount + incidentCount + assetCount + dailyCount + cctvFaultsCount;
     } catch (error) {
       console.warn("Could not get total forms count:", error);
       return 0;
@@ -1519,12 +1614,13 @@ class StaffService {
    */
   async getAllFormsCountByType() {
     try {
-      const [cctvCount, incidentCount, assetCount, dailyCount] = await Promise.all([
+      const [cctvCount, incidentCount, assetCount, dailyCount, cctvFaultsCount] = await Promise.all([
         this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
         this.getCollectionCountServerExcludeDemo("incidentReports"),
         this.getCollectionCountServerExcludeDemo("assetDamageReports"),
         // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
         this.getCollectionCountServer("dailyOccurrenceReports"),
+        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
       ]);
 
       return {
@@ -1532,10 +1628,11 @@ class StaffService {
         incidentReportTotal: incidentCount,
         assetDamageTotal: assetCount,
         dailyLogsTotal: dailyCount,
+        cctvFaultsTotal: cctvFaultsCount,
       };
     } catch (error) {
       console.warn("Could not get forms count by type:", error);
-      return { cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 };
+      return { cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0, cctvFaultsTotal: 0 };
     }
   }
 
@@ -1548,6 +1645,7 @@ class StaffService {
       'incident':          'incidentReports',
       'asset-damage':      'assetDamageReports',
       'daily-occurrence':  'dailyOccurrenceReports',
+      'cctv-faults':       'cctvFaultsReports',
     };
     const collectionName = collectionMap[formType];
     if (!collectionName) return 0;

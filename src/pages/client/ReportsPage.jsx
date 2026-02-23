@@ -28,7 +28,7 @@ const ReportsPage = () => {
   const pageCacheRef = useRef({});
   const wasRestoredRef = useRef(false);
   const [hasMore, setHasMore] = useState(true);
-  const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, total: 0 });
+  const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, cctvFaults: 0, total: 0 });
   const reportsPerPage = 10;
 
   useEffect(() => {
@@ -167,6 +167,7 @@ const ReportsPage = () => {
     if (filterType === 'asset-damage') return reportTypeCounts.assetDamage;
     if (filterType === 'daily-occurrence') return reportTypeCounts.dailyOccurrence;
     if (filterType === 'cctv-check') return reportTypeCounts.cctvCheck;
+    if (filterType === 'cctv-faults') return reportTypeCounts.cctvFaults;
     return reportTypeCounts.total;
   };
   const activeCount = getActiveCount();
@@ -201,6 +202,8 @@ const ReportsPage = () => {
         return <Calendar className="w-5 h-5 text-blue-500" />;
       case 'cctv-check':
         return <Eye className="w-5 h-5 text-green-500" />;
+      case 'cctv-faults':
+        return <Eye className="w-5 h-5 text-purple-500" />;
       default:
         return <FileText className="w-5 h-5 text-gray-500" />;
     }
@@ -211,7 +214,8 @@ const ReportsPage = () => {
       incident: 'badge-warning',
       'asset-damage': 'badge-error',
       'daily-occurrence': 'badge-info',
-      'cctv-check': 'badge-success'
+      'cctv-check': 'badge-success',
+      'cctv-faults': 'badge-secondary'
     };
     return badges[type] || 'badge-ghost';
   };
@@ -233,7 +237,8 @@ const ReportsPage = () => {
       'incident': `/dashboard/client/reports/incident/${report.id}`,
       'asset-damage': `/dashboard/client/reports/asset-damage/${report.id}`,
       'daily-occurrence': `/dashboard/client/reports/daily-occurrence/${report.id}`,
-      'cctv-check': `/dashboard/client/reports/cctv-check/${report.id}`
+      'cctv-check': `/dashboard/client/reports/cctv-check/${report.id}`,
+      'cctv-faults': `/dashboard/client/reports/cctv-faults/${report.id}`
     };
 
     const route = reportTypeRoutes[report.reportType];
@@ -281,7 +286,7 @@ const ReportsPage = () => {
   // Get display date for a report - use form date for incidents, asset damage, cctv checks
   const getReportDisplayDate = (report) => {
     // For incident, asset-damage, and cctv-check reports, use the form's date field
-    if ((report.reportType === 'incident' || report.reportType === 'asset-damage' || report.reportType === 'cctv-check') && report.date) {
+    if ((report.reportType === 'incident' || report.reportType === 'asset-damage' || report.reportType === 'cctv-check' || report.reportType === 'cctv-faults') && report.date) {
       // Date is in DD/MM/YYYY format, convert to display format
       const date = parseBritishDate(report.date);
       if (date) {
@@ -300,7 +305,7 @@ const ReportsPage = () => {
       return report.timeSpotted;
     }
     // For asset-damage and cctv-check reports, use the form's time field
-    if ((report.reportType === 'asset-damage' || report.reportType === 'cctv-check') && report.time) {
+    if ((report.reportType === 'asset-damage' || report.reportType === 'cctv-check' || report.reportType === 'cctv-faults') && report.time) {
       return report.time;
     }
     // For daily occurrence and other reports, use timestamp (createdAt)
@@ -308,11 +313,12 @@ const ReportsPage = () => {
   };
 
   const reportStats = {
-    total: reportTypeCounts.total,             // Aggregation total (1 read per type)
+    total: reportTypeCounts.total,
     incident: reportTypeCounts.incident,
     assetDamage: reportTypeCounts.assetDamage,
     dailyOccurrence: reportTypeCounts.dailyOccurrence,
     cctvCheck: reportTypeCounts.cctvCheck,
+    cctvFaults: reportTypeCounts.cctvFaults,
   };
 
   // Get the active scheme name for display
@@ -346,7 +352,7 @@ const ReportsPage = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Total Reports</p>
             <p className="text-2xl font-bold text-brand-500">{reportStats.total}</p>
@@ -366,6 +372,10 @@ const ReportsPage = () => {
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">CCTV Checks</p>
             <p className="text-2xl font-bold text-brand-500">{reportStats.cctvCheck}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-gray-500 text-sm">CCTV Faults</p>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.cctvFaults}</p>
           </div>
         </div>
 
@@ -413,6 +423,7 @@ const ReportsPage = () => {
                 <option value="asset-damage">Asset Damage</option>
                 <option value="daily-occurrence">Daily Occurrence</option>
                 <option value="cctv-check">CCTV Checks</option>
+                <option value="cctv-faults">CCTV Faults</option>
               </select>
             </div>
           </div>

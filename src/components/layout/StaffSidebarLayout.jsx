@@ -57,6 +57,7 @@ const handleSignOut = async () => {
           path: "/dashboard/staff/forms/daily-occurence",
         },
         { name: "Asset Damage", path: "/dashboard/staff/forms/asset-damage" },
+        { name: "CCTV Faults", path: "/dashboard/staff/forms/cctv-faults" },
       ],
     },
     {

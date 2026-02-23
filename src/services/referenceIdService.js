@@ -84,6 +84,11 @@ class ReferenceIdService {
         prefix: 'CC',
         digits: 2,
         counterName: 'cctvCheck'
+      },
+      cctvFaults: {
+        prefix: 'CF',
+        digits: 2,
+        counterName: 'cctvFaults'
       }
     };
 

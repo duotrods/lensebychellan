@@ -39,6 +39,7 @@ import CCTVCheckFormPage from './pages/staff/CCTVCheckFormPage';
 import IncidentReportFormPage from './pages/staff/IncidentReportFormPage';
 import AssetDamageFormPage from './pages/staff/AssetDamageFormPage';
 import DailyOccurrenceFormPage from './pages/staff/DailyOccurrenceFormPage';
+import CCTVFaultsFormPage from './pages/staff/CCTVFaultsFormPage';
 import CCTVUploadsPage from './pages/staff/CCTVUploadsPage';
 import IncidentReportView from './pages/staff/IncidentReportView';
 import CCTVCheckView from './pages/staff/CCTVCheckView';
@@ -252,6 +253,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                   <DailyOccurrenceFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/forms/cctv-faults"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <CCTVFaultsFormPage />
                 </ProtectedRoute>
               }
             />

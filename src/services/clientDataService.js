@@ -1122,7 +1122,7 @@ class ClientDataService {
       const perTypeLimit = pageSize;
 
       // Fetch with cursors
-      const [incidents, assetDamage, dailyLogs, cctvChecks] = await Promise.all(
+      const [incidents, assetDamage, dailyLogs, cctvChecks, cctvFaults] = await Promise.all(
         [
           this.fetchPaginatedCollection(
             "incidentReports",
@@ -1147,6 +1147,12 @@ class ClientDataService {
             schemeId,
             perTypeLimit,
             cursors.cctvChecks,
+          ),
+          this.fetchPaginatedCollection(
+            "cctvFaultsReports",
+            schemeId,
+            perTypeLimit,
+            cursors.cctvFaults,
           ),
         ],
       );
@@ -1181,6 +1187,13 @@ class ClientDataService {
           title: "CCTV Check",
           timestamp: report.createdAt,
         })),
+        ...cctvFaults.docs.map((report) => ({
+          ...report,
+          reportType: "cctv-faults",
+          _source: "cctvFaults",
+          title: "CCTV Fault",
+          timestamp: report.createdAt,
+        })),
       ];
 
       // Sort by timestamp and take only pageSize items
@@ -1213,7 +1226,8 @@ class ClientDataService {
           incidents.hasMore ||
           assetDamage.hasMore ||
           dailyLogs.hasMore ||
-          cctvChecks.hasMore,
+          cctvChecks.hasMore ||
+          cctvFaults.hasMore,
       };
     } catch (error) {
       console.error("Error in getAllReportsPaginated:", error);
@@ -1312,15 +1326,16 @@ class ClientDataService {
   // Get total count of all reports for a scheme (for pagination display)
   async getAllReportsCount(schemeId) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount] =
+      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount] =
         await Promise.all([
           this.getCollectionCount("incidentReports", schemeId),
           this.getCollectionCount("assetDamageReports", schemeId),
           this.getCollectionCount("dailyOccurrenceReports", schemeId),
           this.getCollectionCount("cctvCheckForms", schemeId),
+          this.getCollectionCount("cctvFaultsReports", schemeId),
         ]);
 
-      return incidentCount + assetCount + dailyCount + cctvCount;
+      return incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount;
     } catch (error) {
       console.warn("Could not get total reports count:", error);
       return 0;
@@ -1414,6 +1429,7 @@ class ClientDataService {
       incident: "incidentReports",
       "asset-damage": "assetDamageReports",
       "daily-occurrence": "dailyOccurrenceReports",
+      "cctv-faults": "cctvFaultsReports",
     };
     const collectionName = collectionMap[reportType];
     if (!collectionName) return { reports: [], lastDoc: null, hasMore: false };
@@ -1440,6 +1456,13 @@ class ClientDataService {
             type: report.damageType,
             timestamp: report.createdAt,
           };
+        if (reportType === "cctv-faults")
+          return {
+            ...report,
+            reportType: "cctv-faults",
+            title: "CCTV Fault",
+            timestamp: report.createdAt,
+          };
         return {
           ...report,
           reportType: "daily-occurrence",
@@ -1457,12 +1480,13 @@ class ClientDataService {
   // Get count per report type for a scheme (for stat cards - 4 reads total)
   async getAllReportsCountByType(schemeId) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount] =
+      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount] =
         await Promise.all([
           this.getCollectionCount("incidentReports", schemeId),
           this.getCollectionCount("assetDamageReports", schemeId),
           this.getCollectionCount("dailyOccurrenceReports", schemeId),
           this.getCollectionCount("cctvCheckForms", schemeId),
+          this.getCollectionCount("cctvFaultsReports", schemeId),
         ]);
 
       return {
@@ -1470,7 +1494,8 @@ class ClientDataService {
         assetDamage: assetCount,
         dailyOccurrence: dailyCount,
         cctvCheck: cctvCount,
-        total: incidentCount + assetCount + dailyCount + cctvCount,
+        cctvFaults: cctvFaultsCount,
+        total: incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount,
       };
     } catch (error) {
       console.warn("Could not get reports count by type:", error);
@@ -1479,6 +1504,7 @@ class ClientDataService {
         assetDamage: 0,
         dailyOccurrence: 0,
         cctvCheck: 0,
+        cctvFaults: 0,
         total: 0,
       };
     }

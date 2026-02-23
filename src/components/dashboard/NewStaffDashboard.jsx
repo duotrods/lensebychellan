@@ -212,6 +212,13 @@ const NewStaffDashboard = () => {
       subtitle: 'Total Submissions',
       icon: AlertTriangle,
       color: 'from-orange-500 to-orange-600'
+    },
+    {
+      title: 'CCTV Faults',
+      count: stats?.cctvFaultsTotal || 0,
+      subtitle: 'Total Submissions',
+      icon: Eye,
+      color: 'from-purple-500 to-purple-600'
     }
   ];
 
@@ -240,6 +247,8 @@ const NewStaffDashboard = () => {
         return <Calendar className="w-5 h-5 text-blue-500" />;
       case 'Asset Damage':
         return <FileText className="w-5 h-5 text-red-500" />;
+      case 'CCTV Faults':
+        return <Eye className="w-5 h-5 text-purple-500" />;
       default:
         return <FileText className="w-5 h-5 text-gray-500" />;
     }
@@ -250,7 +259,8 @@ const NewStaffDashboard = () => {
       'Incident Report': 'badge-warning',
       'Asset Damage': 'badge-error',
       'Daily Occurrence': 'badge-info',
-      'CCTV Check Sheet': 'badge-success'
+      'CCTV Check Sheet': 'badge-success',
+      'CCTV Faults': 'badge-secondary'
     };
     return badges[type] || 'badge-ghost';
   };
@@ -332,7 +342,8 @@ const NewStaffDashboard = () => {
       'CCTV Check Sheet': 'cctv-check',
       'Incident Report': 'incident',
       'Asset Damage': 'asset-damage',
-      'Daily Occurrence': 'daily-occurrence'
+      'Daily Occurrence': 'daily-occurrence',
+      'CCTV Faults': 'cctv-faults'
     };
     const matchesType = filterType === 'all' || formTypeMap[form.type] === filterType;
 
@@ -375,6 +386,8 @@ const NewStaffDashboard = () => {
       navigate(`/dashboard/staff/reports/asset-damage/${form.id}`);
     } else if (form.type === "Daily Occurrence") {
       navigate(`/dashboard/staff/reports/daily-logs/${form.id}`);
+    } else if (form.type === "CCTV Faults") {
+      navigate(`/dashboard/staff/reports/cctv-faults/${form.id}`);
     }
   };
 
@@ -388,6 +401,8 @@ const NewStaffDashboard = () => {
       navigate(`/dashboard/staff/forms/asset-damage?edit=${form.id}`);
     } else if (form.type === "Daily Occurrence") {
       navigate(`/dashboard/staff/forms/daily-occurence?edit=${form.id}`);
+    } else if (form.type === "CCTV Faults") {
+      navigate(`/dashboard/staff/forms/cctv-faults?edit=${form.id}`);
     }
   };
 
@@ -402,6 +417,8 @@ const NewStaffDashboard = () => {
         reportType = 'asset-damage';
       } else if (form.type === "Daily Occurrence") {
         reportType = 'daily-occurrence';
+      } else if (form.type === "CCTV Faults") {
+        reportType = 'cctv-faults';
       }
 
       await generateReportPDF(form, reportType);
@@ -440,7 +457,7 @@ const NewStaffDashboard = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
               {statCards.map((card, index) => (
                 <div
                   key={index}
@@ -497,6 +514,7 @@ const NewStaffDashboard = () => {
                     <option value="asset-damage">Asset Damage</option>
                     <option value="daily-occurrence">Daily Occurrence</option>
                     <option value="cctv-check">CCTV Checks</option>
+                    <option value="cctv-faults">CCTV Faults</option>
                   </select>
                 </div>
               </div>
