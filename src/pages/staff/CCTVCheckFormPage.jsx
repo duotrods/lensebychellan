@@ -76,7 +76,7 @@ const CCTVCheckFormPage = () => {
       '3408', '3409', '3410'
     ],
     A452: [
-      'All Working Correctly', 'CAM 1', 'CAM 2', 'CAM 3', 'CAM 4', 'CAM 5', 'CAM 6',
+      'All Working Correctly', 'CAM 15', 'CAM 16', 'CAM 17', 'CAM 18', 'CAM 19', 'CAM 20',
       'CAM 7'
     ],
     demo: [
