@@ -582,23 +582,30 @@ const NewStaffDashboard = () => {
                           </td>
                           <td>
                             <div className="flex items-center justify-center gap-2 font-semibold">
-                              {form.type === 'Incident Report' && form.status === 'live' && (
+                              {(form.type === 'Incident Report' || form.type === 'CCTV Faults') && form.status === 'live' && (
                               <div className="badge badge-error badge-soft">
                                 <Radio className="w-4 h-4 text-red-500" />
                                 Live
-                              </div>
-                            )}
-                            {form.type === 'Incident Report' && form.status === 'completed' &&(
+                                </div>
+                              )}
+                              {form.type === 'CCTV Faults' && form.clientAcknowledged && form.status !== 'completed' && (
+                                <div className="badge badge-info badge-soft">
+                                  <Eye className="w-4 h-4 text-blue-500" />
+                                  Client Seen
+                                </div>
+                              )}
+                            {(form.type === 'Incident Report' || form.type === 'CCTV Faults') && form.status === 'completed' &&(
                               <div className="badge badge-success badge-soft">
                                 <CheckCircle className="w-4 h-4 text-brand-400" />
                                 Completed
                               </div>
-                            )}
+                              )}
+                              
                             </div>
                           </td>
                           <td>
                             <div className="flex items-center justify-center gap-2">
-                              {form.type === 'Incident Report' && form.status === 'live' ? (
+                              {(form.type === 'Incident Report' || form.type === 'CCTV Faults')  && form.status === 'live' ? (
                               <button
                                 onClick={() => handleEditForm(form)}
                                 className="btn btn-sm btn-ghost text-red-500 hover:text-red-800"

@@ -186,7 +186,18 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
+      allow update: if isSignedIn() && (
+        // Staff and admin can update anything
+        getUserRole() == 'staff' || getUserRole() == 'admin' ||
+        // Clients can only update acknowledgment fields on their scheme's faults
+        (getUserRole() == 'client' &&
+          hasSchemeAccess(resource.data.schemeIds) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['clientAcknowledged', 'clientNote', 'acknowledgedAt', 'updatedAt'])
+        )
+      );
+
+      allow delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // CCTV Uploads
