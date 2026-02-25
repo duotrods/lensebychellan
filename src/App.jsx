@@ -40,6 +40,7 @@ import IncidentReportFormPage from './pages/staff/IncidentReportFormPage';
 import AssetDamageFormPage from './pages/staff/AssetDamageFormPage';
 import DailyOccurrenceFormPage from './pages/staff/DailyOccurrenceFormPage';
 import CCTVFaultsFormPage from './pages/staff/CCTVFaultsFormPage';
+import CCTVFaultsLivePage from './pages/staff/CCTVFaultsLivePage';
 import CCTVUploadsPage from './pages/staff/CCTVUploadsPage';
 import IncidentReportView from './pages/staff/IncidentReportView';
 import CCTVCheckView from './pages/staff/CCTVCheckView';
@@ -264,6 +265,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                   <CCTVFaultsFormPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/cctv-faults"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <CCTVFaultsLivePage />
                 </ProtectedRoute>
               }
             />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { clientDataService } from "../services/clientDataService";
+import { staffService } from "../services/staffService";
 
 /**
  * Custom hook for real-time CCTV fault reports using Firebase onSnapshot.
@@ -158,4 +159,37 @@ export function usePaginatedCCTVFaults(schemeId, pageSize = 10) {
     refresh,
     pageSize,
   };
+}
+
+/**
+ * Staff-side hook for ALL live CCTV faults across every scheme.
+ * Uses onSnapshot — free real-time updates, no polling.
+ */
+export function useStaffLiveCCTVFaults() {
+  const [faults, setFaults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+
+    const unsubscribe = staffService.subscribeAllLiveCCTVFaults(
+      (data) => {
+        setFaults(data);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error in staff live CCTV faults subscription:", err);
+        setError(err);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  return { faults, loading, error };
 }

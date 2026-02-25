@@ -8,18 +8,21 @@ import {
   Video,
   LogOut,
   ChevronDown,
+  CameraOff,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import CCTVCheckReminder from "../staff/CCTVCheckReminder";
 import { useCCTVReminder } from "../../hooks/useCCTVReminder";
 import { isDemoUser } from "../../utils/schemes";
+import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
-const StaffSidebarLayout = ({ children }) => {
+const StaffSidebarLayoutInner = ({ children }) => {
   const { userProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [formsOpen, setFormsOpen] = useState(false);
   const { showReminder, dismissReminder } = useCCTVReminder();
+  const { faults: liveFaults } = useStaffCCTVFaultsContext();
 
 const handleSignOut = async () => {
     await authService.signOut();
@@ -59,6 +62,12 @@ const handleSignOut = async () => {
         { name: "Asset Damage", path: "/dashboard/staff/forms/asset-damage" },
         { name: "CCTV Faults", path: "/dashboard/staff/forms/cctv-faults" },
       ],
+    },
+    {
+      name: "CCTV Faults",
+      path: "/dashboard/staff/cctv-faults",
+      icon: CameraOff,
+      liveCount: liveFaults.length,
     },
     {
       name: "CCTV Uploads",
@@ -143,7 +152,12 @@ const handleSignOut = async () => {
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <span className="font-medium flex-1">{item.name}</span>
+                  {item.liveCount > 0 && (
+                    <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold bg-red-500 text-white rounded-full">
+                      {item.liveCount}
+                    </span>
+                  )}
                 </Link>
               )}
             </div>
@@ -185,5 +199,11 @@ const handleSignOut = async () => {
     </div>
   );
 };
+
+const StaffSidebarLayout = ({ children }) => (
+  <StaffCCTVFaultsProvider>
+    <StaffSidebarLayoutInner>{children}</StaffSidebarLayoutInner>
+  </StaffCCTVFaultsProvider>
+);
 
 export default StaffSidebarLayout;

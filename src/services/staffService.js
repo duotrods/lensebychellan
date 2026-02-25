@@ -1023,6 +1023,45 @@ class StaffService {
     }
   }
 
+  // Real-time subscription to ALL live CCTV faults (staff-side, no scheme filter)
+  subscribeAllLiveCCTVFaults(callback, onError) {
+    const q = query(
+      collection(db, "cctvFaultsReports"),
+      where("status", "==", "live"),
+      orderBy("createdAt", "desc"),
+      limit(100),
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const faults = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        callback(faults);
+      },
+      (error) => {
+        if (error.code === "failed-precondition" || error.message?.includes("index")) {
+          console.warn("Index not available for live CCTV faults, using fallback");
+          const fallback = query(
+            collection(db, "cctvFaultsReports"),
+            where("status", "==", "live"),
+            limit(100),
+          );
+          return onSnapshot(
+            fallback,
+            (snapshot) => {
+              const faults = snapshot.docs
+                .map((doc) => ({ id: doc.id, ...doc.data() }))
+                .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+              callback(faults);
+            },
+            onError,
+          );
+        }
+        if (onError) onError(error);
+      },
+    );
+  }
+
   async completeCCTVFault(reportId, userId, userName) {
     try {
       const reportRef = doc(db, "cctvFaultsReports", reportId);
