@@ -272,6 +272,7 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       yPosition += 12;
 
       // Occurrence details
+      if (occurrence.scheme) addField("Scheme", occurrence.scheme);
       if (occurrence.date) addField("Date", formatDate(occurrence.date));
       if (occurrence.time) addField("Time", formatTime(occurrence.time));
       if (occurrence.location) addField("Location", occurrence.location);
@@ -292,16 +293,67 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
 
   switch (reportType) {
     case "incident":
-      if (report.incidentType)
-        addField("Incident Type", report.incidentType, true);
-      if (report.severity) addField("Severity", report.severity);
-      if (report.laneAffected) addField("Lane Affected", report.laneAffected);
-      if (report.spottedBy) addField("Spotted By", report.spottedBy);
-      if (report.vehicleDispatched !== undefined) {
-        addField("Vehicle Dispatched", report.vehicleDispatched ? "Yes" : "No");
+      // Incident Details
+      if (report.section) addField("Section", report.section);
+      if (report.weatherConditions) addField("Weather Conditions", report.weatherConditions);
+      if (report.trafficConditions) addField("Traffic Conditions", report.trafficConditions);
+      if (report.nhLog) addField("NH Log", report.nhLog);
+      if (report.collarNumber) addField("Collar Number", report.collarNumber);
+      if (report.incursion) addField("Incursion", report.incursion);
+      if (report.reportedBy) addField("Reported By", report.reportedBy);
+      if (report.cameraNumber) addField("Camera Number", report.cameraNumber);
+      if (report.markerPost) addField("Marker Post", report.markerPost);
+      if (report.track) addField("Track", report.track);
+      if (report.incidentType) addField("Incident Type", report.incidentType, true);
+      if (report.fault) addField("Fault", report.fault);
+
+      // Affected Lanes
+      if (report.affectedLanes && report.affectedLanes.length > 0) {
+        addField("Affected Lanes", report.affectedLanes.join(", "), true);
       }
-      if (report.description) addField("Description", report.description);
-      if (report.actionTaken) addField("Action Taken", report.actionTaken);
+
+      // Emergency Services
+      if (report.emergencyServices && report.emergencyServices.length > 0) {
+        addField("Emergency Services", report.emergencyServices.join(", "));
+      }
+
+      // Recovery Requested
+      if (report.recoveryRequested) {
+        const r = report.recoveryRequested;
+        const recoveryParts = [];
+        if (r.light) recoveryParts.push(`Light: ${r.light}`);
+        if (r.heavy) recoveryParts.push(`Heavy: ${r.heavy}`);
+        if (r.ipv) recoveryParts.push(`IPV: ${r.ipv}`);
+        if (r.hetos) recoveryParts.push(`HETOS: ${r.hetos}`);
+        if (recoveryParts.length > 0) addField("Recovery Requested", recoveryParts.join(", "));
+      }
+
+      // Time Information
+      yPosition += 3;
+      addSectionHeader("TIME INFORMATION");
+      if (report.timeSpotted) addField("Time Spotted", report.timeSpotted);
+      if (report.timeOnSite) addField("Time On Site", report.timeOnSite);
+      if (report.timeCleared) addField("Time Cleared", report.timeCleared);
+      if (report.closedLogCollar) addField("Closed Log Collar Number", report.closedLogCollar);
+
+      // Vehicles Involved
+      if (report.vehicles && report.vehicles.length > 0) {
+        yPosition += 3;
+        addSectionHeader("VEHICLES INVOLVED");
+        report.vehicles.forEach((v, i) => {
+          if (v.type || v.make || v.model || v.vin) {
+            const vehicleStr = [v.type, v.make, v.model, v.vin].filter(Boolean).join(" | ");
+            addField(`Vehicle ${i + 1}`, vehicleStr);
+          }
+        });
+      }
+
+      // Description
+      if (report.description) {
+        yPosition += 3;
+        addSectionHeader("DESCRIPTION");
+        addField("Description", report.description);
+      }
       break;
 
     case "asset-damage":
@@ -417,8 +469,33 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         yPosition += 3;
       }
 
-      // Demo Section - only show if no filter OR filter matches DMO1
-      if ((!filterSchemeId || filterSchemeId === 'DMO1') && (report.demoCameras || report.demoComments)) {
+      // A452 HS2 Section - only show if no filter OR filter matches A452
+      if ((!filterSchemeId || filterSchemeId === 'A452') && (report.A452 || report.A452Comments)) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("A452 HS2", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.A452 && report.A452.length > 0) {
+          const isNone = report.A452.includes('NONE');
+          if (isNone) {
+            addField("Status", "NONE - All cameras working correctly", true);
+          } else {
+            addField("Issues Reported", report.A452.join(", "), true);
+          }
+        }
+        if (report.A452Comments && report.A452Comments.trim() !== "") {
+          addField("Comments", report.A452Comments);
+        }
+        yPosition += 3;
+      }
+
+      // Demo Section - only show if explicitly filtered to DMO1 (never in staff full download)
+      if (filterSchemeId === 'DMO1' && (report.demoCameras || report.demoComments)) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
