@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
@@ -11,11 +12,13 @@ import {
   LogOut,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
+import LogoutConfirmModal from "./LogoutConfirmModal";
 
 const AdminSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleSignOut = async () => {
     await authService.signOut();
@@ -65,6 +68,13 @@ const AdminSidebarLayout = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {showLogoutModal && (
+        <LogoutConfirmModal
+          onConfirm={handleSignOut}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-lg flex flex-col">
         {/* Logo */}
@@ -108,7 +118,7 @@ const AdminSidebarLayout = ({ children }) => {
           </div>
 
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowLogoutModal(true)}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <LogOut className="w-5 h-5" />

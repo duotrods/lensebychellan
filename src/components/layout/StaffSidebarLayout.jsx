@@ -1,4 +1,5 @@
 import { useState } from "react";
+import LogoutConfirmModal from "./LogoutConfirmModal";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
@@ -21,10 +22,11 @@ const StaffSidebarLayoutInner = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [formsOpen, setFormsOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { showReminder, dismissReminder } = useCCTVReminder();
   const { faults: liveFaults } = useStaffCCTVFaultsContext();
 
-const handleSignOut = async () => {
+  const handleSignOut = async () => {
     await authService.signOut();
     navigate("/");
   };
@@ -78,6 +80,12 @@ const handleSignOut = async () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {showLogoutModal && (
+        <LogoutConfirmModal
+          onConfirm={handleSignOut}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
       {/* CCTV Check Reminder Modal */}
       {showReminder && <CCTVCheckReminder onDismiss={dismissReminder} />}
 
@@ -180,7 +188,7 @@ const handleSignOut = async () => {
           </div>
 
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowLogoutModal(true)}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <LogOut className="w-5 h-5" />

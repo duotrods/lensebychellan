@@ -245,6 +245,14 @@ service cloud.firestore {
       allow read: if isSignedIn() && getUserRole() == 'admin';
     }
 
+    // Login Logs (audit trail of who signed in and when)
+    // Any authenticated user can create their own login entry
+    // Only admins can read — TTL auto-deletes after 15 days, no manual delete needed
+    match /loginLogs/{logId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && getUserRole() == 'admin';
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

@@ -8,6 +8,7 @@ import {
   getDocs,
   getCountFromServer,
   serverTimestamp,
+  Timestamp,
   query,
   where,
   orderBy,
@@ -603,6 +604,53 @@ class FirestoreService {
         error
       );
     }
+  }
+
+  // ── Login Audit Logs ──────────────────────────────────────────────────────
+  // Each doc has an expireAt field. Enable Firestore TTL on loginLogs.expireAt
+  // in the Firebase console to auto-delete documents after 15 days.
+
+  async logUserLogin(userId, displayName, email, role) {
+    const expireAt = Timestamp.fromDate(
+      new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+    );
+    await addDoc(collection(db, 'loginLogs'), {
+      userId,
+      displayName: displayName || 'Unknown',
+      email: email || '',
+      role: role || 'unknown',
+      loginAt: serverTimestamp(),
+      expireAt,
+    });
+  }
+
+  async getLoginLogsPaginated(pageSize = 10, lastDoc = null) {
+    let q = query(
+      collection(db, 'loginLogs'),
+      orderBy('loginAt', 'desc'),
+      limit(pageSize + 1)
+    );
+    if (lastDoc) {
+      q = query(
+        collection(db, 'loginLogs'),
+        orderBy('loginAt', 'desc'),
+        startAfter(lastDoc),
+        limit(pageSize + 1)
+      );
+    }
+    const snap = await getDocs(q);
+    const hasMore = snap.docs.length > pageSize;
+    const docs = hasMore ? snap.docs.slice(0, pageSize) : snap.docs;
+    return {
+      logs: docs.map(d => ({ id: d.id, ...d.data() })),
+      lastDoc: docs[docs.length - 1] || null,
+      hasMore,
+    };
+  }
+
+  async getLoginLogsCount() {
+    const snap = await getCountFromServer(collection(db, 'loginLogs'));
+    return snap.data().count;
   }
 }
 

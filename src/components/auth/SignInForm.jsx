@@ -2,30 +2,28 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { authService } from "../../services/authService";
+import { firestoreService } from "../../services/firestoreService";
 import { getAuthErrorMessage } from "../../utils/errorHandling";
 import { DASHBOARD_ROUTES } from "../../utils/constants";
-import { useAuth } from "../../hooks/useAuth";
 
 const SignInForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { role } = useAuth();
 
   const handleEmailSignIn = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await authService.signInWithEmail(email, password);
+      const user = await authService.signInWithEmail(email, password);
+      const profile = await firestoreService.getUserDocument(user.uid);
+      // Fire-and-forget — don't block navigation for logging
+      firestoreService.logUserLogin(user.uid, profile?.displayName, user.email, profile?.role).catch(console.error);
       toast.success("Welcome back!");
-
-      // Wait a moment for auth state to update
-      setTimeout(() => {
-        const dashboardRoute = DASHBOARD_ROUTES[role] || "/dashboard";
-        navigate(dashboardRoute);
-      }, 500);
+      const dashboardRoute = DASHBOARD_ROUTES[profile?.role] || "/dashboard";
+      navigate(dashboardRoute);
     } catch (error) {
       toast.error(getAuthErrorMessage(error.code));
     } finally {

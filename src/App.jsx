@@ -46,6 +46,7 @@ import IncidentReportView from './pages/staff/IncidentReportView';
 import CCTVCheckView from './pages/staff/CCTVCheckView';
 import AssetDamageView from './pages/staff/AssetDamageView';
 import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
+import CCTVFaultsView from './pages/staff/CCTVFaultsView';
 import OTPManagementPage from './pages/admin/OTPManagementPage';
 import SchemeAssignmentPage from './pages/admin/SchemeAssignmentPage';
 import StaffManagementPage from './pages/admin/StaffManagementPage';
@@ -311,6 +312,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                   <DailyOccurrenceView />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/reports/cctv-faults/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <CCTVFaultsView />
                 </ProtectedRoute>
               }
             />

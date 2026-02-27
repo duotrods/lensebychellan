@@ -29,6 +29,7 @@ const NewStaffDashboard = () => {
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({}); // Cache: { [pageNumber]: { cursors, typeCursor, data, hasMore } }
   const wasRestoredRef = useRef(false);
+  const searchDebounceRef = useRef(null);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -489,12 +490,24 @@ const NewStaffDashboard = () => {
                     placeholder="Search by reference ID, type, staff name, or scheme..."
                     value={searchTerm}
                     onChange={(e) => {
-                      setSearchTerm(e.target.value);
+                      const value = e.target.value;
+                      setSearchTerm(value);
                       setCurrentPage(1);
+
+                      // Clear any pending debounce
+                      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
                       if (wasRestoredRef.current) {
                         wasRestoredRef.current = false;
                         clearRestoreState();
+                        pageCacheRef.current = {};
                         loadDashboardData(true, null, null, null, true);
+                      } else {
+                        // Debounce reload so we don't fire on every keystroke
+                        searchDebounceRef.current = setTimeout(() => {
+                          pageCacheRef.current = {};
+                          loadDashboardData(true, null, null, null, true);
+                        }, 400);
                       }
                     }}
                     className="input input-bordered w-full pl-10 bg-white border-gray-300"

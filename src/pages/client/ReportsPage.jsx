@@ -27,6 +27,7 @@ const ReportsPage = () => {
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({});
   const wasRestoredRef = useRef(false);
+  const searchDebounceRef = useRef(null);
   const [hasMore, setHasMore] = useState(true);
   const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, cctvFaults: 0, total: 0 });
   const reportsPerPage = 10;
@@ -390,12 +391,20 @@ const ReportsPage = () => {
                 placeholder="Search by reference ID, type, or location..."
                 value={searchTerm}
                 onChange={(e) => {
-                  setSearchTerm(e.target.value);
+                  const value = e.target.value;
+                  setSearchTerm(value);
                   setCurrentPage(1);
+                  if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                   if (wasRestoredRef.current) {
                     wasRestoredRef.current = false;
                     clearRestoreState();
+                    pageCacheRef.current = {};
                     loadReports(true, null, null, null, true);
+                  } else {
+                    searchDebounceRef.current = setTimeout(() => {
+                      pageCacheRef.current = {};
+                      loadReports(true, null, null, null, true);
+                    }, 400);
                   }
                 }}
                 className="input input-bordered w-full pl-4 bg-white border-gray-300"

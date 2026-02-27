@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLiveCCTVFaults, usePaginatedCCTVFaults } from '../../hooks/useCCTVFaults';
-import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Clock, CheckCircle2 } from 'lucide-react';
+import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Clock, CheckCircle2, Pencil, X } from 'lucide-react';
 import { SCHEMES } from '../../utils/schemes';
 import { clientDataService } from '../../services/clientDataService';
 import { toast } from 'react-hot-toast';
@@ -34,13 +34,30 @@ const LiveCameraFaultsPage = () => {
     totalCount,
     goToNextPage,
     goToPrevPage,
+    refresh: refreshHistory,
     pageSize,
   } = usePaginatedCCTVFaults(schemeId, 6);
 
-  // Per-fault note state (faultId -> note text)
+  // When a live fault gets completed, recentFaults.length decreases.
+  // Auto-refresh the history so it appears immediately without manual reload.
+  const prevLiveFaultCount = useRef(recentFaults.length);
+  useEffect(() => {
+    if (prevLiveFaultCount.current > 0 && recentFaults.length < prevLiveFaultCount.current) {
+      refreshHistory();
+    }
+    prevLiveFaultCount.current = recentFaults.length;
+  }, [recentFaults.length, refreshHistory]);
+
+  // Per-fault note state (faultId -> note text) for first-time acknowledgment
   const [notes, setNotes] = useState({});
   // Track which faults are being acknowledged
   const [acknowledging, setAcknowledging] = useState({});
+  // Track which already-acknowledged faults are in edit mode
+  const [editingNote, setEditingNote] = useState({});
+  // Edited note text per fault
+  const [editNotes, setEditNotes] = useState({});
+  // Track which notes are being saved
+  const [savingNote, setSavingNote] = useState({});
 
   const handleAcknowledge = async (fault) => {
     if (fault.clientAcknowledged) return;
@@ -52,6 +69,28 @@ const LiveCameraFaultsPage = () => {
       toast.error('Failed to acknowledge fault. Please try again.');
     } finally {
       setAcknowledging((prev) => ({ ...prev, [fault.id]: false }));
+    }
+  };
+
+  const startEditNote = (fault) => {
+    setEditNotes((prev) => ({ ...prev, [fault.id]: fault.clientNote || '' }));
+    setEditingNote((prev) => ({ ...prev, [fault.id]: true }));
+  };
+
+  const cancelEditNote = (faultId) => {
+    setEditingNote((prev) => ({ ...prev, [faultId]: false }));
+  };
+
+  const handleSaveNote = async (fault) => {
+    setSavingNote((prev) => ({ ...prev, [fault.id]: true }));
+    try {
+      await clientDataService.acknowledgeCCTVFault(fault.id, editNotes[fault.id] || '');
+      toast.success('Note updated.');
+      setEditingNote((prev) => ({ ...prev, [fault.id]: false }));
+    } catch {
+      toast.error('Failed to update note. Please try again.');
+    } finally {
+      setSavingNote((prev) => ({ ...prev, [fault.id]: false }));
     }
   };
 
@@ -164,17 +203,59 @@ const LiveCameraFaultsPage = () => {
                           {/* Acknowledgment section */}
                           <div className="mt-3 pt-3 border-t border-gray-100">
                             {fault.clientAcknowledged ? (
-                              <div className="flex items-start gap-2 text-green-600 text-sm font-medium">
-                                <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                                <span>
-                                  Acknowledged
-                                  {fault.clientNote && (
-                                    <span className="text-gray-500 font-normal ml-1">
-                                      — {fault.clientNote}
+                              editingNote[fault.id] ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    rows={2}
+                                    placeholder="Update your note..."
+                                    value={editNotes[fault.id] ?? fault.clientNote ?? ''}
+                                    onChange={(e) =>
+                                      setEditNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
+                                    }
+                                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleSaveNote(fault)}
+                                      disabled={savingNote[fault.id]}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-60"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      {savingNote[fault.id] ? 'Saving...' : 'Save Note'}
+                                    </button>
+                                    <button
+                                      onClick={() => cancelEditNote(fault.id)}
+                                      disabled={savingNote[fault.id]}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-start gap-2 text-green-600 text-sm font-medium">
+                                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                                    <span>
+                                      Acknowledged
+                                      {fault.clientNote && (
+                                        <span className="text-gray-500 font-normal ml-1">
+                                          — {fault.clientNote}
+                                        </span>
+                                      )}
                                     </span>
-                                  )}
-                                </span>
-                              </div>
+                                  </div>
+                                  <button
+                                    onClick={() => startEditNote(fault)}
+                                    className="shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-brand-500 transition-colors"
+                                    title="Update note"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    Edit note
+                                  </button>
+                                </div>
+                              )
                             ) : (
                               <div className="space-y-2">
                                 <textarea
