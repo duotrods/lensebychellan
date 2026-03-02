@@ -27,8 +27,10 @@ class ClientDataService {
       limit(50), // Limit to 50 most recent live incidents
     );
 
-    // Return unsubscribe function
-    return onSnapshot(
+    // Track fallback unsubscribe so it can be cleaned up together with the primary
+    let fallbackUnsub = null;
+
+    const primaryUnsub = onSnapshot(
       q,
       (snapshot) => {
         const incidents = snapshot.docs.map((doc) => ({
@@ -51,7 +53,7 @@ class ClientDataService {
             where("schemeIds", "array-contains", schemeId),
             limit(100),
           );
-          return onSnapshot(
+          fallbackUnsub = onSnapshot(
             simpleQuery,
             (snapshot) => {
               const incidents = snapshot.docs
@@ -66,10 +68,17 @@ class ClientDataService {
             },
             onError,
           );
+          return;
         }
         if (onError) onError(error);
       },
     );
+
+    // Return a combined unsubscribe that cancels both primary and fallback
+    return () => {
+      primaryUnsub();
+      if (fallbackUnsub) fallbackUnsub();
+    };
   }
 
   // Real-time listener for all scheme incidents (live + completed)
@@ -278,16 +287,35 @@ class ClientDataService {
   // Acknowledge a CCTV fault from the client side (checkbox + optional note)
   async acknowledgeCCTVFault(faultId, clientNote = "") {
     try {
-      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+      const { doc, updateDoc, serverTimestamp, arrayUnion } = await import("firebase/firestore");
       const faultRef = doc(db, "cctvFaultsReports", faultId);
-      await updateDoc(faultRef, {
+      const updateData = {
         clientAcknowledged: true,
         clientNote,
         acknowledgedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (clientNote.trim()) {
+        updateData.clientNotes = arrayUnion({ text: clientNote.trim(), addedAt: new Date().toISOString() });
+      }
+      await updateDoc(faultRef, updateData);
     } catch (error) {
       console.error("Failed to acknowledge CCTV fault:", error);
+      throw error;
+    }
+  }
+
+  // Add a stacked note to an already-acknowledged CCTV fault
+  async addClientNote(faultId, noteText) {
+    try {
+      const { doc, updateDoc, serverTimestamp, arrayUnion } = await import("firebase/firestore");
+      const faultRef = doc(db, "cctvFaultsReports", faultId);
+      await updateDoc(faultRef, {
+        clientNotes: arrayUnion({ text: noteText.trim(), addedAt: new Date().toISOString() }),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Failed to add client note:", error);
       throw error;
     }
   }
@@ -1815,6 +1843,61 @@ class ClientDataService {
         error,
       );
     }
+  }
+
+  // Search across all report collections by referenceId prefix.
+  // Uses a Firestore range query (>= / <= \uf8ff) on the auto-indexed referenceId
+  // field — no composite indexes needed. Scheme filtering is done client-side on
+  // the small result set returned by the prefix match.
+  async searchReportsByReferenceId(schemeId, searchTerm) {
+    const term = searchTerm.trim().toUpperCase();
+    if (!term) return [];
+    const termEnd = term + '\uf8ff';
+
+    const COLLECTIONS = [
+      { name: 'incidentReports',       type: 'incident',          typeField: 'incidentType' },
+      { name: 'assetDamageReports',    type: 'asset-damage',      typeField: 'damageType'   },
+      { name: 'dailyOccurrenceReports',type: 'daily-occurrence',  typeField: null           },
+      { name: 'cctvCheckForms',        type: 'cctv-check',        typeField: null           },
+      { name: 'cctvFaultsReports',     type: 'cctv-faults',       typeField: null           },
+    ];
+
+    const snapshots = await Promise.all(
+      COLLECTIONS.map(({ name }) =>
+        getDocs(
+          query(
+            collection(db, name),
+            where('referenceId', '>=', term),
+            where('referenceId', '<=', termEnd),
+            limit(10)
+          )
+        )
+      )
+    );
+
+    const results = [];
+    snapshots.forEach((snap, i) => {
+      const { type, typeField } = COLLECTIONS[i];
+      snap.docs.forEach(d => {
+        const data = d.data();
+        // Filter by scheme client-side (result set is tiny so this is fine)
+        const inScheme =
+          (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
+          data.schemeId === schemeId;
+        if (!inScheme) return;
+        results.push({
+          id: d.id,
+          ...data,
+          reportType: type,
+          type: typeField ? data[typeField] : data.type,
+          timestamp: data.createdAt,
+        });
+      });
+    });
+
+    // Sort newest first, cap to 10
+    results.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+    return results.slice(0, 10);
   }
 }
 

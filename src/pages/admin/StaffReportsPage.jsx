@@ -34,10 +34,13 @@ const StaffReportsPage = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({});
   const wasRestoredRef = useRef(false);
+  const searchDebounceRef = useRef(null);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -59,6 +62,8 @@ const StaffReportsPage = () => {
       setFilterScheme(_staffReportsRestore.scheme);
       setReports(_staffReportsRestore.reports);
       setHasMore(_staffReportsRestore.hasMore);
+      setCursors(_staffReportsRestore.cursors || {});
+      setTypeCursor(_staffReportsRestore.typeCursor || null);
       setLoading(false);
       wasRestoredRef.current = true;
     } else {
@@ -74,6 +79,32 @@ const StaffReportsPage = () => {
   }, [reports, searchQuery]);
 
   const clearRestoreState = () => { _staffReportsRestore = null; };
+
+  const runSearch = async (term) => {
+    if (!term.trim()) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const results = await staffService.searchFormsByReferenceId(term.trim());
+      // Map to display metadata same as loadAllReports
+      const mapped = results.map(f => {
+        const typeMap = {
+          'Incident Report':  { type: 'Incident Report',  icon: FileText,      color: 'bg-teal-100 text-teal-600'   },
+          'Asset Damage':     { type: 'Asset Damage',     icon: AlertTriangle, color: 'bg-orange-100 text-orange-600'},
+          'Daily Occurrence': { type: 'Daily Logs',       icon: Calendar,      color: 'bg-blue-100 text-blue-600'   },
+          'CCTV Check Sheet': { type: 'CCTV Check',       icon: Camera,        color: 'bg-purple-100 text-purple-600'},
+          'CCTV Faults':      { type: 'CCTV Faults',      icon: FileText,      color: 'bg-pink-100 text-pink-600'   },
+        };
+        const meta = typeMap[f.type] || {};
+        return { ...f, ...meta };
+      });
+      setSearchResults(mapped);
+    } catch (err) {
+      console.error('Search failed:', err);
+      toast.error('Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   const loadAllReports = async (resetPage = false, overrideFilter = null, overrideScheme = null, cursorOverride = null, targetPage = null, silent = false) => {
     // Check page cache first (targetPage is set by pagination handlers)
@@ -146,6 +177,10 @@ const StaffReportsPage = () => {
           type = "Daily Logs";
           icon = Calendar;
           color = "bg-blue-100 text-blue-600";
+        } else if (f.type === 'CCTV Faults') {
+          type = "CCTV Faults";
+          icon = Eye;
+          color = "bg-pink-100 text-pink-600";
         }
 
         return { ...f, type, icon, color };
@@ -230,30 +265,15 @@ const StaffReportsPage = () => {
   };
 
   const applyFilters = () => {
-    let filtered = [...reports];
-
-    // Type and scheme filtering are now handled server-side
-
-    // Search is still client-side (filters current page by text)
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (r) =>
-          r.referenceId?.toLowerCase().includes(q) ||
-          r.submittedBy?.name?.toLowerCase().includes(q) ||
-          r.scheme?.toLowerCase().includes(q) ||
-          r.type?.toLowerCase().includes(q)
-      );
-    }
-
-    setFilteredReports(filtered);
+    // Type and scheme filtering are handled server-side; text search uses Firestore query
+    setFilteredReports([...reports]);
   };
 
   // Non-demo schemes for the dropdown
   const availableSchemes = SCHEMES.filter(s => !s.isDemo);
 
   const handleViewReport = (report) => {
-    _staffReportsRestore = { page: currentPage, filter: filterType, scheme: filterScheme, reports, hasMore };
+    _staffReportsRestore = { page: currentPage, filter: filterType, scheme: filterScheme, reports, hasMore, cursors, typeCursor };
     // Navigate to appropriate view page based on report type
     if (report.type === "CCTV Check") {
       navigate(`/dashboard/admin/staff-reports/cctv/${report.id}`);
@@ -284,8 +304,10 @@ const StaffReportsPage = () => {
     }
   };
 
-  // Server-side pagination — use type-specific count when a filter is active
-  const currentReports = filteredReports;
+  const isSearchMode = searchQuery.trim() !== '';
+
+  // Use Firestore search results when searching, otherwise use paginated page data
+  const currentReports = isSearchMode ? searchResults : filteredReports;
   const activeCount = filterType === 'all' ? totalCount : typeCount;
   const totalPages = Math.ceil(activeCount / reportsPerPage);
 
@@ -532,12 +554,16 @@ const StaffReportsPage = () => {
                 placeholder="Search by reference, staff name, scheme..."
                 value={searchQuery}
                 onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (wasRestoredRef.current) {
-                    wasRestoredRef.current = false;
-                    clearRestoreState();
-                    loadAllReports(true, null, null, null, null, true);
+                  const value = e.target.value;
+                  setSearchQuery(value);
+                  if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                  if (!value.trim()) {
+                    setSearchResults([]);
+                    return;
                   }
+                  searchDebounceRef.current = setTimeout(() => {
+                    runSearch(value);
+                  }, 400);
                 }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
@@ -574,14 +600,16 @@ const StaffReportsPage = () => {
           <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
             <Filter className="w-4 h-4" />
             <span>
-              Showing {filteredReports.length} of {activeCount} reports
+              {isSearchMode
+                ? `Showing ${searchResults.length} search result${searchResults.length !== 1 ? 's' : ''} (max 10)`
+                : `Showing ${filteredReports.length} of ${activeCount} reports`}
             </span>
           </div>
         </div>
 
         {/* Reports Table */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          {loading ? (
+          {loading || searchLoading ? (
             <div className="flex justify-center items-center h-64">
               <div className="loading loading-spinner loading-lg text-teal-500"></div>
             </div>
@@ -611,7 +639,7 @@ const StaffReportsPage = () => {
                           <div className="flex items-center gap-2">
                             {getFormTypeIcon(report.type)}
                             <span className={`badge ${getFormTypeBadge(report.type)} badge-sm`}>
-                              {report.type.toUpperCase()}
+                              {(report.type || '').toUpperCase()}
                             </span>
                           </div>
                         </td>
@@ -672,7 +700,7 @@ const StaffReportsPage = () => {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
+              {!isSearchMode && totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
                     Showing page {currentPage} of {totalPages} ({activeCount} total reports)

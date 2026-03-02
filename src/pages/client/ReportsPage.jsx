@@ -29,6 +29,25 @@ const ReportsPage = () => {
   const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
   const [hasMore, setHasMore] = useState(true);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const isSearchMode = searchTerm.trim() !== '';
+
+  const runSearch = async (term) => {
+    if (!term.trim()) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
+      const results = await clientDataService.searchReportsByReferenceId(activeScheme, term.trim());
+      setSearchResults(results);
+    } catch (err) {
+      console.error('Search failed:', err);
+      toast.error('Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
   const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, cctvFaults: 0, total: 0 });
   const reportsPerPage = 10;
 
@@ -40,6 +59,8 @@ const ReportsPage = () => {
         setFilterType(_reportsRestore.filter);
         setReports(_reportsRestore.reports);
         setHasMore(_reportsRestore.hasMore);
+        setCursors(_reportsRestore.cursors || {});
+        setTypeCursor(_reportsRestore.typeCursor || null);
         setLoading(false);
         wasRestoredRef.current = true;
       } else {
@@ -173,7 +194,7 @@ const ReportsPage = () => {
   };
   const activeCount = getActiveCount();
 
-  const currentReports = filteredReports;
+  const currentReports = isSearchMode ? searchResults : filteredReports;
   const totalPages = Math.ceil(activeCount / reportsPerPage);
 
   // Pagination handlers
@@ -232,7 +253,7 @@ const ReportsPage = () => {
   };
 
   const handleViewReport = (report) => {
-    _reportsRestore = { page: currentPage, filter: filterType, reports, hasMore };
+    _reportsRestore = { page: currentPage, filter: filterType, reports, hasMore, cursors, typeCursor };
     // Navigate to appropriate view page based on report type
     const reportTypeRoutes = {
       'incident': `/dashboard/client/reports/incident/${report.id}`,
@@ -395,15 +416,19 @@ const ReportsPage = () => {
                   setSearchTerm(value);
                   setCurrentPage(1);
                   if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-                  if (wasRestoredRef.current) {
-                    wasRestoredRef.current = false;
-                    clearRestoreState();
+                  if (value.trim() === '') {
+                    // Search cleared — go back to normal pagination
+                    setSearchResults([]);
+                    if (wasRestoredRef.current) {
+                      wasRestoredRef.current = false;
+                      clearRestoreState();
+                    }
                     pageCacheRef.current = {};
                     loadReports(true, null, null, null, true);
                   } else {
+                    // Debounce the Firestore prefix search
                     searchDebounceRef.current = setTimeout(() => {
-                      pageCacheRef.current = {};
-                      loadReports(true, null, null, null, true);
+                      runSearch(value);
                     }, 400);
                   }
                 }}
@@ -440,7 +465,7 @@ const ReportsPage = () => {
 
         {/* Reports Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          {loading ? (
+          {loading || searchLoading ? (
             <div className="p-12 text-center">
               <span className="loading loading-spinner loading-lg text-brand-500"></span>
             </div>
@@ -517,8 +542,8 @@ const ReportsPage = () => {
                 </table>
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
+              {/* Pagination — hidden while searching */}
+              {totalPages > 1 && !isSearchMode && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
                     Showing page {currentPage} of {totalPages} ({activeCount} total {filterType === 'all' ? 'reports' : filterType.replace(/-/g, ' ') + 's'})

@@ -110,11 +110,20 @@ const CCTVFaultsLivePageInner = () => {
                           <Eye className="w-3 h-3" />
                           Seen
                         </span>
-                        {fault.clientNote && (
-                          <span className="text-xs text-gray-400 max-w-[120px] truncate">
-                            {fault.clientNote}
-                          </span>
-                        )}
+                        {(() => {
+                          const notesList = fault.clientNotes?.length
+                            ? fault.clientNotes
+                            : fault.clientNote
+                            ? [{ text: fault.clientNote }]
+                            : [];
+                          if (!notesList.length) return null;
+                          const latest = notesList[notesList.length - 1];
+                          return (
+                            <span className="text-xs text-gray-400 max-w-[120px] truncate" title={latest.text}>
+                              {notesList.length > 1 && `(${notesList.length}) `}{latest.text}
+                            </span>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400">Pending</span>

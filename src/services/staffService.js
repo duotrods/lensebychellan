@@ -1746,6 +1746,44 @@ class StaffService {
     }
   }
 
+  async searchFormsByReferenceId(searchTerm) {
+    const term = searchTerm.trim().toUpperCase();
+    if (!term) return [];
+    const termEnd = term + '\uf8ff';
+
+    const COLLECTIONS = [
+      { name: 'incidentReports',        type: 'Incident Report'  },
+      { name: 'assetDamageReports',     type: 'Asset Damage'     },
+      { name: 'dailyOccurrenceReports', type: 'Daily Occurrence' },
+      { name: 'cctvCheckForms',         type: 'CCTV Check Sheet' },
+      { name: 'cctvFaultsReports',      type: 'CCTV Faults'      },
+    ];
+
+    const snapshots = await Promise.all(
+      COLLECTIONS.map(({ name }) =>
+        getDocs(
+          query(
+            collection(db, name),
+            where('referenceId', '>=', term),
+            where('referenceId', '<=', termEnd),
+            limit(10)
+          )
+        )
+      )
+    );
+
+    const results = [];
+    snapshots.forEach((snap, i) => {
+      const { type } = COLLECTIONS[i];
+      snap.docs.forEach(d => {
+        results.push({ id: d.id, ...d.data(), type });
+      });
+    });
+
+    results.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    return results.slice(0, 10);
+  }
+
   /**
    * Helper to get count from a collection using server-side counting (includes all docs)
    */

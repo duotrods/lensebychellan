@@ -116,14 +116,32 @@ const CCTVFaultView = () => {
 
           {/* Client Acknowledgment */}
           {fault.clientAcknowledged && (
-            <div className="flex items-start gap-3 p-4 bg-teal-50 border border-teal-100 rounded-lg">
-              <CheckCircle2 className="w-5 h-5 text-teal-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="font-semibold text-teal-700 text-sm">Client Acknowledged</p>
-                {fault.clientNote && (
-                  <p className="text-sm text-teal-600 mt-0.5">{fault.clientNote}</p>
-                )}
+            <div className="p-4 bg-teal-50 border border-teal-100 rounded-lg space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
+                <p className="font-semibold text-teal-700 text-sm">Acknowledged</p>
               </div>
+              {(() => {
+                const notesList = fault.clientNotes?.length
+                  ? fault.clientNotes
+                  : fault.clientNote
+                  ? [{ text: fault.clientNote, addedAt: null }]
+                  : [];
+                return notesList.length > 0 ? (
+                  <div className="space-y-1 pl-7">
+                    {notesList.map((note, idx) => (
+                      <div key={idx} className="flex items-start gap-2 text-sm">
+                        <span className="text-teal-600 flex-1">{note.text}</span>
+                        {note.addedAt && (
+                          <span className="text-xs text-teal-400 shrink-0 mt-0.5">
+                            {new Date(note.addedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
             </div>
           )}
 

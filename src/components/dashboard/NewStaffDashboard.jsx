@@ -33,6 +33,8 @@ const NewStaffDashboard = () => {
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const formsPerPage = 10;
 
   useEffect(() => {
@@ -47,6 +49,8 @@ const NewStaffDashboard = () => {
       setFilterType(_dashRestore.filter);
       setLatestForms(_dashRestore.forms);
       setHasMore(_dashRestore.hasMore);
+      setCursors(_dashRestore.cursors || {});
+      setTypeCursor(_dashRestore.typeCursor || null);
       setLoading(false);
       wasRestoredRef.current = true;
     } else {
@@ -166,6 +170,20 @@ const NewStaffDashboard = () => {
 
   const clearRestoreState = () => {
     _dashRestore = null;
+  };
+
+  const runSearch = async (term) => {
+    if (!term.trim()) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const results = await staffService.searchFormsByReferenceId(term.trim());
+      setSearchResults(results);
+    } catch (err) {
+      console.error('Search failed:', err);
+      toast.error('Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
   };
 
   const handleFilterChange = async (newType) => {
@@ -329,16 +347,10 @@ const NewStaffDashboard = () => {
     return 'N/A';
   };
 
-  // Filter and search forms (client-side filtering on current page only)
-  const filteredForms = latestForms.filter(form => {
-    const submitterName = form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || '';
-    const schemeValue = getFormScheme(form).toLowerCase();
-    const matchesSearch =
-      form.referenceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      form.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      submitterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schemeValue.includes(searchTerm.toLowerCase());
+  const isSearchMode = searchTerm.trim() !== '';
 
+  // Type filter is handled server-side; text search uses Firestore query
+  const filteredForms = latestForms.filter(form => {
     const formTypeMap = {
       'CCTV Check Sheet': 'cctv-check',
       'Incident Report': 'incident',
@@ -346,13 +358,11 @@ const NewStaffDashboard = () => {
       'Daily Occurrence': 'daily-occurrence',
       'CCTV Faults': 'cctv-faults'
     };
-    const matchesType = filterType === 'all' || formTypeMap[form.type] === filterType;
-
-    return matchesSearch && matchesType;
+    return filterType === 'all' || formTypeMap[form.type] === filterType;
   });
 
-  // Server-side pagination — use type-specific count when a filter is active
-  const currentForms = filteredForms;
+  // Use Firestore search results when searching, otherwise use paginated page data
+  const currentForms = isSearchMode ? searchResults : filteredForms;
   const activeCount = filterType === 'all' ? totalCount : typeCount;
   const totalPages = Math.ceil(activeCount / formsPerPage);
 
@@ -378,7 +388,7 @@ const NewStaffDashboard = () => {
   };
 
   const handleViewForm = (form) => {
-    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore };
+    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/reports/cctv-check/${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -393,7 +403,7 @@ const NewStaffDashboard = () => {
   };
 
   const handleEditForm = (form) => {
-    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore };
+    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/forms/cctv-check?edit=${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -492,23 +502,14 @@ const NewStaffDashboard = () => {
                     onChange={(e) => {
                       const value = e.target.value;
                       setSearchTerm(value);
-                      setCurrentPage(1);
-
-                      // Clear any pending debounce
                       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-
-                      if (wasRestoredRef.current) {
-                        wasRestoredRef.current = false;
-                        clearRestoreState();
-                        pageCacheRef.current = {};
-                        loadDashboardData(true, null, null, null, true);
-                      } else {
-                        // Debounce reload so we don't fire on every keystroke
-                        searchDebounceRef.current = setTimeout(() => {
-                          pageCacheRef.current = {};
-                          loadDashboardData(true, null, null, null, true);
-                        }, 400);
+                      if (!value.trim()) {
+                        setSearchResults([]);
+                        return;
                       }
+                      searchDebounceRef.current = setTimeout(() => {
+                        runSearch(value);
+                      }, 400);
                     }}
                     className="input input-bordered w-full pl-10 bg-white border-gray-300"
                   />
@@ -549,9 +550,15 @@ const NewStaffDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {currentForms.length === 0 ? (
+                    {searchLoading ? (
                       <tr>
-                        <td colSpan="6" className="text-center py-12">
+                        <td colSpan="7" className="text-center py-12">
+                          <span className="loading loading-spinner loading-lg text-teal-500"></span>
+                        </td>
+                      </tr>
+                    ) : currentForms.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="text-center py-12">
                           <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                           <p className="text-gray-500 text-lg">No forms found</p>
                           <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
@@ -660,7 +667,14 @@ const NewStaffDashboard = () => {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
+              {isSearchMode && (
+                <div className="p-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Showing {searchResults.length} search result{searchResults.length !== 1 ? 's' : ''} (max 10)
+                  </p>
+                </div>
+              )}
+              {!isSearchMode && totalPages > 1 && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
                     Showing page {currentPage} of {totalPages} ({activeCount} total forms)

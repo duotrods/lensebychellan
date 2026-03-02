@@ -64,6 +64,7 @@ const CCTVFaultsFormPage = () => {
           status: report.status || "live",
           clientAcknowledged: report.clientAcknowledged || false,
           clientNote: report.clientNote || "",
+          clientNotes: report.clientNotes || [],
           completedBy: report.completedBy || null,
         });
       } else {
@@ -185,14 +186,32 @@ const CCTVFaultsFormPage = () => {
                 )}
               </div>
               {reportMeta.clientAcknowledged && (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
-                  <span className="text-sm text-gray-600">
-                    <span className="font-semibold">Client acknowledged</span>
-                    {reportMeta.clientNote && (
-                      <span className="text-gray-500 ml-1">— {reportMeta.clientNote}</span>
-                    )}
-                  </span>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                    <span className="text-sm font-semibold text-gray-600">Client acknowledged</span>
+                  </div>
+                  {(() => {
+                    const notesList = reportMeta.clientNotes?.length
+                      ? reportMeta.clientNotes
+                      : reportMeta.clientNote
+                      ? [{ text: reportMeta.clientNote, addedAt: null }]
+                      : [];
+                    return notesList.length > 0 ? (
+                      <div className="pl-6 space-y-0.5">
+                        {notesList.map((note, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-sm">
+                            <span className="text-gray-500">— {note.text}</span>
+                            {note.addedAt && (
+                              <span className="text-xs text-gray-400 shrink-0 mt-0.5">
+                                {new Date(note.addedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
             </div>

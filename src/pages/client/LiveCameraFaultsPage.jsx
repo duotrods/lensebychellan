@@ -52,10 +52,10 @@ const LiveCameraFaultsPage = () => {
   const [notes, setNotes] = useState({});
   // Track which faults are being acknowledged
   const [acknowledging, setAcknowledging] = useState({});
-  // Track which already-acknowledged faults are in edit mode
-  const [editingNote, setEditingNote] = useState({});
-  // Edited note text per fault
-  const [editNotes, setEditNotes] = useState({});
+  // Track which already-acknowledged faults have the "add note" form open
+  const [addingNote, setAddingNote] = useState({});
+  // New note text per fault
+  const [newNotes, setNewNotes] = useState({});
   // Track which notes are being saved
   const [savingNote, setSavingNote] = useState({});
 
@@ -72,23 +72,26 @@ const LiveCameraFaultsPage = () => {
     }
   };
 
-  const startEditNote = (fault) => {
-    setEditNotes((prev) => ({ ...prev, [fault.id]: fault.clientNote || '' }));
-    setEditingNote((prev) => ({ ...prev, [fault.id]: true }));
+  const startAddNote = (faultId) => {
+    setNewNotes((prev) => ({ ...prev, [faultId]: '' }));
+    setAddingNote((prev) => ({ ...prev, [faultId]: true }));
   };
 
-  const cancelEditNote = (faultId) => {
-    setEditingNote((prev) => ({ ...prev, [faultId]: false }));
+  const cancelAddNote = (faultId) => {
+    setAddingNote((prev) => ({ ...prev, [faultId]: false }));
   };
 
   const handleSaveNote = async (fault) => {
+    const text = (newNotes[fault.id] || '').trim();
+    if (!text) return;
     setSavingNote((prev) => ({ ...prev, [fault.id]: true }));
     try {
-      await clientDataService.acknowledgeCCTVFault(fault.id, editNotes[fault.id] || '');
-      toast.success('Note updated.');
-      setEditingNote((prev) => ({ ...prev, [fault.id]: false }));
+      await clientDataService.addClientNote(fault.id, text);
+      toast.success('Note added.');
+      setAddingNote((prev) => ({ ...prev, [fault.id]: false }));
+      setNewNotes((prev) => ({ ...prev, [fault.id]: '' }));
     } catch {
-      toast.error('Failed to update note. Please try again.');
+      toast.error('Failed to add note. Please try again.');
     } finally {
       setSavingNote((prev) => ({ ...prev, [fault.id]: false }));
     }
@@ -203,59 +206,81 @@ const LiveCameraFaultsPage = () => {
                           {/* Acknowledgment section */}
                           <div className="mt-3 pt-3 border-t border-gray-100">
                             {fault.clientAcknowledged ? (
-                              editingNote[fault.id] ? (
-                                <div className="space-y-2">
-                                  <textarea
-                                    rows={2}
-                                    placeholder="Update your note..."
-                                    value={editNotes[fault.id] ?? fault.clientNote ?? ''}
-                                    onChange={(e) =>
-                                      setEditNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
-                                    }
-                                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleSaveNote(fault)}
-                                      disabled={savingNote[fault.id]}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-60"
-                                    >
-                                      <CheckCircle2 className="w-3.5 h-3.5" />
-                                      {savingNote[fault.id] ? 'Saving...' : 'Save Note'}
-                                    </button>
-                                    <button
-                                      onClick={() => cancelEditNote(fault.id)}
-                                      disabled={savingNote[fault.id]}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                      Cancel
-                                    </button>
+                              <div className="space-y-2">
+                                {/* Stacked notes — show clientNotes array, fall back to legacy clientNote */}
+                                {(() => {
+                                  const notesList = fault.clientNotes?.length
+                                    ? fault.clientNotes
+                                    : fault.clientNote
+                                    ? [{ text: fault.clientNote, addedAt: null }]
+                                    : [];
+                                  return notesList.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {notesList.map((note, idx) => (
+                                        <div key={idx} className="flex items-start gap-1.5 text-sm bg-gray-50 rounded-lg px-2.5 py-1.5">
+                                          <span className="text-gray-700 flex-1">{note.text}</span>
+                                          {note.addedAt && (
+                                            <span className="text-xs text-gray-400 shrink-0 mt-0.5">
+                                              {new Date(note.addedAt).toLocaleDateString()}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : null;
+                                })()}
+
+                                {/* Acknowledged badge + Add note button */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                    <span>Acknowledged</span>
                                   </div>
+                                  {!addingNote[fault.id] && (
+                                    <button
+                                      onClick={() => startAddNote(fault.id)}
+                                      className="shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-brand-500 transition-colors"
+                                      title="Add a note"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                      Add note
+                                    </button>
+                                  )}
                                 </div>
-                              ) : (
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex items-start gap-2 text-green-600 text-sm font-medium">
-                                    <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-                                    <span>
-                                      Acknowledged
-                                      {fault.clientNote && (
-                                        <span className="text-gray-500 font-normal ml-1">
-                                          — {fault.clientNote}
-                                        </span>
-                                      )}
-                                    </span>
+
+                                {/* Add note form */}
+                                {addingNote[fault.id] && (
+                                  <div className="space-y-2">
+                                    <textarea
+                                      rows={2}
+                                      placeholder="Add a note..."
+                                      value={newNotes[fault.id] || ''}
+                                      onChange={(e) =>
+                                        setNewNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
+                                      }
+                                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleSaveNote(fault)}
+                                        disabled={savingNote[fault.id] || !(newNotes[fault.id] || '').trim()}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-60"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        {savingNote[fault.id] ? 'Saving...' : 'Save Note'}
+                                      </button>
+                                      <button
+                                        onClick={() => cancelAddNote(fault.id)}
+                                        disabled={savingNote[fault.id]}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                        Cancel
+                                      </button>
+                                    </div>
                                   </div>
-                                  <button
-                                    onClick={() => startEditNote(fault)}
-                                    className="shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-brand-500 transition-colors"
-                                    title="Update note"
-                                  >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                    Edit note
-                                  </button>
-                                </div>
-                              )
+                                )}
+                              </div>
                             ) : (
                               <div className="space-y-2">
                                 <textarea

@@ -193,7 +193,7 @@ service cloud.firestore {
         (getUserRole() == 'client' &&
           hasSchemeAccess(resource.data.schemeIds) &&
           request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['clientAcknowledged', 'clientNote', 'acknowledgedAt', 'updatedAt'])
+            .hasOnly(['clientAcknowledged', 'clientNote', 'clientNotes', 'acknowledgedAt', 'updatedAt'])
         )
       );
 
