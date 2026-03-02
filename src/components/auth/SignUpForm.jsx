@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react";
 import { authService } from "../../services/authService";
 import { getAuthErrorMessage } from "../../utils/errorHandling";
 import { USER_ROLES, ROLE_LABELS } from "../../utils/constants";
 
 const SignUpForm = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
@@ -128,15 +131,25 @@ const SignUpForm = () => {
           <label className="label">
             <span className="label-text font-semibold mb-2">Password</span>
           </label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            className="input w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-            minLength={6}
-            required
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className="input w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100 pr-12"
+              minLength={6}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
         <div className="form-control">
@@ -145,14 +158,24 @@ const SignUpForm = () => {
               Confirm Password
             </span>
           </label>
-          <input
-            type="password"
-            name="confirmPassword"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-            required
-          />
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              className="input w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100 pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              tabIndex={-1}
+            >
+              {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
         <div className="form-control">
