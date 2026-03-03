@@ -221,7 +221,7 @@ const LiveCameraFaultsPage = () => {
                                           <span className="text-gray-700 flex-1">{note.text}</span>
                                           {note.addedAt && (
                                             <span className="text-xs text-gray-400 shrink-0 mt-0.5">
-                                              {new Date(note.addedAt).toLocaleDateString()}
+                                              {new Date(note.addedAt).toLocaleDateString('en-GB')} {new Date(note.addedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                                             </span>
                                           )}
                                         </div>
