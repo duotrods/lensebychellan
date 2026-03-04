@@ -215,6 +215,49 @@ class AuthService {
       throw new AppError(error.message, error.code, error);
     }
   }
+  async signUpCCTVFaultOperatorWithOTP(email, password, userData, otpCode) {
+    try {
+      // Uses scheme-based OTP (same as client) so they're tied to a specific scheme
+      const otpValidation = await otpService.validateOTP(otpCode);
+
+      if (!otpValidation.isValid) {
+        throw new AppError('Invalid OTP code', 'auth/invalid-otp');
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await updateProfile(user, { displayName: userData.displayName });
+      await sendEmailVerification(user);
+
+      await firestoreService.createUserDocument(user.uid, {
+        ...userData,
+        email,
+        role: USER_ROLES.CCTVOPERATOR,
+        schemeId: otpValidation.schemeId,
+        schemeName: otpValidation.schemeName,
+        emailVerified: false,
+        metadata: {
+          signInMethod: 'email',
+          ipAddress: null,
+          userAgent: navigator.userAgent,
+          otpCode: otpCode
+        }
+      });
+
+      try {
+        await otpService.markOTPAsUsed(otpCode, user.uid);
+      } catch (otpError) {
+        console.warn('Failed to mark OTP as used, but signup succeeded:', otpError);
+      }
+
+      return user;
+    } catch (error) {
+      console.error('SignUpCCTVFaultOperatorWithOTP Error:', error);
+      throw new AppError(error.message, error.code, error);
+    }
+  }
+
   async signUpLiveOperatorWithOTP(email, password, userData, otpCode) {
     try {
       // Validate Staff Invite Code

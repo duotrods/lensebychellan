@@ -334,6 +334,24 @@ const App = () => {
               }
             />
 
+            {/* CCTV Fault Operator Routes */}
+            <Route
+              path="/dashboard/cctvoperator"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CCTVOPERATOR]}>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/cctvoperator/cctv-fault/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CCTVOPERATOR]}>
+                  <ClientCCTVFaultView />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Live Operator Routes */}
             <Route
               path="/dashboard/liveoperator"

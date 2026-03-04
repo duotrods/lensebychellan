@@ -167,35 +167,43 @@ service cloud.firestore {
 
     // CCTV Faults Reports
     match /cctvFaultsReports/{reportId} {
-      allow create: if isSignedIn() && getUserRole() == 'staff';
+  allow create: if isSignedIn() && getUserRole() == 'staff';
 
-      // Get single document
-      allow get: if isSignedIn() && (
-        getUserRole() == 'admin' ||
-        getUserRole() == 'staff' ||
-        (getUserRole() == 'client' && (
-          hasSchemeAccess(resource.data.schemeIds) ||
-          hasOldSchemeAccess(resource.data.schemeId)
-        ))
-      );
+  // Get single document
+  allow get: if isSignedIn() && (
+    getUserRole() == 'admin' ||
+    getUserRole() == 'staff' ||
+    (getUserRole() == 'client' && (
+      hasSchemeAccess(resource.data.schemeIds) ||
+      hasOldSchemeAccess(resource.data.schemeId)
+    )) ||
+    (getUserRole() == 'cctvfaultoperator' && (
+      hasSchemeAccess(resource.data.schemeIds) ||
+      hasOldSchemeAccess(resource.data.schemeId)
+    ))
+  );
 
-      // List/query documents
-      allow list: if isSignedIn() && (
-        getUserRole() == 'admin' ||
-        getUserRole() == 'staff' ||
-        getUserRole() == 'client'
-      );
+  // List/query documents
+  allow list: if isSignedIn() && (
+    getUserRole() == 'admin' ||
+    getUserRole() == 'staff' ||
+    getUserRole() == 'client' ||
+    getUserRole() == 'cctvfaultoperator'
+  );
 
-      allow update: if isSignedIn() && (
-        // Staff and admin can update anything
-        getUserRole() == 'staff' || getUserRole() == 'admin' ||
-        // Clients can only update acknowledgment fields on their scheme's faults
-        (getUserRole() == 'client' &&
-          hasSchemeAccess(resource.data.schemeIds) &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['clientAcknowledged', 'clientNote', 'clientNotes', 'acknowledgedAt', 'updatedAt'])
-        )
-      );
+  allow update: if isSignedIn() && (
+    getUserRole() == 'staff' || getUserRole() == 'admin' ||
+    (getUserRole() == 'client' &&
+      hasSchemeAccess(resource.data.schemeIds) &&
+      request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['clientAcknowledged', 'acknowledgedAt', 'updatedAt'])
+    ) ||
+    (getUserRole() == 'cctvfaultoperator' &&
+      hasSchemeAccess(resource.data.schemeIds) &&
+      request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['clientAcknowledged', 'clientNote', 'clientNotes', 'acknowledgedAt', 'updatedAt'])
+    )
+  );
 
       allow delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }

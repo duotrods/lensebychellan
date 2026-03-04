@@ -4,12 +4,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { useLiveCCTVFaults, usePaginatedCCTVFaults } from '../../hooks/useCCTVFaults';
 import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Clock, CheckCircle2, Pencil, X } from 'lucide-react';
 import { SCHEMES } from '../../utils/schemes';
+import { USER_ROLES } from '../../utils/constants';
 import { clientDataService } from '../../services/clientDataService';
 import { toast } from 'react-hot-toast';
 
-const LiveCameraFaultsPage = () => {
+const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/dashboard/client/cctv-fault' }) => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const canAddNote = role === USER_ROLES.CCTVOPERATOR;
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
 
@@ -98,27 +100,29 @@ const LiveCameraFaultsPage = () => {
   };
 
   const handleViewFault = (fault) => {
-    navigate(`/dashboard/client/cctv-fault/${fault.id}`);
+    navigate(`${faultBasePath}/${fault.id}`);
   };
 
   return (
     <div>
-      {/* Header with Back Button */}
-      <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
-        <div className="flex items-center gap-4 mb-2">
-          <button
-            onClick={() => navigate('/dashboard/client')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
-          </button>
-          <div>
-            <h4 className="font-bold text-gray-800">
-              Go Back to <span className="font-semibold text-brand-400">Dashboard</span>
-            </h4>
+      {/* Header with Back Button — hidden for cctvfaultoperator */}
+      {!hideDashboardLink && (
+        <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-center gap-4 mb-2">
+            <button
+              onClick={() => navigate('/dashboard/client')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-6 h-6 text-gray-600" />
+            </button>
+            <div>
+              <h4 className="font-bold text-gray-800">
+                Go Back to <span className="font-semibold text-brand-400">Dashboard</span>
+              </h4>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {recentLoading ? (
         <div className="flex justify-center py-12">
@@ -230,13 +234,13 @@ const LiveCameraFaultsPage = () => {
                                   ) : null;
                                 })()}
 
-                                {/* Acknowledged badge + Add note button */}
+                                {/* Acknowledged badge + Add note button (CCTV operators only) */}
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
                                     <CheckCircle2 className="w-4 h-4 shrink-0" />
                                     <span>Acknowledged</span>
                                   </div>
-                                  {!addingNote[fault.id] && (
+                                  {canAddNote && !addingNote[fault.id] && (
                                     <button
                                       onClick={() => startAddNote(fault.id)}
                                       className="shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-brand-500 transition-colors"
@@ -248,8 +252,8 @@ const LiveCameraFaultsPage = () => {
                                   )}
                                 </div>
 
-                                {/* Add note form */}
-                                {addingNote[fault.id] && (
+                                {/* Add note form (CCTV operators only) */}
+                                {canAddNote && addingNote[fault.id] && (
                                   <div className="space-y-2">
                                     <textarea
                                       rows={2}
@@ -283,15 +287,17 @@ const LiveCameraFaultsPage = () => {
                               </div>
                             ) : (
                               <div className="space-y-2">
-                                <textarea
-                                  rows={2}
-                                  placeholder="Add a note (e.g. will fix on Tuesday)..."
-                                  value={notes[fault.id] || ''}
-                                  onChange={(e) =>
-                                    setNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
-                                  }
-                                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
-                                />
+                                {canAddNote && (
+                                  <textarea
+                                    rows={2}
+                                    placeholder="Add a note (e.g. will fix on Tuesday)..."
+                                    value={notes[fault.id] || ''}
+                                    onChange={(e) =>
+                                      setNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
+                                    }
+                                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
+                                  />
+                                )}
                                 <label className="flex items-center gap-2 cursor-pointer select-none">
                                   <input
                                     type="checkbox"

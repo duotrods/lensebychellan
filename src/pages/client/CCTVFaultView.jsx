@@ -3,11 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { clientDataService } from '../../services/clientDataService';
+import { useAuth } from '../../hooks/useAuth';
+import { USER_ROLES } from '../../utils/constants';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
+import CCTVOperatorSidebarLayout from '../../components/layout/CCTVOperatorSidebarLayout';
 
 const CCTVFaultView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const Layout = role === USER_ROLES.CCTVOPERATOR ? CCTVOperatorSidebarLayout : ClientSidebarLayout;
   const [fault, setFault] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,26 +52,26 @@ const CCTVFaultView = () => {
 
   if (loading) {
     return (
-      <ClientSidebarLayout>
+      <Layout>
         <div className="flex justify-center items-center h-64">
           <span className="loading loading-spinner loading-lg text-brand-500"></span>
         </div>
-      </ClientSidebarLayout>
+      </Layout>
     );
   }
 
   if (!fault) {
     return (
-      <ClientSidebarLayout>
+      <Layout>
         <div className="text-center py-12">
           <p className="text-gray-500">Fault report not found</p>
         </div>
-      </ClientSidebarLayout>
+      </Layout>
     );
   }
 
   return (
-    <ClientSidebarLayout>
+    <Layout>
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -217,7 +222,7 @@ const CCTVFaultView = () => {
           </div>
         </div>
       </div>
-    </ClientSidebarLayout>
+    </Layout>
   );
 };
 

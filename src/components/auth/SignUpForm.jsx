@@ -74,6 +74,13 @@ const SignUpForm = () => {
           userData,
           formData.otpCode
         );
+      } else if (formData.role === USER_ROLES.CCTVOPERATOR) {
+        await authService.signUpCCTVFaultOperatorWithOTP(
+          formData.email,
+          formData.password,
+          userData,
+          formData.otpCode
+        );
       } else {
         await authService.signUpWithEmail(
           formData.email,
@@ -198,6 +205,9 @@ const SignUpForm = () => {
             <option value={USER_ROLES.LIVEOPERATOR}>
               {ROLE_LABELS[USER_ROLES.LIVEOPERATOR]}
             </option>
+            <option value={USER_ROLES.CCTVOPERATOR}>
+              {ROLE_LABELS[USER_ROLES.CCTVOPERATOR]}
+            </option>
           </select>
         </div>
 
@@ -205,7 +215,7 @@ const SignUpForm = () => {
         <div className="form-control">
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              {formData.role === USER_ROLES.CLIENT ? "Scheme Access Code" : "Staff Invite Code"}
+              {[USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR].includes(formData.role) ? "Scheme Access Code" : "Staff Invite Code"}
             </span>
           </label>
           <input
@@ -213,13 +223,13 @@ const SignUpForm = () => {
             name="otpCode"
             value={formData.otpCode}
             onChange={handleChange}
-            placeholder={formData.role === USER_ROLES.CLIENT ? "e.g., A417-2024-ABC123" : "e.g., STAFF-2024-XYZ789"}
+            placeholder={[USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR].includes(formData.role) ? "e.g., A417-2024-ABC123" : "e.g., STAFF-2024-XYZ789"}
             className="input w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
             required
           />
           <label className="label">
             <span className="label-text-alt text-gray-500">
-              Enter the {formData.role === USER_ROLES.CLIENT ? "access" : "invite"} code provided by your administrator
+              Enter the {[USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR].includes(formData.role) ? "access" : "invite"} code provided by your administrator
             </span>
           </label>
         </div>

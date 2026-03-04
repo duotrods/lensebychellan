@@ -2,21 +2,24 @@ export const USER_ROLES = {
   ADMIN: 'admin',
   STAFF: 'staff',
   CLIENT: 'client',
-  LIVEOPERATOR: 'liveoperator'
+  LIVEOPERATOR: 'liveoperator',
+  CCTVOPERATOR: 'cctvfaultoperator'
 };
 
 export const ROLE_LABELS = {
   admin: 'Administrator',
   staff: 'Staff Member',
   client: 'Client',
-  liveoperator: 'Live Operator'
+  liveoperator: 'Live Operator',
+  cctvfaultoperator: 'CCTV Fault Operator'
 };
 
 export const DASHBOARD_ROUTES = {
   admin: '/dashboard/admin',
   staff: '/dashboard/staff',
   client: '/dashboard/client',
-  liveoperator: '/dashboard/liveoperator'
+  liveoperator: '/dashboard/liveoperator',
+  cctvfaultoperator: '/dashboard/cctvoperator'
 };
 
 export const AUTH_ERRORS = {

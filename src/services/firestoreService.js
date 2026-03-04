@@ -230,15 +230,17 @@ class FirestoreService {
   async getUsersCountByRole() {
     try {
       const usersRef = collection(db, 'users');
-      const [totalSnap, staffSnap, clientSnap] = await Promise.all([
+      const [totalSnap, staffSnap, clientSnap, cctvSnap] = await Promise.all([
         getCountFromServer(query(usersRef)),
         getCountFromServer(query(usersRef, where('role', '==', 'staff'))),
         getCountFromServer(query(usersRef, where('role', '==', 'client'))),
+        getCountFromServer(query(usersRef, where('role', '==', 'cctvfaultoperator'))),
       ]);
       return {
         total: totalSnap.data().count,
         staff: staffSnap.data().count,
         client: clientSnap.data().count,
+        cctvfaultoperator: cctvSnap.data().count,
       };
     } catch (error) {
       throw new AppError('Failed to count users by role', 'firestore/read-error', error);
@@ -305,9 +307,10 @@ class FirestoreService {
         throw new AppError('User not found', 'firestore/not-found');
       }
 
-      // Verify target is a client
-      if (targetUser.role !== USER_ROLES.CLIENT) {
-        throw new AppError('Can only assign schemes to client users', 'firestore/permission-denied');
+      // Verify target is a client or CCTV fault operator
+      const schemeAssignableRoles = [USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR];
+      if (!schemeAssignableRoles.includes(targetUser.role)) {
+        throw new AppError('Can only assign schemes to client or CCTV fault operator users', 'firestore/permission-denied');
       }
 
       // Check if scheme already assigned
