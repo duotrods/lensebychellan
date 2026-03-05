@@ -69,7 +69,7 @@ import ClientAssetDamageView from './pages/client/AssetDamageView';
 import ClientDailyOccurrenceView from './pages/client/DailyOccurrenceView';
 import ClientCCTVCheckView from './pages/client/CCTVCheckView';
 import ClientLiveIncidentsPage from './pages/client/LiveIncidentsPage';
-import ClientLiveCameraFaultsPage from './pages/client/LiveCameraFaultsPage';
+import ClientLiveCameraFaultsPage from './components/dashboard/LiveCameraOperatorDashboard';
 import ClientCCTVFaultView from './pages/client/CCTVFaultView';
 
 import { USER_ROLES } from './utils/constants';
