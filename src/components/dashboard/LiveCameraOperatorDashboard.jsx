@@ -2,16 +2,56 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLiveCCTVFaults, usePaginatedCCTVFaults } from '../../hooks/useCCTVFaults';
-import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Clock, CheckCircle2, Pencil, X } from 'lucide-react';
+import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Clock, CheckCircle2, Send, X } from 'lucide-react';
 import { SCHEMES } from '../../utils/schemes';
 import { USER_ROLES } from '../../utils/constants';
 import { clientDataService } from '../../services/clientDataService';
 import { toast } from 'react-hot-toast';
 
+const formatNoteTime = (addedAt) => {
+  if (!addedAt) return '';
+  const d = new Date(addedAt);
+  return `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+};
+
+const NoteThread = ({ notes, legacyNote }) => {
+  const allNotes = notes?.length
+    ? notes
+    : legacyNote
+    ? [{ text: legacyNote, addedAt: null, authorRole: 'cctvfaultoperator', authorName: 'Operator' }]
+    : [];
+
+  if (!allNotes.length) return null;
+
+  return (
+    <div className="space-y-2 pb-2">
+      {allNotes.map((note, idx) => {
+        const isCCTV = note.authorRole === 'cctvfaultoperator';
+        return (
+          <div key={idx} className={`flex flex-col ${isCCTV ? 'items-end' : 'items-start'}`}>
+            <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${
+              isCCTV
+                ? 'bg-teal-500 text-white rounded-tr-sm'
+                : 'bg-blue-100 text-blue-900 rounded-tl-sm'
+            }`}>
+              {note.text}
+            </div>
+            <span className="text-xs text-gray-400 mt-0.5">
+              {note.authorName || (isCCTV ? 'Operator' : 'Staff')}
+              {note.addedAt && ` · ${formatNoteTime(note.addedAt)}`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/dashboard/client/cctv-fault' }) => {
   const navigate = useNavigate();
   const { userProfile, role } = useAuth();
   const canAddNote = role === USER_ROLES.CCTVOPERATOR;
+  const authorName = userProfile?.displayName || userProfile?.name || '';
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
 
@@ -24,7 +64,7 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
     return userProfile?.schemeName;
   };
 
-  // Real-time subscription for live faults
+  // Real-time subscription for live faults — notes update automatically via onSnapshot
   const { faults: recentFaults, loading: recentLoading } = useLiveCCTVFaults(schemeId);
 
   // Server-side paginated completed fault history
@@ -40,8 +80,7 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
     pageSize,
   } = usePaginatedCCTVFaults(schemeId, 6);
 
-  // When a live fault gets completed, recentFaults.length decreases.
-  // Auto-refresh the history so it appears immediately without manual reload.
+  // When a live fault gets completed, auto-refresh history
   const prevLiveFaultCount = useRef(recentFaults.length);
   useEffect(() => {
     if (prevLiveFaultCount.current > 0 && recentFaults.length < prevLiveFaultCount.current) {
@@ -50,22 +89,18 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
     prevLiveFaultCount.current = recentFaults.length;
   }, [recentFaults.length, refreshHistory]);
 
-  // Per-fault note state (faultId -> note text) for first-time acknowledgment
+  // Per-fault note state for first-time acknowledgment
   const [notes, setNotes] = useState({});
-  // Track which faults are being acknowledged
   const [acknowledging, setAcknowledging] = useState({});
-  // Track which already-acknowledged faults have the "add note" form open
-  const [addingNote, setAddingNote] = useState({});
-  // New note text per fault
+  // Note input text per fault (for adding notes after acknowledged)
   const [newNotes, setNewNotes] = useState({});
-  // Track which notes are being saved
   const [savingNote, setSavingNote] = useState({});
 
   const handleAcknowledge = async (fault) => {
     if (fault.clientAcknowledged) return;
     setAcknowledging((prev) => ({ ...prev, [fault.id]: true }));
     try {
-      await clientDataService.acknowledgeCCTVFault(fault.id, notes[fault.id] || '');
+      await clientDataService.acknowledgeCCTVFault(fault.id, notes[fault.id] || '', role, authorName);
       toast.success('Fault acknowledged — staff have been notified.');
     } catch {
       toast.error('Failed to acknowledge fault. Please try again.');
@@ -74,23 +109,12 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
     }
   };
 
-  const startAddNote = (faultId) => {
-    setNewNotes((prev) => ({ ...prev, [faultId]: '' }));
-    setAddingNote((prev) => ({ ...prev, [faultId]: true }));
-  };
-
-  const cancelAddNote = (faultId) => {
-    setAddingNote((prev) => ({ ...prev, [faultId]: false }));
-  };
-
-  const handleSaveNote = async (fault) => {
+  const handleSendNote = async (fault) => {
     const text = (newNotes[fault.id] || '').trim();
     if (!text) return;
     setSavingNote((prev) => ({ ...prev, [fault.id]: true }));
     try {
-      await clientDataService.addClientNote(fault.id, text);
-      toast.success('Note added.');
-      setAddingNote((prev) => ({ ...prev, [fault.id]: false }));
+      await clientDataService.addClientNote(fault.id, text, role, authorName);
       setNewNotes((prev) => ({ ...prev, [fault.id]: '' }));
     } catch {
       toast.error('Failed to add note. Please try again.');
@@ -207,84 +231,48 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                             )}
                           </div>
 
-                          {/* Acknowledgment section */}
+                          {/* Notes thread + acknowledgment */}
                           <div className="mt-3 pt-3 border-t border-gray-100">
+                            {/* Chat thread — real-time via onSnapshot */}
+                            <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+
                             {fault.clientAcknowledged ? (
-                              <div className="space-y-2">
-                                {/* Stacked notes — show clientNotes array, fall back to legacy clientNote */}
-                                {(() => {
-                                  const notesList = fault.clientNotes?.length
-                                    ? fault.clientNotes
-                                    : fault.clientNote
-                                    ? [{ text: fault.clientNote, addedAt: null }]
-                                    : [];
-                                  return notesList.length > 0 ? (
-                                    <div className="space-y-1">
-                                      {notesList.map((note, idx) => (
-                                        <div key={idx} className="flex items-start gap-1.5 text-sm bg-gray-50 rounded-lg px-2.5 py-1.5">
-                                          <span className="text-gray-700 flex-1">{note.text}</span>
-                                          {note.addedAt && (
-                                            <span className="text-xs text-gray-400 shrink-0 mt-0.5">
-                                              {new Date(note.addedAt).toLocaleDateString('en-GB')} {new Date(note.addedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : null;
-                                })()}
-
-                                {/* Acknowledged badge + Add note button (CCTV operators only) */}
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                                    <span>Acknowledged</span>
-                                  </div>
-                                  {canAddNote && !addingNote[fault.id] && (
-                                    <button
-                                      onClick={() => startAddNote(fault.id)}
-                                      className="shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-brand-500 transition-colors"
-                                      title="Add a note"
-                                    >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                      Add note
-                                    </button>
-                                  )}
+                              <>
+                                <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-2">
+                                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                  <span>Acknowledged</span>
                                 </div>
-
-                                {/* Add note form (CCTV operators only) */}
-                                {canAddNote && addingNote[fault.id] && (
-                                  <div className="space-y-2">
-                                    <textarea
-                                      rows={2}
+                                {/* Chat input for CCTV operators */}
+                                {canAddNote && (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
                                       placeholder="Add a note..."
                                       value={newNotes[fault.id] || ''}
                                       onChange={(e) =>
                                         setNewNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
                                       }
-                                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                          e.preventDefault();
+                                          handleSendNote(fault);
+                                        }
+                                      }}
+                                      disabled={savingNote[fault.id]}
+                                      className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
                                     />
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => handleSaveNote(fault)}
-                                        disabled={savingNote[fault.id] || !(newNotes[fault.id] || '').trim()}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-60"
-                                      >
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        {savingNote[fault.id] ? 'Saving...' : 'Save Note'}
-                                      </button>
-                                      <button
-                                        onClick={() => cancelAddNote(fault.id)}
-                                        disabled={savingNote[fault.id]}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
-                                      >
-                                        <X className="w-3.5 h-3.5" />
-                                        Cancel
-                                      </button>
-                                    </div>
+                                    <button
+                                      onClick={() => handleSendNote(fault)}
+                                      disabled={savingNote[fault.id] || !(newNotes[fault.id] || '').trim()}
+                                      className="p-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg disabled:opacity-50 transition-colors"
+                                    >
+                                      {savingNote[fault.id]
+                                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                                        : <Send className="w-4 h-4" />}
+                                    </button>
                                   </div>
                                 )}
-                              </div>
+                              </>
                             ) : (
                               <div className="space-y-2">
                                 {canAddNote && (

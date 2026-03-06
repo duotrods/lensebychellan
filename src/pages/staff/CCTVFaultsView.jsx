@@ -5,6 +5,45 @@ import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, 
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
 
+const formatNoteTime = (addedAt) => {
+  if (!addedAt) return '';
+  const d = new Date(addedAt);
+  return `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+};
+
+const NoteThread = ({ notes, legacyNote }) => {
+  const allNotes = notes?.length
+    ? notes
+    : legacyNote
+    ? [{ text: legacyNote, addedAt: null, authorRole: 'cctvfaultoperator', authorName: 'Operator' }]
+    : [];
+
+  if (!allNotes.length) return null;
+
+  return (
+    <div className="space-y-2 pt-2">
+      {allNotes.map((note, idx) => {
+        const isCCTV = note.authorRole === 'cctvfaultoperator';
+        return (
+          <div key={idx} className={`flex flex-col ${isCCTV ? 'items-end' : 'items-start'}`}>
+            <div className={`px-3 py-2 rounded-xl text-sm max-w-[80%] ${
+              isCCTV
+                ? 'bg-teal-500 text-white rounded-tr-sm'
+                : 'bg-blue-100 text-blue-900 rounded-tl-sm'
+            }`}>
+              {note.text}
+            </div>
+            <span className="text-xs text-gray-400 mt-0.5">
+              {note.authorName || (isCCTV ? 'Operator' : 'Staff')}
+              {note.addedAt && ` · ${formatNoteTime(note.addedAt)}`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const CCTVFaultsView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -122,34 +161,14 @@ const CCTVFaultsView = () => {
             </div>
           )}
 
-          {/* Client Acknowledgment */}
+          {/* Client Acknowledgment + Note Thread */}
           {fault.clientAcknowledged ? (
-            <div className="p-4 bg-teal-50 border border-teal-100 rounded-lg space-y-2">
-              <div className="flex items-center gap-2">
+            <div className="p-4 bg-teal-50 border border-teal-100 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
                 <Eye className="w-5 h-5 text-teal-500 shrink-0" />
                 <p className="font-semibold text-teal-700 text-sm">Client Acknowledged</p>
               </div>
-              {(() => {
-                const notesList = fault.clientNotes?.length
-                  ? fault.clientNotes
-                  : fault.clientNote
-                  ? [{ text: fault.clientNote, addedAt: null }]
-                  : [];
-                return notesList.length > 0 ? (
-                  <div className="space-y-1 pl-7">
-                    {notesList.map((note, idx) => (
-                      <div key={idx} className="flex items-start gap-2 text-sm">
-                        <span className="text-teal-600">"{note.text}"</span>
-                        {note.addedAt && (
-                          <span className="text-xs text-teal-400 shrink-0 mt-0.5">
-                            {new Date(note.addedAt).toLocaleDateString('en-GB')} {new Date(note.addedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : null;
-              })()}
+              <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-lg">

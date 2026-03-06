@@ -285,7 +285,7 @@ class ClientDataService {
   }
 
   // Acknowledge a CCTV fault from the client side (checkbox + optional note)
-  async acknowledgeCCTVFault(faultId, clientNote = "") {
+  async acknowledgeCCTVFault(faultId, clientNote = "", authorRole = 'cctvfaultoperator', authorName = '') {
     try {
       const { doc, updateDoc, serverTimestamp, arrayUnion } = await import("firebase/firestore");
       const faultRef = doc(db, "cctvFaultsReports", faultId);
@@ -296,7 +296,7 @@ class ClientDataService {
         updatedAt: serverTimestamp(),
       };
       if (clientNote.trim()) {
-        updateData.clientNotes = arrayUnion({ text: clientNote.trim(), addedAt: new Date().toISOString() });
+        updateData.clientNotes = arrayUnion({ text: clientNote.trim(), addedAt: new Date().toISOString(), authorRole, authorName });
       }
       await updateDoc(faultRef, updateData);
     } catch (error) {
@@ -306,12 +306,12 @@ class ClientDataService {
   }
 
   // Add a stacked note to an already-acknowledged CCTV fault
-  async addClientNote(faultId, noteText) {
+  async addClientNote(faultId, noteText, authorRole = 'cctvfaultoperator', authorName = '') {
     try {
       const { doc, updateDoc, serverTimestamp, arrayUnion } = await import("firebase/firestore");
       const faultRef = doc(db, "cctvFaultsReports", faultId);
       await updateDoc(faultRef, {
-        clientNotes: arrayUnion({ text: noteText.trim(), addedAt: new Date().toISOString() }),
+        clientNotes: arrayUnion({ text: noteText.trim(), addedAt: new Date().toISOString(), authorRole, authorName }),
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
