@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { clientDataService } from '../../services/clientDataService';
 import { useAuth } from '../../hooks/useAuth';
 import { USER_ROLES } from '../../utils/constants';
@@ -15,6 +15,7 @@ const CCTVFaultView = () => {
   const Layout = role === USER_ROLES.CCTVOPERATOR ? CCTVOperatorSidebarLayout : ClientSidebarLayout;
   const [fault, setFault] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   useEffect(() => {
     loadFault();
@@ -121,19 +122,36 @@ const CCTVFaultView = () => {
 
           {/* Client Acknowledgment */}
           {fault.clientAcknowledged && (
-            <div className="p-4 bg-teal-50 border border-teal-100 rounded-lg space-y-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
-                <p className="font-semibold text-teal-700 text-sm">Acknowledged</p>
-              </div>
-              {(() => {
+            <div className="bg-teal-50 border border-teal-100 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setNotesOpen((o) => !o)}
+                className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
+                  <p className="font-semibold text-teal-700 text-sm">Acknowledged</p>
+                  {(() => {
+                    const count = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
+                    return count > 0 ? (
+                      <span className="text-xs text-teal-500 bg-teal-100 px-2 py-0.5 rounded-full">
+                        {count} {count === 1 ? 'note' : 'notes'}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+                {notesOpen
+                  ? <ChevronUp className="w-4 h-4 text-teal-400 shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-teal-400 shrink-0" />}
+              </button>
+
+              {notesOpen && (() => {
                 const notesList = fault.clientNotes?.length
                   ? fault.clientNotes
                   : fault.clientNote
                   ? [{ text: fault.clientNote, addedAt: null }]
                   : [];
                 return notesList.length > 0 ? (
-                  <div className="space-y-1 pl-7">
+                  <div className="px-4 pb-4 space-y-1 border-t border-teal-100 pt-3">
                     {notesList.map((note, idx) => (
                       <div key={idx} className="flex items-start gap-2 text-sm">
                         <span className="text-teal-600 flex-1">{note.text}</span>
@@ -145,7 +163,9 @@ const CCTVFaultView = () => {
                       </div>
                     ))}
                   </div>
-                ) : null;
+                ) : (
+                  <p className="px-4 pb-4 text-xs text-teal-400">No notes added.</p>
+                );
               })()}
             </div>
           )}
