@@ -324,12 +324,13 @@ class ClientDataService {
   async getCCTVFaultsPaginated(schemeId, pageSize = 10, lastDoc = null) {
     try {
       const faultsRef = collection(db, "cctvFaultsReports");
+      const schemeFilter = schemeId ? [where("schemeIds", "array-contains", schemeId)] : [];
 
       let q;
       if (lastDoc) {
         q = query(
           faultsRef,
-          where("schemeIds", "array-contains", schemeId),
+          ...schemeFilter,
           where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
           startAfter(lastDoc),
@@ -338,7 +339,7 @@ class ClientDataService {
       } else {
         q = query(
           faultsRef,
-          where("schemeIds", "array-contains", schemeId),
+          ...schemeFilter,
           where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
           limit(pageSize),
@@ -362,9 +363,10 @@ class ClientDataService {
         error.message?.includes("index")
       ) {
         console.warn("Index not available for CCTV faults paginated, using fallback");
+        const fallbackFilters = schemeId ? [where("schemeIds", "array-contains", schemeId)] : [];
         const simpleQuery = query(
           collection(db, "cctvFaultsReports"),
-          where("schemeIds", "array-contains", schemeId),
+          ...fallbackFilters,
           limit(200),
         );
         const snapshot = await getDocs(simpleQuery);
@@ -394,9 +396,10 @@ class ClientDataService {
   // Get total count of COMPLETED CCTV fault reports for a scheme (1 aggregate read)
   async getCCTVFaultsCount(schemeId) {
     try {
+      const schemeFilter = schemeId ? [where("schemeIds", "array-contains", schemeId)] : [];
       const q = query(
         collection(db, "cctvFaultsReports"),
-        where("schemeIds", "array-contains", schemeId),
+        ...schemeFilter,
         where("status", "==", "completed"),
       );
       const snapshot = await getCountFromServer(q);

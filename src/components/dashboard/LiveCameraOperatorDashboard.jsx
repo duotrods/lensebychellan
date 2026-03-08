@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useLiveCCTVFaults, usePaginatedCCTVFaults } from '../../hooks/useCCTVFaults';
-import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Clock, CheckCircle2, Send, X } from 'lucide-react';
-import { SCHEMES } from '../../utils/schemes';
+import { useStaffLiveCCTVFaults, usePaginatedCCTVFaults } from '../../hooks/useCCTVFaults';
+import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2, Clock, CheckCircle2, Send, MessageSquare } from 'lucide-react';
 import { USER_ROLES } from '../../utils/constants';
 import { clientDataService } from '../../services/clientDataService';
 import { toast } from 'react-hot-toast';
@@ -53,21 +52,10 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
   const canAddNote = role === USER_ROLES.CCTVOPERATOR;
   const authorName = userProfile?.displayName || userProfile?.name || '';
 
-  const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+  // Real-time subscription for ALL schemes — notes update automatically via onSnapshot
+  const { faults: recentFaults, loading: recentLoading } = useStaffLiveCCTVFaults();
 
-  const getActiveSchemeName = () => {
-    if (userProfile?.activeSchemeName) return userProfile.activeSchemeName;
-    if (userProfile?.activeSchemeId) {
-      const scheme = SCHEMES.find((s) => s.id === userProfile.activeSchemeId);
-      if (scheme) return scheme.fullName;
-    }
-    return userProfile?.schemeName;
-  };
-
-  // Real-time subscription for live faults — notes update automatically via onSnapshot
-  const { faults: recentFaults, loading: recentLoading } = useLiveCCTVFaults(schemeId);
-
-  // Server-side paginated completed fault history
+  // Server-side paginated completed fault history — all schemes (null = no scheme filter)
   const {
     faults: historyFaults,
     loading: historyLoading,
@@ -78,7 +66,7 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
     goToPrevPage,
     refresh: refreshHistory,
     pageSize,
-  } = usePaginatedCCTVFaults(schemeId, 6);
+  } = usePaginatedCCTVFaults(null, 6);
 
   // When a live fault gets completed, auto-refresh history
   const prevLiveFaultCount = useRef(recentFaults.length);
@@ -95,6 +83,10 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
   // Note input text per fault (for adding notes after acknowledged)
   const [newNotes, setNewNotes] = useState({});
   const [savingNote, setSavingNote] = useState({});
+  // Per-fault notes thread open/closed
+  const [notesOpen, setNotesOpen] = useState({});
+  const toggleNotes = (faultId) =>
+    setNotesOpen((prev) => ({ ...prev, [faultId]: !prev[faultId] }));
 
   const handleAcknowledge = async (fault) => {
     if (fault.clientAcknowledged) return;
@@ -155,15 +147,8 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
       ) : (
         <>
           <div className="mb-8 bg-white rounded-xl text-center p-6 shadow-sm">
-            <h4 className="font-bold text-gray-800">
-              <span className="font-semibold text-brand-400">
-                {schemeId} ({getActiveSchemeName()})
-              </span>{' '}
-              Camera Fault Reports
-            </h4>
-            <p className="text-gray-500">
-              Monitor camera faults reported for your scheme
-            </p>
+            <h4 className="font-bold text-gray-800">Camera Fault Reports</h4>
+            <p className="text-gray-500">All schemes — live and completed faults</p>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm">
@@ -233,8 +218,25 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
 
                           {/* Notes thread + acknowledgment */}
                           <div className="mt-3 pt-3 border-t border-gray-100">
+                            {/* Collapsible notes toggle */}
+                            {(() => {
+                              const count = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
+                              const isOpen = notesOpen[fault.id];
+                              return count > 0 ? (
+                                <button
+                                  onClick={() => toggleNotes(fault.id)}
+                                  className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 mb-2"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>{count} {count === 1 ? 'note' : 'notes'}</span>
+                                  {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </button>
+                              ) : null;
+                            })()}
                             {/* Chat thread — real-time via onSnapshot */}
-                            <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+                            {notesOpen[fault.id] && (
+                              <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+                            )}
 
                             {fault.clientAcknowledged ? (
                               <>

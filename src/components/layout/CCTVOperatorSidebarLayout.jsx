@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
-import { CameraOff, LogOut } from "lucide-react";
+import { LayoutDashboard, LogOut } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import LogoutConfirmModal from "./LogoutConfirmModal";
-import SchemeSwitcher from "../client/SchemeSwitcher";
 
 const CCTVOperatorSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -17,11 +17,15 @@ const CCTVOperatorSidebarLayout = ({ children }) => {
     navigate("/");
   };
 
-  const activeSchemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
-  const activeSchemeName =
-    userProfile?.schemeNames?.[activeSchemeId] ||
-    userProfile?.schemeName ||
-    "Loading...";
+  const isActive = (path) => location.pathname === path;
+
+  const navItems = [
+    {
+      name: "Dashboard",
+      path: "/dashboard/cctvoperator",
+      icon: LayoutDashboard,
+    },
+  ];
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -36,44 +40,40 @@ const CCTVOperatorSidebarLayout = ({ children }) => {
       <aside className="w-64 bg-white shadow-lg flex flex-col">
         {/* Logo */}
         <div className="p-6 border-b">
-          <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
+          <Link to="/dashboard/cctvoperator" className="flex items-center">
+            <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
+          </Link>
         </div>
 
-        {/* Role badge */}
-        <div className="px-6 py-4 bg-pink-50 border-b">
-          <div className="flex items-center gap-2 mb-1">
-            <CameraOff className="w-4 h-4 text-pink-500" />
-            <p className="text-xs text-pink-600 uppercase tracking-wide font-semibold">
-              CCTV Fault Operator
-            </p>
-          </div>
-          <p className="text-lg font-bold text-gray-800">
-            {activeSchemeId || "N/A"}
-          </p>
-          <p className="text-sm text-gray-500">{activeSchemeName}</p>
-        </div>
-
-        {/* Spacer — no nav links for this role */}
-        <div className="flex-1" />
-
-        {/* Scheme Switcher - only shown when multiple schemes assigned */}
-        {userProfile?.schemeIds?.length > 1 && (
-          <div className="px-4 py-3 border-t">
-            <SchemeSwitcher />
-          </div>
-        )}
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {navItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                isActive(item.path)
+                  ? "bg-teal-500 text-white"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="font-medium">{item.name}</span>
+            </Link>
+          ))}
+        </nav>
 
         {/* User Profile & Logout */}
         <div className="border-t px-4 py-4">
           <div className="flex items-center gap-3 px-2 py-3 mb-2">
-            <div className="w-10 h-10 bg-pink-500 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
+            <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
               {userProfile?.displayName?.charAt(0) || "O"}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-800 truncate">
                 {userProfile?.displayName}
               </p>
-              <p className="text-xs text-gray-500 truncate">CCTV Fault Operator</p>
+              <p className="text-xs text-gray-500">CCTV Fault Operator</p>
             </div>
           </div>
 

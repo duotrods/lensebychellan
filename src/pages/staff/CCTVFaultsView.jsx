@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, Edit, Radio, Eye } from 'lucide-react';
+import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, Edit, Radio, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
 
@@ -49,6 +49,7 @@ const CCTVFaultsView = () => {
   const navigate = useNavigate();
   const [fault, setFault] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   useEffect(() => {
     loadFault();
@@ -163,12 +164,35 @@ const CCTVFaultsView = () => {
 
           {/* Client Acknowledgment + Note Thread */}
           {fault.clientAcknowledged ? (
-            <div className="p-4 bg-teal-50 border border-teal-100 rounded-lg">
-              <div className="flex items-center gap-2 mb-1">
-                <Eye className="w-5 h-5 text-teal-500 shrink-0" />
-                <p className="font-semibold text-teal-700 text-sm">Client Acknowledged</p>
-              </div>
-              <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+            <div className="bg-teal-50 border border-teal-100 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setNotesOpen((o) => !o)}
+                className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-teal-500 shrink-0" />
+                  <p className="font-semibold text-teal-700 text-sm">Client Acknowledged</p>
+                  {(() => {
+                    const count = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
+                    return count > 0 ? (
+                      <span className="text-xs text-teal-500 bg-teal-100 px-2 py-0.5 rounded-full">
+                        {count} {count === 1 ? 'note' : 'notes'}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+                {notesOpen
+                  ? <ChevronUp className="w-4 h-4 text-teal-400 shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-teal-400 shrink-0" />}
+              </button>
+              {notesOpen && (
+                <div className="px-4 pb-4 border-t border-teal-100">
+                  <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+                  {!fault.clientNotes?.length && !fault.clientNote && (
+                    <p className="text-xs text-teal-400 pt-3">No notes added.</p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-lg">

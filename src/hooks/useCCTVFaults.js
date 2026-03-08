@@ -59,16 +59,16 @@ export function usePaginatedCCTVFaults(schemeId, pageSize = 10) {
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Fetch total count once (1 aggregate read)
+  // Fetch total count once (1 aggregate read) — null means all schemes
   useEffect(() => {
-    if (!schemeId) return;
+    if (schemeId === undefined) return;
     clientDataService.getCCTVFaultsCount(schemeId)
       .then(setTotalCount)
       .catch(console.error);
   }, [schemeId]);
 
   const fetchPage = useCallback(async (page) => {
-    if (!schemeId) return;
+    if (schemeId === undefined) return;
 
     setError(null);
 
