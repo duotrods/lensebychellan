@@ -30,6 +30,7 @@ const NewStaffDashboard = () => {
   const pageCacheRef = useRef({}); // Cache: { [pageNumber]: { cursors, typeCursor, data, hasMore } }
   const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
+  const searchCounterRef = useRef(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -51,6 +52,17 @@ const NewStaffDashboard = () => {
       setHasMore(_dashRestore.hasMore);
       setCursors(_dashRestore.cursors || {});
       setTypeCursor(_dashRestore.typeCursor || null);
+      setTypeCount(_dashRestore.typeCount || 0);
+      setTotalCount(_dashRestore.totalCount || 0);
+      // Restore the full page cache so Prev/Next navigation works on all cached pages
+      pageCacheRef.current = _dashRestore.pageCache ? { ..._dashRestore.pageCache } : {
+        [_dashRestore.page]: {
+          data: _dashRestore.forms,
+          cursors: _dashRestore.cursors || {},
+          typeCursor: _dashRestore.typeCursor || null,
+          hasMore: _dashRestore.hasMore,
+        }
+      };
       setLoading(false);
       wasRestoredRef.current = true;
     } else {
@@ -174,9 +186,11 @@ const NewStaffDashboard = () => {
 
   const runSearch = async (term) => {
     if (!term.trim()) { setSearchResults([]); return; }
+    const myCount = ++searchCounterRef.current;
     setSearchLoading(true);
     try {
       const results = await staffService.searchFormsByReferenceId(term.trim());
+      if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
       setSearchResults(results);
     } catch (err) {
       console.error('Search failed:', err);
@@ -382,13 +396,12 @@ const NewStaffDashboard = () => {
     if (currentPage > 1) {
       const prevPage = currentPage - 1;
       setCurrentPage(prevPage);
-      // loadDashboardData will check cache first — 0 reads if cached
       loadDashboardData(false, null, null, prevPage);
     }
   };
 
   const handleViewForm = (form) => {
-    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor };
+    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/reports/cctv-check/${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -403,7 +416,7 @@ const NewStaffDashboard = () => {
   };
 
   const handleEditForm = (form) => {
-    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor };
+    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/forms/cctv-check?edit=${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -497,7 +510,7 @@ const NewStaffDashboard = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="text"
-                    placeholder="Search by reference ID, type, staff name, or scheme..."
+                    placeholder="Search by reference ID (e.g. IN01, CF02...)"
                     value={searchTerm}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -505,6 +518,11 @@ const NewStaffDashboard = () => {
                       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                       if (!value.trim()) {
                         setSearchResults([]);
+                        setCurrentPage(1);
+                        setCursors({});
+                        setTypeCursor(null);
+                        pageCacheRef.current = {};
+                        loadDashboardData(true, null, null, null, true);
                         return;
                       }
                       searchDebounceRef.current = setTimeout(() => {
@@ -674,10 +692,10 @@ const NewStaffDashboard = () => {
                   </p>
                 </div>
               )}
-              {!isSearchMode && totalPages > 1 && (
+              {!isSearchMode && (currentPage > 1 || hasMore) && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing page {currentPage} of {totalPages} ({activeCount} total forms)
+                    Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}{activeCount > 0 ? ` (${activeCount} total forms)` : ''}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -688,11 +706,11 @@ const NewStaffDashboard = () => {
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
-                      Page {currentPage} of {totalPages}
+                      Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}
                     </span>
                     <button
                       onClick={handleNextPage}
-                      disabled={!hasMore || currentPage === totalPages}
+                      disabled={!hasMore}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />

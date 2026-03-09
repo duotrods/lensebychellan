@@ -41,6 +41,7 @@ const StaffReportsPage = () => {
   const pageCacheRef = useRef({});
   const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
+  const searchCounterRef = useRef(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -64,6 +65,17 @@ const StaffReportsPage = () => {
       setHasMore(_staffReportsRestore.hasMore);
       setCursors(_staffReportsRestore.cursors || {});
       setTypeCursor(_staffReportsRestore.typeCursor || null);
+      setTypeCount(_staffReportsRestore.typeCount || 0);
+      setTotalCount(_staffReportsRestore.totalCount || 0);
+      // Restore the full page cache so Prev/Next navigation works on all cached pages
+      pageCacheRef.current = _staffReportsRestore.pageCache ? { ..._staffReportsRestore.pageCache } : {
+        [_staffReportsRestore.page]: {
+          data: _staffReportsRestore.reports,
+          cursors: _staffReportsRestore.cursors || {},
+          typeCursor: _staffReportsRestore.typeCursor || null,
+          hasMore: _staffReportsRestore.hasMore,
+        }
+      };
       setLoading(false);
       wasRestoredRef.current = true;
     } else {
@@ -76,15 +88,17 @@ const StaffReportsPage = () => {
   useEffect(() => {
     applyFilters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, searchQuery]);
+  }, [reports]);
 
   const clearRestoreState = () => { _staffReportsRestore = null; };
 
   const runSearch = async (term) => {
     if (!term.trim()) { setSearchResults([]); return; }
+    const myCount = ++searchCounterRef.current;
     setSearchLoading(true);
     try {
       const results = await staffService.searchFormsByReferenceId(term.trim());
+      if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
       // Map to display metadata same as loadAllReports
       const mapped = results.map(f => {
         const typeMap = {
@@ -273,7 +287,7 @@ const StaffReportsPage = () => {
   const availableSchemes = SCHEMES.filter(s => !s.isDemo);
 
   const handleViewReport = (report) => {
-    _staffReportsRestore = { page: currentPage, filter: filterType, scheme: filterScheme, reports, hasMore, cursors, typeCursor };
+    _staffReportsRestore = { page: currentPage, filter: filterType, scheme: filterScheme, reports, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
     // Navigate to appropriate view page based on report type
     if (report.type === "CCTV Check") {
       navigate(`/dashboard/admin/staff-reports/cctv/${report.id}`);
@@ -551,7 +565,7 @@ const StaffReportsPage = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by reference, staff name, scheme..."
+                placeholder="Search by reference ID (e.g. IN01, CF02...)"
                 value={searchQuery}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -559,6 +573,12 @@ const StaffReportsPage = () => {
                   if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                   if (!value.trim()) {
                     setSearchResults([]);
+                    // Reset pagination so table resumes cleanly from page 1
+                    setCurrentPage(1);
+                    setCursors({});
+                    setTypeCursor(null);
+                    pageCacheRef.current = {};
+                    loadAllReports(true, null, null, null, null, true);
                     return;
                   }
                   searchDebounceRef.current = setTimeout(() => {
@@ -700,10 +720,10 @@ const StaffReportsPage = () => {
               </div>
 
               {/* Pagination */}
-              {!isSearchMode && totalPages > 1 && (
+              {!isSearchMode && (currentPage > 1 || hasMore) && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing page {currentPage} of {totalPages} ({activeCount} total reports)
+                    Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}{activeCount > 0 ? ` (${activeCount} total reports)` : ''}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -714,11 +734,11 @@ const StaffReportsPage = () => {
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
-                      Page {currentPage} of {totalPages}
+                      Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}
                     </span>
                     <button
                       onClick={handleNextPage}
-                      disabled={!hasMore || currentPage === totalPages}
+                      disabled={!hasMore}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />

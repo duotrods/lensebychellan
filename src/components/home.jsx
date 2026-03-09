@@ -6,6 +6,8 @@ import {
   UsersRound,
 } from "lucide-react";
 
+import { Link } from "react-router-dom";
+
 import heroImage from "../assets/smartmotorway.jpg";
 
 const home = () => {
@@ -27,9 +29,12 @@ const home = () => {
                 Access real-time & control for your highway schemes.
               </p> 
               <div className="flex gap-4">
-                <button className="px-8 py-3 rounded font-semibold text-white bg-brand-500 outline-2 outline-brand-500 hover:bg-brand-600 hover:outline-brand-600">
-                  Sign In
-                </button>
+               <Link
+            to="/signin"
+            className="px-8 py-3 bg-brand-500 text-white rounded hover:bg-brand-600"
+          >
+            Sign In
+          </Link>
                 <button className="px-8 py-3 bg-transparent outline-white outline-2 text-white rounded font-semibold hover:bg-white hover:text-black">
                   Get Started
                 </button>

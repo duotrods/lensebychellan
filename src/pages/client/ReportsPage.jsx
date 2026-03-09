@@ -28,6 +28,7 @@ const ReportsPage = () => {
   const pageCacheRef = useRef({});
   const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
+  const searchCounterRef = useRef(0);
   const [hasMore, setHasMore] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -36,10 +37,12 @@ const ReportsPage = () => {
 
   const runSearch = async (term) => {
     if (!term.trim()) { setSearchResults([]); return; }
+    const myCount = ++searchCounterRef.current;
     setSearchLoading(true);
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
       const results = await clientDataService.searchReportsByReferenceId(activeScheme, term.trim());
+      if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
       setSearchResults(results);
     } catch (err) {
       console.error('Search failed:', err);
@@ -61,6 +64,16 @@ const ReportsPage = () => {
         setHasMore(_reportsRestore.hasMore);
         setCursors(_reportsRestore.cursors || {});
         setTypeCursor(_reportsRestore.typeCursor || null);
+        if (_reportsRestore.reportTypeCounts) setReportTypeCounts(_reportsRestore.reportTypeCounts);
+        // Restore the full page cache so Prev/Next navigation works on all cached pages
+        pageCacheRef.current = _reportsRestore.pageCache ? { ..._reportsRestore.pageCache } : {
+          [_reportsRestore.page]: {
+            data: _reportsRestore.reports,
+            cursors: _reportsRestore.cursors || {},
+            typeCursor: _reportsRestore.typeCursor || null,
+            hasMore: _reportsRestore.hasMore,
+          }
+        };
         setLoading(false);
         wasRestoredRef.current = true;
       } else {
@@ -253,7 +266,7 @@ const ReportsPage = () => {
   };
 
   const handleViewReport = (report) => {
-    _reportsRestore = { page: currentPage, filter: filterType, reports, hasMore, cursors, typeCursor };
+    _reportsRestore = { page: currentPage, filter: filterType, reports, hasMore, cursors, typeCursor, reportTypeCounts, pageCache: { ...pageCacheRef.current } };
     // Navigate to appropriate view page based on report type
     const reportTypeRoutes = {
       'incident': `/dashboard/client/reports/incident/${report.id}`,
@@ -409,7 +422,7 @@ const ReportsPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by reference ID, type, or location..."
+                placeholder="Search by reference ID (e.g. IN01, CF02...)"
                 value={searchTerm}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -543,10 +556,10 @@ const ReportsPage = () => {
               </div>
 
               {/* Pagination — hidden while searching */}
-              {totalPages > 1 && !isSearchMode && (
+              {!isSearchMode && (currentPage > 1 || hasMore) && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing page {currentPage} of {totalPages} ({activeCount} total {filterType === 'all' ? 'reports' : filterType.replace(/-/g, ' ') + 's'})
+                    Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}{activeCount > 0 ? ` (${activeCount} total ${filterType === 'all' ? 'reports' : filterType.replace(/-/g, ' ') + 's'})` : ''}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -557,11 +570,11 @@ const ReportsPage = () => {
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
-                      Page {currentPage} of {totalPages}
+                      Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}
                     </span>
                     <button
                       onClick={handleNextPage}
-                      disabled={!hasMore || currentPage === totalPages}
+                      disabled={!hasMore}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />
