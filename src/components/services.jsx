@@ -9,7 +9,7 @@ import analyticsimage from "../assets/analytics.png";
 
 const services = () => {
   return (
-    <section className="py-20 px-4 bg-brand-50">
+    <section className="py-20 px-4 md:px-6 bg-brand-50">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-4">
           Services provided by Chellan.

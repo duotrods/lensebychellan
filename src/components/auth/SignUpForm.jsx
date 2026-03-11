@@ -99,7 +99,7 @@ const SignUpForm = () => {
   };
 
   return (
-    <div className="w-full max-w-lg p-10 bg-white rounded-xl shadow-lg">
+    <div className="w-full max-w-md p-6 sm:p-8 bg-white rounded-xl shadow-lg">
       <h3>Create Account</h3>
       <p className="mb-6 font-medium label label-text">
         Let's create your account for LENSE.

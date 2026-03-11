@@ -8,7 +8,7 @@ import cctvRoomImage from "../assets/chellancctvroom.jpg";
 
 const about = () => {
   return (
-    <section className="py-20">
+    <section className="py-20 px-4 md:px-6">
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
@@ -52,7 +52,7 @@ const about = () => {
             <img
               src={cctvRoomImage}
               alt="About Us"
-              className="w-full h-[700px] object-cover"
+              className="w-full h-[250px] sm:h-[400px] lg:h-[700px] object-cover"
             />
           </div>
         </div>

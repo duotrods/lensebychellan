@@ -4,14 +4,14 @@ import cctvRoomImage from "../assets/chellancctvroom2.jpg";
 
 const whyus = () => {
   return (
-    <section className="py-20">
+    <section className="py-20 px-4 md:px-6">
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="rounded-lg overflow-hidden shadow-xl">
             <img
               src={cctvRoomImage}
               alt="About Us"
-              className="w-full h-[600px] object-cover"
+              className="w-full h-[250px] sm:h-[400px] lg:h-[600px] object-cover"
             />
           </div>
           <div>

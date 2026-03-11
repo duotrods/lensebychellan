@@ -5,7 +5,7 @@ import whiteLogo from "../assets/Logo White.svg";
 const footer = () => {
   return (
     <footer className="bg-gray-900 text-white py-4 px-4">
-      <div className="max-w-7xl mx-auto mt-12">
+      <div className="max-w-7xl mx-auto mt-12 px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="mb-4">

@@ -44,8 +44,8 @@ const home = () => {
         </div>
       </div>
 
-      <section className="relative -top-24 ">
-        <div className="mx-auto lg:mx-[16em] lg:px-8">
+      <section className="relative -top-8 md:-top-16 lg:-top-24 ">
+        <div className="mx-auto px-4 md:px-8 lg:mx-[10em] lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center space-y-4">
               <div className="bg-brand-50 w-20 h-20 flex items-center justify-center rounded-full">

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
-import { LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Menu } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 
@@ -11,7 +11,10 @@ const LiveOperatorSidebarLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const handleSignOut = async () => {
     await authService.signOut();
@@ -37,8 +40,13 @@ const LiveOperatorSidebarLayout = ({ children }) => {
         />
       )}
 
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white shadow-lg flex flex-col transition-all duration-300 shrink-0`}>
+      <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white shadow-lg flex flex-col transition-all duration-300 shrink-0 fixed inset-y-0 left-0 z-50 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 md:z-auto`}>
         {/* Logo + toggle */}
         <div className="p-4 border-b flex items-center justify-between">
           {!collapsed && (
@@ -115,7 +123,14 @@ const LiveOperatorSidebarLayout = ({ children }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-8">
+        {/* Mobile top bar */}
+        <div className="md:hidden bg-white border-b px-5 py-3 flex items-center gap-3 shrink-0">
+          <button onClick={() => setMobileOpen(true)} className="p-1 rounded-lg hover:bg-gray-100">
+            <Menu className="w-6 h-6 text-gray-600" />
+          </button>
+          <img src={headerLogo} alt="Lens by Chellan" className="h-7" />
+        </div>
+        <main className="flex-1 overflow-y-auto bg-gray-50 px-5 py-5 md:px-10 md:py-6 lg:p-8">
           {children}
         </main>
       </div>
