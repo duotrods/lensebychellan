@@ -210,9 +210,19 @@ const ReportsPage = () => {
   const currentReports = isSearchMode ? searchResults : filteredReports;
   const totalPages = Math.ceil(activeCount / reportsPerPage);
 
+  // If restored page exceeds actual total pages, reset to page 1
+  useEffect(() => {
+    if (!loading && totalPages > 0 && currentPage > totalPages) {
+      pageCacheRef.current = {};
+      _reportsRestore = null;
+      loadReports(true);
+    }
+  }, [totalPages, loading]);
+
   // Pagination handlers
   const handleNextPage = () => {
-    if (hasMore) {
+    const atLastPage = totalPages > 0 && currentPage >= totalPages;
+    if (hasMore && !atLastPage) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       loadReports(false, null, null, nextPage);
@@ -574,7 +584,7 @@ const ReportsPage = () => {
                     </span>
                     <button
                       onClick={handleNextPage}
-                      disabled={!hasMore}
+                      disabled={!hasMore || (totalPages > 0 && currentPage >= totalPages)}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />

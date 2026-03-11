@@ -468,6 +468,14 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/dashboard/client/reports/cctv-faults/:id"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <ClientCCTVFaultView />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/dashboard/client/cctv-recordings"

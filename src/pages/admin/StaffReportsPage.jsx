@@ -325,9 +325,19 @@ const StaffReportsPage = () => {
   const activeCount = filterType === 'all' ? totalCount : typeCount;
   const totalPages = Math.ceil(activeCount / reportsPerPage);
 
+  // If restored page exceeds actual total pages, reset to page 1
+  useEffect(() => {
+    if (!loading && totalPages > 0 && currentPage > totalPages) {
+      pageCacheRef.current = {};
+      _staffReportsRestore = null;
+      loadAllReports(true);
+    }
+  }, [totalPages, loading]);
+
   // Pagination handlers
   const handleNextPage = () => {
-    if (hasMore) {
+    const atLastPage = totalPages > 0 && currentPage >= totalPages;
+    if (hasMore && !atLastPage) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       loadAllReports(false, null, null, null, nextPage);
@@ -738,7 +748,7 @@ const StaffReportsPage = () => {
                     </span>
                     <button
                       onClick={handleNextPage}
-                      disabled={!hasMore}
+                      disabled={!hasMore || (totalPages > 0 && currentPage >= totalPages)}
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />

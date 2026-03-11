@@ -288,21 +288,23 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                                     className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
                                   />
                                 )}
-                                <label className="flex items-center gap-2 cursor-pointer select-none">
-                                  <input
-                                    type="checkbox"
-                                    className="checkbox checkbox-sm checkbox-success"
-                                    disabled={acknowledging[fault.id]}
-                                    onChange={(e) => {
-                                      if (e.target.checked) handleAcknowledge(fault);
-                                    }}
-                                  />
-                                  <span className="text-sm text-gray-600">
-                                    {acknowledging[fault.id]
-                                      ? 'Sending acknowledgment...'
-                                      : 'Mark as received / acknowledged'}
-                                  </span>
-                                </label>
+                                {canAddNote && (
+                                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      className="checkbox checkbox-sm checkbox-success"
+                                      disabled={acknowledging[fault.id]}
+                                      onChange={(e) => {
+                                        if (e.target.checked) handleAcknowledge(fault);
+                                      }}
+                                    />
+                                    <span className="text-sm text-gray-600">
+                                      {acknowledging[fault.id]
+                                        ? 'Sending acknowledgment...'
+                                        : 'Mark as received / acknowledged'}
+                                    </span>
+                                  </label>
+                                )}
                               </div>
                             )}
                           </div>
