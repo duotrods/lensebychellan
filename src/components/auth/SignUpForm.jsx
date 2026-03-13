@@ -39,6 +39,16 @@ const SignUpForm = () => {
       return;
     }
 
+    // Trim text fields before submission
+    const trimmed = {
+      ...formData,
+      displayName: formData.displayName.trim(),
+      company: formData.company.trim(),
+      otpCode: formData.otpCode.trim(),
+      phone: formData.phone.trim(),
+    };
+    Object.assign(formData, trimmed);
+
     // Validate OTP code for both clients and staff
     if (!formData.otpCode.trim()) {
       const codeType = formData.role === USER_ROLES.CLIENT ? "Scheme Access Code" : "Invite Code";
@@ -116,6 +126,7 @@ const SignUpForm = () => {
             value={formData.displayName}
             onChange={handleChange}
             className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+            maxLength={100}
             required
           />
         </div>
@@ -247,6 +258,7 @@ const SignUpForm = () => {
               value={formData.company}
               onChange={handleChange}
               className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+              maxLength={100}
               required
             />
           </div>
@@ -264,6 +276,7 @@ const SignUpForm = () => {
             value={formData.phone}
             onChange={handleChange}
             className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+            maxLength={20}
           />
         </div>
 

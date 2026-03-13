@@ -166,9 +166,21 @@ const AssetDamageFormPage = () => {
       // Upload files first
       const uploadedFiles = await uploadFiles();
 
+      const trimmedData = {
+        ...formData,
+        firstName: formData.firstName.trim(),
+        location: formData.location.trim(),
+        markerPost: formData.markerPost.trim(),
+        nhLog: formData.nhLog.trim(),
+        incidentnum: formData.incidentnum.trim(),
+        cameraNumber: formData.cameraNumber.trim(),
+        description: formData.description.trim(),
+        actionTaken: formData.actionTaken.trim(),
+      };
+
       if (editId) {
         // Update existing form
-        const updateData = { ...formData };
+        const updateData = { ...trimmedData };
 
         // Only update files if new files were uploaded
         if (uploadedFiles.length > 0) {
@@ -185,14 +197,14 @@ const AssetDamageFormPage = () => {
         );
 
         // Send email notifications for update
-        if (formData.notificationSent && formData.notificationSent.length > 0) {
+        if (trimmedData.notificationSent && trimmedData.notificationSent.length > 0) {
           const emailResult = await sendAssetDamageNotification(
             {
-              ...formData,
+              ...trimmedData,
               id: editId,
               submittedBy: userProfile.displayName
             },
-            formData.notificationSent,
+            trimmedData.notificationSent,
             true // isUpdate
           );
           if (emailResult.emailsSent > 0) {
@@ -208,7 +220,7 @@ const AssetDamageFormPage = () => {
         // Submit new form
         const result = await staffService.submitAssetDamageReport(
           {
-            ...formData,
+            ...trimmedData,
             files: uploadedFiles,
           },
           userProfile.uid,
@@ -216,15 +228,15 @@ const AssetDamageFormPage = () => {
         );
 
         // Send email notifications for new submission
-        if (formData.notificationSent && formData.notificationSent.length > 0) {
+        if (trimmedData.notificationSent && trimmedData.notificationSent.length > 0) {
           const emailResult = await sendAssetDamageNotification(
             {
-              ...formData,
+              ...trimmedData,
               id: result?.id,
               referenceId: result?.referenceId,
               submittedBy: userProfile.displayName
             },
-            formData.notificationSent,
+            trimmedData.notificationSent,
             false // isUpdate
           );
           if (emailResult.emailsSent > 0) {
@@ -383,6 +395,7 @@ const AssetDamageFormPage = () => {
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 placeholder="e.g., John Smith"
+                maxLength={100}
                 required
               />
             </div>
@@ -403,6 +416,7 @@ const AssetDamageFormPage = () => {
                 value={formData.location}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                maxLength={100}
                 required
               />
             </div>
@@ -420,6 +434,7 @@ const AssetDamageFormPage = () => {
                 value={formData.markerPost}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                maxLength={50}
                 required
               />
             </div>
@@ -520,6 +535,7 @@ const AssetDamageFormPage = () => {
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 placeholder="eg., IN01, INO2 ..."
+                maxLength={50}
                 required
               />
             </div>
@@ -536,6 +552,7 @@ const AssetDamageFormPage = () => {
                 value={formData.nhLog}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                maxLength={50}
                 required
               />
             </div>
@@ -580,6 +597,7 @@ const AssetDamageFormPage = () => {
                 value={formData.cameraNumber}
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                maxLength={50}
               />
             </div>
           </div>
@@ -598,6 +616,7 @@ const AssetDamageFormPage = () => {
               rows={4}
               className="textarea bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
               placeholder="Provide detailed description of the damage, including extent and any safety concerns..."
+              maxLength={2000}
               required
             />
           </div>
@@ -616,6 +635,7 @@ const AssetDamageFormPage = () => {
               rows={3}
               className="textarea bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
               placeholder="Describe any immediate actions taken to secure the area or mitigate risks..."
+              maxLength={2000}
             />
           </div>
 

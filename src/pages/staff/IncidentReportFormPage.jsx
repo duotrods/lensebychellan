@@ -288,9 +288,9 @@ const IncidentReportFormPage = () => {
       const step1Data = {
         scheme: formData.scheme,
         section: formData.section,
-        markerPost: formData.markerPost,
+        markerPost: formData.markerPost.trim(),
         date: formData.date,
-        firstName: formData.firstName,
+        firstName: formData.firstName.trim(),
         timeSpotted: formData.timeSpotted,
         files: uploadedFiles,
         // Initialize empty fields for Step 2
@@ -387,7 +387,16 @@ const IncidentReportFormPage = () => {
 
     try {
       const uploadedFiles = await uploadFiles();
-      const dataWithTimings = calculateTimeDifferences(formData);
+      const trimmedData = {
+        ...formData,
+        firstName: formData.firstName.trim(),
+        markerPost: formData.markerPost.trim(),
+        nhLog: formData.nhLog.trim(),
+        collarNumber: formData.collarNumber.trim(),
+        cameraNumber: formData.cameraNumber.trim(),
+        description: formData.description.trim(),
+      };
+      const dataWithTimings = calculateTimeDifferences(trimmedData);
 
       // Use editId from URL or liveIncidentId from state
       const incidentId = editId || liveIncidentId;
@@ -568,6 +577,7 @@ const IncidentReportFormPage = () => {
           value={formData.markerPost}
           onChange={handleChange}
           className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+          maxLength={50}
           required
         />
       </div>
@@ -604,6 +614,7 @@ const IncidentReportFormPage = () => {
             value={formData.firstName}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            maxLength={100}
             required
           />
         </div>
@@ -790,6 +801,7 @@ const IncidentReportFormPage = () => {
             value={formData.firstName}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            maxLength={100}
             required
           />
         </div>
@@ -851,6 +863,7 @@ const IncidentReportFormPage = () => {
               value={formData.nhLog}
               onChange={handleChange}
               className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+              maxLength={50}
             />
           </div>
 
@@ -867,6 +880,7 @@ const IncidentReportFormPage = () => {
               value={formData.collarNumber}
               onChange={handleChange}
               className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+              maxLength={50}
             />
           </div>
         </div>
@@ -944,6 +958,7 @@ const IncidentReportFormPage = () => {
             value={formData.cameraNumber}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            maxLength={50}
           />
         </div>
       </div>
@@ -1006,6 +1021,7 @@ const IncidentReportFormPage = () => {
             value={formData.markerPost}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            maxLength={50}
           />
         </div>
 
@@ -1348,6 +1364,7 @@ const IncidentReportFormPage = () => {
           onChange={handleChange}
           rows={4}
           className="textarea bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+          maxLength={2000}
           required
         />
       </div>

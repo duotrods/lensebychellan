@@ -106,12 +106,20 @@ const CCTVFaultsFormPage = () => {
       return;
     }
 
+    // Trim text fields before saving
+    const trimmedData = {
+      ...formData,
+      fullName: formData.fullName.trim(),
+      camera: formData.camera.trim(),
+      comments: formData.comments.trim(),
+    };
+
     setLoading(true);
     try {
       if (editId) {
         await staffService.updateCCTVFaultsReport(
           editId,
-          formData,
+          trimmedData,
           userProfile.uid,
           userProfile.displayName
         );
@@ -119,7 +127,7 @@ const CCTVFaultsFormPage = () => {
         navigate("/dashboard/staff");
       } else {
         await staffService.submitCCTVFaultsReport(
-          formData,
+          trimmedData,
           userProfile.uid,
           userProfile.displayName
         );
@@ -232,6 +240,7 @@ const CCTVFaultsFormPage = () => {
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 placeholder="e.g., John Smith"
+                maxLength={100}
                 required
               />
             </div>
@@ -310,6 +319,7 @@ const CCTVFaultsFormPage = () => {
                 onChange={handleChange}
                 className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                 placeholder="e.g., CCTV 12"
+                maxLength={100}
                 required
               />
             </div>
@@ -327,6 +337,7 @@ const CCTVFaultsFormPage = () => {
               rows={5}
               className="textarea bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
               placeholder="Describe the fault in detail..."
+              maxLength={2000}
             />
           </div>
 

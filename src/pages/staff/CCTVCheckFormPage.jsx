@@ -158,11 +158,21 @@ const CCTVCheckFormPage = () => {
     setLoading(true);
 
     try {
+      const trimmedData = {
+        ...formData,
+        firstName: formData.firstName.trim(),
+        a417Comments: formData.a417Comments.trim(),
+        kierCoreComments: formData.kierCoreComments.trim(),
+        m3Jct9Comments: formData.m3Jct9Comments.trim(),
+        A452Comments: formData.A452Comments.trim(),
+        demoComments: formData.demoComments.trim(),
+      };
+
       if (editId) {
         // Update existing form
         await staffService.updateCCTVCheckForm(
           editId,
-          formData,
+          trimmedData,
           userProfile.uid,
           userProfile.displayName
         );
@@ -171,7 +181,7 @@ const CCTVCheckFormPage = () => {
       } else {
         // Submit new form
         await staffService.submitCCTVCheckForm(
-          formData,
+          trimmedData,
           userProfile.uid,
           userProfile.displayName
         );
@@ -237,6 +247,7 @@ const CCTVCheckFormPage = () => {
           placeholder="Please list actions taken e.g informed p&d of faults along with type of fault"
           rows={3}
           className="textarea w-full textarea-accent bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+          maxLength={2000}
         />
       </div>
     </div>
@@ -275,6 +286,7 @@ const CCTVCheckFormPage = () => {
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 className="input input-accent w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                maxLength={100}
                 required
               />
             </div>

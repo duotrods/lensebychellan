@@ -125,10 +125,22 @@ const DailyOccurrenceFormPage = () => {
     setLoading(true);
 
     try {
+      const trimmedFormData = {
+        ...formData,
+        occurrences: formData.occurrences.map((occ) => ({
+          ...occ,
+          description: occ.description.trim(),
+          actionTaken: occ.actionTaken.trim(),
+          location: occ.location.trim(),
+          urn: occ.urn.trim(),
+          nameInitials: occ.nameInitials.trim(),
+        })),
+      };
+
       if (editId) {
         await staffService.updateDailyOccurrenceReport(
           editId,
-          formData,
+          trimmedFormData,
           userProfile.uid,
           userProfile.displayName
         );
@@ -136,7 +148,7 @@ const DailyOccurrenceFormPage = () => {
         navigate("/dashboard/staff");
       } else {
         const result = await staffService.submitDailyOccurrenceReport(
-          formData,
+          trimmedFormData,
           userProfile.uid,
           userProfile.displayName
         );
@@ -144,7 +156,7 @@ const DailyOccurrenceFormPage = () => {
         // Show different messages based on whether it was merged or created new
         if (result.merged) {
           toast.success(
-            `Added ${formData.occurrences.length} occurrence(s) to existing report ${result.referenceId} for ${formData.occurrences[0].date}`,
+            `Added ${trimmedFormData.occurrences.length} occurrence(s) to existing report ${result.referenceId} for ${trimmedFormData.occurrences[0].date}`,
             { duration: 5000 }
           );
         } else {
@@ -323,7 +335,7 @@ const DailyOccurrenceFormPage = () => {
                         }
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                         placeholder="e.g., J9, MP 2.5"
-                       
+                        maxLength={100}
                       />
                     </div>
 
@@ -341,6 +353,7 @@ const DailyOccurrenceFormPage = () => {
                         }
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                         placeholder="Unique Reference Number"
+                        maxLength={50}
                       />
                     </div>
                   </div>
@@ -385,6 +398,7 @@ const DailyOccurrenceFormPage = () => {
                         }
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                         placeholder="RCC log number"
+                        maxLength={50}
                       />
                     </div>
 
@@ -406,6 +420,7 @@ const DailyOccurrenceFormPage = () => {
                         }
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                         placeholder="Name or Initials"
+                        maxLength={100}
                       />
                     </div>
                   </div>
@@ -428,6 +443,7 @@ const DailyOccurrenceFormPage = () => {
                       rows={2}
                       className="textarea textarea-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                       placeholder="Describe what was observed..."
+                      maxLength={2000}
                     />
                   </div>
 
@@ -449,6 +465,7 @@ const DailyOccurrenceFormPage = () => {
                       rows={2}
                       className="textarea textarea-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                       placeholder="Describe any actions taken..."
+                      maxLength={2000}
                     />
                   </div>
                 </div>
