@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
@@ -7,19 +7,57 @@ import { firestoreService } from "../../services/firestoreService";
 import { getAuthErrorMessage } from "../../utils/errorHandling";
 import { DASHBOARD_ROUTES } from "../../utils/constants";
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+function getLockoutState() {
+  const attempts = parseInt(localStorage.getItem("signin_attempts") || "0", 10);
+  const lockedUntil = parseInt(localStorage.getItem("signin_locked_until") || "0", 10);
+  return { attempts, lockedUntil };
+}
+
 const SignInForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const timerRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const { lockedUntil } = getLockoutState();
+    if (lockedUntil > Date.now()) startCountdown(lockedUntil);
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  function startCountdown(lockedUntil) {
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        clearInterval(timerRef.current);
+        setCountdown(0);
+        localStorage.removeItem("signin_attempts");
+        localStorage.removeItem("signin_locked_until");
+      } else {
+        setCountdown(remaining);
+      }
+    }, 1000);
+  }
 
   const handleEmailSignIn = async (e) => {
     e.preventDefault();
+
+    const { lockedUntil } = getLockoutState();
+    if (lockedUntil > Date.now()) return;
+
     setLoading(true);
 
     try {
       const user = await authService.signInWithEmail(email, password);
+      localStorage.removeItem("signin_attempts");
+      localStorage.removeItem("signin_locked_until");
       const profile = await firestoreService.getUserDocument(user.uid);
       // Fire-and-forget — don't block navigation for logging
       firestoreService.logUserLogin(user.uid, profile?.displayName, user.email, profile?.role).catch(console.error);
@@ -27,7 +65,16 @@ const SignInForm = () => {
       const dashboardRoute = DASHBOARD_ROUTES[profile?.role] || "/dashboard";
       navigate(dashboardRoute);
     } catch (error) {
-      toast.error(getAuthErrorMessage(error.code));
+      const newAttempts = (getLockoutState().attempts || 0) + 1;
+      localStorage.setItem("signin_attempts", newAttempts);
+      if (newAttempts >= MAX_ATTEMPTS) {
+        const until = Date.now() + LOCKOUT_MS;
+        localStorage.setItem("signin_locked_until", until);
+        startCountdown(until);
+        toast.error("Too many failed attempts. Locked for 15 minutes.");
+      } else {
+        toast.error(getAuthErrorMessage(error.code));
+      }
     } finally {
       setLoading(false);
     }
@@ -84,10 +131,19 @@ const SignInForm = () => {
           </Link>
         </div>
 
+        {countdown > 0 && (
+          <p className="text-center text-sm text-red-500">
+            Too many attempts. Try again in{" "}
+            <span className="font-semibold">
+              {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+            </span>
+          </p>
+        )}
+
         <button
           type="submit"
-          disabled={loading}
-          className="px-4 py-3 border font-semibold border-gray-300 rounded-lg bg-brand-500 hover:bg-brand-600 text-white w-full"
+          disabled={loading || countdown > 0}
+          className="px-4 py-3 border font-semibold border-gray-300 rounded-lg bg-brand-500 hover:bg-brand-600 text-white w-full disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Signing in..." : "Sign In"}
         </button>

@@ -12,6 +12,7 @@ import {
   Menu,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
+import logomark from "../../assets/Logomark.svg";
 import SchemeSwitcher from "../client/SchemeSwitcher";
 import { isDemoUser } from "../../utils/schemes";
 import LogoutConfirmModal from "./LogoutConfirmModal";
@@ -74,25 +75,17 @@ const ClientSidebarLayout = ({ children }) => {
 
       {/* Sidebar */}
       <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white shadow-lg flex flex-col transition-all duration-300 shrink-0 fixed inset-y-0 left-0 z-50 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 md:z-auto`}>
-        {/* Logo + toggle */}
-        <div className="p-4 border-b flex items-center justify-between">
-          {!collapsed && (
+        {/* Logo */}
+        <div className="p-4 border-b flex items-center justify-center">
+          {!collapsed ? (
             <Link to="/dashboard/client" className="flex items-center">
               <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
             </Link>
-          )}
-          {collapsed && (
-            <Link to="/dashboard/client" className="flex items-center justify-center w-full">
-              <img src={headerLogo} alt="L" className="h-6 w-6 object-contain" />
+          ) : (
+            <Link to="/dashboard/client" className="flex items-center justify-center">
+              <img src={logomark} alt="L" className="h-8 w-8 object-contain" />
             </Link>
           )}
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            className={`p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors shrink-0 ${collapsed ? 'mx-auto' : ''}`}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
-          </button>
         </div>
 
         {/* Demo Mode Badge */}
@@ -146,6 +139,18 @@ const ClientSidebarLayout = ({ children }) => {
             <SchemeSwitcher />
           </div>
         )}
+
+        {/* Collapse toggle */}
+        <div className="px-2 pb-2">
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
+          >
+            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            {!collapsed && <span className="text-sm">Collapse</span>}
+          </button>
+        </div>
 
         {/* User Profile & Logout */}
         <div className="border-t px-2 py-4">
