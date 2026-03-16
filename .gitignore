@@ -21,6 +21,9 @@ dist-ssr
 service-account-key.json
 
 
+# Claude AI brain/memory files (local only, never commit)
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

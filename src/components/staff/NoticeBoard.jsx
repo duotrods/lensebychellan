@@ -20,7 +20,12 @@ const NoticeBoard = ({ isOpen, onClose }) => {
       // Get activities since last logout
       const lastLogout = userProfile?.lastLogoutAt?.toDate() || new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: last 24 hours
       const recentActivities = await staffService.getRecentActivities(currentUser.uid, lastLogout);
-      setActivities(recentActivities);
+      // Handover notes always appear at the top
+      const sorted = [
+        ...recentActivities.filter((a) => a.type === "logout_note"),
+        ...recentActivities.filter((a) => a.type !== "logout_note"),
+      ];
+      setActivities(sorted);
     } catch (error) {
       console.error('Failed to load activities:', error);
     } finally {
@@ -78,20 +83,34 @@ const NoticeBoard = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="w-2 h-2 bg-teal-500 rounded-full mt-2"></div>
-                  <div className="flex-1">
-                    <p className="text-gray-800 font-medium">{activity.description}</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {formatTime(activity.createdAt)}
-                    </p>
+              {activities.map((activity) => {
+                const isNote = activity.type === "logout_note";
+                return (
+                  <div
+                    key={activity.id}
+                    className={`flex items-start gap-3 p-4 rounded-lg transition-colors ${
+                      isNote
+                        ? "bg-red-50 hover:bg-red-100 border border-red-200"
+                        : "bg-gray-50 hover:bg-gray-100"
+                    }`}
+                  >
+                    <div className={`w-2 h-2 rounded-full mt-2 ${isNote ? "bg-red-500" : "bg-teal-500"}`} />
+                    <div className="flex-1">
+                      {isNote && (
+                        <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-0.5">
+                          Handover Note · {activity.staffName}
+                        </p>
+                      )}
+                      <p className={`font-medium ${isNote ? "text-red-800" : "text-gray-800"}`}>
+                        {activity.description}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {formatTime(activity.createdAt)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

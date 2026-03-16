@@ -79,6 +79,11 @@ class AuthService {
 
   async signOut() {
     try {
+      // Save logout time BEFORE signing out (auth.currentUser becomes null after)
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await firestoreService.updateLastLogout(uid);
+      }
       // Clear session storage to reset notice board for next login
       sessionStorage.removeItem('hasSeenNoticeBoard');
       await signOut(auth);

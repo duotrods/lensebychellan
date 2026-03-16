@@ -3,6 +3,7 @@ import LogoutConfirmModal from "./LogoutConfirmModal";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
+import { staffService } from "../../services/staffService";
 import {
   LayoutDashboard,
   FileText,
@@ -35,7 +36,16 @@ const StaffSidebarLayoutInner = ({ children }) => {
   const { showReminder, dismissReminder } = useCCTVReminder();
   const { faults: liveFaults } = useStaffCCTVFaultsContext();
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (note) => {
+    // Log handover note BEFORE signOut (userProfile becomes null after)
+    if (note) {
+      await staffService.logActivity({
+        description: note,
+        staffId: userProfile?.uid,
+        staffName: userProfile?.displayName || "Staff",
+        type: "logout_note",
+      });
+    }
     await authService.signOut();
     navigate("/");
   };
@@ -86,6 +96,7 @@ const StaffSidebarLayoutInner = ({ children }) => {
         <LogoutConfirmModal
           onConfirm={handleSignOut}
           onCancel={() => setShowLogoutModal(false)}
+          noteEnabled={true}
         />
       )}
       {/* CCTV Check Reminder Modal */}

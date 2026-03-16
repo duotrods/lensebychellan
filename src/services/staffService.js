@@ -40,19 +40,19 @@ class StaffService {
   async getRecentActivities(userId, lastLogoutTime) {
     try {
       const activitiesRef = collection(db, "activities");
+      // Avoid != operator (costs 2x reads internally) — filter own activities client-side
       const q = query(
         activitiesRef,
         where("createdAt", ">", lastLogoutTime),
-        where("staffId", "!=", userId), // Don't show own activities
         orderBy("createdAt", "desc"),
-        limit(20)
+        limit(25) // Fetch a few extra to account for client-side filtering
       );
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((a) => a.staffId !== userId) // Filter own activities in browser (free)
+        .slice(0, 20); // Keep max 20
     } catch (error) {
       console.error("Failed to get activities:", error);
       return [];

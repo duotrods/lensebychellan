@@ -76,6 +76,18 @@ class FirestoreService {
     }
   }
 
+  async updateLastLogout(uid) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        lastLogoutAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Failed to update last logout:', error);
+      // Non-critical, don't throw
+    }
+  }
+
   async updateUserProfile(uid, updates) {
     try {
       const userRef = doc(db, 'users', uid);
