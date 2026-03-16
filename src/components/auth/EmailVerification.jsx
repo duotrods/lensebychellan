@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { authService } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
+import { auth } from '../../config/firebase';
 
 const EmailVerification = () => {
   const [loading, setLoading] = useState(false);
+  const [checkingVerified, setCheckingVerified] = useState(false);
   const { currentUser } = useAuth();
 
   const handleResend = async () => {
@@ -17,6 +19,27 @@ const EmailVerification = () => {
       toast.error('Failed to send email. Try again later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCheckVerified = async () => {
+    setCheckingVerified(true);
+    try {
+      // Reload the user from Firebase so emailVerified is up to date
+      await auth.currentUser.reload();
+
+      if (auth.currentUser.emailVerified) {
+        // Force a new token so Firestore rules see email_verified: true immediately
+        await auth.currentUser.getIdToken(true);
+        // Reload the page — AuthContext will re-init with the fresh verified token
+        window.location.reload();
+      } else {
+        toast.error('Email not verified yet. Please check your inbox and click the link.');
+      }
+    } catch {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setCheckingVerified(false);
     }
   };
 
@@ -42,10 +65,11 @@ const EmailVerification = () => {
 
         <div className="space-y-3">
           <button
-            onClick={() => window.location.reload()}
+            onClick={handleCheckVerified}
+            disabled={checkingVerified}
             className="btn bg-brand-500 hover:bg-brand-600 text-white w-full"
           >
-            I've Verified My Email
+            {checkingVerified ? 'Checking...' : "I've Verified My Email"}
           </button>
 
           <button

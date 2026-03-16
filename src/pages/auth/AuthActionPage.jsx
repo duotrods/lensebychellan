@@ -35,6 +35,12 @@ const AuthActionPage = () => {
         switch (actionMode) {
           case 'verifyEmail':
             await applyActionCode(auth, oobCode);
+            // If the user is already signed in, force-refresh their token so
+            // Firestore rules see email_verified: true without needing to sign out.
+            if (auth.currentUser) {
+              await auth.currentUser.reload();
+              await auth.currentUser.getIdToken(true);
+            }
             setStatus('success');
             setMessage('Your email has been verified successfully!');
             break;

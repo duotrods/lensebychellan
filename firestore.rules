@@ -2,33 +2,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is authenticated
+    // Helper: user is authenticated
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper function to get user's role from users collection
+    // Helper: user is authenticated AND has verified their email.
+    // Applied to all data collections to prevent unverified accounts from
+    // reading or writing operational data. (Phase 1 security fix)
+    function isVerified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    // Helper: get user's role from users collection
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    // Helper function to get user's scheme (backward compatibility)
+    // Helper: get user's scheme (backward compatibility)
     function getUserScheme() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schemeId;
     }
 
-    // Helper function to get user's schemes array (multi-scheme support)
+    // Helper: get user's schemes array (multi-scheme support)
     function getUserSchemes() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schemeIds;
     }
 
-    // Helper function to check if user has access to a scheme
+    // Helper: check if user has access to a scheme
     function hasSchemeAccess(docSchemeIds) {
       let userSchemes = getUserSchemes();
       return userSchemes != null && docSchemeIds != null && userSchemes.hasAny(docSchemeIds);
     }
 
-    // Helper function to safely check backward compatibility
+    // Helper: backward compatibility for single schemeId
     function hasOldSchemeAccess(docSchemeId) {
       let userSchemes = getUserSchemes();
       return userSchemes != null && docSchemeId != null && docSchemeId in userSchemes;
@@ -37,10 +44,19 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
-      // Users can update their own document, admins can update any user document
-      allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
+
+      // SECURITY FIX: Self-update is restricted to safe fields only.
+      // This prevents a user from escalating their own role to 'admin' or
+      // toggling flags like 'canCreateAdmins' or 'isArchived'.
+      // Admins can update any field on any user document.
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['displayName', 'activeSchemeId', 'lastLogoutAt'])) ||
+        getUserRole() == 'admin'
+      );
+
       allow create: if isSignedIn();
-      // Users can delete their own document, admins can delete any user document
       allow delete: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
     }
 
@@ -51,27 +67,32 @@ service cloud.firestore {
 
     // Client OTPs
     match /clientOTPs/{otpId} {
-      // Admin can do everything
       allow write: if isSignedIn() && getUserRole() == 'admin';
-      // Allow read for OTP validation (needed during signup before user is authenticated)
-      allow read: if true;
+      // SECURITY FIX: Split 'allow read: if true' into get vs list.
+      // 'get' (single doc) is still public — needed for OTP validation during
+      // signup before the user has a Firebase account.
+      // 'list' (query all docs) is admin-only — prevents anyone from
+      // enumerating all active OTP codes.
+      allow get: if true;
+      allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
     // Staff Invite Codes
     match /staffInviteCodes/{codeId} {
-      // Admin can do everything
       allow write: if isSignedIn() && getUserRole() == 'admin';
-      // Allow read for invite code validation (needed during signup before user is authenticated)
-      allow read: if true;
+      // SECURITY FIX: Same as clientOTPs — allow single-doc read for signup
+      // validation but block listing all invite codes.
+      allow get: if true;
+      allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
     // Incident Reports
     match /incidentReports/{reportId} {
-      // Staff can create
-      allow create: if isSignedIn() && getUserRole() == 'staff';
+      // SECURITY FIX: isVerified() used throughout — unverified emails cannot
+      // read or write any operational data.
+      allow create: if isVerified() && getUserRole() == 'staff';
 
-      // Get single document
-      allow get: if isSignedIn() && (
+      allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'liveoperator' ||
@@ -81,23 +102,21 @@ service cloud.firestore {
         ))
       );
 
-      // List/query documents - allow clients and live operators to query
-      allow list: if isSignedIn() && (
+      allow list: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
         getUserRole() == 'liveoperator'
       );
 
-      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
+      allow update, delete: if isVerified() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // CCTV Check Forms
     match /cctvCheckForms/{formId} {
-      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow create: if isVerified() && getUserRole() == 'staff';
 
-      // Get single document
-      allow get: if isSignedIn() && (
+      allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         (getUserRole() == 'client' && (
@@ -106,22 +125,20 @@ service cloud.firestore {
         ))
       );
 
-      // List/query documents
-      allow list: if isSignedIn() && (
+      allow list: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
+      allow update, delete: if isVerified() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // Asset Damage Reports
     match /assetDamageReports/{reportId} {
-      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow create: if isVerified() && getUserRole() == 'staff';
 
-      // Get single document
-      allow get: if isSignedIn() && (
+      allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         (getUserRole() == 'client' && (
@@ -130,22 +147,20 @@ service cloud.firestore {
         ))
       );
 
-      // List/query documents
-      allow list: if isSignedIn() && (
+      allow list: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
+      allow update, delete: if isVerified() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // Daily Occurrence Reports
     match /dailyOccurrenceReports/{reportId} {
-      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow create: if isVerified() && getUserRole() == 'staff';
 
-      // Get single document
-      allow get: if isSignedIn() && (
+      allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         (getUserRole() == 'client' && (
@@ -155,69 +170,65 @@ service cloud.firestore {
         ))
       );
 
-      // List/query documents
-      allow list: if isSignedIn() && (
+      allow list: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
+      allow update, delete: if isVerified() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // CCTV Faults Reports
     match /cctvFaultsReports/{reportId} {
-  allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow create: if isVerified() && getUserRole() == 'staff';
 
-  // Get single document
-  allow get: if isSignedIn() && (
-    getUserRole() == 'admin' ||
-    getUserRole() == 'staff' ||
-    (getUserRole() == 'client' && (
-      hasSchemeAccess(resource.data.schemeIds) ||
-      hasOldSchemeAccess(resource.data.schemeId)
-    )) ||
-    (getUserRole() == 'cctvfaultoperator' && (
-      hasSchemeAccess(resource.data.schemeIds) ||
-      hasOldSchemeAccess(resource.data.schemeId) ||
-      getUserScheme() == resource.data.schemeId ||
-      (resource.data.schemeIds != null && getUserScheme() != null && getUserScheme() in resource.data.schemeIds)
-    ))
-  );
+      allow get: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.schemeId)
+        )) ||
+        (getUserRole() == 'cctvfaultoperator' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.schemeId) ||
+          getUserScheme() == resource.data.schemeId ||
+          (resource.data.schemeIds != null && getUserScheme() != null && getUserScheme() in resource.data.schemeIds)
+        ))
+      );
 
-  // List/query documents
-  allow list: if isSignedIn() && (
-    getUserRole() == 'admin' ||
-    getUserRole() == 'staff' ||
-    getUserRole() == 'client' ||
-    getUserRole() == 'cctvfaultoperator'
-  );
+      allow list: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client' ||
+        getUserRole() == 'cctvfaultoperator'
+      );
 
-  allow update: if isSignedIn() && (
-    getUserRole() == 'staff' || getUserRole() == 'admin' ||
-    (getUserRole() == 'client' &&
-      hasSchemeAccess(resource.data.schemeIds) &&
-      request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['clientAcknowledged', 'acknowledgedAt', 'updatedAt'])
-    ) ||
-    (getUserRole() == 'cctvfaultoperator' &&
-      (hasSchemeAccess(resource.data.schemeIds) ||
-       getUserScheme() == resource.data.schemeId ||
-       (resource.data.schemeIds != null && getUserScheme() != null && getUserScheme() in resource.data.schemeIds)) &&
-      request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['clientAcknowledged', 'clientNote', 'clientNotes', 'acknowledgedAt', 'updatedAt'])
-    )
-  );
+      allow update: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'admin' ||
+        (getUserRole() == 'client' &&
+          hasSchemeAccess(resource.data.schemeIds) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['clientAcknowledged', 'acknowledgedAt', 'updatedAt'])
+        ) ||
+        (getUserRole() == 'cctvfaultoperator' &&
+          (hasSchemeAccess(resource.data.schemeIds) ||
+           getUserScheme() == resource.data.schemeId ||
+           (resource.data.schemeIds != null && getUserScheme() != null && getUserScheme() in resource.data.schemeIds)) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['clientAcknowledged', 'clientNote', 'clientNotes', 'acknowledgedAt', 'updatedAt'])
+        )
+      );
 
-      allow delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
+      allow delete: if isVerified() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // CCTV Uploads
     match /cctvUploads/{uploadId} {
-      allow create: if isSignedIn() && getUserRole() == 'staff';
+      allow create: if isVerified() && getUserRole() == 'staff';
 
-      // Get single document
-      allow get: if isSignedIn() && (
+      allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         (getUserRole() == 'client' && (
@@ -226,40 +237,38 @@ service cloud.firestore {
         ))
       );
 
-      // List/query documents
-      allow list: if isSignedIn() && (
+      allow list: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isSignedIn() && (getUserRole() == 'staff' || getUserRole() == 'admin');
+      allow update, delete: if isVerified() && (getUserRole() == 'staff' || getUserRole() == 'admin');
     }
 
     // Activities (for notice board)
     match /activities/{activityId} {
-      allow create: if isSignedIn() && getUserRole() == 'staff';
-      allow read: if isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'staff');
-      allow update, delete: if isSignedIn() && getUserRole() == 'staff';
+      allow create: if isVerified() && getUserRole() == 'staff';
+      allow read: if isVerified() && (getUserRole() == 'admin' || getUserRole() == 'staff');
+      allow update, delete: if isVerified() && getUserRole() == 'staff';
     }
 
     // Counters (for reference ID generation)
     match /counters/{counterId} {
-      allow read, write: if isSignedIn() && getUserRole() == 'staff';
+      allow read, write: if isVerified() && getUserRole() == 'staff';
     }
 
     // Audit Logs
     match /auditLogs/{logId} {
-      // Admins and Cloud Functions can write audit logs
-      // Cloud Functions use Admin SDK and bypass these rules
-      allow create: if isSignedIn() && getUserRole() == 'admin';
-      // Only admins can read audit logs
-      allow read: if isSignedIn() && getUserRole() == 'admin';
+      allow create: if isVerified() && getUserRole() == 'admin';
+      allow read: if isVerified() && getUserRole() == 'admin';
     }
 
     // Login Logs (audit trail of who signed in and when)
-    // Any authenticated user can create their own login entry
-    // Only admins can read — TTL auto-deletes after 15 days, no manual delete needed
+    // Any authenticated user can create their own login entry.
+    // isSignedIn() used (not isVerified()) so the log is captured even if the
+    // user hasn't verified their email yet — keeping the audit trail complete.
+    // Only admins can read. TTL auto-deletes after 15 days.
     match /loginLogs/{logId} {
       allow create: if isSignedIn();
       allow read: if isSignedIn() && getUserRole() == 'admin';
