@@ -50,7 +50,7 @@ class AuthService {
   async signInWithEmail(email, password) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await firestoreService.updateLastLogin(userCredential.user.uid);
+      firestoreService.updateLastLogin(userCredential.user.uid).catch(() => {});
       return userCredential.user;
     } catch (error) {
       throw new AppError(error.message, error.code, error);
@@ -70,7 +70,7 @@ class AuthService {
         return { user, isNewUser: true };
       }
 
-      await firestoreService.updateLastLogin(user.uid);
+      firestoreService.updateLastLogin(user.uid).catch(() => {});
       return { user, isNewUser: false };
     } catch (error) {
       throw new AppError(error.message, error.code, error);

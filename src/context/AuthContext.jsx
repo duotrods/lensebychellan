@@ -34,9 +34,9 @@ export const AuthProvider = ({ children }) => {
 
           setUserProfile(profile);
 
-          // Sync email verification status
+          // Sync email verification status — fire and forget, non-critical
           if (user.emailVerified && profile && !profile.emailVerified) {
-            await firestoreService.updateEmailVerificationStatus(user.uid, true);
+            firestoreService.updateEmailVerificationStatus(user.uid, true).catch(() => {});
             setUserProfile(prev => ({ ...prev, emailVerified: true }));
           }
         } else {

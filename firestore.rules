@@ -52,7 +52,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         (request.auth.uid == userId &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['displayName', 'activeSchemeId', 'lastLogoutAt'])) ||
+           .hasOnly(['displayName', 'activeSchemeId', 'lastLogoutAt', 'lastLoginAt', 'emailVerified', 'updatedAt'])) ||
         getUserRole() == 'admin'
       );
 

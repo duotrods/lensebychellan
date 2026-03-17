@@ -3,6 +3,13 @@ import { LogOut, X } from "lucide-react";
 
 const LogoutConfirmModal = ({ onConfirm, onCancel, noteEnabled = false }) => {
   const [note, setNote] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleConfirm = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    await onConfirm(note.trim());
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -44,17 +51,19 @@ const LogoutConfirmModal = ({ onConfirm, onCancel, noteEnabled = false }) => {
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            disabled={loggingOut}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4" />
             Cancel
           </button>
           <button
-            onClick={() => onConfirm(note.trim())}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors"
+            onClick={handleConfirm}
+            disabled={loggingOut}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors disabled:bg-red-700 disabled:cursor-not-allowed"
           >
             <LogOut className="w-4 h-4" />
-            Log out
+            {loggingOut ? "Logging out..." : "Log out"}
           </button>
         </div>
       </div>
