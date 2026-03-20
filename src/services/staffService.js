@@ -1747,9 +1747,12 @@ class StaffService {
   }
 
   async searchFormsByReferenceId(searchTerm) {
-    const term = searchTerm.trim().toUpperCase();
-    if (!term) return [];
-    const termEnd = term + '\uf8ff';
+    const raw = searchTerm.trim();
+    if (!raw) return [];
+    const termRef = raw.toUpperCase();
+    const termName = raw;
+    const termRefEnd = termRef + '\uf8ff';
+    const termNameEnd = termName + '\uf8ff';
 
     const COLLECTIONS = [
       { name: 'incidentReports',        type: 'Incident Report'  },
@@ -1759,29 +1762,35 @@ class StaffService {
       { name: 'cctvFaultsReports',      type: 'CCTV Faults'      },
     ];
 
-    const snapshots = await Promise.all(
-      COLLECTIONS.map(({ name }) =>
-        getDocs(
-          query(
-            collection(db, name),
-            where('referenceId', '>=', term),
-            where('referenceId', '<=', termEnd),
-            limit(10)
-          )
-        )
-      )
-    );
+    // Run referenceId and submittedBy.name queries in parallel
+    const [refSnapshots, nameSnapshots] = await Promise.all([
+      Promise.all(COLLECTIONS.map(({ name }) =>
+        getDocs(query(collection(db, name), where('referenceId', '>=', termRef), where('referenceId', '<=', termRefEnd), limit(10)))
+      )),
+      Promise.all(COLLECTIONS.map(({ name }) =>
+        getDocs(query(collection(db, name), where('submittedBy.name', '>=', termName), where('submittedBy.name', '<=', termNameEnd), limit(10)))
+      )),
+    ]);
 
+    const seen = new Set();
     const results = [];
-    snapshots.forEach((snap, i) => {
-      const { type } = COLLECTIONS[i];
-      snap.docs.forEach(d => {
-        results.push({ id: d.id, ...d.data(), type });
+
+    const addDocs = (snapshots) => {
+      snapshots.forEach((snap, i) => {
+        const { type } = COLLECTIONS[i];
+        snap.docs.forEach(d => {
+          if (seen.has(d.id)) return;
+          seen.add(d.id);
+          results.push({ id: d.id, ...d.data(), type });
+        });
       });
-    });
+    };
+
+    addDocs(refSnapshots);
+    addDocs(nameSnapshots);
 
     results.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    return results.slice(0, 10);
+    return results.slice(0, 20);
   }
 
   /**

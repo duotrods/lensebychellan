@@ -1853,9 +1853,12 @@ class ClientDataService {
   // field — no composite indexes needed. Scheme filtering is done client-side on
   // the small result set returned by the prefix match.
   async searchReportsByReferenceId(schemeId, searchTerm) {
-    const term = searchTerm.trim().toUpperCase();
-    if (!term) return [];
-    const termEnd = term + '\uf8ff';
+    const raw = searchTerm.trim();
+    if (!raw) return [];
+    const termRef = raw.toUpperCase();
+    const termName = raw;
+    const termRefEnd = termRef + '\uf8ff';
+    const termNameEnd = termName + '\uf8ff';
 
     const COLLECTIONS = [
       { name: 'incidentReports',       type: 'incident',          typeField: 'incidentType' },
@@ -1865,38 +1868,44 @@ class ClientDataService {
       { name: 'cctvFaultsReports',     type: 'cctv-faults',       typeField: null           },
     ];
 
-    const snapshots = await Promise.all(
-      COLLECTIONS.map(({ name }) =>
-        getDocs(
-          query(
-            collection(db, name),
-            where('referenceId', '>=', term),
-            where('referenceId', '<=', termEnd),
-            limit(10)
-          )
-        )
-      )
-    );
+    // Run referenceId and submittedBy.name queries in parallel
+    const [refSnapshots, nameSnapshots] = await Promise.all([
+      Promise.all(COLLECTIONS.map(({ name }) =>
+        getDocs(query(collection(db, name), where('referenceId', '>=', termRef), where('referenceId', '<=', termRefEnd), limit(10)))
+      )),
+      Promise.all(COLLECTIONS.map(({ name }) =>
+        getDocs(query(collection(db, name), where('submittedBy.name', '>=', termName), where('submittedBy.name', '<=', termNameEnd), limit(10)))
+      )),
+    ]);
 
+    const seen = new Set();
     const results = [];
-    snapshots.forEach((snap, i) => {
-      const { type, typeField } = COLLECTIONS[i];
-      snap.docs.forEach(d => {
-        const data = d.data();
-        // Filter by scheme client-side (result set is tiny so this is fine)
-        const inScheme =
-          (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
-          data.schemeId === schemeId;
-        if (!inScheme) return;
-        results.push({
-          id: d.id,
-          ...data,
-          reportType: type,
-          type: typeField ? data[typeField] : data.type,
-          timestamp: data.createdAt,
+
+    const addDocs = (snapshots) => {
+      snapshots.forEach((snap, i) => {
+        const { type, typeField } = COLLECTIONS[i];
+        snap.docs.forEach(d => {
+          if (seen.has(d.id)) return;
+          const data = d.data();
+          // Filter by scheme client-side
+          const inScheme =
+            (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
+            data.schemeId === schemeId;
+          if (!inScheme) return;
+          seen.add(d.id);
+          results.push({
+            id: d.id,
+            ...data,
+            reportType: type,
+            type: typeField ? data[typeField] : data.type,
+            timestamp: data.createdAt,
+          });
         });
       });
-    });
+    };
+
+    addDocs(refSnapshots);
+    addDocs(nameSnapshots);
 
     // Sort newest first, cap to 10
     results.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));

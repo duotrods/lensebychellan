@@ -31,6 +31,7 @@ const NewStaffDashboard = () => {
   const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
   const searchCounterRef = useRef(0);
+  const searchRateLimitRef = useRef([]);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -186,6 +187,13 @@ const NewStaffDashboard = () => {
 
   const runSearch = async (term) => {
     if (!term.trim()) { setSearchResults([]); return; }
+    const now = Date.now();
+    searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
+    if (searchRateLimitRef.current.length >= 10) {
+      toast.error('Too many searches. Please wait a moment.');
+      return;
+    }
+    searchRateLimitRef.current.push(now);
     const myCount = ++searchCounterRef.current;
     setSearchLoading(true);
     try {
@@ -510,7 +518,7 @@ const NewStaffDashboard = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="text"
-                    placeholder="Search by reference ID (e.g. IN01, CF02...)"
+                    placeholder="Search by reference ID or staff name..."
                     value={searchTerm}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -527,7 +535,7 @@ const NewStaffDashboard = () => {
                       }
                       searchDebounceRef.current = setTimeout(() => {
                         runSearch(value);
-                      }, 400);
+                      }, 150);
                     }}
                     className="input input-bordered w-full pl-10 bg-white border-gray-300"
                   />

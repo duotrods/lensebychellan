@@ -453,7 +453,7 @@ const NewClientDashboard = () => {
             </div>
             
             <div
-            onClick={() => navigate('/dashboard/client/live-camera-faults')}
+            onClick={() => navigate('/dashboard/client/cctv-faults')}
             className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
           >
             <div className=" px-6 py-4 flex items-center gap-3">

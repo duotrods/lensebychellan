@@ -11,7 +11,7 @@ import CCTVOperatorSidebarLayout from '../../components/layout/CCTVOperatorSideb
 const CCTVFaultView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, userProfile } = useAuth();
   const Layout = role === USER_ROLES.CCTVOPERATOR ? CCTVOperatorSidebarLayout : ClientSidebarLayout;
   const [fault, setFault] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,6 +26,15 @@ const CCTVFaultView = () => {
       setLoading(true);
       const data = await clientDataService.getCCTVFaultById(id);
       if (data) {
+        // For clients, verify the fault belongs to their active scheme
+        if (role === USER_ROLES.CLIENT) {
+          const activeScheme = userProfile?.activeSchemeId;
+          const faultSchemes = data.schemeIds || [];
+          if (activeScheme && !faultSchemes.includes(activeScheme)) {
+            navigate(-1);
+            return;
+          }
+        }
         setFault(data);
       } else {
         toast.error('Fault report not found');
@@ -207,6 +216,14 @@ const CCTVFaultView = () => {
                   <p className="text-gray-800 mt-0.5">
                     {fault.submittedBy?.name || fault.fullName || 'N/A'}
                   </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Camera className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <label className="text-sm font-semibold text-gray-500">Scheme</label>
+                  <p className="text-gray-800 mt-0.5">{fault.scheme || 'N/A'}</p>
                 </div>
               </div>
             </div>

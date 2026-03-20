@@ -42,6 +42,7 @@ const StaffReportsPage = () => {
   const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
   const searchCounterRef = useRef(0);
+  const searchRateLimitRef = useRef([]); // timestamps of recent searches
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [typeCount, setTypeCount] = useState(0);
@@ -94,6 +95,14 @@ const StaffReportsPage = () => {
 
   const runSearch = async (term) => {
     if (!term.trim()) { setSearchResults([]); return; }
+    // Rate limit: max 10 searches per 30 seconds
+    const now = Date.now();
+    searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
+    if (searchRateLimitRef.current.length >= 10) {
+      toast.error('Too many searches. Please wait a moment.');
+      return;
+    }
+    searchRateLimitRef.current.push(now);
     const myCount = ++searchCounterRef.current;
     setSearchLoading(true);
     try {
@@ -575,7 +584,7 @@ const StaffReportsPage = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by reference ID (e.g. IN01, CF02...)"
+                placeholder="Search by reference ID or staff name..."
                 value={searchQuery}
                 onChange={(e) => {
                   const value = e.target.value;
@@ -593,7 +602,7 @@ const StaffReportsPage = () => {
                   }
                   searchDebounceRef.current = setTimeout(() => {
                     runSearch(value);
-                  }, 400);
+                  }, 150);
                 }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
