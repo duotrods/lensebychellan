@@ -1,7 +1,9 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
+const PDFDocument = require("pdfkit");
 
 admin.initializeApp();
 
@@ -249,6 +251,359 @@ exports.sendAssetDamageNotification = onCall(
     }
   },
 );
+
+// ─── Scheduled CCTV Check Email ───────────────────────────────────────────────
+
+// Recipients for the scheduled CCTV check report — add/remove emails as needed
+const CCTV_REPORT_RECIPIENTS = ["david@chellan.co.uk"];
+
+/**
+ * Generates a PDF buffer from a cctvCheckForms document.
+ * Layout matches the frontend pdfGenerator.js (jsPDF version).
+ */
+function generateCCTVCheckPDF(check) {
+  return new Promise((resolve, reject) => {
+    // margins: 0 so pdfkit's auto-page-break never fires before our manual guard
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    });
+    const buffers = [];
+    doc.on("data", (chunk) => buffers.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(buffers)));
+    doc.on("error", reject);
+
+    const PW = 595.28;
+    const PH = 841.89;
+    const M = 50;
+    const CW = PW - M * 2;
+    const TEAL = "#00BAA8";
+    let y = 20;
+
+    // Keep pdfkit's internal cursor in sync with our y so it never auto-adds pages
+    const sync = () => {
+      doc.y = y;
+    };
+
+    const checkBreak = (needed = 40) => {
+      if (y + needed > PH - 60) {
+        doc.addPage();
+        y = 20;
+        doc.y = y;
+      }
+    };
+
+    const addSectionHeader = (title) => {
+      checkBreak(22);
+      doc.rect(M, y, CW, 16).fill(TEAL);
+      doc
+        .fontSize(10)
+        .fillColor("#FFFFFF")
+        .font("Helvetica-Bold")
+        .text(title, M + 5, y + 3, { width: CW - 10, lineBreak: false });
+      y += 22;
+      sync();
+      doc.fillColor("#000000");
+    };
+
+    const addField = (label, value, bold = false) => {
+      if (value === undefined || value === null || value === "") return;
+      checkBreak(16);
+      const rowY = y;
+      doc
+        .fontSize(10)
+        .fillColor("#3C3C3C")
+        .font("Helvetica-Bold")
+        .text(`${label}:`, M, rowY, { width: 130, lineBreak: false });
+      doc
+        .font(bold ? "Helvetica-Bold" : "Helvetica")
+        .fillColor("#000000")
+        .text(value.toString(), M + 135, rowY, { width: CW - 135 });
+      // Let pdfkit report where the wrapped value ended, then add a small gap
+      y = Math.max(doc.y, rowY + 14) + 2;
+      sync();
+    };
+
+    const addSubHeader = (title) => {
+      checkBreak(18);
+      doc.rect(M, y, CW, 14).fill("#F5F5F5");
+      doc
+        .fontSize(11)
+        .fillColor("#000000")
+        .font("Helvetica-Bold")
+        .text(title, M + 3, y + 1, { width: CW - 6, lineBreak: false });
+      y += 18;
+      sync();
+    };
+
+    // ── HEADER ──────────────────────────────────────────────────────────
+    doc.rect(0, 0, PW, 55).fill("#FFFFFF");
+    doc
+      .fontSize(14)
+      .fillColor("#000000")
+      .font("Helvetica-Bold")
+      .text("LENSE BY CHELLAN", 0, 26, {
+        align: "center",
+        width: PW,
+        lineBreak: false,
+      });
+    y = 62;
+    sync();
+
+    // ── REPORT TITLE BANNER ─────────────────────────────────────────────
+    doc.rect(M, y - 5, CW, 18).fill("#F0F0F0");
+    doc
+      .fontSize(14)
+      .fillColor("#000000")
+      .font("Helvetica-Bold")
+      .text("CCTV Check Report", M + 5, y, { width: CW, lineBreak: false });
+    y += 22;
+    sync();
+
+    // Reference number
+    if (check.referenceId) {
+      doc
+        .fontSize(10)
+        .fillColor("#646464")
+        .font("Helvetica")
+        .text(`Reference Number: ${check.referenceId}`, M, y, {
+          lineBreak: false,
+        });
+      y += 14;
+      sync();
+    }
+
+    // Generated timestamp
+    const now = new Date();
+    const genDate = now.toLocaleDateString("en-GB");
+    const genTime = now.toLocaleTimeString("en-GB");
+    doc
+      .fontSize(9)
+      .fillColor("#787878")
+      .font("Helvetica")
+      .text(`Generated: ${genDate} at ${genTime}`, M, y, { lineBreak: false });
+    y += 14;
+    sync();
+
+    // Teal divider
+    doc
+      .moveTo(M, y)
+      .lineTo(PW - M, y)
+      .strokeColor(TEAL)
+      .lineWidth(0.5)
+      .stroke();
+    y += 16;
+    sync();
+
+    // ── BASIC INFORMATION ───────────────────────────────────────────────
+    addSectionHeader("BASIC INFORMATION");
+    if (check.date) addField("Report Date", check.date);
+    if (check.time) addField("Report Time", check.time);
+    addField("Scheme/Location", "All Schemes");
+    if (check.firstName) addField("Checked By", check.firstName);
+    y += 5;
+    sync();
+
+    // ── REPORT DETAILS ──────────────────────────────────────────────────
+    addSectionHeader("REPORT DETAILS");
+
+    const sections = [
+      { label: "A417", key: "a417Cameras", commentsKey: "a417Comments" },
+      {
+        label: "A11/A47 Kier/Core",
+        key: "kierCore",
+        commentsKey: "kierCoreComments",
+      },
+      { label: "M3 Jct 9", key: "m3Jct9", commentsKey: "m3Jct9Comments" },
+      { label: "A452 HS2", key: "A452", commentsKey: "A452Comments" },
+    ];
+
+    let hasSections = false;
+    sections.forEach(({ label, key, commentsKey }) => {
+      const cameras = check[key];
+      if (!cameras || cameras.length === 0) return;
+      hasSections = true;
+      y += 3;
+      sync();
+      addSubHeader(label);
+      const allWorking =
+        cameras.includes("All Working Correctly") || cameras.includes("NONE");
+      if (allWorking) {
+        addField("Status", "All cameras working correctly", true);
+      } else {
+        addField("Issues Reported", cameras.join(", "), true);
+      }
+      if (check[commentsKey] && check[commentsKey].trim() !== "") {
+        addField("Comments", check[commentsKey]);
+      }
+      y += 3;
+      sync();
+    });
+
+    if (!hasSections) {
+      doc
+        .fontSize(11)
+        .fillColor("#6b7280")
+        .font("Helvetica")
+        .text("No camera data recorded.", M, y);
+      y = doc.y + 5;
+      sync();
+    }
+
+    // ── REPORT INFORMATION ──────────────────────────────────────────────
+    y += 5;
+    sync();
+    addSectionHeader("REPORT INFORMATION");
+    const submitter =
+      check.submittedBy?.name ||
+      (typeof check.submittedBy === "string" ? check.submittedBy : null);
+    if (submitter) addField("Submitted By", submitter);
+
+    // Light divider
+    y += 8;
+    doc
+      .moveTo(M, y)
+      .lineTo(PW - M, y)
+      .strokeColor("#C8C8C8")
+      .lineWidth(0.3)
+      .stroke();
+
+    // ── FOOTER ──────────────────────────────────────────────────────────
+    doc
+      .fontSize(8)
+      .fillColor("#808080")
+      .font("Helvetica")
+      .text(`Generated on ${genDate} at ${genTime}`, M, PH - 25, {
+        width: CW / 2,
+        lineBreak: false,
+      });
+    doc.text("Page 1 of 1", M + CW / 2, PH - 25, {
+      align: "right",
+      width: CW / 2,
+      lineBreak: false,
+    });
+
+    doc.end();
+  });
+}
+
+/**
+ * TEST VERSION — runs every minute so you can verify the email works.
+ * To test: uncomment the block below, deploy, wait ~1 min, check your inbox.
+ * Then comment it back out and re-deploy with the production version below.
+ */
+// exports.scheduledCCTVCheckEmailTEST = onSchedule(
+//   {
+//     schedule: "* * * * *",   // every minute — for testing only
+//     timeZone: "Europe/London",
+//     secrets: [smtpPass],
+//   },
+//   async () => {
+//     const snapshot = await admin
+//       .firestore()
+//       .collection("cctvCheckForms")
+//       .orderBy("createdAt", "desc")
+//       .limit(1)
+//       .get();
+//     if (snapshot.empty) { console.log("No CCTV checks found."); return; }
+//     const check = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+//     const pdfBuffer = await generateCCTVCheckPDF(check);
+//     const transporter = nodemailer.createTransport({
+//       service: "gmail",
+//       auth: { user: "alerts@chellan.co.uk", pass: smtpPass.value() },
+//     });
+//     for (const recipient of CCTV_REPORT_RECIPIENTS) {
+//       await transporter.sendMail({
+//         from: '"LENSE by Chellan" <alerts@chellan.co.uk>',
+//         to: recipient,
+//         subject: `[TEST] CCTV Check Report — ${check.date || "N/A"} ${check.time || ""}`.trim(),
+//         text: `TEST EMAIL — Latest CCTV check (${check.referenceId || "N/A"}) attached.`,
+//         attachments: [{ filename: `cctv-check-${check.referenceId || check.id}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+//       });
+//       console.log(`[TEST] CCTV report emailed to: ${recipient}`);
+//     }
+//   },
+// );
+
+/**
+ * PRODUCTION — sends a PDF of the latest CCTV check at 8am and 11pm (London time)
+ */
+exports.scheduledCCTVCheckEmail = onSchedule(
+  {
+    schedule: "0 0,12 * * *",
+
+    timeZone: "Europe/London",
+    secrets: [smtpPass],
+  },
+  // For testing, use this schedule instead to run every 3 minute — just remember to change it back before deploying to production!
+  // {
+  //   schedule: "*/3 * * * *", // every 3 minutes — for testing only
+  //   timeZone: "Europe/London",
+  //   secrets: [smtpPass],
+  // },
+  async () => {
+    // 1. Fetch the latest CCTV check
+    const snapshot = await admin
+      .firestore()
+      .collection("cctvCheckForms")
+      .orderBy("createdAt", "desc")
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      console.log("No CCTV checks found — skipping scheduled email.");
+      return;
+    }
+
+    const check = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+    console.log(`Sending scheduled CCTV report for: ${check.referenceId}`);
+
+    // 2. Generate PDF
+    const pdfBuffer = await generateCCTVCheckPDF(check);
+
+    // 3. Create transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "alerts@chellan.co.uk",
+        pass: smtpPass.value(),
+      },
+    });
+
+    // 4. Send to each recipient
+    for (const recipient of CCTV_REPORT_RECIPIENTS) {
+      await transporter.sendMail({
+        from: '"LENSE by Chellan" <alerts@chellan.co.uk>',
+        to: recipient,
+        subject:
+          `CCTV Check Report — ${check.date || "N/A"} ${check.time || ""}`.trim(),
+        text: `The latest CCTV check (${check.referenceId || "N/A"}) is attached as a PDF.`,
+        attachments: [
+          {
+            filename: `cctv-check-${check.referenceId || check.id}.pdf`,
+            content: pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ],
+      });
+      console.log(`CCTV report emailed to: ${recipient}`);
+    }
+
+    // 5. Log to Firestore
+    await admin
+      .firestore()
+      .collection("emailLogs")
+      .add({
+        reportType: "cctv-check-scheduled",
+        reportId: check.id,
+        referenceId: check.referenceId || null,
+        recipients: CCTV_REPORT_RECIPIENTS,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  },
+);
+
+// ─── End Scheduled CCTV Check Email ───────────────────────────────────────────
 
 /**
  * Callable function to delete a user from both Authentication and Firestore

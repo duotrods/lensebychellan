@@ -111,6 +111,8 @@ const CCTVCheckFormPage = () => {
           m3Jct9Comments: form.m3Jct9Comments || '',
           A452: form.A452 || [],
           A452Comments: form.A452Comments || '',
+          demoCameras: form.demoCameras || [],
+          demoComments: form.demoComments || '',
         });
       } else {
         toast.error('Form not found');
