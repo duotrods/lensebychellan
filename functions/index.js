@@ -4,6 +4,7 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
 const PDFDocument = require("pdfkit");
+const { EMAIL_RECIPIENTS, CCTV_REPORT_RECIPIENTS, CCTV_M3_RECIPIENTS, SMTP_SENDER, SMTP_USER } = require("./emailConfig");
 
 admin.initializeApp();
 
@@ -12,28 +13,6 @@ const smtpPass = defineSecret("SMTP_PASS");
 
 // Email configuration will be created inside the function to access the secret
 
-// Email recipient mapping by scheme and notification type
-// Easy to update later - just change the email addresses here
-const EMAIL_RECIPIENTS = {
-  // M3 Scheme
-  "M3 Jct 9 - Balfour Beatty": {
-    "TM Manager": "david@chellan.co.uk",
-    "Maintenance Team": "chellanclientdemo@outlook.com",
-    "Safety Officer": "chellanstaffdemo@outlook.com",
-  },
-
-  "A417 Missing Link - Kier": {
-    "TM Manager": "david@chellan.co.uk",
-    "Maintenance Team": "chellanclientdemo@outlook.com",
-    "Safety Officer": "chellanstaffdemo@outlook.com",
-  },
-
-  "A47 Thickthorn - Core": {
-    "TM Manager": "david@chellan.co.uk",
-    "Maintenance Team": "chellanclientdemo@outlook.com",
-    "Safety Officer": "chellanstaffdemo@outlook.com",
-  },
-};
 
 /**
  * Get recipient email based on scheme and notification type
@@ -81,7 +60,7 @@ exports.sendAssetDamageNotification = onCall(
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "alerts@chellan.co.uk",
+        user: SMTP_USER,
         pass: smtpPass.value(),
       },
     });
@@ -193,7 +172,7 @@ exports.sendAssetDamageNotification = onCall(
     `;
 
       const mailOptions = {
-        from: '"LENSE by Chellan" <alerts@chellan.co.uk>',
+        from: SMTP_SENDER,
         to: recipientEmail,
         subject: subject,
         html: htmlContent,
@@ -254,14 +233,12 @@ exports.sendAssetDamageNotification = onCall(
 
 // ─── Scheduled CCTV Check Email ───────────────────────────────────────────────
 
-// Recipients for the scheduled CCTV check report — add/remove emails as needed
-const CCTV_REPORT_RECIPIENTS = ["david@chellan.co.uk"];
 
 /**
  * Generates a PDF buffer from a cctvCheckForms document.
  * Layout matches the frontend pdfGenerator.js (jsPDF version).
  */
-function generateCCTVCheckPDF(check) {
+function generateCCTVCheckPDF(check, schemeFilter = null) {
   return new Promise((resolve, reject) => {
     // margins: 0 so pdfkit's auto-page-break never fires before our manual guard
     const doc = new PDFDocument({
@@ -407,7 +384,7 @@ function generateCCTVCheckPDF(check) {
     // ── REPORT DETAILS ──────────────────────────────────────────────────
     addSectionHeader("REPORT DETAILS");
 
-    const sections = [
+    const allSections = [
       { label: "A417", key: "a417Cameras", commentsKey: "a417Comments" },
       {
         label: "A11/A47 Kier/Core",
@@ -417,6 +394,11 @@ function generateCCTVCheckPDF(check) {
       { label: "M3 Jct 9", key: "m3Jct9", commentsKey: "m3Jct9Comments" },
       { label: "A452 HS2", key: "A452", commentsKey: "A452Comments" },
     ];
+    // If schemeFilter is provided (e.g. ["M3 Jct 9"]), only show those sections.
+    // If null, show everything — same as before.
+    const sections = schemeFilter
+      ? allSections.filter((s) => schemeFilter.includes(s.label))
+      : allSections;
 
     let hasSections = false;
     sections.forEach(({ label, key, commentsKey }) => {
@@ -510,11 +492,11 @@ function generateCCTVCheckPDF(check) {
 //     const pdfBuffer = await generateCCTVCheckPDF(check);
 //     const transporter = nodemailer.createTransport({
 //       service: "gmail",
-//       auth: { user: "alerts@chellan.co.uk", pass: smtpPass.value() },
+//       auth: { user: SMTP_USER, pass: smtpPass.value() },
 //     });
 //     for (const recipient of CCTV_REPORT_RECIPIENTS) {
 //       await transporter.sendMail({
-//         from: '"LENSE by Chellan" <alerts@chellan.co.uk>',
+//         from: SMTP_SENDER,
 //         to: recipient,
 //         subject: `[TEST] CCTV Check Report — ${check.date || "N/A"} ${check.time || ""}`.trim(),
 //         text: `TEST EMAIL — Latest CCTV check (${check.referenceId || "N/A"}) attached.`,
@@ -565,7 +547,7 @@ exports.scheduledCCTVCheckEmail = onSchedule(
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "alerts@chellan.co.uk",
+        user: SMTP_USER,
         pass: smtpPass.value(),
       },
     });
@@ -573,7 +555,7 @@ exports.scheduledCCTVCheckEmail = onSchedule(
     // 4. Send to each recipient
     for (const recipient of CCTV_REPORT_RECIPIENTS) {
       await transporter.sendMail({
-        from: '"LENSE by Chellan" <alerts@chellan.co.uk>',
+        from: SMTP_SENDER,
         to: recipient,
         subject:
           `CCTV Check Report — ${check.date || "N/A"} ${check.time || ""}`.trim(),
@@ -589,7 +571,27 @@ exports.scheduledCCTVCheckEmail = onSchedule(
       console.log(`CCTV report emailed to: ${recipient}`);
     }
 
-    // 5. Log to Firestore
+    // 5. Send M3-only PDF to M3 recipients
+    const m3PdfBuffer = await generateCCTVCheckPDF(check, ["M3 Jct 9"]);
+    for (const recipient of CCTV_M3_RECIPIENTS) {
+      await transporter.sendMail({
+        from: SMTP_SENDER,
+        to: recipient,
+        subject:
+          `M3 Jct 9 CCTV Check Report — ${check.date || "N/A"} ${check.time || ""}`.trim(),
+        text: `The latest M3 Jct 9 CCTV check (${check.referenceId || "N/A"}) is attached as a PDF.`,
+        attachments: [
+          {
+            filename: `cctv-check-m3-${check.referenceId || check.id}.pdf`,
+            content: m3PdfBuffer,
+            contentType: "application/pdf",
+          },
+        ],
+      });
+      console.log(`M3-only CCTV report emailed to: ${recipient}`);
+    }
+
+    // 6. Log to Firestore
     await admin
       .firestore()
       .collection("emailLogs")
@@ -598,6 +600,7 @@ exports.scheduledCCTVCheckEmail = onSchedule(
         reportId: check.id,
         referenceId: check.referenceId || null,
         recipients: CCTV_REPORT_RECIPIENTS,
+        m3Recipients: CCTV_M3_RECIPIENTS,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
   },

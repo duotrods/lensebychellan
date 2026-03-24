@@ -24,6 +24,9 @@ service-account-key.json
 # Claude AI brain/memory files (local only, never commit)
 .claude/
 
+# Screenshots
+screenshots/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -34,3 +37,4 @@ service-account-key.json
 *.njsproj
 *.sln
 *.sw?
+
