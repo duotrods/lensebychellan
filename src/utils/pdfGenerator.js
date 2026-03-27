@@ -17,19 +17,19 @@ const getCompressedLogo = () => {
     }
 
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = "anonymous";
     img.onload = () => {
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       // 3x display size for retina quality (logo displays at 50x25)
       canvas.width = 150;
       canvas.height = 75;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       // White background for transparency
-      ctx.fillStyle = '#FFFFFF';
+      ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       // Compress to JPEG at 70% quality
-      cachedCompressedLogo = canvas.toDataURL('image/jpeg', 0.7);
+      cachedCompressedLogo = canvas.toDataURL("image/jpeg", 0.7);
       resolve(cachedCompressedLogo);
     };
     img.onerror = () => {
@@ -46,7 +46,11 @@ const getCompressedLogo = () => {
  * @param {string} reportType - Type of report (incident, asset-damage, daily-occurrence, cctv-check)
  * @param {string} filterSchemeId - Optional scheme ID to filter CCTV sections (for client view)
  */
-export const generateReportPDF = async (report, reportType, filterSchemeId = null) => {
+export const generateReportPDF = async (
+  report,
+  reportType,
+  filterSchemeId = null,
+) => {
   const doc = new jsPDF({ compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -119,7 +123,16 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
     const logoWidth = 50; // Width
     const logoHeight = 25; // Height (adjust ratio to prevent distortion)
     const logoX = (pageWidth - logoWidth) / 2; // Center horizontally
-    doc.addImage(compressedLogo, "JPEG", logoX, 5, logoWidth, logoHeight, undefined, 'FAST');
+    doc.addImage(
+      compressedLogo,
+      "JPEG",
+      logoX,
+      5,
+      logoWidth,
+      logoHeight,
+      undefined,
+      "FAST",
+    );
   } catch (error) {
     console.error("Error adding logo:", error);
   }
@@ -166,7 +179,7 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
   doc.text(
     `Generated: ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleTimeString("en-GB")}`,
     margin,
-    yPosition
+    yPosition,
   );
   yPosition += 10;
 
@@ -226,18 +239,18 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
   } else {
     addField(
       "Report Date",
-      formatDate(report.createdAt || report.timestamp || report.date)
+      formatDate(report.createdAt || report.timestamp || report.date),
     );
     addField(
       "Report Time",
-      formatTime(report.createdAt || report.timestamp || report.time)
+      formatTime(report.createdAt || report.timestamp || report.time),
     );
   }
 
   // For CCTV check reports: show filtered scheme if client view, otherwise "All Schemes"
   if (reportType === "cctv-check") {
     if (filterSchemeId) {
-      const schemeObj = SCHEMES.find(s => s.id === filterSchemeId);
+      const schemeObj = SCHEMES.find((s) => s.id === filterSchemeId);
       const schemeName = schemeObj ? schemeObj.fullName : filterSchemeId;
       addField("Scheme/Location", schemeName);
     } else {
@@ -255,7 +268,10 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
   yPosition += 5;
 
   // Check if report has multiple occurrences (for daily-occurrence reports)
-  const hasOccurrences = reportType === "daily-occurrence" && report.occurrences && Array.isArray(report.occurrences);
+  const hasOccurrences =
+    reportType === "daily-occurrence" &&
+    report.occurrences &&
+    Array.isArray(report.occurrences);
 
   if (hasOccurrences) {
     addSectionHeader(`DAILY OCCURRENCES (${report.occurrences.length})`);
@@ -278,12 +294,18 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       if (occurrence.location) addField("Location", occurrence.location);
       if (occurrence.urn) addField("URN", occurrence.urn);
       if (occurrence.recoveryRequired !== undefined) {
-        addField("Recovery Required", occurrence.recoveryRequired ? "Yes" : "No");
+        addField(
+          "Recovery Required",
+          occurrence.recoveryRequired ? "Yes" : "No",
+        );
       }
       if (occurrence.rcc) addField("RCC", occurrence.rcc);
-      if (occurrence.nameInitials) addField("Name/Initials", occurrence.nameInitials);
-      if (occurrence.description) addField("Description", occurrence.description);
-      if (occurrence.actionTaken) addField("Action Taken", occurrence.actionTaken);
+      if (occurrence.nameInitials)
+        addField("Name/Initials", occurrence.nameInitials);
+      if (occurrence.description)
+        addField("Description", occurrence.description);
+      if (occurrence.actionTaken)
+        addField("Action Taken", occurrence.actionTaken);
 
       yPosition += 5;
     });
@@ -295,8 +317,10 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
     case "incident":
       // Incident Details
       if (report.section) addField("Section", report.section);
-      if (report.weatherConditions) addField("Weather Conditions", report.weatherConditions);
-      if (report.trafficConditions) addField("Traffic Conditions", report.trafficConditions);
+      if (report.weatherConditions)
+        addField("Weather Conditions", report.weatherConditions);
+      if (report.trafficConditions)
+        addField("Traffic Conditions", report.trafficConditions);
       if (report.nhLog) addField("NH Log", report.nhLog);
       if (report.collarNumber) addField("Collar Number", report.collarNumber);
       if (report.incursion) addField("Incursion", report.incursion);
@@ -304,7 +328,8 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       if (report.cameraNumber) addField("Camera Number", report.cameraNumber);
       if (report.markerPost) addField("Marker Post", report.markerPost);
       if (report.track) addField("Track", report.track);
-      if (report.incidentType) addField("Incident Type", report.incidentType, true);
+      if (report.incidentType)
+        addField("Incident Type", report.incidentType, true);
       if (report.fault) addField("Fault", report.fault);
 
       // Affected Lanes
@@ -325,7 +350,8 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         if (r.heavy) recoveryParts.push(`Heavy: ${r.heavy}`);
         if (r.ipv) recoveryParts.push(`IPV: ${r.ipv}`);
         if (r.hetos) recoveryParts.push(`HETOS: ${r.hetos}`);
-        if (recoveryParts.length > 0) addField("Recovery Requested", recoveryParts.join(", "));
+        if (recoveryParts.length > 0)
+          addField("Recovery Requested", recoveryParts.join(", "));
       }
 
       // Time Information
@@ -334,7 +360,8 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       if (report.timeSpotted) addField("Time Spotted", report.timeSpotted);
       if (report.timeOnSite) addField("Time On Site", report.timeOnSite);
       if (report.timeCleared) addField("Time Cleared", report.timeCleared);
-      if (report.closedLogCollar) addField("Closed Log Collar Number", report.closedLogCollar);
+      if (report.closedLogCollar)
+        addField("Closed Log Collar Number", report.closedLogCollar);
 
       // Vehicles Involved
       if (report.vehicles && report.vehicles.length > 0) {
@@ -342,7 +369,9 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         addSectionHeader("VEHICLES INVOLVED");
         report.vehicles.forEach((v, i) => {
           if (v.type || v.make || v.model || v.vin) {
-            const vehicleStr = [v.type, v.make, v.model, v.vin].filter(Boolean).join(" | ");
+            const vehicleStr = [v.type, v.make, v.model, v.vin]
+              .filter(Boolean)
+              .join(" | ");
             addField(`Vehicle ${i + 1}`, vehicleStr);
           }
         });
@@ -395,7 +424,10 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       }
 
       // A417 Section - only show if no filter OR filter matches A417
-      if ((!filterSchemeId || filterSchemeId === 'A417') && (report.a417Cameras || report.a417Comments)) {
+      if (
+        (!filterSchemeId || filterSchemeId === "A417") &&
+        (report.a417Cameras || report.a417Comments)
+      ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
@@ -406,12 +438,32 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         yPosition += 12;
 
         if (report.a417Cameras && report.a417Cameras.length > 0) {
-          const isNone = report.a417Cameras.includes('NONE');
+          const isNone = report.a417Cameras.includes("NONE");
           if (isNone) {
-            addField("Status", "NONE - All cameras working correctly", true);
+            addField(
+              "CCTV Status",
+              "NONE - All cameras working correctly",
+              true,
+            );
           } else {
-            addField("Issues Reported", report.a417Cameras.join(", "), true);
+            addField(
+              "CCTV Issues Reported",
+              report.a417Cameras.join(", "),
+              true,
+            );
           }
+        }
+        if (report.a417Blackspot && report.a417Blackspot.length > 0) {
+          const bsAllWorking =
+            report.a417Blackspot[0] === "All Working Correctly";
+          addField(
+            "Blackspot Issues Reported",
+            bsAllWorking
+              ? "All Working Correctly"
+              : report.a417Blackspot.join(", "),
+            true,
+          );
+          addField("TSS Informed", report.a417TssInformed ? "Yes" : "No");
         }
         if (report.a417Comments && report.a417Comments.trim() !== "") {
           addField("Comments", report.a417Comments);
@@ -420,7 +472,10 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       }
 
       // A11/A47 Kier/Core Section - only show if no filter OR filter matches A47
-      if ((!filterSchemeId || filterSchemeId === 'A47') && (report.kierCore || report.kierCoreComments)) {
+      if (
+        (!filterSchemeId || filterSchemeId === "A47") &&
+        (report.kierCore || report.kierCoreComments)
+      ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
@@ -431,12 +486,28 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         yPosition += 12;
 
         if (report.kierCore && report.kierCore.length > 0) {
-          const isNone = report.kierCore.includes('NONE');
+          const isNone = report.kierCore.includes("NONE");
           if (isNone) {
-            addField("Status", "NONE - All cameras working correctly", true);
+            addField(
+              "CCTV Status",
+              "NONE - All cameras working correctly",
+              true,
+            );
           } else {
-            addField("Issues Reported", report.kierCore.join(", "), true);
+            addField("CCTV Issues Reported", report.kierCore.join(", "), true);
           }
+        }
+        if (report.kierCoreBlackspot && report.kierCoreBlackspot.length > 0) {
+          const bsAllWorking =
+            report.kierCoreBlackspot[0] === "All Working Correctly";
+          addField(
+            "Blackspot Issues Reported",
+            bsAllWorking
+              ? "All Working Correctly"
+              : report.kierCoreBlackspot.join(", "),
+            true,
+          );
+          addField("TSS Informed", report.kierCoreTssInformed ? "Yes" : "No");
         }
         if (report.kierCoreComments && report.kierCoreComments.trim() !== "") {
           addField("Comments", report.kierCoreComments);
@@ -445,7 +516,10 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       }
 
       // M3 Jct 9 Section - only show if no filter OR filter matches M3
-      if ((!filterSchemeId || filterSchemeId === 'M3') && (report.m3Jct9 || report.m3Jct9Comments)) {
+      if (
+        (!filterSchemeId || filterSchemeId === "M3") &&
+        (report.m3Jct9 || report.m3Jct9Comments)
+      ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
@@ -456,12 +530,28 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         yPosition += 12;
 
         if (report.m3Jct9 && report.m3Jct9.length > 0) {
-          const isNone = report.m3Jct9.includes('NONE');
+          const isNone = report.m3Jct9.includes("NONE");
           if (isNone) {
-            addField("Status", "NONE - All cameras working correctly", true);
+            addField(
+              "CCTV Status",
+              "NONE - All cameras working correctly",
+              true,
+            );
           } else {
-            addField("Issues Reported", report.m3Jct9.join(", "), true);
+            addField("CCTV Issues Reported", report.m3Jct9.join(", "), true);
           }
+        }
+        if (report.m3Jct9Blackspot && report.m3Jct9Blackspot.length > 0) {
+          const bsAllWorking =
+            report.m3Jct9Blackspot[0] === "All Working Correctly";
+          addField(
+            "Blackspot Issues Reported",
+            bsAllWorking
+              ? "All Working Correctly"
+              : report.m3Jct9Blackspot.join(", "),
+            true,
+          );
+          addField("TSS Informed", report.m3TssInformed ? "Yes" : "No");
         }
         if (report.m3Jct9Comments && report.m3Jct9Comments.trim() !== "") {
           addField("Comments", report.m3Jct9Comments);
@@ -470,7 +560,10 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       }
 
       // A452 HS2 Section - only show if no filter OR filter matches A452
-      if ((!filterSchemeId || filterSchemeId === 'A452') && (report.A452 || report.A452Comments)) {
+      if (
+        (!filterSchemeId || filterSchemeId === "A452") &&
+        (report.A452 || report.A452Comments)
+      ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
@@ -481,12 +574,28 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         yPosition += 12;
 
         if (report.A452 && report.A452.length > 0) {
-          const isNone = report.A452.includes('NONE');
+          const isNone = report.A452.includes("NONE");
           if (isNone) {
-            addField("Status", "NONE - All cameras working correctly", true);
+            addField(
+              "CCTV Status",
+              "NONE - All cameras working correctly",
+              true,
+            );
           } else {
-            addField("Issues Reported", report.A452.join(", "), true);
+            addField("CCTV Issues Reported", report.A452.join(", "), true);
           }
+        }
+        if (report.A452Blackspot && report.A452Blackspot.length > 0) {
+          const bsAllWorking =
+            report.A452Blackspot[0] === "All Working Correctly";
+          addField(
+            "Blackspot Issues Reported",
+            bsAllWorking
+              ? "All Working Correctly"
+              : report.A452Blackspot.join(", "),
+            true,
+          );
+          addField("TSS Informed", report.A452TssInformed ? "Yes" : "No");
         }
         if (report.A452Comments && report.A452Comments.trim() !== "") {
           addField("Comments", report.A452Comments);
@@ -495,7 +604,10 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       }
 
       // Demo Section - only show if explicitly filtered to DMO1 (never in staff full download)
-      if (filterSchemeId === 'DMO1' && (report.demoCameras || report.demoComments)) {
+      if (
+        filterSchemeId === "DMO1" &&
+        (report.demoCameras || report.demoComments)
+      ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
         doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
@@ -506,12 +618,32 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
         yPosition += 12;
 
         if (report.demoCameras && report.demoCameras.length > 0) {
-          const isNone = report.demoCameras.includes('NONE');
+          const isNone = report.demoCameras.includes("NONE");
           if (isNone) {
-            addField("Status", "NONE - All cameras working correctly", true);
+            addField(
+              "CCTV Status",
+              "NONE - All cameras working correctly",
+              true,
+            );
           } else {
-            addField("Issues Reported", report.demoCameras.join(", "), true);
+            addField(
+              "CCTV Issues Reported",
+              report.demoCameras.join(", "),
+              true,
+            );
           }
+        }
+        if (report.demoBlackspot && report.demoBlackspot.length > 0) {
+          const bsAllWorking =
+            report.demoBlackspot[0] === "All Working Correctly";
+          addField(
+            "Blackspot Issues Reported",
+            bsAllWorking
+              ? "All Working Correctly"
+              : report.demoBlackspot.join(", "),
+            true,
+          );
+          addField("TSS Informed", report.demoTssInformed ? "Yes" : "No");
         }
         if (report.demoComments && report.demoComments.trim() !== "") {
           addField("Comments", report.demoComments);
@@ -561,14 +693,14 @@ export const generateReportPDF = async (report, reportType, filterSchemeId = nul
       `Page ${i} of ${pageCount}`,
       pageWidth / 2,
       doc.internal.pageSize.getHeight() - 10,
-      { align: "center" }
+      { align: "center" },
     );
     doc.text(
       `Generated on ${new Date().toLocaleDateString(
-        "en-GB"
+        "en-GB",
       )} at ${new Date().toLocaleTimeString("en-GB")}`,
       margin,
-      doc.internal.pageSize.getHeight() - 10
+      doc.internal.pageSize.getHeight() - 10,
     );
   }
 
@@ -614,7 +746,16 @@ export const generateCCTVRecordingPDF = async (recording) => {
     const logoWidth = 50; // Width
     const logoHeight = 25; // Height (adjust ratio to prevent distortion)
     const logoX = (pageWidth - logoWidth) / 2; // Center horizontally
-    doc.addImage(compressedLogo, "JPEG", logoX, 5, logoWidth, logoHeight, undefined, 'FAST');
+    doc.addImage(
+      compressedLogo,
+      "JPEG",
+      logoX,
+      5,
+      logoWidth,
+      logoHeight,
+      undefined,
+      "FAST",
+    );
   } catch (error) {
     console.error("Error adding logo:", error);
   }
@@ -644,7 +785,7 @@ export const generateCCTVRecordingPDF = async (recording) => {
   doc.text(
     `Generated: ${new Date().toLocaleDateString("en-GB")} at ${new Date().toLocaleTimeString("en-GB")}`,
     margin,
-    yPosition
+    yPosition,
   );
   yPosition += 8;
 
@@ -690,7 +831,7 @@ export const generateCCTVRecordingPDF = async (recording) => {
   addField("Scheme", recording.scheme);
   addField(
     "Recording Date & Time",
-    formatDate(recording.uploadedAt || recording.dateTime)
+    formatDate(recording.uploadedAt || recording.dateTime),
   );
 
   // File Details Section
@@ -702,7 +843,7 @@ export const generateCCTVRecordingPDF = async (recording) => {
     "File Size",
     recording.fileSize
       ? `${(recording.fileSize / 1024 / 1024).toFixed(2)} MB`
-      : "N/A"
+      : "N/A",
   );
   addField("Duration", recording.duration || "N/A");
 
@@ -730,10 +871,10 @@ export const generateCCTVRecordingPDF = async (recording) => {
   doc.setTextColor(128, 128, 128);
   doc.text(
     `Generated on ${new Date().toLocaleDateString(
-      "en-GB"
+      "en-GB",
     )} at ${new Date().toLocaleTimeString("en-GB")}`,
     margin,
-    doc.internal.pageSize.getHeight() - 10
+    doc.internal.pageSize.getHeight() - 10,
   );
 
   // Save

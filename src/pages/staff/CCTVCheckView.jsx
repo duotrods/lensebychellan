@@ -1,11 +1,18 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
-import { ArrowLeft, Edit, Trash2, CheckCircle, XCircle, Download } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import { staffService } from '../../services/staffService';
-import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
-import { generateReportPDF } from '../../utils/pdfGenerator';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Download,
+} from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
+import { staffService } from "../../services/staffService";
+import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import { generateReportPDF } from "../../utils/pdfGenerator";
 
 const CCTVCheckView = () => {
   const { id } = useParams();
@@ -23,17 +30,17 @@ const CCTVCheckView = () => {
       setLoading(true);
       // Pass null to get all forms, not just current user's
       const forms = await staffService.getCCTVCheckForms(null);
-      const foundForm = forms.find(f => f.id === id);
+      const foundForm = forms.find((f) => f.id === id);
 
       if (foundForm) {
         setForm(foundForm);
       } else {
-        toast.error('Form not found');
-        navigate('/dashboard/staff');
+        toast.error("Form not found");
+        navigate("/dashboard/staff");
       }
     } catch (error) {
-      console.error('Failed to load form:', error);
-      toast.error('Failed to load form');
+      console.error("Failed to load form:", error);
+      toast.error("Failed to load form");
     } finally {
       setLoading(false);
     }
@@ -44,59 +51,80 @@ const CCTVCheckView = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete this CCTV Check Form? This action cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete this CCTV Check Form? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
     try {
-      await staffService.deleteCCTVCheckForm(id, userProfile.uid, userProfile.displayName);
-      toast.success('CCTV Check Form deleted successfully');
-      navigate('/dashboard/staff');
+      await staffService.deleteCCTVCheckForm(
+        id,
+        userProfile.uid,
+        userProfile.displayName,
+      );
+      toast.success("CCTV Check Form deleted successfully");
+      navigate("/dashboard/staff");
     } catch (error) {
-      console.error('Failed to delete form:', error);
-      toast.error('Failed to delete form');
+      console.error("Failed to delete form:", error);
+      toast.error("Failed to delete form");
     }
   };
 
   const handleDownloadPDF = async () => {
     try {
-      await generateReportPDF(form, 'cctv-check');
-      toast.success('Downloaded CCTV check report as PDF');
+      await generateReportPDF(form, "cctv-check");
+      toast.success("Downloaded CCTV check report as PDF");
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      toast.error('Failed to download PDF');
+      console.error("Failed to generate PDF:", error);
+      toast.error("Failed to download PDF");
     }
   };
 
   const formatDateTime = (timestamp) => {
-    if (!timestamp) return '';
+    if (!timestamp) return "";
     const date = timestamp.toDate();
-    return date.toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  const renderCameraSection = (title, cameras, comments) => {
+  const renderCameraSection = (
+    title,
+    cameras,
+    comments,
+    blackspotCameras,
+    tssInformed,
+  ) => {
     // Debug: Log what we're receiving
-    console.log(`${title}:`, { cameras, comments });
+    console.log(`${title}:`, {
+      cameras,
+      comments,
+      blackspotCameras,
+      tssInformed,
+    });
 
     // Show section if there are cameras OR if there are comments (non-empty)
     const hasComments = comments && comments.trim() !== "";
     if ((!cameras || cameras.length === 0) && !hasComments) return null;
 
-    const isNone = cameras && cameras.includes('NONE');
-    const isAllWorking = cameras && cameras.length === 1 && cameras[0] === 'All Working Correctly';
+    const isNone = cameras && cameras.includes("NONE");
+    const isAllWorking =
+      cameras && cameras.length === 1 && cameras[0] === "All Working Correctly";
     const hasIssues = cameras && cameras.length > 0 && !isNone && !isAllWorking;
 
     return (
-      <div>
+      <div className="p-6 bg-gray-50 rounded-xl border border-gray-200">
         <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">
           {title}
         </h4>
+        <h6 className="text-sm font-bold text-gray-700 mb-2">Cctv Cameras:</h6>
         <div className="mb-3">
           {isNone ? (
             <div className="flex items-center gap-2 text-green-600">
@@ -104,8 +132,8 @@ const CCTVCheckView = () => {
               <span className="font-semibold">NONE</span>
             </div>
           ) : isAllWorking ? (
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="w-5 h-5" />
+            <div className="flex items-center gap-2 mt-4 text-green-600">
+              <CheckCircle className="w-4 h-4" />
               <span className="font-semibold">All Working Correctly</span>
             </div>
           ) : hasIssues ? (
@@ -129,9 +157,75 @@ const CCTVCheckView = () => {
             <p className="text-gray-500 text-sm">No cameras selected</p>
           )}
         </div>
+        {/* Blackspot Cameras */}
+        {blackspotCameras && blackspotCameras.length > 0 && (
+          <div className="mt-4 pt-4 mb-4 border-b border-t border-dashed border-gray-200">
+            <h6 className="text-sm font-bold text-gray-600 mb-2">
+              Blackspot Cameras:
+            </h6>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {(() => {
+                const bsAllWorking =
+                  blackspotCameras.length === 1 &&
+                  blackspotCameras[0] === "All Working Correctly";
+                const bsHasIssues =
+                  blackspotCameras.length > 0 && !bsAllWorking;
+
+                return (
+                  <div className="mb-3">
+                    {bsAllWorking ? (
+                      <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-semibold">
+                          All Working Correctly
+                        </span>
+                      </div>
+                    ) : bsHasIssues ? (
+                      <div>
+                        <div className="flex items-center mt-2 gap-2 text-orange-600 mb-2">
+                          <XCircle className="w-5 h-5" />
+                          <span className="font-semibold">
+                            Blackspot issues:
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {blackspotCameras.map((camera, index) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
+                            >
+                              {camera}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-600">
+            TSS Informed:
+          </span>
+          {tssInformed ? (
+            <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-semibold">
+              Yes
+            </span>
+          ) : (
+            <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm font-semibold">
+              No
+            </span>
+          )}
+        </div>
+
         {comments && comments.trim() !== "" && (
           <div className="mt-3">
-            <label className="text-sm font-semibold text-gray-600">Comments:</label>
+            <label className="text-sm font-semibold text-gray-600">
+              Comments:
+            </label>
             <p className="text-gray-800 bg-gray-50 p-3 rounded-lg mt-1 whitespace-pre-wrap">
               {comments}
             </p>
@@ -217,23 +311,35 @@ const CCTVCheckView = () => {
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-semibold text-gray-600">Submitted By</label>
+                <label className="text-sm font-semibold text-gray-600">
+                  Submitted By
+                </label>
                 <p className="text-gray-800">
-                  {form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || 'N/A'}
+                  {form.submittedBy?.name ||
+                    `${form.firstName || ""} ${form.lastName || ""}`.trim() ||
+                    "N/A"}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Date</label>
-                <p className="text-gray-800">{form.date || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Date
+                </label>
+                <p className="text-gray-800">{form.date || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Time</label>
-                <p className="text-gray-800">{form.time || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Time
+                </label>
+                <p className="text-gray-800">{form.time || "N/A"}</p>
               </div>
               {form.lastEditedBy && (
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">Last Edited By</label>
-                  <p className="text-blue-600">{form.lastEditedBy?.name || 'Unknown'}</p>
+                  <label className="text-sm font-semibold text-gray-600">
+                    Last Edited By
+                  </label>
+                  <p className="text-blue-600">
+                    {form.lastEditedBy?.name || "Unknown"}
+                  </p>
                 </div>
               )}
             </div>
@@ -241,21 +347,47 @@ const CCTVCheckView = () => {
 
           {/* Camera Sections */}
           <div className="space-y-6">
-            {renderCameraSection('A417', form.a417Cameras, form.a417Comments)}
-            {renderCameraSection('A11/A47 Kier/Core', form.kierCore, form.kierCoreComments)}
-            {renderCameraSection('M3 Jct 9', form.m3Jct9, form.m3Jct9Comments)}
-            {renderCameraSection('A452 HS2', form.A452, form.A452Comments)}
+            {renderCameraSection(
+              "A417",
+              form.a417Cameras,
+              form.a417Comments,
+              form.a417Blackspot,
+              form.a417TssInformed,
+            )}
+            {renderCameraSection(
+              "A11/A47 Kier/Core",
+              form.kierCore,
+              form.kierCoreComments,
+              form.kierCoreBlackspot,
+              form.kierCoreTssInformed,
+            )}
+            {renderCameraSection(
+              "M3 Jct 9",
+              form.m3Jct9,
+              form.m3Jct9Comments,
+              form.m3Jct9Blackspot,
+              form.m3TssInformed,
+            )}
+            {renderCameraSection(
+              "A452 HS2",
+              form.A452,
+              form.A452Comments,
+              form.A452Blackspot,
+              form.A452TssInformed,
+            )}
           </div>
 
           {/* Metadata */}
           <div className="border-t pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500">
               <div>
-                <label className="font-semibold">Created:</label> {formatDateTime(form.createdAt)}
+                <label className="font-semibold">Created:</label>{" "}
+                {formatDateTime(form.createdAt)}
               </div>
               {form.updatedAt && (
                 <div>
-                  <label className="font-semibold">Last Updated:</label> {formatDateTime(form.updatedAt)}
+                  <label className="font-semibold">Last Updated:</label>{" "}
+                  {formatDateTime(form.updatedAt)}
                 </div>
               )}
             </div>
