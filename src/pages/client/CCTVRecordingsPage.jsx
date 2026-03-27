@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { clientDataService } from '../../services/clientDataService';
+import { storage } from '../../config/firebase';
+import { ref, getBlob } from 'firebase/storage';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 import {
   Camera, Search, Filter, Download, Play, Calendar,
@@ -102,19 +104,28 @@ const CCTVRecordingsPage = () => {
     setSelectedRecording(recording);
   };
 
-  const handleDownloadRecording = (recording) => {
+  const downloadFileAsBlob = async (storagePath, fileName) => {
+    const blob = await getBlob(ref(storage, storagePath));
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  };
+
+  const handleDownloadRecording = async (recording) => {
     try {
       if (recording.files && recording.files.length > 0) {
-        // Download all video files
-        recording.files.forEach((file, idx) => {
-          const link = document.createElement('a');
-          link.href = file.downloadUrl;
-          link.download = file.name || `Camera_${recording.cameraNumber}_${idx + 1}.mp4`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        });
         toast.success(`Downloading ${recording.files.length} file(s) for Camera ${recording.cameraNumber}`);
+        for (const [idx, file] of recording.files.entries()) {
+          await downloadFileAsBlob(
+            file.fileUrl,
+            file.name || `Camera_${recording.cameraNumber}_${idx + 1}.mp4`
+          );
+        }
       } else {
         toast.error('No video files available for download');
       }
@@ -478,14 +489,15 @@ const CCTVRecordingsPage = () => {
                           <Video className="w-5 h-5 text-gray-500" />
                           <span className="text-sm font-medium">{file.name || `Video ${idx + 1}`}</span>
                         </div>
-                        <a
-                          href={file.downloadUrl}
-                          download={file.name || `Camera_${selectedRecording.cameraNumber}_${idx + 1}.mp4`}
+                        <button
                           className="btn btn-sm btn-ghost"
-                          onClick={() => toast.success('Downloading file...')}
+                          onClick={() => downloadFileAsBlob(
+                            file.fileUrl,
+                            file.name || `Camera_${selectedRecording.cameraNumber}_${idx + 1}.mp4`
+                          ).then(() => toast.success('Downloading file...'))}
                         >
                           <Download className="w-4 h-4" />
-                        </a>
+                        </button>
                       </div>
                     ))}
                   </div>

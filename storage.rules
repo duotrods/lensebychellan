@@ -1,0 +1,29 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper: user is authenticated and email verified
+    function isVerified() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    // Helper: get user's role from Firestore
+    function getUserRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStaff() {
+      return isVerified() && getUserRole() == 'staff';
+    }
+
+    function isAdmin() {
+      return isVerified() && getUserRole() == 'admin';
+    }
+
+    // CCTV uploads: only staff can upload (to their own folder); staff, admin, and client can read
+    match /cctv-uploads/{userId}/{fileName} {
+      allow read: if isVerified() && getUserRole() in ['staff', 'admin', 'client'];
+      allow write: if isStaff() && request.auth.uid == userId;
+    }
+  }
+}
