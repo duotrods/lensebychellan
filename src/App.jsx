@@ -20,13 +20,6 @@ const queryClient = new QueryClient({
 });
 
 // Existing components
-import Navbar from './components/navbar';
-import Home from './components/home';
-import About from './components/about';
-import Services from './components/services';
-import Whyus from './components/whyus';
-import Accordition from './components/accordition';
-import Footer from './components/footer';
 
 // New pages
 import SignInPage from './pages/SignInPage';
@@ -76,18 +69,6 @@ import ClientCCTVFaultsPage from './pages/client/CCTVFaultsPage';
 import { USER_ROLES } from './utils/constants';
 import './index.css';
 
-const LandingPageLayout = () => (
-  <div>
-    <Navbar />
-    <Home />
-    <About />
-    <Services />
-    <Whyus />
-    <Accordition />
-    <Footer />
-  </div>
-);
-
 const App = () => {
   return (
     <ErrorBoundary>
@@ -100,7 +81,7 @@ const App = () => {
 
             <Routes>
             {/* Public routes */}
-            <Route path="/" element={<LandingPageLayout />} />
+            <Route path="/" element={<Navigate to="/signin" replace />} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
