@@ -316,12 +316,16 @@ const ReportsPage = () => {
 
   // Use type-specific count for pagination when a filter is active
   const getActiveCount = () => {
-    if (filterType === "incident" && subFilter === "incursion") return reportTypeCounts.incursions;
-    if (filterType === "incident" && subFilter === "free-recovery") return reportTypeCounts.freeRecovery;
-    if (filterType === "incident" && subFilter === "asset-damage") return reportTypeCounts.incidentAssetDamage;
+    if (filterType === "incident" && subFilter === "incursion")
+      return reportTypeCounts.incursions;
+    if (filterType === "incident" && subFilter === "free-recovery")
+      return reportTypeCounts.freeRecovery;
+    if (filterType === "incident" && subFilter === "asset-damage")
+      return reportTypeCounts.incidentAssetDamage;
     if (filterType === "incident") return reportTypeCounts.incident;
     if (filterType === "asset-damage") return reportTypeCounts.assetDamage;
-    if (filterType === "daily-occurrence") return reportTypeCounts.dailyOccurrence;
+    if (filterType === "daily-occurrence")
+      return reportTypeCounts.dailyOccurrence;
     if (filterType === "cctv-check") return reportTypeCounts.cctvCheck;
     if (filterType === "cctv-faults") return reportTypeCounts.cctvFaults;
     return reportTypeCounts.total;
