@@ -12,6 +12,7 @@
     "cleanup:database": "node cleanup-database.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1020.0",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-query": "^5.90.12",
     "@vercel/analytics": "^1.6.1",

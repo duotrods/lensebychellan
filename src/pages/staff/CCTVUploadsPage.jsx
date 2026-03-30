@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
-import { storage } from "../../config/firebase";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import {
   Upload,
@@ -23,10 +22,17 @@ import {
   extractSchemeId,
 } from "../../utils/schemes";
 
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: import.meta.env.VITE_R2_ENDPOINT,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+});
+
 const CCTVUploadsPage = () => {
   const { userProfile } = useAuth();
-  // eslint-disable-next-line no-empty-pattern
-  const [] = useState(false);
   const [uploads, setUploads] = useState([]);
   const [loadingUploads, setLoadingUploads] = useState(true);
 
@@ -171,39 +177,32 @@ const CCTVUploadsPage = () => {
 
     try {
       const uploadPromises = selectedFiles.map(async (file, index) => {
-        const fileName = `cctv-uploads/${userProfile.uid}/${Date.now()}_${
-          file.name
-        }`;
-        const storageRef = ref(storage, fileName);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+        const key = `cctv-uploads/${userProfile.uid}/${Date.now()}_${file.name}`;
 
-        return new Promise((resolve, reject) => {
-          uploadTask.on(
-            "state_changed",
-            (snapshot) => {
-              const progress =
-                (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadProgress((prev) => ({
-                ...prev,
-                [index]: Math.round(progress),
-              }));
-            },
-            (error) => {
-              console.error("Upload error:", error);
-              reject(error);
-            },
-            async () => {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve({
-                fileName: file.name,
-                fileUrl: fileName,
-                downloadUrl: downloadURL,
-                fileSize: file.size,
-                fileType: file.type,
-              });
-            },
-          );
-        });
+        // Read file as ArrayBuffer for S3 PutObject
+        const arrayBuffer = await file.arrayBuffer();
+
+        await r2Client.send(
+          new PutObjectCommand({
+            Bucket: import.meta.env.VITE_R2_BUCKET,
+            Key: key,
+            Body: new Uint8Array(arrayBuffer),
+            ContentType: file.type,
+          }),
+        );
+
+        // Simulate progress since S3 PutObject doesn't stream progress
+        setUploadProgress((prev) => ({ ...prev, [index]: 100 }));
+
+        const publicUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${key}`;
+
+        return {
+          fileName: file.name,
+          fileUrl: key,
+          downloadUrl: publicUrl,
+          fileSize: file.size,
+          fileType: file.type,
+        };
       });
 
       const uploadedFiles = await Promise.all(uploadPromises);
