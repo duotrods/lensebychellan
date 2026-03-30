@@ -1,23 +1,32 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
-import { clientDataService } from '../../services/clientDataService';
-import { storage } from '../../config/firebase';
-import { ref, getBlob } from 'firebase/storage';
-import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
+import { useState, useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { clientDataService } from "../../services/clientDataService";
+import { storage } from "../../config/firebase";
+import { ref, getBlob } from "firebase/storage";
+import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import {
-  Camera, Search, Filter, Download, Play, Calendar,
-  MapPin, Video, ChevronLeft, ChevronRight, Eye
-} from 'lucide-react';
-import toast from 'react-hot-toast';
-import { SCHEMES } from '../../utils/schemes';
+  Camera,
+  Search,
+  Filter,
+  Download,
+  Play,
+  Calendar,
+  MapPin,
+  Video,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { SCHEMES } from "../../utils/schemes";
 
 const CCTVRecordingsPage = () => {
   const { userProfile } = useAuth();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('all');
-  const [cameraFilter, setCameraFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [cameraFilter, setCameraFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecording, setSelectedRecording] = useState(null);
   const recordingsPerPage = 12;
@@ -36,11 +45,16 @@ const CCTVRecordingsPage = () => {
       const cctvData = await clientDataService.getCCTVRecordings(activeScheme);
       setRecordings(cctvData);
     } catch (error) {
-      console.error('Failed to load CCTV recordings:', error);
-      if (error.message?.includes('index') || error.cause?.message?.includes('index')) {
-        toast.error('Firebase indexes are still building. Please wait 5-10 minutes and refresh.');
+      console.error("Failed to load CCTV recordings:", error);
+      if (
+        error.message?.includes("index") ||
+        error.cause?.message?.includes("index")
+      ) {
+        toast.error(
+          "Firebase indexes are still building. Please wait 5-10 minutes and refresh.",
+        );
       } else {
-        toast.error('Failed to load CCTV recordings');
+        toast.error("Failed to load CCTV recordings");
       }
     } finally {
       setLoading(false);
@@ -48,32 +62,39 @@ const CCTVRecordingsPage = () => {
   };
 
   // Get unique cameras
-  const uniqueCameras = [...new Set(recordings.map(r => r.cameraNumber))].sort();
+  const uniqueCameras = [
+    ...new Set(recordings.map((r) => r.cameraNumber)),
+  ].sort();
 
   // Filter recordings
-  const filteredRecordings = recordings.filter(recording => {
-    const matchesSearch = recording.cameraNumber?.toString().includes(searchTerm) ||
-                         recording.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         recording.scheme?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredRecordings = recordings.filter((recording) => {
+    const matchesSearch =
+      recording.cameraNumber?.toString().includes(searchTerm) ||
+      recording.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      recording.scheme?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesCamera = cameraFilter === 'all' || recording.cameraNumber?.toString() === cameraFilter;
+    const matchesCamera =
+      cameraFilter === "all" ||
+      recording.cameraNumber?.toString() === cameraFilter;
 
     let matchesDate = true;
-    if (dateFilter !== 'all' && recording.dateTime) {
+    if (dateFilter !== "all" && recording.dateTime) {
       const recordingDate = recording.dateTime.seconds
         ? new Date(recording.dateTime.seconds * 1000)
         : new Date(recording.dateTime);
       const now = new Date();
-      const daysDiff = Math.floor((now - recordingDate) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.floor(
+        (now - recordingDate) / (1000 * 60 * 60 * 24),
+      );
 
-      switch(dateFilter) {
-        case 'today':
+      switch (dateFilter) {
+        case "today":
           matchesDate = daysDiff === 0;
           break;
-        case 'week':
+        case "week":
           matchesDate = daysDiff <= 7;
           break;
-        case 'month':
+        case "month":
           matchesDate = daysDiff <= 30;
           break;
       }
@@ -85,19 +106,33 @@ const CCTVRecordingsPage = () => {
   // Pagination
   const indexOfLastRecording = currentPage * recordingsPerPage;
   const indexOfFirstRecording = indexOfLastRecording - recordingsPerPage;
-  const currentRecordings = filteredRecordings.slice(indexOfFirstRecording, indexOfLastRecording);
+  const currentRecordings = filteredRecordings.slice(
+    indexOfFirstRecording,
+    indexOfLastRecording,
+  );
   const totalPages = Math.ceil(filteredRecordings.length / recordingsPerPage);
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (!timestamp) return "N/A";
+    const date = timestamp.seconds
+      ? new Date(timestamp.seconds * 1000)
+      : new Date(timestamp);
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   const formatTime = (timestamp) => {
-    if (!timestamp) return '';
-    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    if (!timestamp) return "";
+    const date = timestamp.seconds
+      ? new Date(timestamp.seconds * 1000)
+      : new Date(timestamp);
+    return date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const handleViewRecording = (recording) => {
@@ -107,7 +142,7 @@ const CCTVRecordingsPage = () => {
   const downloadFileAsBlob = async (storagePath, fileName) => {
     const blob = await getBlob(ref(storage, storagePath));
     const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = objectUrl;
     link.download = fileName;
     document.body.appendChild(link);
@@ -119,31 +154,35 @@ const CCTVRecordingsPage = () => {
   const handleDownloadRecording = async (recording) => {
     try {
       if (recording.files && recording.files.length > 0) {
-        toast.success(`Downloading ${recording.files.length} file(s) for Camera ${recording.cameraNumber}`);
+        toast.success(
+          `Downloading ${recording.files.length} file(s) for Camera ${recording.cameraNumber}`,
+        );
         for (const [idx, file] of recording.files.entries()) {
           await downloadFileAsBlob(
             file.fileUrl,
-            file.name || `Camera_${recording.cameraNumber}_${idx + 1}.mp4`
+            file.name || `Camera_${recording.cameraNumber}_${idx + 1}.mp4`,
           );
         }
       } else {
-        toast.error('No video files available for download');
+        toast.error("No video files available for download");
       }
     } catch (error) {
-      console.error('Failed to download files:', error);
-      toast.error('Failed to download video files');
+      console.error("Failed to download files:", error);
+      toast.error("Failed to download video files");
     }
   };
 
   const recordingStats = {
     total: recordings.length,
-    today: recordings.filter(r => {
-      const date = r.dateTime?.seconds ? new Date(r.dateTime.seconds * 1000) : new Date(r.dateTime);
+    today: recordings.filter((r) => {
+      const date = r.dateTime?.seconds
+        ? new Date(r.dateTime.seconds * 1000)
+        : new Date(r.dateTime);
       const today = new Date();
       return date.toDateString() === today.toDateString();
     }).length,
     cameras: uniqueCameras.length,
-    incidents: recordings.filter(r => r.incidentRelated).length
+    incidents: recordings.filter((r) => r.incidentRelated).length,
   };
 
   // Get the active scheme name for display
@@ -155,7 +194,9 @@ const CCTVRecordingsPage = () => {
 
     // If we have an activeSchemeId but no activeSchemeName, look it up
     if (userProfile?.activeSchemeId) {
-      const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+      const activeSchemeObj = SCHEMES.find(
+        (s) => s.id === userProfile.activeSchemeId,
+      );
       if (activeSchemeObj) {
         return activeSchemeObj.fullName;
       }
@@ -185,7 +226,9 @@ const CCTVRecordingsPage = () => {
               </div>
               <div>
                 <p className="text-gray-500 text-sm">Total Recordings</p>
-                <p className="text-2xl font-bold text-gray-800">{recordingStats.total}</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {recordingStats.total}
+                </p>
               </div>
             </div>
           </div>
@@ -196,7 +239,9 @@ const CCTVRecordingsPage = () => {
               </div>
               <div>
                 <p className="text-gray-500 text-sm">Today's Uploads</p>
-                <p className="text-2xl font-bold text-gray-800">{recordingStats.today}</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {recordingStats.today}
+                </p>
               </div>
             </div>
           </div>
@@ -207,7 +252,9 @@ const CCTVRecordingsPage = () => {
               </div>
               <div>
                 <p className="text-gray-500 text-sm">Active Cameras</p>
-                <p className="text-2xl font-bold text-gray-800">{recordingStats.cameras}</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {recordingStats.cameras}
+                </p>
               </div>
             </div>
           </div>
@@ -218,7 +265,9 @@ const CCTVRecordingsPage = () => {
               </div>
               <div>
                 <p className="text-gray-500 text-sm">Incident Related</p>
-                <p className="text-2xl font-bold text-gray-800">{recordingStats.incidents}</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {recordingStats.incidents}
+                </p>
               </div>
             </div>
           </div>
@@ -263,8 +312,10 @@ const CCTVRecordingsPage = () => {
                 className="select select-bordered bg-white border-gray-300"
               >
                 <option value="all">All Cameras</option>
-                {uniqueCameras.map(camera => (
-                  <option key={camera} value={camera}>Camera {camera}</option>
+                {uniqueCameras.map((camera) => (
+                  <option key={camera} value={camera}>
+                    Camera {camera}
+                  </option>
                 ))}
               </select>
             </div>
@@ -281,17 +332,22 @@ const CCTVRecordingsPage = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {currentRecordings.map((recording, index) => (
-                  <div key={index} className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                  <div
+                    key={index}
+                    className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                  >
                     {/* Thumbnail — static placeholder, no video loaded until View is clicked */}
                     <div className="relative bg-gray-900 aspect-video">
                       <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                         <Video className="w-12 h-12 text-gray-500" />
-                        <span className="text-xs text-gray-500">Camera {recording.cameraNumber}</span>
+                        <span className="text-xs text-gray-500">
+                          {recording.incidentId || "Incident"}
+                        </span>
                       </div>
                       <div className="absolute top-2 right-2">
                         {recording.incidentRelated && (
                           <span className="badge badge-error badge-sm font-mono">
-                            {recording.incidentId || 'Incident'}
+                            {recording.incidentId || "Incident"}
                           </span>
                         )}
                       </div>
@@ -304,7 +360,7 @@ const CCTVRecordingsPage = () => {
                     <div className="p-4">
                       <div className="mb-2">
                         <h3 className="font-bold text-lg text-gray-800 mb-2">
-                          Camera {recording.cameraNumber}
+                          {recording.incidentId || "Incident"}
                         </h3>
                         <span className="badge badge-brand badge-sm wrap-break-word">
                           {recording.scheme || userProfile?.schemeId}
@@ -327,7 +383,12 @@ const CCTVRecordingsPage = () => {
 
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <MapPin className="w-4 h-4" />
-                          <span>Uploaded by {recording.uploadedBy?.name || recording.uploadedBy || 'Staff'}</span>
+                          <span>
+                            Uploaded by{" "}
+                            {recording.uploadedBy?.name ||
+                              recording.uploadedBy ||
+                              "Staff"}
+                          </span>
                         </div>
                       </div>
 
@@ -357,11 +418,15 @@ const CCTVRecordingsPage = () => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6 pt-6 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing {indexOfFirstRecording + 1} to {Math.min(indexOfLastRecording, filteredRecordings.length)} of {filteredRecordings.length} recordings
+                    Showing {indexOfFirstRecording + 1} to{" "}
+                    {Math.min(indexOfLastRecording, filteredRecordings.length)}{" "}
+                    of {filteredRecordings.length} recordings
                   </p>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
@@ -371,7 +436,9 @@ const CCTVRecordingsPage = () => {
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
                       disabled={currentPage === totalPages}
                       className="btn btn-sm btn-outline"
                     >
@@ -385,7 +452,9 @@ const CCTVRecordingsPage = () => {
             <div className="p-12 text-center">
               <Video className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No recordings found</p>
-              <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
+              <p className="text-gray-400 text-sm mt-2">
+                Try adjusting your search or filter criteria
+              </p>
             </div>
           )}
         </div>
@@ -398,7 +467,8 @@ const CCTVRecordingsPage = () => {
             <div className="p-6 border-b sticky top-0 bg-white">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-800">
-                  Camera {selectedRecording.cameraNumber} - Recording Details
+                  {selectedRecording.incidentId || "Incident"} - Recording
+                  Details
                 </h2>
                 <button
                   onClick={() => setSelectedRecording(null)}
@@ -410,7 +480,9 @@ const CCTVRecordingsPage = () => {
             </div>
             <div className="p-6">
               {/* Video Player */}
-              {selectedRecording.files && selectedRecording.files.length > 0 && selectedRecording.files[0].downloadUrl ? (
+              {selectedRecording.files &&
+              selectedRecording.files.length > 0 &&
+              selectedRecording.files[0].downloadUrl ? (
                 <div className="bg-gray-900 aspect-video rounded-lg overflow-hidden mb-6">
                   <video
                     controls
@@ -426,7 +498,9 @@ const CCTVRecordingsPage = () => {
                   <div className="text-center text-white">
                     <Play className="w-20 h-20 mx-auto mb-4 opacity-50" />
                     <p className="text-lg">No Video Available</p>
-                    <p className="text-sm text-gray-400 mt-2">Video file not found</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Video file not found
+                    </p>
                   </div>
                 </div>
               )}
@@ -435,25 +509,36 @@ const CCTVRecordingsPage = () => {
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Camera Number</p>
-                  <p className="font-semibold text-lg">Camera {selectedRecording.cameraNumber}</p>
+                  <p className="font-semibold text-lg">
+                    Camera {selectedRecording.cameraNumber}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Scheme</p>
-                  <p className="font-semibold text-lg">{selectedRecording.scheme || userProfile?.schemeName}</p>
+                  <p className="font-semibold text-lg">
+                    {selectedRecording.scheme || userProfile?.schemeName}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Date & Time</p>
                   <p className="font-semibold">
-                    {formatDate(selectedRecording.dateTime)} at {formatTime(selectedRecording.dateTime)}
+                    {formatDate(selectedRecording.dateTime)} at{" "}
+                    {formatTime(selectedRecording.dateTime)}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Uploaded By</p>
-                  <p className="font-semibold">{selectedRecording.uploadedBy?.name || selectedRecording.uploadedBy || 'Staff Member'}</p>
+                  <p className="font-semibold">
+                    {selectedRecording.uploadedBy?.name ||
+                      selectedRecording.uploadedBy ||
+                      "Staff Member"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">File Count</p>
-                  <p className="font-semibold">{selectedRecording.fileCount || 1} file(s)</p>
+                  <p className="font-semibold">
+                    {selectedRecording.fileCount || 1} file(s)
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Incident Related</p>
@@ -470,35 +555,48 @@ const CCTVRecordingsPage = () => {
               {selectedRecording.description && (
                 <div className="mb-6">
                   <p className="text-sm text-gray-500 mb-1">Description</p>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{selectedRecording.description}</p>
+                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">
+                    {selectedRecording.description}
+                  </p>
                 </div>
               )}
 
               {/* Files List */}
-              {selectedRecording.files && selectedRecording.files.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-sm text-gray-500 mb-2">Files ({selectedRecording.files.length})</p>
-                  <div className="space-y-2">
-                    {selectedRecording.files.map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Video className="w-5 h-5 text-gray-500" />
-                          <span className="text-sm font-medium">{file.name || `Video ${idx + 1}`}</span>
-                        </div>
-                        <button
-                          className="btn btn-sm btn-ghost"
-                          onClick={() => downloadFileAsBlob(
-                            file.fileUrl,
-                            file.name || `Camera_${selectedRecording.cameraNumber}_${idx + 1}.mp4`
-                          ).then(() => toast.success('Downloading file...'))}
+              {selectedRecording.files &&
+                selectedRecording.files.length > 0 && (
+                  <div className="mb-6">
+                    <p className="text-sm text-gray-500 mb-2">
+                      Files ({selectedRecording.files.length})
+                    </p>
+                    <div className="space-y-2">
+                      {selectedRecording.files.map((file, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                         >
-                          <Download className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center gap-3">
+                            <Video className="w-5 h-5 text-gray-500" />
+                            <span className="text-sm font-medium">
+                              {file.name || `Video ${idx + 1}`}
+                            </span>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-ghost"
+                            onClick={() =>
+                              downloadFileAsBlob(
+                                file.fileUrl,
+                                file.name ||
+                                  `Camera_${selectedRecording.cameraNumber}_${idx + 1}.mp4`,
+                              ).then(() => toast.success("Downloading file..."))
+                            }
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Actions */}
               <div className="flex gap-3">

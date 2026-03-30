@@ -16,11 +16,17 @@ import {
   Eye,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { isDemoUser, DEMO_SCHEME_ID, SCHEMES, extractSchemeId } from "../../utils/schemes";
+import {
+  isDemoUser,
+  DEMO_SCHEME_ID,
+  SCHEMES,
+  extractSchemeId,
+} from "../../utils/schemes";
 
 const CCTVUploadsPage = () => {
   const { userProfile } = useAuth();
-  const [loading, setLoading] = useState(false);
+  // eslint-disable-next-line no-empty-pattern
+  const [] = useState(false);
   const [uploads, setUploads] = useState([]);
   const [loadingUploads, setLoadingUploads] = useState(true);
 
@@ -39,7 +45,7 @@ const CCTVUploadsPage = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);  //Drag files
+  const [isDragging, setIsDragging] = useState(false); //Drag files
 
   useEffect(() => {
     loadUploads();
@@ -55,8 +61,9 @@ const CCTVUploadsPage = () => {
 
       // Filter uploads based on demo/real user status
       const isDemo = isDemoUser(userProfile);
-      const filteredUploads = cctvUploads.filter(upload => {
-        const uploadSchemeId = upload.schemeId || extractSchemeId(upload.scheme);
+      const filteredUploads = cctvUploads.filter((upload) => {
+        const uploadSchemeId =
+          upload.schemeId || extractSchemeId(upload.scheme);
         if (isDemo) {
           // Demo user: only show demo uploads
           return uploadSchemeId === DEMO_SCHEME_ID;
@@ -194,7 +201,7 @@ const CCTVUploadsPage = () => {
                 fileSize: file.size,
                 fileType: file.type,
               });
-            }
+            },
           );
         });
       });
@@ -208,7 +215,7 @@ const CCTVUploadsPage = () => {
           files: uploadedFiles,
         },
         userProfile.uid,
-        userProfile.displayName
+        userProfile.displayName,
       );
 
       toast.success("CCTV footage uploaded successfully!");
@@ -249,16 +256,6 @@ const CCTVUploadsPage = () => {
     }
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return "N/A";
-    const date = timestamp.toDate();
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
   return (
     <StaffSidebarLayout>
       <div className="max-w-6xl mx-auto">
@@ -295,14 +292,13 @@ const CCTVUploadsPage = () => {
                     required
                   >
                     <option value="">Please Select</option>
-                    {SCHEMES
-                      .filter(scheme => isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo)
-                      .map((scheme) => (
-                        <option key={scheme.id} value={scheme.fullName}>
-                          {scheme.fullName}
-                        </option>
-                      ))
-                    }
+                    {SCHEMES.filter((scheme) =>
+                      isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo,
+                    ).map((scheme) => (
+                      <option key={scheme.id} value={scheme.fullName}>
+                        {scheme.fullName}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -446,10 +442,14 @@ const CCTVUploadsPage = () => {
                     disabled={uploadingFiles}
                   />
                   <label htmlFor="video-upload" className="cursor-pointer">
-                    <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-teal-500" : "text-gray-400"}`} />
+                    <Upload
+                      className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-teal-500" : "text-gray-400"}`}
+                    />
                     <p className="text-gray-600 mb-2">
                       {isDragging ? (
-                        <span className="text-teal-600 font-semibold">Drop files here</span>
+                        <span className="text-teal-600 font-semibold">
+                          Drop files here
+                        </span>
                       ) : (
                         <>
                           <span className="text-teal-600 font-semibold">
@@ -564,23 +564,23 @@ const CCTVUploadsPage = () => {
 
             <ul className="space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Maximum file size: 500MB per video</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Supported formats: MP4, AVI, MOV, MKV</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Include camera number and exact time</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Link to incident report if applicable</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Add description for easy identification</span>
               </li>
             </ul>
@@ -660,7 +660,7 @@ const CCTVUploadsPage = () => {
                           {upload.files?.length || 0} file(s)
                         </td>
                         <td className="text-sm text-gray-600">
-                          {upload.submittedBy?.name || 'Unknown'}
+                          {upload.submittedBy?.name || "Unknown"}
                         </td>
                         <td className="text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -668,7 +668,7 @@ const CCTVUploadsPage = () => {
                               onClick={() =>
                                 window.open(
                                   upload.files[0]?.downloadUrl,
-                                  "_blank"
+                                  "_blank",
                                 )
                               }
                               className="btn btn-sm bg-teal-500 text-white hover:bg-teal-600 border-none"
