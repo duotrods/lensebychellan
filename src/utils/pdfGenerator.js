@@ -324,6 +324,9 @@ export const generateReportPDF = async (
       if (report.nhLog) addField("NH Log", report.nhLog);
       if (report.collarNumber) addField("Collar Number", report.collarNumber);
       if (report.incursion) addField("Incursion", report.incursion);
+      addField("Asset Damage?", report.propertyDamage ? "Yes" : "No");
+      if (report.propertyDamage && report.assetType) addField("Asset Type", report.assetType);
+      if (report.propertyDamage && report.damageType) addField("Damage Type", report.damageType);
       if (report.reportedBy) addField("Reported By", report.reportedBy);
       if (report.cameraNumber) addField("Camera Number", report.cameraNumber);
       if (report.markerPost) addField("Marker Post", report.markerPost);

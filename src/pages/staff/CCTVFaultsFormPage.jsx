@@ -16,7 +16,7 @@ const CCTVFaultsFormPage = () => {
   const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [reportMeta, setReportMeta] = useState(null); // status, clientAcknowledged, clientNote
+  const [reportMeta, setReportMeta] = useState(null);
 
   const formatDateToBritish = (date) => {
     const d = new Date(date);
@@ -32,7 +32,6 @@ const CCTVFaultsFormPage = () => {
     time: new Date().toTimeString().slice(0, 5),
     scheme: "",
     camera: "",
-    comments: "",
   });
 
   const handleChange = (e) => {
@@ -58,7 +57,6 @@ const CCTVFaultsFormPage = () => {
           time: report.time || "",
           scheme: report.scheme || "",
           camera: report.camera || "",
-          comments: report.comments || "",
         });
         setReportMeta({
           status: report.status || "live",
@@ -106,12 +104,10 @@ const CCTVFaultsFormPage = () => {
       return;
     }
 
-    // Trim text fields before saving
     const trimmedData = {
       ...formData,
       fullName: formData.fullName.trim(),
       camera: formData.camera.trim(),
-      comments: formData.comments.trim(),
     };
 
     setLoading(true);
@@ -138,7 +134,6 @@ const CCTVFaultsFormPage = () => {
           time: new Date().toTimeString().slice(0, 5),
           scheme: "",
           camera: "",
-          comments: "",
         });
       }
     } catch (error) {
@@ -152,7 +147,6 @@ const CCTVFaultsFormPage = () => {
   return (
     <StaffSidebarLayout>
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <button
             onClick={() => navigate(-1)}
@@ -165,17 +159,14 @@ const CCTVFaultsFormPage = () => {
           </h3>
         </div>
 
-        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="bg-white rounded-xl shadow-md p-8 space-y-6"
         >
-          {/* Logo */}
           <div className="flex justify-center items-center space-x-2 mb-8">
             <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
           </div>
 
-          {/* Edit mode — status + acknowledgment info */}
           {editId && reportMeta && (
             <div className="flex flex-col sm:flex-row gap-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="flex items-center gap-2">
@@ -225,7 +216,6 @@ const CCTVFaultsFormPage = () => {
             </div>
           )}
 
-          {/* Row 1: Full Name, Date, Time */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-gray-300 pt-8">
             <div>
               <label className="label">
@@ -280,7 +270,6 @@ const CCTVFaultsFormPage = () => {
             </div>
           </div>
 
-          {/* Row 2: Scheme and Camera */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="label">
@@ -325,23 +314,6 @@ const CCTVFaultsFormPage = () => {
             </div>
           </div>
 
-          {/* Row 3: Comments */}
-          <div>
-            <label className="label">
-              <span className="label-text font-semibold mb-2">Comments</span>
-            </label>
-            <textarea
-              name="comments"
-              value={formData.comments}
-              onChange={handleChange}
-              rows={5}
-              className="textarea bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-              placeholder="Describe the fault in detail..."
-              maxLength={2000}
-            />
-          </div>
-
-          {/* Submit Buttons */}
           <div className="flex flex-wrap justify-end gap-4 mt-8 pt-6 border-t border-gray-300">
             <button
               type="button"
@@ -351,7 +323,6 @@ const CCTVFaultsFormPage = () => {
               Cancel
             </button>
 
-            {/* Mark Complete — only shown in edit mode when fault is still live */}
             {editId && reportMeta?.status === "live" && (
               <button
                 type="button"

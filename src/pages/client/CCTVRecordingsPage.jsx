@@ -282,22 +282,17 @@ const CCTVRecordingsPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {currentRecordings.map((recording, index) => (
                   <div key={index} className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                    {/* Thumbnail */}
+                    {/* Thumbnail — static placeholder, no video loaded until View is clicked */}
                     <div className="relative bg-gray-900 aspect-video">
-                      {recording.files && recording.files.length > 0 && recording.files[0].downloadUrl ? (
-                        <video
-                          className="w-full h-full object-cover"
-                          src={recording.files[0].downloadUrl}
-                          preload="metadata"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Camera className="w-16 h-16 text-gray-600" />
-                        </div>
-                      )}
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                        <Video className="w-12 h-12 text-gray-500" />
+                        <span className="text-xs text-gray-500">Camera {recording.cameraNumber}</span>
+                      </div>
                       <div className="absolute top-2 right-2">
                         {recording.incidentRelated && (
-                          <span className="badge badge-error badge-sm">Incident</span>
+                          <span className="badge badge-error badge-sm font-mono">
+                            {recording.incidentId || 'Incident'}
+                          </span>
                         )}
                       </div>
                       <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
@@ -347,10 +342,10 @@ const CCTVRecordingsPage = () => {
                         </button>
                         <button
                           onClick={() => handleDownloadRecording(recording)}
-                          className="btn btn-sm btn-outline flex-1"
+                          className="btn btn-sm btn-outline"
+                          title="Download video"
                         >
-                          <Download className="w-4 h-4 mr-1" />
-                          Download
+                          <Download className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -419,6 +414,7 @@ const CCTVRecordingsPage = () => {
                 <div className="bg-gray-900 aspect-video rounded-lg overflow-hidden mb-6">
                   <video
                     controls
+                    preload="none"
                     className="w-full h-full"
                     src={selectedRecording.files[0].downloadUrl}
                   >

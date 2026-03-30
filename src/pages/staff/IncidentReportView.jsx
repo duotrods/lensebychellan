@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, Edit, Trash2 } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import { staffService } from '../../services/staffService';
-import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
-import { generateReportPDF } from '../../utils/pdfGenerator';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import { ArrowLeft, Download, Edit, Trash2 } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
+import { staffService } from "../../services/staffService";
+import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import { generateReportPDF } from "../../utils/pdfGenerator";
 
 const IncidentReportView = () => {
   const { id } = useParams();
@@ -23,17 +23,17 @@ const IncidentReportView = () => {
       setLoading(true);
       // Pass null to get all reports, not just current user's
       const reports = await staffService.getIncidentReports(null);
-      const foundReport = reports.find(r => r.id === id);
+      const foundReport = reports.find((r) => r.id === id);
 
       if (foundReport) {
         setReport(foundReport);
       } else {
-        toast.error('Report not found');
-        navigate('/dashboard/staff');
+        toast.error("Report not found");
+        navigate("/dashboard/staff");
       }
     } catch (error) {
-      console.error('Failed to load report:', error);
-      toast.error('Failed to load report');
+      console.error("Failed to load report:", error);
+      toast.error("Failed to load report");
     } finally {
       setLoading(false);
     }
@@ -44,49 +44,47 @@ const IncidentReportView = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete this Incident Report? This action cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete this Incident Report? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
     try {
-      await staffService.deleteIncidentReport(id, userProfile.uid, userProfile.displayName);
-      toast.success('Incident Report deleted successfully');
-      navigate('/dashboard/staff');
+      await staffService.deleteIncidentReport(
+        id,
+        userProfile.uid,
+        userProfile.displayName,
+      );
+      toast.success("Incident Report deleted successfully");
+      navigate("/dashboard/staff");
     } catch (error) {
-      console.error('Failed to delete report:', error);
-      toast.error('Failed to delete report');
+      console.error("Failed to delete report:", error);
+      toast.error("Failed to delete report");
     }
   };
 
   const handleDownloadPDF = async () => {
     try {
-      await generateReportPDF(report, 'incident');
-      toast.success('Downloaded report as PDF');
+      await generateReportPDF(report, "incident");
+      toast.success("Downloaded report as PDF");
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      toast.error('Failed to download PDF');
+      console.error("Failed to generate PDF:", error);
+      toast.error("Failed to download PDF");
     }
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return '';
-    const date = timestamp.toDate();
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
   const formatDateTime = (timestamp) => {
-    if (!timestamp) return '';
+    if (!timestamp) return "";
     const date = timestamp.toDate();
-    return date.toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -166,27 +164,41 @@ const IncidentReportView = () => {
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-semibold text-gray-600">Scheme</label>
-                <p className="text-gray-800">{report.scheme || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Scheme
+                </label>
+                <p className="text-gray-800">{report.scheme || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Section</label>
-                <p className="text-gray-800">{report.section || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Section
+                </label>
+                <p className="text-gray-800">{report.section || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Date</label>
-                <p className="text-gray-800">{report.date || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Date
+                </label>
+                <p className="text-gray-800">{report.date || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Submitted By</label>
+                <label className="text-sm font-semibold text-gray-600">
+                  Submitted By
+                </label>
                 <p className="text-gray-800">
-                  {report.submittedBy?.name || `${report.firstName || ''} ${report.lastName || ''}`.trim() || 'N/A'}
+                  {report.submittedBy?.name ||
+                    `${report.firstName || ""} ${report.lastName || ""}`.trim() ||
+                    "N/A"}
                 </p>
               </div>
               {report.lastEditedBy && (
                 <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-gray-600">Last Edited By</label>
-                  <p className="text-blue-600">{report.lastEditedBy?.name || 'Unknown'}</p>
+                  <label className="text-sm font-semibold text-gray-600">
+                    Last Edited By
+                  </label>
+                  <p className="text-blue-600">
+                    {report.lastEditedBy?.name || "Unknown"}
+                  </p>
                 </div>
               )}
             </div>
@@ -199,48 +211,100 @@ const IncidentReportView = () => {
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-semibold text-gray-600">Weather Conditions</label>
-                <p className="text-gray-800">{report.weatherConditions || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Weather Conditions
+                </label>
+                <p className="text-gray-800">
+                  {report.weatherConditions || "N/A"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Traffic Conditions</label>
-                <p className="text-gray-800">{report.trafficConditions || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Traffic Conditions
+                </label>
+                <p className="text-gray-800">
+                  {report.trafficConditions || "N/A"}
+                </p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">NH Log</label>
-                <p className="text-gray-800">{report.nhLog || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  NH Log
+                </label>
+                <p className="text-gray-800">{report.nhLog || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Collar Number</label>
-                <p className="text-gray-800">{report.collarNumber || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Collar Number
+                </label>
+                <p className="text-gray-800">{report.collarNumber || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Incursion</label>
-                <p className="text-gray-800">{report.incursion || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Incursion
+                </label>
+                <p className="text-gray-800">{report.incursion || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Reported By</label>
-                <p className="text-gray-800">{report.reportedBy || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Asset Damage?
+                </label>
+                <p className="text-gray-800">
+                  {report.propertyDamage ? "Yes" : "No"}
+                </p>
+              </div>
+              {report.propertyDamage && (
+                <>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">
+                      Asset Type
+                    </label>
+                    <p className="text-gray-800">{report.assetType || "N/A"}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-600">
+                      Damage Type
+                    </label>
+                    <p className="text-gray-800">
+                      {report.damageType || "N/A"}
+                    </p>
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="text-sm font-semibold text-gray-600">
+                  Reported By
+                </label>
+                <p className="text-gray-800">{report.reportedBy || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Camera Number</label>
-                <p className="text-gray-800">{report.cameraNumber || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Camera Number
+                </label>
+                <p className="text-gray-800">{report.cameraNumber || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Marker Post</label>
-                <p className="text-gray-800">{report.markerPost || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Marker Post
+                </label>
+                <p className="text-gray-800">{report.markerPost || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Track</label>
-                <p className="text-gray-800">{report.track || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Track
+                </label>
+                <p className="text-gray-800">{report.track || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Incident Type</label>
-                <p className="text-gray-800">{report.incidentType || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Incident Type
+                </label>
+                <p className="text-gray-800">{report.incidentType || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-600">Fault</label>
-                <p className="text-gray-800">{report.fault || 'N/A'}</p>
+                <label className="text-sm font-semibold text-gray-600">
+                  Fault
+                </label>
+                <p className="text-gray-800">{report.fault || "N/A"}</p>
               </div>
             </div>
           </div>
@@ -283,7 +347,7 @@ const IncidentReportView = () => {
             </div>
           )}
 
-           {/* Recovery Requested */}
+          {/* Recovery Requested */}
           {report.recoveryRequested && (
             <div>
               <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
@@ -291,20 +355,36 @@ const IncidentReportView = () => {
               </h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">Light</label>
-                  <p className="text-gray-800">{report.recoveryRequested.light || 0}</p>
+                  <label className="text-sm font-semibold text-gray-600">
+                    Light
+                  </label>
+                  <p className="text-gray-800">
+                    {report.recoveryRequested.light || 0}
+                  </p>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">Heavy</label>
-                  <p className="text-gray-800">{report.recoveryRequested.heavy || 0}</p>
+                  <label className="text-sm font-semibold text-gray-600">
+                    Heavy
+                  </label>
+                  <p className="text-gray-800">
+                    {report.recoveryRequested.heavy || 0}
+                  </p>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">IPV</label>
-                  <p className="text-gray-800">{report.recoveryRequested.ipv || 0}</p>
+                  <label className="text-sm font-semibold text-gray-600">
+                    IPV
+                  </label>
+                  <p className="text-gray-800">
+                    {report.recoveryRequested.ipv || 0}
+                  </p>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">HETOS</label>
-                  <p className="text-gray-800">{report.recoveryRequested.hetos || 0}</p>
+                  <label className="text-sm font-semibold text-gray-600">
+                    HETOS
+                  </label>
+                  <p className="text-gray-800">
+                    {report.recoveryRequested.hetos || 0}
+                  </p>
                 </div>
               </div>
             </div>
@@ -317,25 +397,35 @@ const IncidentReportView = () => {
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="text-sm font-semibold text-black">Time Spotted</label>
-                <p className="text-gray-800">{report.timeSpotted || 'N/A'}</p>
+                <label className="text-sm font-semibold text-black">
+                  Time Spotted
+                </label>
+                <p className="text-gray-800">{report.timeSpotted || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-black">Time On Site</label>
-                <p className="text-gray-800">{report.timeOnSite || 'N/A'}</p>
+                <label className="text-sm font-semibold text-black">
+                  Time On Site
+                </label>
+                <p className="text-gray-800">{report.timeOnSite || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-black">Time Cleared</label>
-                <p className="text-gray-800">{report.timeCleared || 'N/A'}</p>
+                <label className="text-sm font-semibold text-black">
+                  Time Cleared
+                </label>
+                <p className="text-gray-800">{report.timeCleared || "N/A"}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-black">Closed Log Collar Number</label>
-                <p className="text-gray-800">{report.closedLogCollar || 'N/A'}</p>
+                <label className="text-sm font-semibold text-black">
+                  Closed Log Collar Number
+                </label>
+                <p className="text-gray-800">
+                  {report.closedLogCollar || "N/A"}
+                </p>
               </div>
             </div>
           </div>
 
-         {/* Vehicles Involved */}
+          {/* Vehicles Involved */}
           {report.vehicles && report.vehicles.length > 0 && (
             <div>
               <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
@@ -345,19 +435,27 @@ const IncidentReportView = () => {
                 <table className="table w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Type</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Make</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">Model</th>
-                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">VIN</th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">
+                        Type
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">
+                        Make
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">
+                        Model
+                      </th>
+                      <th className="text-left text-sm font-semibold text-gray-600 px-4 py-2">
+                        VIN
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {report.vehicles.map((vehicle, index) => (
                       <tr key={index} className="border-b">
-                        <td className="px-4 py-2">{vehicle.type || 'N/A'}</td>
-                        <td className="px-4 py-2">{vehicle.make || 'N/A'}</td>
-                        <td className="px-4 py-2">{vehicle.model || 'N/A'}</td>
-                        <td className="px-4 py-2">{vehicle.vin || 'N/A'}</td>
+                        <td className="px-4 py-2">{vehicle.type || "N/A"}</td>
+                        <td className="px-4 py-2">{vehicle.make || "N/A"}</td>
+                        <td className="px-4 py-2">{vehicle.model || "N/A"}</td>
+                        <td className="px-4 py-2">{vehicle.vin || "N/A"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -371,7 +469,9 @@ const IncidentReportView = () => {
             <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
               Description of Incident
             </h4>
-            <p className="text-gray-800 whitespace-pre-wrap">{report.description || 'N/A'}</p>
+            <p className="text-gray-800 whitespace-pre-wrap">
+              {report.description || "N/A"}
+            </p>
           </div>
 
           {/* Files */}
@@ -390,7 +490,9 @@ const IncidentReportView = () => {
                     className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <Download className="w-4 h-4 text-gray-600" />
-                    <span className="text-sm text-gray-800">{file.fileName}</span>
+                    <span className="text-sm text-gray-800">
+                      {file.fileName}
+                    </span>
                   </a>
                 ))}
               </div>
@@ -401,11 +503,13 @@ const IncidentReportView = () => {
           <div className="border-t pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500">
               <div>
-                <label className="font-semibold">Created:</label> {formatDateTime(report.createdAt)}
+                <label className="font-semibold">Created:</label>{" "}
+                {formatDateTime(report.createdAt)}
               </div>
               {report.updatedAt && (
                 <div>
-                  <label className="font-semibold">Last Updated:</label> {formatDateTime(report.updatedAt)}
+                  <label className="font-semibold">Last Updated:</label>{" "}
+                  {formatDateTime(report.updatedAt)}
                 </div>
               )}
             </div>

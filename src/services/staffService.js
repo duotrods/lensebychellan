@@ -15,6 +15,8 @@ import {
   onSnapshot,
   startAfter,
   getCountFromServer,
+  increment,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { referenceIdService } from "./referenceIdService";
@@ -295,6 +297,18 @@ class StaffService {
   // INCIDENT REPORTS
   // ============================================
 
+  _countVehicles(formData) {
+    const r = formData?.recoveryRequested;
+    if (!r || typeof r !== "object") return 0;
+    return (r.light || 0) + (r.heavy || 0) + (r.ipv || 0) + (r.hetos || 0);
+  }
+
+  async _updateSchemeVehicleStats(schemeId, delta) {
+    if (!schemeId || delta === 0) return;
+    const statsRef = doc(db, "schemeStats", schemeId);
+    await setDoc(statsRef, { totalVehiclesDispatched: increment(delta) }, { merge: true });
+  }
+
   async submitIncidentReport(formData, userId, userName, status = "submitted") {
     try {
       // Extract schemeId from scheme field (e.g., "A417 Missing Link - Kier" -> "A417")
@@ -323,6 +337,10 @@ class StaffService {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
+      // Update running vehicle total for this scheme
+      const vehicleDelta = this._countVehicles(formData);
+      if (vehicleDelta > 0) await this._updateSchemeVehicleStats(schemeId, vehicleDelta);
 
       // Log activity
       await this.logActivity({
@@ -429,6 +447,12 @@ class StaffService {
         updatedAt: serverTimestamp(),
       });
 
+      // Update running vehicle total — only the difference
+      const oldVehicles = this._countVehicles(currentData);
+      const newVehicles = this._countVehicles(formData);
+      const delta = newVehicles - oldVehicles;
+      if (delta !== 0) await this._updateSchemeVehicleStats(schemeId, delta);
+
       // Log activity
       await this.logActivity({
         type: "form_edited",
@@ -457,6 +481,13 @@ class StaffService {
       const currentData = reportDoc.data();
 
       await deleteDoc(reportRef);
+
+      // Subtract vehicles from running total
+      const vehicleDelta = this._countVehicles(currentData);
+      if (vehicleDelta > 0) {
+        const deletedSchemeId = currentData.schemeId || extractSchemeId(currentData.scheme);
+        await this._updateSchemeVehicleStats(deletedSchemeId, -vehicleDelta);
+      }
 
       await this.logActivity({
         type: "form_deleted",

@@ -1,7 +1,1 @@
-[
-  {
-    "origin": ["http://localhost:5173", "https://lensebychellan.web.app", "https://lensebychellan.firebaseapp.com"],
-    "method": ["GET"],
-    "maxAgeSeconds": 3600
-  }
-]
+[{"origin":["*"],"method":["GET","HEAD"],"maxAgeSeconds":3600}]

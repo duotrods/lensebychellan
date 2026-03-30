@@ -41,6 +41,7 @@ import AssetDamageView from './pages/staff/AssetDamageView';
 import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
 import CCTVFaultsView from './pages/staff/CCTVFaultsView';
 import OTPManagementPage from './pages/admin/OTPManagementPage';
+import BackfillVehicleStatsPage from './pages/admin/BackfillVehicleStatsPage';
 import SchemeAssignmentPage from './pages/admin/SchemeAssignmentPage';
 import StaffManagementPage from './pages/admin/StaffManagementPage';
 import StaffReportsPage from './pages/admin/StaffReportsPage';
@@ -111,6 +112,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                   <OTPManagementPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/admin/backfill-vehicle-stats"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                  <BackfillVehicleStatsPage />
                 </ProtectedRoute>
               }
             />

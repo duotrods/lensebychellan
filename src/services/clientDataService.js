@@ -320,6 +320,20 @@ class ClientDataService {
     }
   }
 
+  async updateCCTVFaultNotes(faultId, updatedNotes) {
+    try {
+      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+      const faultRef = doc(db, "cctvFaultsReports", faultId);
+      await updateDoc(faultRef, {
+        clientNotes: updatedNotes,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Failed to update notes:", error);
+      throw error;
+    }
+  }
+
   // Paginated query for COMPLETED CCTV fault reports (history column)
   async getCCTVFaultsPaginated(schemeId, pageSize = 10, lastDoc = null) {
     try {
@@ -1088,7 +1102,7 @@ class ClientDataService {
           where("createdAt", "<=", Timestamp.fromDate(endDate)),
         );
         const incidentsSnapshot = await getDocs(incidentsQuery);
-        incidents = incidentsSnapshot.docs.map((doc) => doc.data());
+        incidents = incidentsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         console.log(
           `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
         );
@@ -1106,7 +1120,7 @@ class ClientDataService {
             where("schemeIds", "array-contains", schemeId),
           );
           const snapshot = await getDocs(simpleQuery);
-          const allIncidents = snapshot.docs.map((doc) => doc.data());
+          const allIncidents = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
           // Filter by date range in memory
           incidents = allIncidents.filter((incident) => {
@@ -1152,7 +1166,7 @@ class ClientDataService {
         })),
       };
 
-      return stats;
+      return { ...stats, incidents };
     } catch (error) {
       throw new AppError(
         "Failed to fetch scheme stats by date range",
@@ -1689,13 +1703,16 @@ class ClientDataService {
   // Get count per report type for a scheme (for stat cards - 4 reads total)
   async getAllReportsCountByType(schemeId) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount] =
+      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount, freeRecoveryCount, incursionsCount, vehiclesDispatchedCount] =
         await Promise.all([
           this.getCollectionCount("incidentReports", schemeId),
           this.getCollectionCount("assetDamageReports", schemeId),
           this.getCollectionCount("dailyOccurrenceReports", schemeId),
           this.getCollectionCount("cctvCheckForms", schemeId),
           this.getCollectionCount("cctvFaultsReports", schemeId),
+          this.getCollectionCountWithFilter("incidentReports", schemeId, "incidentType", "Free Recovery"),
+          this.getCollectionCountWithFilter("incidentReports", schemeId, "incursion", "YES"),
+          this.getVehiclesDispatchedCount(schemeId),
         ]);
 
       return {
@@ -1704,6 +1721,9 @@ class ClientDataService {
         dailyOccurrence: dailyCount,
         cctvCheck: cctvCount,
         cctvFaults: cctvFaultsCount,
+        freeRecovery: freeRecoveryCount,
+        incursions: incursionsCount,
+        vehiclesDispatched: vehiclesDispatchedCount,
         total: incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount,
       };
     } catch (error) {
@@ -1714,8 +1734,39 @@ class ClientDataService {
         dailyOccurrence: 0,
         cctvCheck: 0,
         cctvFaults: 0,
+        freeRecovery: 0,
+        incursions: 0,
+        vehiclesDispatched: 0,
         total: 0,
       };
+    }
+  }
+
+  async getVehiclesDispatchedCount(schemeId) {
+    try {
+      const { doc, getDoc } = await import("firebase/firestore");
+      const statsRef = doc(db, "schemeStats", schemeId);
+      const snapshot = await getDoc(statsRef);
+      return snapshot.exists() ? (snapshot.data().totalVehiclesDispatched || 0) : 0;
+    } catch (error) {
+      console.warn("Could not get vehicles dispatched count:", error);
+      return 0;
+    }
+  }
+
+  async getCollectionCountWithFilter(collectionName, schemeId, field, value) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      const q = query(
+        collectionRef,
+        where("schemeIds", "array-contains", schemeId),
+        where(field, "==", value)
+      );
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn(`Could not get filtered count for ${collectionName}:`, error);
+      return 0;
     }
   }
 

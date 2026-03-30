@@ -13,12 +13,46 @@ const formatNoteTime = (addedAt) => {
   return `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
 };
 
-const NoteThread = ({ notes, legacyNote }) => {
+const NoteThread = ({ notes, legacyNote, faultId, onNotesUpdated }) => {
   const allNotes = notes?.length
     ? notes
     : legacyNote
     ? [{ text: legacyNote, addedAt: null, authorRole: 'cctvfaultoperator', authorName: 'Operator' }]
     : [];
+
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = (idx) => {
+    setEditingIdx(idx);
+    setEditText(allNotes[idx].text);
+  };
+
+  const cancelEdit = () => {
+    setEditingIdx(null);
+    setEditText('');
+  };
+
+  const saveEdit = async (idx) => {
+    if (!editText.trim() || editText.trim() === allNotes[idx].text) {
+      cancelEdit();
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated = allNotes.map((n, i) =>
+        i === idx ? { ...n, text: editText.trim() } : n
+      );
+      await clientDataService.updateCCTVFaultNotes(faultId, updated);
+      onNotesUpdated?.();
+      cancelEdit();
+    } catch {
+      toast.error('Failed to save edit.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!allNotes.length) {
     return <p className="text-xs text-gray-400 text-center py-2">No notes yet — start the conversation</p>;
@@ -30,13 +64,48 @@ const NoteThread = ({ notes, legacyNote }) => {
         const isCCTV = note.authorRole === 'cctvfaultoperator';
         return (
           <div key={idx} className={`flex flex-col ${isCCTV ? 'items-end' : 'items-start'}`}>
-            <div className={`px-3 py-2 rounded-xl text-sm max-w-[75%] ${
-              isCCTV
-                ? 'bg-teal-500 text-white rounded-tr-sm'
-                : 'bg-blue-100 text-blue-900 rounded-tl-sm'
-            }`}>
-              {note.text}
-            </div>
+            {editingIdx === idx ? (
+              <div className="flex items-center gap-2 w-full max-w-[75%]">
+                <input
+                  autoFocus
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(idx); }
+                    if (e.key === 'Escape') cancelEdit();
+                  }}
+                  disabled={saving}
+                  className="flex-1 text-sm border border-blue-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                />
+                <button
+                  onClick={() => saveEdit(idx)}
+                  disabled={saving || !editText.trim()}
+                  className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  disabled={saving}
+                  className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                >
+                  <span className="text-xs">✕</span>
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`px-3 py-2 rounded-xl text-sm max-w-[75%] cursor-pointer group relative ${
+                  isCCTV
+                    ? 'bg-teal-500 text-white rounded-tr-sm'
+                    : 'bg-blue-100 text-blue-900 rounded-tl-sm'
+                }`}
+                onClick={() => startEdit(idx)}
+                title="Click to edit"
+              >
+                {note.text}
+                <span className="absolute -top-1 -right-1 hidden group-hover:flex items-center justify-center w-4 h-4 bg-white border border-gray-200 rounded-full text-gray-500 text-xs shadow-sm">✎</span>
+              </div>
+            )}
             <span className="text-xs text-gray-400 mt-0.5">
               {note.authorName || (isCCTV ? 'Operator' : 'Staff')}
               {note.addedAt && ` · ${formatNoteTime(note.addedAt)}`}
@@ -240,7 +309,7 @@ const CCTVFaultsLivePageInner = () => {
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                               Note Thread
                             </p>
-                            <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+                            <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} faultId={fault.id} />
                             <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
                               <input
                                 type="text"

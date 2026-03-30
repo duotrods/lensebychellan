@@ -1,15 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { clientDataService } from '../../services/clientDataService';
-import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { clientDataService } from "../../services/clientDataService";
+import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import {
-  FileText, AlertTriangle, Package, Calendar,
-  Search, Filter, Download, Eye, ChevronLeft, ChevronRight
-} from 'lucide-react';
-import toast from 'react-hot-toast';
-import { generateReportPDF } from '../../utils/pdfGenerator';
-import { SCHEMES } from '../../utils/schemes';
+  FileText,
+  AlertTriangle,
+  Calendar,
+  Search,
+  Filter,
+  Download,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Wrench,
+  ShieldAlert,
+  CameraOff,
+  Car,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { generateReportPDF } from "../../utils/pdfGenerator";
+import { SCHEMES } from "../../utils/schemes";
 
 // Module-level variable — survives component unmount/remount, no serialization needed
 let _reportsRestore = null;
@@ -19,8 +30,8 @@ const ReportsPage = () => {
   const { userProfile } = useAuth();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState(null);
   const [cursors, setCursors] = useState({});
@@ -33,15 +44,21 @@ const ReportsPage = () => {
   const [hasMore, setHasMore] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [subFilter, setSubFilter] = useState(null); // 'free-recovery' | 'incursion' | null
 
-  const isSearchMode = searchTerm.trim() !== '';
+  const isSearchMode = searchTerm.trim() !== "";
 
   const runSearch = async (term) => {
-    if (!term.trim()) { setSearchResults([]); return; }
+    if (!term.trim()) {
+      setSearchResults([]);
+      return;
+    }
     const now = Date.now();
-    searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
+    searchRateLimitRef.current = searchRateLimitRef.current.filter(
+      (t) => now - t < 30000,
+    );
     if (searchRateLimitRef.current.length >= 10) {
-      toast.error('Too many searches. Please wait a moment.');
+      toast.error("Too many searches. Please wait a moment.");
       return;
     }
     searchRateLimitRef.current.push(now);
@@ -49,17 +66,30 @@ const ReportsPage = () => {
     setSearchLoading(true);
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const results = await clientDataService.searchReportsByReferenceId(activeScheme, term.trim());
+      const results = await clientDataService.searchReportsByReferenceId(
+        activeScheme,
+        term.trim(),
+      );
       if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
       setSearchResults(results);
     } catch (err) {
-      console.error('Search failed:', err);
-      toast.error('Search failed. Please try again.');
+      console.error("Search failed:", err);
+      toast.error("Search failed. Please try again.");
     } finally {
       setSearchLoading(false);
     }
   };
-  const [reportTypeCounts, setReportTypeCounts] = useState({ incident: 0, assetDamage: 0, dailyOccurrence: 0, cctvCheck: 0, cctvFaults: 0, total: 0 });
+  const [reportTypeCounts, setReportTypeCounts] = useState({
+    incident: 0,
+    assetDamage: 0,
+    dailyOccurrence: 0,
+    cctvCheck: 0,
+    cctvFaults: 0,
+    freeRecovery: 0,
+    incursions: 0,
+    vehiclesDispatched: 0,
+    total: 0,
+  });
   const reportsPerPage = 10;
 
   useEffect(() => {
@@ -72,16 +102,19 @@ const ReportsPage = () => {
         setHasMore(_reportsRestore.hasMore);
         setCursors(_reportsRestore.cursors || {});
         setTypeCursor(_reportsRestore.typeCursor || null);
-        if (_reportsRestore.reportTypeCounts) setReportTypeCounts(_reportsRestore.reportTypeCounts);
+        if (_reportsRestore.reportTypeCounts)
+          setReportTypeCounts(_reportsRestore.reportTypeCounts);
         // Restore the full page cache so Prev/Next navigation works on all cached pages
-        pageCacheRef.current = _reportsRestore.pageCache ? { ..._reportsRestore.pageCache } : {
-          [_reportsRestore.page]: {
-            data: _reportsRestore.reports,
-            cursors: _reportsRestore.cursors || {},
-            typeCursor: _reportsRestore.typeCursor || null,
-            hasMore: _reportsRestore.hasMore,
-          }
-        };
+        pageCacheRef.current = _reportsRestore.pageCache
+          ? { ..._reportsRestore.pageCache }
+          : {
+              [_reportsRestore.page]: {
+                data: _reportsRestore.reports,
+                cursors: _reportsRestore.cursors || {},
+                typeCursor: _reportsRestore.typeCursor || null,
+                hasMore: _reportsRestore.hasMore,
+              },
+            };
         setLoading(false);
         wasRestoredRef.current = true;
       } else {
@@ -89,11 +122,40 @@ const ReportsPage = () => {
       }
       loadTotalCount();
     }
-  }, [userProfile?.activeSchemeId, userProfile?.schemeId, userProfile?.schemeName]);
+  }, [
+    userProfile?.activeSchemeId,
+    userProfile?.schemeId,
+    userProfile?.schemeName,
+  ]);
 
-  const clearRestoreState = () => { _reportsRestore = null; };
+  const clearRestoreState = () => {
+    _reportsRestore = null;
+  };
 
-  const loadReports = async (resetPage = false, overrideFilterType = null, cursorOverride = null, targetPage = null, silent = false) => {
+  const handleCardClick = (type, sub = null) => {
+    clearRestoreState();
+    setSubFilter(sub);
+    setSearchTerm("");
+    setSearchResults([]);
+    pageCacheRef.current = {};
+    setTypeCursor(null);
+    setCursors({});
+    setFilterType(type);
+    loadReports(true, type);
+    // Scroll table into view
+    setTimeout(() => {
+      document.querySelector(".bg-white.rounded-lg.shadow.overflow-hidden")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  const loadReports = async (
+    resetPage = false,
+    overrideFilterType = null,
+    cursorOverride = null,
+    targetPage = null,
+    silent = false,
+  ) => {
     // Check page cache first
     if (targetPage && pageCacheRef.current[targetPage]) {
       const cached = pageCacheRef.current[targetPage];
@@ -108,19 +170,24 @@ const ReportsPage = () => {
     try {
       if (!silent) setLoading(true);
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const activeFilter = overrideFilterType !== null ? overrideFilterType : filterType;
+      const activeFilter =
+        overrideFilterType !== null ? overrideFilterType : filterType;
 
       let newCursors = {};
       let newTypeCursor = null;
       let newHasMore = true;
       let newReports;
 
-      if (activeFilter === 'all') {
-        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
+      if (activeFilter === "all") {
+        const effectiveCursors = cursorOverride
+          ? cursorOverride.cursors
+          : resetPage
+            ? {}
+            : cursors;
         const result = await clientDataService.getAllReportsPaginated(
           activeScheme,
           reportsPerPage,
-          effectiveCursors
+          effectiveCursors,
         );
         newReports = result.reports;
         newCursors = result.cursors;
@@ -128,12 +195,16 @@ const ReportsPage = () => {
         setCursors(newCursors);
         setHasMore(newHasMore);
       } else {
-        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
+        const effectiveTypeCursor = cursorOverride
+          ? cursorOverride.typeCursor
+          : resetPage
+            ? null
+            : typeCursor;
         const result = await clientDataService.getReportsByTypePaginated(
           activeScheme,
           activeFilter,
           reportsPerPage,
-          effectiveTypeCursor
+          effectiveTypeCursor,
         );
         newReports = result.reports;
         newTypeCursor = result.lastDoc;
@@ -157,11 +228,16 @@ const ReportsPage = () => {
         setCurrentPage(1);
       }
     } catch (error) {
-      console.error('Failed to load reports:', error);
-      if (error.message?.includes('index') || error.cause?.message?.includes('index')) {
-        toast.error('Firebase indexes are still building. Please wait 5-10 minutes and refresh.');
+      console.error("Failed to load reports:", error);
+      if (
+        error.message?.includes("index") ||
+        error.cause?.message?.includes("index")
+      ) {
+        toast.error(
+          "Firebase indexes are still building. Please wait 5-10 minutes and refresh.",
+        );
       } else {
-        toast.error('Failed to load reports. Check console for details.');
+        toast.error("Failed to load reports. Check console for details.");
       }
     } finally {
       setLoading(false);
@@ -171,32 +247,49 @@ const ReportsPage = () => {
   const loadTotalCount = async () => {
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const counts = await clientDataService.getAllReportsCountByType(activeScheme);
+      const counts =
+        await clientDataService.getAllReportsCountByType(activeScheme);
       setReportTypeCounts(counts);
     } catch (error) {
-      console.warn('Could not load total count:', error);
+      console.warn("Could not load total count:", error);
     }
   };
 
   // Filter and search reports (client-side search + daily-occurrence scheme check only)
   // Type filtering is handled server-side when filterType !== 'all'
-  const filteredReports = reports.filter(report => {
-    const matchesSearch = report.referenceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.location?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredReports = reports.filter((report) => {
+    const matchesSearch =
+      report.referenceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.location?.toLowerCase().includes(searchTerm.toLowerCase());
 
     // When 'all' view: also apply type filter client-side
-    const matchesType = filterType === 'all' || report.reportType === filterType;
+    const matchesType =
+      filterType === "all" || report.reportType === filterType;
+
+    // Sub-filter for free recovery and incursions (client-side, 0 extra reads)
+    if (subFilter === "free-recovery" && report.reportType === "incident") {
+      return matchesSearch && report.incidentType === "Free Recovery";
+    }
+    if (subFilter === "incursion" && report.reportType === "incident") {
+      return matchesSearch && report.incursion === "YES";
+    }
+    if (subFilter) return false; // hide non-incident rows when a sub-filter is active
 
     // For daily occurrence reports, check if any occurrence matches the client's scheme
-    if (report.reportType === 'daily-occurrence' && report.occurrences) {
-      let activeSchemeName = userProfile?.activeSchemeName || userProfile?.schemeName;
+    if (report.reportType === "daily-occurrence" && report.occurrences) {
+      let activeSchemeName =
+        userProfile?.activeSchemeName || userProfile?.schemeName;
       if (!userProfile?.activeSchemeName && userProfile?.activeSchemeId) {
-        const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+        const activeSchemeObj = SCHEMES.find(
+          (s) => s.id === userProfile.activeSchemeId,
+        );
         if (activeSchemeObj) activeSchemeName = activeSchemeObj.fullName;
       }
-      const hasMatchingOccurrence = report.occurrences.some(occurrence =>
-        occurrence.scheme === activeSchemeName || occurrence.scheme === 'All Schemes'
+      const hasMatchingOccurrence = report.occurrences.some(
+        (occurrence) =>
+          occurrence.scheme === activeSchemeName ||
+          occurrence.scheme === "All Schemes",
       );
       return matchesSearch && matchesType && hasMatchingOccurrence;
     }
@@ -206,11 +299,12 @@ const ReportsPage = () => {
 
   // Use type-specific count for pagination when a filter is active
   const getActiveCount = () => {
-    if (filterType === 'incident') return reportTypeCounts.incident;
-    if (filterType === 'asset-damage') return reportTypeCounts.assetDamage;
-    if (filterType === 'daily-occurrence') return reportTypeCounts.dailyOccurrence;
-    if (filterType === 'cctv-check') return reportTypeCounts.cctvCheck;
-    if (filterType === 'cctv-faults') return reportTypeCounts.cctvFaults;
+    if (filterType === "incident") return reportTypeCounts.incident;
+    if (filterType === "asset-damage") return reportTypeCounts.assetDamage;
+    if (filterType === "daily-occurrence")
+      return reportTypeCounts.dailyOccurrence;
+    if (filterType === "cctv-check") return reportTypeCounts.cctvCheck;
+    if (filterType === "cctv-faults") return reportTypeCounts.cctvFaults;
     return reportTypeCounts.total;
   };
   const activeCount = getActiveCount();
@@ -247,15 +341,15 @@ const ReportsPage = () => {
 
   const getReportTypeIcon = (type) => {
     switch (type) {
-      case 'incident':
+      case "incident":
         return <AlertTriangle className="w-5 h-5 text-orange-500" />;
-      case 'asset-damage':
+      case "asset-damage":
         return <Package className="w-5 h-5 text-red-500" />;
-      case 'daily-occurrence':
+      case "daily-occurrence":
         return <Calendar className="w-5 h-5 text-blue-500" />;
-      case 'cctv-check':
+      case "cctv-check":
         return <Eye className="w-5 h-5 text-green-500" />;
-      case 'cctv-faults':
+      case "cctv-faults":
         return <Eye className="w-5 h-5 text-purple-500" />;
       default:
         return <FileText className="w-5 h-5 text-gray-500" />;
@@ -264,34 +358,33 @@ const ReportsPage = () => {
 
   const getReportTypeBadge = (type) => {
     const badges = {
-      incident: 'badge-warning',
-      'asset-damage': 'badge-error',
-      'daily-occurrence': 'badge-info',
-      'cctv-check': 'badge-success',
-      'cctv-faults': 'badge-secondary'
+      incident: "badge-warning",
+      "asset-damage": "badge-error",
+      "daily-occurrence": "badge-info",
+      "cctv-check": "badge-success",
+      "cctv-faults": "badge-secondary",
     };
-    return badges[type] || 'badge-ghost';
-  };
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      Resolved: 'bg-green-100 text-green-700',
-      Pending: 'bg-yellow-100 text-yellow-700',
-      'In Progress': 'bg-blue-100 text-blue-700',
-      Open: 'bg-orange-100 text-orange-700'
-    };
-    return badges[status] || 'bg-gray-100 text-gray-700';
+    return badges[type] || "badge-ghost";
   };
 
   const handleViewReport = (report) => {
-    _reportsRestore = { page: currentPage, filter: filterType, reports, hasMore, cursors, typeCursor, reportTypeCounts, pageCache: { ...pageCacheRef.current } };
+    _reportsRestore = {
+      page: currentPage,
+      filter: filterType,
+      reports,
+      hasMore,
+      cursors,
+      typeCursor,
+      reportTypeCounts,
+      pageCache: { ...pageCacheRef.current },
+    };
     // Navigate to appropriate view page based on report type
     const reportTypeRoutes = {
-      'incident': `/dashboard/client/reports/incident/${report.id}`,
-      'asset-damage': `/dashboard/client/reports/asset-damage/${report.id}`,
-      'daily-occurrence': `/dashboard/client/reports/daily-occurrence/${report.id}`,
-      'cctv-check': `/dashboard/client/reports/cctv-check/${report.id}`,
-      'cctv-faults': `/dashboard/client/reports/cctv-faults/${report.id}`
+      incident: `/dashboard/client/reports/incident/${report.id}`,
+      "asset-damage": `/dashboard/client/reports/asset-damage/${report.id}`,
+      "daily-occurrence": `/dashboard/client/reports/daily-occurrence/${report.id}`,
+      "cctv-check": `/dashboard/client/reports/cctv-check/${report.id}`,
+      "cctv-faults": `/dashboard/client/reports/cctv-faults/${report.id}`,
     };
 
     const route = reportTypeRoutes[report.reportType];
@@ -305,31 +398,43 @@ const ReportsPage = () => {
   const handleDownloadReport = async (report) => {
     try {
       // For CCTV check reports, pass the active scheme ID to filter the PDF content
-      const activeSchemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+      const activeSchemeId =
+        userProfile?.activeSchemeId || userProfile?.schemeId;
       await generateReportPDF(report, report.reportType, activeSchemeId);
-      toast.success(`Downloaded ${report.referenceId || 'report'} as PDF`);
+      toast.success(`Downloaded ${report.referenceId || "report"} as PDF`);
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      toast.error('Failed to download report');
+      console.error("Failed to generate PDF:", error);
+      toast.error("Failed to download report");
     }
   };
 
   const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    if (!timestamp) return "N/A";
+    const date = timestamp.seconds
+      ? new Date(timestamp.seconds * 1000)
+      : new Date(timestamp);
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   const formatTime = (timestamp) => {
-    if (!timestamp) return '';
-    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
-    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    if (!timestamp) return "";
+    const date = timestamp.seconds
+      ? new Date(timestamp.seconds * 1000)
+      : new Date(timestamp);
+    return date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   // Helper to parse DD/MM/YYYY date format
   const parseBritishDate = (dateStr) => {
     if (!dateStr) return null;
-    const parts = dateStr.split('/');
+    const parts = dateStr.split("/");
     if (parts.length === 3) {
       return new Date(parts[2], parts[1] - 1, parts[0]);
     }
@@ -339,11 +444,21 @@ const ReportsPage = () => {
   // Get display date for a report - use form date for incidents, asset damage, cctv checks
   const getReportDisplayDate = (report) => {
     // For incident, asset-damage, and cctv-check reports, use the form's date field
-    if ((report.reportType === 'incident' || report.reportType === 'asset-damage' || report.reportType === 'cctv-check' || report.reportType === 'cctv-faults') && report.date) {
+    if (
+      (report.reportType === "incident" ||
+        report.reportType === "asset-damage" ||
+        report.reportType === "cctv-check" ||
+        report.reportType === "cctv-faults") &&
+      report.date
+    ) {
       // Date is in DD/MM/YYYY format, convert to display format
       const date = parseBritishDate(report.date);
       if (date) {
-        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        return date.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
       }
       return report.date;
     }
@@ -354,11 +469,16 @@ const ReportsPage = () => {
   // Get display time for a report
   const getReportDisplayTime = (report) => {
     // For incident reports - always use timeSpotted
-    if (report.reportType === 'incident' && report.timeSpotted) {
+    if (report.reportType === "incident" && report.timeSpotted) {
       return report.timeSpotted;
     }
     // For asset-damage and cctv-check reports, use the form's time field
-    if ((report.reportType === 'asset-damage' || report.reportType === 'cctv-check' || report.reportType === 'cctv-faults') && report.time) {
+    if (
+      (report.reportType === "asset-damage" ||
+        report.reportType === "cctv-check" ||
+        report.reportType === "cctv-faults") &&
+      report.time
+    ) {
       return report.time;
     }
     // For daily occurrence and other reports, use timestamp (createdAt)
@@ -368,10 +488,12 @@ const ReportsPage = () => {
   const reportStats = {
     total: reportTypeCounts.total,
     incident: reportTypeCounts.incident,
-    assetDamage: reportTypeCounts.assetDamage,
     dailyOccurrence: reportTypeCounts.dailyOccurrence,
     cctvCheck: reportTypeCounts.cctvCheck,
     cctvFaults: reportTypeCounts.cctvFaults,
+    freeRecovery: reportTypeCounts.freeRecovery,
+    incursions: reportTypeCounts.incursions,
+    vehiclesDispatched: reportTypeCounts.vehiclesDispatched,
   };
 
   // Get the active scheme name for display
@@ -383,7 +505,9 @@ const ReportsPage = () => {
 
     // If we have an activeSchemeId but no activeSchemeName, look it up
     if (userProfile?.activeSchemeId) {
-      const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+      const activeSchemeObj = SCHEMES.find(
+        (s) => s.id === userProfile.activeSchemeId,
+      );
       if (activeSchemeObj) {
         return activeSchemeObj.fullName;
       }
@@ -404,31 +528,67 @@ const ReportsPage = () => {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Reports</p>
+        {/* Row 1: Report Type Counts */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-brand-500 transition-all" onClick={() => handleCardClick("all")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <FileText className="w-3.5 h-3.5 text-brand-500" />
+              <p className="text-gray-500 text-sm">Total Reports</p>
+            </div>
             <p className="text-2xl font-bold text-brand-500">{reportStats.total}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Incidents</p>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.incident}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Asset Damage</p>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.assetDamage}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Daily Logs</p>
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all" onClick={() => handleCardClick("daily-occurrence")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Calendar className="w-3.5 h-3.5 text-blue-500" />
+              <p className="text-gray-500 text-sm">Daily Logs</p>
+            </div>
             <p className="text-2xl font-bold text-brand-500">{reportStats.dailyOccurrence}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">CCTV Checks</p>
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-green-500 transition-all" onClick={() => handleCardClick("cctv-check")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Eye className="w-3.5 h-3.5 text-green-500" />
+              <p className="text-gray-500 text-sm">CCTV Checks</p>
+            </div>
             <p className="text-2xl font-bold text-brand-500">{reportStats.cctvCheck}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">CCTV Faults</p>
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-purple-500 transition-all" onClick={() => handleCardClick("cctv-faults")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <CameraOff className="w-3.5 h-3.5 text-purple-500" />
+              <p className="text-gray-500 text-sm">CCTV Faults</p>
+            </div>
             <p className="text-2xl font-bold text-brand-500">{reportStats.cctvFaults}</p>
+          </div>
+        </div>
+
+        {/* Row 2: Incident Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-orange-500 transition-all" onClick={() => handleCardClick("incident")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+              <p className="text-gray-500 text-sm">Incidents</p>
+            </div>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.incident}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-green-500 transition-all" onClick={() => handleCardClick("incident", "free-recovery")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Wrench className="w-3.5 h-3.5 text-green-500" />
+              <p className="text-gray-500 text-sm">Free Recovery</p>
+            </div>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.freeRecovery}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-red-500 transition-all" onClick={() => handleCardClick("incident", "incursion")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
+              <p className="text-gray-500 text-sm">Incursions</p>
+            </div>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.incursions}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all" onClick={() => handleCardClick("incident")}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Car className="w-3.5 h-3.5 text-blue-500" />
+              <p className="text-gray-500 text-sm">Vehicles Dispatched</p>
+            </div>
+            <p className="text-2xl font-bold text-brand-500">{reportStats.vehiclesDispatched}</p>
           </div>
         </div>
 
@@ -446,8 +606,9 @@ const ReportsPage = () => {
                   const value = e.target.value;
                   setSearchTerm(value);
                   setCurrentPage(1);
-                  if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-                  if (value.trim() === '') {
+                  if (searchDebounceRef.current)
+                    clearTimeout(searchDebounceRef.current);
+                  if (value.trim() === "") {
                     // Search cleared — go back to normal pagination
                     setSearchResults([]);
                     if (wasRestoredRef.current) {
@@ -475,6 +636,7 @@ const ReportsPage = () => {
                 onChange={(e) => {
                   const newType = e.target.value;
                   clearRestoreState();
+                  setSubFilter(null);
                   setFilterType(newType);
                   setTypeCursor(null);
                   setCursors({});
@@ -508,7 +670,9 @@ const ReportsPage = () => {
                     <tr>
                       <th className="text-left text-white">Type</th>
                       <th className="text-left text-white">Reference ID</th>
-                      <th className="text-left text-white">Title/Description</th>
+                      <th className="text-left text-white">
+                        Title/Description
+                      </th>
                       <th className="text-left text-white">Location</th>
                       <th className="text-left text-white">Date & Time</th>
                       <th className="text-left text-white">Submitted By</th>
@@ -522,27 +686,45 @@ const ReportsPage = () => {
                         <td>
                           <div className="flex items-center gap-2">
                             {getReportTypeIcon(report.reportType)}
-                            <span className={`badge ${getReportTypeBadge(report.reportType)} badge-sm`}>
-                              {report.reportType.replace('-', ' ').toUpperCase()}
+                            <span
+                              className={`badge ${getReportTypeBadge(report.reportType)} badge-sm`}
+                            >
+                              {report.reportType
+                                .replace("-", " ")
+                                .toUpperCase()}
                             </span>
                           </div>
                         </td>
                         <td className="font-mono text-sm font-semibold">
                           <div>{report.referenceId}</div>
-                          {report.reportType === 'incident' && report.incursion === 'YES' && (
-                            <span className="badge badge-error badge-xs mt-1">Incursion</span>
-                          )}
+                          {report.reportType === "incident" &&
+                            report.incursion === "YES" && (
+                              <span className="badge badge-error badge-xs mt-1">
+                                Incursion
+                              </span>
+                            )}
                         </td>
-                        <td className="max-w-xs truncate">{report.type || report.title || 'N/A'}</td>
-                        <td className="max-w-xs truncate">{report.location || 'N/A'}</td>
+                        <td className="max-w-xs truncate">
+                          {report.type || report.title || "N/A"}
+                        </td>
+                        <td className="max-w-xs truncate">
+                          {report.location || "N/A"}
+                        </td>
                         <td>
                           <div className="text-sm">
-                            <p className="font-medium">{getReportDisplayDate(report)}</p>
-                            <p className="text-gray-500">{getReportDisplayTime(report)}</p>
+                            <p className="font-medium">
+                              {getReportDisplayDate(report)}
+                            </p>
+                            <p className="text-gray-500">
+                              {getReportDisplayTime(report)}
+                            </p>
                           </div>
                         </td>
                         <td className="text-sm">
-                          {report.submittedBy?.name || (typeof report.submittedBy === 'string' ? report.submittedBy : 'Staff')}
+                          {report.submittedBy?.name ||
+                            (typeof report.submittedBy === "string"
+                              ? report.submittedBy
+                              : "Staff")}
                         </td>
                         {/* <td>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(report.status)}`}>
@@ -577,7 +759,11 @@ const ReportsPage = () => {
               {!isSearchMode && (currentPage > 1 || hasMore) && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}{activeCount > 0 ? ` (${activeCount} total ${filterType === 'all' ? 'reports' : filterType.replace(/-/g, ' ') + 's'})` : ''}
+                    Page {currentPage}
+                    {totalPages > 1 ? ` of ${totalPages}` : ""}
+                    {activeCount > 0
+                      ? ` (${activeCount} total ${filterType === "all" ? "reports" : filterType.replace(/-/g, " ") + "s"})`
+                      : ""}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -588,11 +774,15 @@ const ReportsPage = () => {
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
-                      Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}
+                      Page {currentPage}
+                      {totalPages > 1 ? ` of ${totalPages}` : ""}
                     </span>
                     <button
                       onClick={handleNextPage}
-                      disabled={!hasMore || (totalPages > 0 && currentPage >= totalPages)}
+                      disabled={
+                        !hasMore ||
+                        (totalPages > 0 && currentPage >= totalPages)
+                      }
                       className="btn btn-sm btn-outline"
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -605,7 +795,9 @@ const ReportsPage = () => {
             <div className="p-12 text-center">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No reports found</p>
-              <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
+              <p className="text-gray-400 text-sm mt-2">
+                Try adjusting your search or filter criteria
+              </p>
             </div>
           )}
         </div>
@@ -617,7 +809,9 @@ const ReportsPage = () => {
           <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b sticky top-0 bg-white">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-800">Report Details</h2>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Report Details
+                </h2>
                 <button
                   onClick={() => setSelectedReport(null)}
                   className="btn btn-sm btn-ghost"
@@ -630,17 +824,28 @@ const ReportsPage = () => {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-sm text-gray-500">Reference ID</p>
-                  <p className="font-mono font-semibold">{selectedReport.referenceId}</p>
+                  <p className="font-mono font-semibold">
+                    {selectedReport.referenceId}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Type</p>
-                  <span className={`badge ${getReportTypeBadge(selectedReport.reportType)}`}>
-                    {selectedReport.reportType.replace('-', ' ').toUpperCase()}
+                  <span
+                    className={`badge ${getReportTypeBadge(selectedReport.reportType)}`}
+                  >
+                    {selectedReport.reportType.replace("-", " ").toUpperCase()}
                   </span>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Date & Time</p>
-                  <p className="font-medium">{formatDate(selectedReport.timestamp || selectedReport.date)} {formatTime(selectedReport.timestamp || selectedReport.time)}</p>
+                  <p className="font-medium">
+                    {formatDate(
+                      selectedReport.timestamp || selectedReport.date,
+                    )}{" "}
+                    {formatTime(
+                      selectedReport.timestamp || selectedReport.time,
+                    )}
+                  </p>
                 </div>
                 {/* <div>
                   <p className="text-sm text-gray-500">Status</p>
@@ -652,23 +857,32 @@ const ReportsPage = () => {
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-gray-500">Title/Type</p>
-                  <p className="font-medium">{selectedReport.type || selectedReport.title || 'N/A'}</p>
+                  <p className="font-medium">
+                    {selectedReport.type || selectedReport.title || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-medium">{selectedReport.location || 'N/A'}</p>
+                  <p className="font-medium">
+                    {selectedReport.location || "N/A"}
+                  </p>
                 </div>
                 {selectedReport.description && (
                   <div>
                     <p className="text-sm text-gray-500">Description</p>
-                    <p className="text-gray-700">{selectedReport.description}</p>
+                    <p className="text-gray-700">
+                      {selectedReport.description}
+                    </p>
                   </div>
                 )}
                 {selectedReport.submittedBy && (
                   <div>
                     <p className="text-sm text-gray-500">Submitted By</p>
                     <p className="font-medium">
-                      {selectedReport.submittedBy?.name || (typeof selectedReport.submittedBy === 'string' ? selectedReport.submittedBy : 'Staff')}
+                      {selectedReport.submittedBy?.name ||
+                        (typeof selectedReport.submittedBy === "string"
+                          ? selectedReport.submittedBy
+                          : "Staff")}
                     </p>
                   </div>
                 )}

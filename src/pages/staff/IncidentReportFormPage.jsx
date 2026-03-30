@@ -59,6 +59,9 @@ const IncidentReportFormPage = () => {
     timeCleared: "",
     closedLogCollar: "",
     fault: "",
+    propertyDamage: false,
+    assetType: "",
+    damageType: "",
     vehicles: [{ type: "", make: "", model: "", vin: "" }],
     description: "",
   });
@@ -100,6 +103,9 @@ const IncidentReportFormPage = () => {
           timeCleared: report.timeCleared || "",
           closedLogCollar: report.closedLogCollar || "",
           fault: report.fault || "",
+          propertyDamage: report.propertyDamage || false,
+          assetType: report.assetType || "",
+          damageType: report.damageType || "",
           vehicles: report.vehicles || [{ type: "", make: "", model: "", vin: "" }],
           description: report.description || "",
         });
@@ -311,6 +317,9 @@ const IncidentReportFormPage = () => {
         timeCleared: "",
         closedLogCollar: "",
         fault: "",
+        propertyDamage: false,
+        assetType: "",
+        damageType: "",
         vehicles: [{ type: "", make: "", model: "", vin: "" }],
         description: "",
       };
@@ -467,6 +476,9 @@ const IncidentReportFormPage = () => {
           timeCleared: "",
           closedLogCollar: "",
           fault: "",
+          propertyDamage: false,
+          assetType: "",
+          damageType: "",
           vehicles: [{ type: "", make: "", model: "", vin: "" }],
           description: "",
         });
@@ -886,38 +898,119 @@ const IncidentReportFormPage = () => {
         </div>
       </div>
 
-      {/* Incursion */}
-      <div>
-        <label className="label">
-          <span className="label-text font-semibold mb-2">
-            Incursion? <span className="text-red-500">*</span>
-          </span>
-        </label>
-        <div className="flex gap-6">
-          <label className="cursor-pointer flex items-center gap-2">
-            <input
-              type="radio"
-              name="incursion"
-              value="YES"
-              checked={formData.incursion === "YES"}
-              onChange={handleChange}
-              className="radio radio-accent"
-            />
-            <span>YES</span>
+      {/* Incursion + Asset Damage */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="label">
+            <span className="label-text font-semibold mb-2">
+              Incursion? <span className="text-red-500">*</span>
+            </span>
+          </label>
+          <div className="flex gap-6">
+            <label className="cursor-pointer flex items-center gap-2">
+              <input
+                type="radio"
+                name="incursion"
+                value="YES"
+                checked={formData.incursion === "YES"}
+                onChange={handleChange}
+                className="radio radio-accent"
+              />
+              <span>YES</span>
+            </label>
+            <label className="cursor-pointer flex items-center gap-2">
+              <input
+                type="radio"
+                name="incursion"
+                value="NO"
+                checked={formData.incursion === "NO"}
+                onChange={handleChange}
+                className="radio radio-accent"
+              />
+              <span>NO</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label className="label">
+            <span className="label-text font-semibold mb-2">Asset Damage?</span>
           </label>
           <label className="cursor-pointer flex items-center gap-2">
             <input
-              type="radio"
-              name="incursion"
-              value="NO"
-              checked={formData.incursion === "NO"}
-              onChange={handleChange}
-              className="radio radio-accent"
+              type="checkbox"
+              className="checkbox checkbox-sm border-gray-400"
+              checked={formData.propertyDamage}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  propertyDamage: e.target.checked,
+                  assetType: e.target.checked ? prev.assetType : "",
+                  damageType: e.target.checked ? prev.damageType : "",
+                }))
+              }
             />
-            <span>NO</span>
+            <span>Yes</span>
           </label>
         </div>
       </div>
+
+      {/* Asset Damage dropdowns */}
+      {formData.propertyDamage && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="label">
+              <span className="label-text font-semibold mb-2">
+                Asset Type <span className="text-red-500">*</span>
+              </span>
+            </label>
+            <select
+              name="assetType"
+              value={formData.assetType}
+              onChange={handleChange}
+              className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+              required
+            >
+              <option value="">Please Select</option>
+              <option value="Barrier/Fence">Barrier/Fence</option>
+              <option value="Sign/Signage">Sign/Signage</option>
+              <option value="Road Surface">Road Surface</option>
+              <option value="Lighting">Lighting</option>
+              <option value="Drainage">Drainage</option>
+              <option value="Traffic Signal">Traffic Signal</option>
+              <option value="CCTV Camera">CCTV Camera</option>
+              <option value="Emergency Phone">Emergency Phone</option>
+              <option value="Vegetation">Vegetation</option>
+              <option value="Bridge/Structure">Bridge/Structure</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="label">
+              <span className="label-text font-semibold mb-2">
+                Damage Type <span className="text-red-500">*</span>
+              </span>
+            </label>
+            <select
+              name="damageType"
+              value={formData.damageType}
+              onChange={handleChange}
+              className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+              required
+            >
+              <option value="">Please Select</option>
+              <option value="Impact/Collision">Impact/Collision</option>
+              <option value="Vandalism">Vandalism</option>
+              <option value="Weather Damage">Weather Damage</option>
+              <option value="Wear and Tear">Wear and Tear</option>
+              <option value="Theft">Theft</option>
+              <option value="Fire Damage">Fire Damage</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Camera, Traffic, etc */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

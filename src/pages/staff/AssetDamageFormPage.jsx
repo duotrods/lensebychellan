@@ -11,13 +11,13 @@ import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { compressImage } from "../../utils/imageCompression";
 import { SCHEMES, isDemoUser } from "../../utils/schemes";
 
-import chellanlogo from "../../assets/chellanpng.png"
+import chellanlogo from "../../assets/chellanpng.png";
 
 const AssetDamageFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('edit');
+  const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [files, setFiles] = useState([]);
@@ -25,8 +25,8 @@ const AssetDamageFormPage = () => {
   // Helper function to format date as DD/MM/YYYY
   const formatDateToBritish = (date) => {
     const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   };
@@ -60,14 +60,15 @@ const AssetDamageFormPage = () => {
     if (editId) {
       loadFormData();
     }
-  }, [editId]);
+  }, [editId, loadFormData]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const loadFormData = async () => {
     try {
       setLoading(true);
       // Pass null to get all reports, not just current user's
       const reports = await staffService.getAssetDamageReports(null);
-      const report = reports.find(r => r.id === editId);
+      const report = reports.find((r) => r.id === editId);
 
       if (report) {
         setFormData({
@@ -77,7 +78,9 @@ const AssetDamageFormPage = () => {
           time: report.time || "",
           // Combine firstName and lastName for backward compatibility
           firstName: report.firstName
-            ? (report.lastName ? `${report.firstName} ${report.lastName}` : report.firstName)
+            ? report.lastName
+              ? `${report.firstName} ${report.lastName}`
+              : report.firstName
             : "",
           location: report.location || "",
           markerPost: report.markerPost || "",
@@ -93,12 +96,12 @@ const AssetDamageFormPage = () => {
           notificationSent: report.notificationSent || [],
         });
       } else {
-        toast.error('Form not found');
-        navigate('/dashboard/staff');
+        toast.error("Form not found");
+        navigate("/dashboard/staff");
       }
     } catch (error) {
-      console.error('Failed to load form:', error);
-      toast.error('Failed to load form data');
+      console.error("Failed to load form:", error);
+      toast.error("Failed to load form data");
     } finally {
       setLoading(false);
     }
@@ -193,22 +196,27 @@ const AssetDamageFormPage = () => {
           editId,
           updateData,
           userProfile.uid,
-          userProfile.displayName
+          userProfile.displayName,
         );
 
         // Send email notifications for update
-        if (trimmedData.notificationSent && trimmedData.notificationSent.length > 0) {
+        if (
+          trimmedData.notificationSent &&
+          trimmedData.notificationSent.length > 0
+        ) {
           const emailResult = await sendAssetDamageNotification(
             {
               ...trimmedData,
               id: editId,
-              submittedBy: userProfile.displayName
+              submittedBy: userProfile.displayName,
             },
             trimmedData.notificationSent,
-            true // isUpdate
+            true, // isUpdate
           );
           if (emailResult.emailsSent > 0) {
-            toast.success(`Report updated! ${emailResult.emailsSent} notification(s) sent.`);
+            toast.success(
+              `Report updated! ${emailResult.emailsSent} notification(s) sent.`,
+            );
           } else {
             toast.success("Asset Damage Report updated successfully!");
           }
@@ -224,23 +232,28 @@ const AssetDamageFormPage = () => {
             files: uploadedFiles,
           },
           userProfile.uid,
-          userProfile.displayName
+          userProfile.displayName,
         );
 
         // Send email notifications for new submission
-        if (trimmedData.notificationSent && trimmedData.notificationSent.length > 0) {
+        if (
+          trimmedData.notificationSent &&
+          trimmedData.notificationSent.length > 0
+        ) {
           const emailResult = await sendAssetDamageNotification(
             {
               ...trimmedData,
               id: result?.id,
               referenceId: result?.referenceId,
-              submittedBy: userProfile.displayName
+              submittedBy: userProfile.displayName,
             },
             trimmedData.notificationSent,
-            false // isUpdate
+            false, // isUpdate
           );
           if (emailResult.emailsSent > 0) {
-            toast.success(`Report submitted! ${emailResult.emailsSent} notification(s) sent.`);
+            toast.success(
+              `Report submitted! ${emailResult.emailsSent} notification(s) sent.`,
+            );
           } else {
             toast.success("Asset Damage Report submitted successfully!");
           }
@@ -290,7 +303,7 @@ const AssetDamageFormPage = () => {
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
           <h3 className="text-2xl font-bold text-gray-800">
-            {editId ? 'Edit Asset Damage Report' : 'Asset Damage Report'}
+            {editId ? "Edit Asset Damage Report" : "Asset Damage Report"}
           </h3>
         </div>
 
@@ -318,22 +331,19 @@ const AssetDamageFormPage = () => {
                 required
               >
                 <option value="">Please Select</option>
-                {SCHEMES
-                  .filter(scheme => isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo)
-                  .map(scheme => (
-                    <option key={scheme.id} value={scheme.fullName}>
-                      {scheme.fullName}
-                    </option>
-                  ))
-                }
+                {SCHEMES.filter((scheme) =>
+                  isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo,
+                ).map((scheme) => (
+                  <option key={scheme.id} value={scheme.fullName}>
+                    {scheme.fullName}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div>
               <label className="label">
-                <span className="label-text font-semibold mb-2">
-                  Section
-                </span>
+                <span className="label-text font-semibold mb-2">Section</span>
               </label>
               <input
                 type="text"
@@ -519,7 +529,6 @@ const AssetDamageFormPage = () => {
             </div>
           </div>
 
-          
           {/* Incident Report # and NH Log */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -539,7 +548,7 @@ const AssetDamageFormPage = () => {
                 required
               />
             </div>
-            
+
             <div>
               <label className="label">
                 <span className="label-text font-semibold mb-2">
@@ -657,9 +666,7 @@ const AssetDamageFormPage = () => {
               />
               <label htmlFor="file-upload" className="cursor-pointer">
                 <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-teal-600 font-semibold mb-1">
-                  Browse Files
-                </p>
+                <p className="text-teal-600 font-semibold mb-1">Browse Files</p>
                 <p className="text-gray-500 text-sm">
                   Upload photos or videos of the damage
                 </p>
@@ -695,27 +702,24 @@ const AssetDamageFormPage = () => {
               </span>
             </label>
             <div className="flex flex-wrap gap-6">
-              {[
-                "Maintenance Team",
-                "TM Manager",
-                "Safety Officer",
-                "N/A",
-              ].map((recipient) => (
-                <label
-                  key={recipient}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.notificationSent.includes(recipient)}
-                    onChange={() =>
-                      handleCheckbox("notificationSent", recipient)
-                    }
-                    className="checkbox checkbox-sm checkbox-neutral"
-                  />
-                  <span className="text-sm">{recipient}</span>
-                </label>
-              ))}
+              {["Maintenance Team", "TM Manager", "Safety Officer", "N/A"].map(
+                (recipient) => (
+                  <label
+                    key={recipient}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.notificationSent.includes(recipient)}
+                      onChange={() =>
+                        handleCheckbox("notificationSent", recipient)
+                      }
+                      className="checkbox checkbox-sm checkbox-neutral"
+                    />
+                    <span className="text-sm">{recipient}</span>
+                  </label>
+                ),
+              )}
             </div>
           </div>
 
@@ -734,10 +738,14 @@ const AssetDamageFormPage = () => {
               className="px-8 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors font-semibold"
             >
               {loading
-                ? (editId ? "Updating..." : "Submitting...")
+                ? editId
+                  ? "Updating..."
+                  : "Submitting..."
                 : uploadingFiles
-                ? "Uploading Files..."
-                : (editId ? "Update" : "Submit")}
+                  ? "Uploading Files..."
+                  : editId
+                    ? "Update"
+                    : "Submit"}
             </button>
           </div>
         </form>
