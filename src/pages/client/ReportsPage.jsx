@@ -281,12 +281,15 @@ const ReportsPage = () => {
     const matchesType =
       filterType === "all" || report.reportType === filterType;
 
-    // Sub-filter for free recovery and incursions (client-side, 0 extra reads)
+    // Sub-filter for free recovery, incursions, asset damage (client-side safety net)
     if (subFilter === "free-recovery" && report.reportType === "incident") {
       return matchesSearch && report.incidentType === "Free Recovery";
     }
     if (subFilter === "incursion" && report.reportType === "incident") {
       return matchesSearch && report.incursion === "YES";
+    }
+    if (subFilter === "asset-damage" && report.reportType === "incident") {
+      return matchesSearch && report.propertyDamage === true;
     }
     if (subFilter) return false; // hide non-incident rows when a sub-filter is active
 
@@ -572,15 +575,15 @@ const ReportsPage = () => {
             </p>
           </div>
           <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-yellow-500 transition-all"
-            onClick={() => handleCardClick("incident", "asset-damage")}
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-orange-500 transition-all"
+            onClick={() => handleCardClick("incident")}
           >
             <div className="flex items-center gap-1.5 mb-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
-              <p className="text-gray-500 text-sm">Asset Damage</p>
+              <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+              <p className="text-gray-500 text-sm">Incidents</p>
             </div>
             <p className="text-2xl font-bold text-brand-500">
-              {reportStats.incidentAssetDamage}
+              {reportStats.incident}
             </p>
           </div>
           <div
@@ -600,15 +603,15 @@ const ReportsPage = () => {
         {/* Row 2: Incident Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-orange-500 transition-all"
-            onClick={() => handleCardClick("incident")}
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-yellow-500 transition-all"
+            onClick={() => handleCardClick("incident", "asset-damage")}
           >
             <div className="flex items-center gap-1.5 mb-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-              <p className="text-gray-500 text-sm">Incidents</p>
+              <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
+              <p className="text-gray-500 text-sm">Asset Damage</p>
             </div>
             <p className="text-2xl font-bold text-brand-500">
-              {reportStats.incident}
+              {reportStats.incidentAssetDamage}
             </p>
           </div>
           <div
