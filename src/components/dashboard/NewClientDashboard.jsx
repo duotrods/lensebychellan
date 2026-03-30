@@ -18,7 +18,6 @@ import {
 } from "recharts";
 import {
   AlertTriangle,
-  Car,
   Calendar,
   Download,
   Radio,
@@ -27,6 +26,7 @@ import {
   Wrench,
   ShieldAlert,
   X,
+  TriangleAlert,
 } from "lucide-react";
 import { SCHEMES } from "../../utils/schemes";
 import { DateRangePicker } from "react-date-range";
@@ -275,23 +275,20 @@ const NewClientDashboard = () => {
     {
       title: "Total Incidents",
       value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
-      text: "Total number of incidents reported within the scheme.",
+      text: "Total incidents excluding Free Recovery and Incursions.",
       icon: AlertTriangle,
       color: "text-orange-500",
       bgColor: "bg-orange-50",
-      filter: () => incidents,
+      filter: () => incidents.filter(i => i.incidentType !== "Free Recovery" && i.incursion !== "YES"),
     },
     {
-      title: "Vehicles Dispatched",
-      value: loading ? "..." : (stats?.vehiclesDispatched || 0).toString(),
-      text: "Total number of vehicles dispatched to incident locations.",
-      icon: Car,
-      color: "text-blue-500",
-      bgColor: "bg-blue-50",
-      filter: () => incidents.filter(i => {
-        const r = i.recoveryRequested;
-        return r && Object.values(r).some(v => v > 0);
-      }),
+      title: "Asset Damage",
+      value: loading ? "..." : (stats?.assetDamage || 0).toString(),
+      text: "Total number of incidents with reported asset or property damage.",
+      icon: TriangleAlert,
+      color: "text-yellow-500",
+      bgColor: "bg-yellow-50",
+      filter: () => incidents.filter(i => i.propertyDamage === true || i.propertyDamage === "yes" || i.propertyDamage === "Yes"),
     },
     {
       title: "Free Recovery",

@@ -723,7 +723,7 @@ class ClientDataService {
 
       // Calculate statistics
       const stats = {
-        totalIncidents: incidents.length,
+        totalIncidents: incidents.filter((i) => i.incidentType !== "Free Recovery" && i.incursion !== "YES").length,
         incidentsByType: this.groupByField(incidents, "incidentType"),
         incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"), // Array field
         vehiclesDispatched: this.calculateVehiclesDispatched(incidents),
@@ -743,6 +743,7 @@ class ClientDataService {
         ), // Time from on site to cleared (pre-calculated)
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"), // Time from spotted to on site (pre-calculated)
         incursions: incidents.filter((i) => i.incursion === "YES").length, // Check for 'YES' string
+        assetDamage: incidents.filter((i) => i.propertyDamage === true || i.propertyDamage === "yes" || i.propertyDamage === "Yes").length,
         recentIncidents: incidents.slice(0, 10).map((incident) => ({
           type: incident.incidentType || "Unknown",
           location: incident.markerPost || incident.section || "Unknown",
@@ -1138,7 +1139,7 @@ class ClientDataService {
 
       // Calculate statistics (same as getSchemeStats)
       const stats = {
-        totalIncidents: incidents.length,
+        totalIncidents: incidents.filter((i) => i.incidentType !== "Free Recovery" && i.incursion !== "YES").length,
         incidentsByType: this.groupByField(incidents, "incidentType"),
         incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"),
         vehiclesDispatched: this.calculateVehiclesDispatched(incidents),
@@ -1158,6 +1159,7 @@ class ClientDataService {
         ),
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"),
         incursions: incidents.filter((i) => i.incursion === "YES").length,
+        assetDamage: incidents.filter((i) => i.propertyDamage === true || i.propertyDamage === "yes" || i.propertyDamage === "Yes").length,
         recentIncidents: incidents.slice(0, 10).map((incident) => ({
           type: incident.incidentType || "Unknown",
           location: incident.markerPost || incident.section || "Unknown",
@@ -1468,26 +1470,22 @@ class ClientDataService {
     schemeId,
     limitCount,
     lastDoc,
+    extraWhere = null,
   ) {
     try {
       const collectionRef = collection(db, collectionName);
       let q;
 
+      const baseConstraints = [
+        where("schemeIds", "array-contains", schemeId),
+        ...(extraWhere ? [where(extraWhere.field, extraWhere.op, extraWhere.value)] : []),
+        orderBy("createdAt", "desc"),
+      ];
+
       if (lastDoc) {
-        q = query(
-          collectionRef,
-          where("schemeIds", "array-contains", schemeId),
-          orderBy("createdAt", "desc"),
-          startAfter(lastDoc),
-          limit(limitCount),
-        );
+        q = query(collectionRef, ...baseConstraints, startAfter(lastDoc), limit(limitCount));
       } else {
-        q = query(
-          collectionRef,
-          where("schemeIds", "array-contains", schemeId),
-          orderBy("createdAt", "desc"),
-          limit(limitCount),
-        );
+        q = query(collectionRef, ...baseConstraints, limit(limitCount));
       }
 
       const snapshot = await getDocs(q);
@@ -1642,6 +1640,7 @@ class ClientDataService {
     reportType,
     pageSize = 10,
     lastDoc = null,
+    extraWhere = null, // { field, op, value } for server-side sub-filters
   ) {
     // CCTV uses a dual-query approach to include both scheme-specific and "all-schemes" forms
     if (reportType === "cctv-check") {
@@ -1663,6 +1662,7 @@ class ClientDataService {
         schemeId,
         pageSize,
         lastDoc,
+        extraWhere,
       );
       const reports = result.docs.map((report) => {
         if (reportType === "incident")
@@ -1703,7 +1703,7 @@ class ClientDataService {
   // Get count per report type for a scheme (for stat cards - 4 reads total)
   async getAllReportsCountByType(schemeId) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount, freeRecoveryCount, incursionsCount, vehiclesDispatchedCount] =
+      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount, freeRecoveryCount, incursionsCount, vehiclesDispatchedCount, incidentAssetDamageCount] =
         await Promise.all([
           this.getCollectionCount("incidentReports", schemeId),
           this.getCollectionCount("assetDamageReports", schemeId),
@@ -1713,6 +1713,7 @@ class ClientDataService {
           this.getCollectionCountWithFilter("incidentReports", schemeId, "incidentType", "Free Recovery"),
           this.getCollectionCountWithFilter("incidentReports", schemeId, "incursion", "YES"),
           this.getVehiclesDispatchedCount(schemeId),
+          this.getCollectionCountWithFilter("incidentReports", schemeId, "propertyDamage", true),
         ]);
 
       return {
@@ -1724,6 +1725,7 @@ class ClientDataService {
         freeRecovery: freeRecoveryCount,
         incursions: incursionsCount,
         vehiclesDispatched: vehiclesDispatchedCount,
+        incidentAssetDamage: incidentAssetDamageCount,
         total: incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount,
       };
     } catch (error) {
@@ -1737,6 +1739,7 @@ class ClientDataService {
         freeRecovery: 0,
         incursions: 0,
         vehiclesDispatched: 0,
+        incidentAssetDamage: 0,
         total: 0,
       };
     }

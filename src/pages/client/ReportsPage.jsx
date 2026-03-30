@@ -88,6 +88,7 @@ const ReportsPage = () => {
     freeRecovery: 0,
     incursions: 0,
     vehiclesDispatched: 0,
+    incidentAssetDamage: 0,
     total: 0,
   });
   const reportsPerPage = 10;
@@ -141,10 +142,11 @@ const ReportsPage = () => {
     setTypeCursor(null);
     setCursors({});
     setFilterType(type);
-    loadReports(true, type);
+    loadReports(true, type, null, null, false, sub);
     // Scroll table into view
     setTimeout(() => {
-      document.querySelector(".bg-white.rounded-lg.shadow.overflow-hidden")
+      document
+        .querySelector(".bg-white.rounded-lg.shadow.overflow-hidden")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
@@ -155,6 +157,7 @@ const ReportsPage = () => {
     cursorOverride = null,
     targetPage = null,
     silent = false,
+    subFilterOverride = undefined,
   ) => {
     // Check page cache first
     if (targetPage && pageCacheRef.current[targetPage]) {
@@ -200,11 +203,22 @@ const ReportsPage = () => {
           : resetPage
             ? null
             : typeCursor;
+        const activeSub =
+          subFilterOverride !== undefined ? subFilterOverride : subFilter;
+        const extraWhere =
+          activeSub === "incursion"
+            ? { field: "incursion", op: "==", value: "YES" }
+            : activeSub === "free-recovery"
+              ? { field: "incidentType", op: "==", value: "Free Recovery" }
+              : activeSub === "asset-damage"
+                ? { field: "propertyDamage", op: "==", value: true }
+                : null;
         const result = await clientDataService.getReportsByTypePaginated(
           activeScheme,
           activeFilter,
           reportsPerPage,
           effectiveTypeCursor,
+          extraWhere,
         );
         newReports = result.reports;
         newTypeCursor = result.lastDoc;
@@ -299,10 +313,12 @@ const ReportsPage = () => {
 
   // Use type-specific count for pagination when a filter is active
   const getActiveCount = () => {
+    if (filterType === "incident" && subFilter === "incursion") return reportTypeCounts.incursions;
+    if (filterType === "incident" && subFilter === "free-recovery") return reportTypeCounts.freeRecovery;
+    if (filterType === "incident" && subFilter === "asset-damage") return reportTypeCounts.incidentAssetDamage;
     if (filterType === "incident") return reportTypeCounts.incident;
     if (filterType === "asset-damage") return reportTypeCounts.assetDamage;
-    if (filterType === "daily-occurrence")
-      return reportTypeCounts.dailyOccurrence;
+    if (filterType === "daily-occurrence") return reportTypeCounts.dailyOccurrence;
     if (filterType === "cctv-check") return reportTypeCounts.cctvCheck;
     if (filterType === "cctv-faults") return reportTypeCounts.cctvFaults;
     return reportTypeCounts.total;
@@ -494,6 +510,7 @@ const ReportsPage = () => {
     freeRecovery: reportTypeCounts.freeRecovery,
     incursions: reportTypeCounts.incursions,
     vehiclesDispatched: reportTypeCounts.vehiclesDispatched,
+    incidentAssetDamage: reportTypeCounts.incidentAssetDamage,
   };
 
   // Get the active scheme name for display
@@ -530,65 +547,105 @@ const ReportsPage = () => {
 
         {/* Row 1: Report Type Counts */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-brand-500 transition-all" onClick={() => handleCardClick("all")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-brand-500 transition-all"
+            onClick={() => handleCardClick("all")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <FileText className="w-3.5 h-3.5 text-brand-500" />
               <p className="text-gray-500 text-sm">Total Reports</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.total}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.total}
+            </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all" onClick={() => handleCardClick("daily-occurrence")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all"
+            onClick={() => handleCardClick("daily-occurrence")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <Calendar className="w-3.5 h-3.5 text-blue-500" />
               <p className="text-gray-500 text-sm">Daily Logs</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.dailyOccurrence}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.dailyOccurrence}
+            </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-green-500 transition-all" onClick={() => handleCardClick("cctv-check")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-yellow-500 transition-all"
+            onClick={() => handleCardClick("incident", "asset-damage")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
-              <Eye className="w-3.5 h-3.5 text-green-500" />
-              <p className="text-gray-500 text-sm">CCTV Checks</p>
+              <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
+              <p className="text-gray-500 text-sm">Asset Damage</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.cctvCheck}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.incidentAssetDamage}
+            </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-purple-500 transition-all" onClick={() => handleCardClick("cctv-faults")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-purple-500 transition-all"
+            onClick={() => handleCardClick("cctv-faults")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <CameraOff className="w-3.5 h-3.5 text-purple-500" />
               <p className="text-gray-500 text-sm">CCTV Faults</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.cctvFaults}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.cctvFaults}
+            </p>
           </div>
         </div>
 
         {/* Row 2: Incident Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-orange-500 transition-all" onClick={() => handleCardClick("incident")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-orange-500 transition-all"
+            onClick={() => handleCardClick("incident")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
               <p className="text-gray-500 text-sm">Incidents</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.incident}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.incident}
+            </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-green-500 transition-all" onClick={() => handleCardClick("incident", "free-recovery")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-green-500 transition-all"
+            onClick={() => handleCardClick("incident", "free-recovery")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <Wrench className="w-3.5 h-3.5 text-green-500" />
               <p className="text-gray-500 text-sm">Free Recovery</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.freeRecovery}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.freeRecovery}
+            </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-red-500 transition-all" onClick={() => handleCardClick("incident", "incursion")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-red-500 transition-all"
+            onClick={() => handleCardClick("incident", "incursion")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
               <p className="text-gray-500 text-sm">Incursions</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.incursions}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.incursions}
+            </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all" onClick={() => handleCardClick("incident")}>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all"
+            onClick={() => handleCardClick("incident")}
+          >
             <div className="flex items-center gap-1.5 mb-1">
               <Car className="w-3.5 h-3.5 text-blue-500" />
               <p className="text-gray-500 text-sm">Vehicles Dispatched</p>
             </div>
-            <p className="text-2xl font-bold text-brand-500">{reportStats.vehiclesDispatched}</p>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.vehiclesDispatched}
+            </p>
           </div>
         </div>
 
