@@ -38,3 +38,5 @@ screenshots/
 *.sln
 *.sw?
 
+# Local deployment docs
+PRODUCTION_DEPLOYMENT_CHECKLIST.md

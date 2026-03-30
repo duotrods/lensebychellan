@@ -22,11 +22,11 @@ const queryClient = new QueryClient({
 // Existing components
 
 // New pages
-import SignInPage from './pages/SignInPage';
-import SignUpPage from './pages/SignUpPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import SignInPage from './pages/auth/SignInPage';
+import SignUpPage from './pages/auth/SignUpPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import AuthActionPage from './pages/auth/AuthActionPage';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/shared/Dashboard';
 import FormsSelectionPage from './pages/staff/FormsSelectionPage';
 import CCTVCheckFormPage from './pages/staff/CCTVCheckFormPage';
 import IncidentReportFormPage from './pages/staff/IncidentReportFormPage';
