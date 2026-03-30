@@ -1717,7 +1717,7 @@ class ClientDataService {
         ]);
 
       return {
-        incident: incidentCount,
+        incident: incidentCount - freeRecoveryCount - incursionsCount,
         assetDamage: assetCount,
         dailyOccurrence: dailyCount,
         cctvCheck: cctvCount,
