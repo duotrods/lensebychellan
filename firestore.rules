@@ -77,6 +77,13 @@ service cloud.firestore {
       allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
+    // CCTV Operator Access Codes (separate from clientOTPs)
+    match /cctvOperatorOTPs/{codeId} {
+      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow get: if true;
+      allow list: if isSignedIn() && getUserRole() == 'admin';
+    }
+
     // Staff Invite Codes
     match /staffInviteCodes/{codeId} {
       allow write: if isSignedIn() && getUserRole() == 'admin';
@@ -186,15 +193,10 @@ service cloud.firestore {
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
+        getUserRole() == 'cctvfaultoperator' ||
         (getUserRole() == 'client' && (
           hasSchemeAccess(resource.data.schemeIds) ||
           hasOldSchemeAccess(resource.data.schemeId)
-        )) ||
-        (getUserRole() == 'cctvfaultoperator' && (
-          hasSchemeAccess(resource.data.schemeIds) ||
-          hasOldSchemeAccess(resource.data.schemeId) ||
-          getUserScheme() == resource.data.schemeId ||
-          (resource.data.schemeIds != null && getUserScheme() != null && getUserScheme() in resource.data.schemeIds)
         ))
       );
 

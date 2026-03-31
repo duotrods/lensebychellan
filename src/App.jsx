@@ -63,7 +63,7 @@ import ClientAssetDamageView from './pages/client/AssetDamageView';
 import ClientDailyOccurrenceView from './pages/client/DailyOccurrenceView';
 import ClientCCTVCheckView from './pages/client/CCTVCheckView';
 import ClientLiveIncidentsPage from './pages/client/LiveIncidentsPage';
-import ClientLiveCameraFaultsPage from './components/dashboard/LiveCameraOperatorDashboard';
+import ClientLiveCameraFaultsPage from './components/dashboard/CCTVFaultOperatorDashboard';
 import ClientCCTVFaultView from './pages/client/CCTVFaultView';
 import ClientCCTVFaultsPage from './pages/client/CCTVFaultsPage';
 

@@ -9,7 +9,7 @@ import AdminDashboard from '../components/dashboard/AdminDashboard';
 import NewStaffDashboard from '../components/dashboard/NewStaffDashboard';
 import NewClientDashboard from '../components/dashboard/NewClientDashboard';
 import LiveOperatorDashboard from '../components/dashboard/LiveOperatorDashboard';
-import LiveCameraFaultsPage from '../components/dashboard/LiveCameraOperatorDashboard';
+import LiveCameraFaultsPage from '../components/dashboard/CCTVFaultOperatorDashboard';
 import { USER_ROLES } from '../utils/constants';
 
 const Dashboard = () => {
