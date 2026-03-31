@@ -25,10 +25,13 @@ class OTPService {
   }
 
   // Admin: Create a new OTP code for a scheme
-  async createOTP(schemeId, schemeName, adminUid) {
+  async createOTP(schemeId, schemeName, adminUid, expiresInDays = 30) {
     try {
       const otpCode = this.generateOTPCode(schemeId);
       const otpRef = doc(db, 'clientOTPs', otpCode);
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
       await setDoc(otpRef, {
         otpCode,
@@ -37,6 +40,7 @@ class OTPService {
         isUsed: false,
         createdBy: adminUid,
         createdAt: serverTimestamp(),
+        expiresAt,
         usedBy: null,
         usedAt: null
       });
@@ -61,6 +65,11 @@ class OTPService {
 
       if (otpData.isUsed) {
         throw new AppError('This OTP code has already been used', 'otp/already-used');
+      }
+
+      const expiresAt = otpData.expiresAt?.toDate ? otpData.expiresAt.toDate() : otpData.expiresAt ? new Date(otpData.expiresAt) : null;
+      if (expiresAt && expiresAt < new Date()) {
+        throw new AppError('This OTP code has expired', 'otp/expired');
       }
 
       return {
@@ -325,21 +334,127 @@ class OTPService {
   }
 
   /**
-   * Get total counts for OTP tables using aggregation - only 2 reads total
+   * Get total counts for OTP tables using aggregation - only 3 reads total
    */
   async getOTPCounts() {
     try {
-      const [clientSnap, staffSnap] = await Promise.all([
+      const [clientSnap, staffSnap, cctvSnap] = await Promise.all([
         getCountFromServer(query(collection(db, 'clientOTPs'))),
         getCountFromServer(query(collection(db, 'staffInviteCodes'))),
+        getCountFromServer(query(collection(db, 'cctvOperatorOTPs'))),
       ]);
       return {
         clientTotal: clientSnap.data().count,
         staffTotal: staffSnap.data().count,
+        cctvTotal: cctvSnap.data().count,
       };
     } catch (error) {
       console.warn('Could not get OTP counts:', error);
-      return { clientTotal: 0, staffTotal: 0 };
+      return { clientTotal: 0, staffTotal: 0, cctvTotal: 0 };
+    }
+  }
+
+  // ==================== CCTV OPERATOR ACCESS CODE METHODS ====================
+
+  // Generate a CCTV Operator access code
+  generateCCTVOperatorCode() {
+    const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const year = new Date().getFullYear();
+    return `CCTV-${year}-${randomPart}`;
+  }
+
+  // Admin: Create a new CCTV Operator access code (not tied to any scheme)
+  async createCCTVOperatorCode(adminUid, expiresInDays = 30) {
+    try {
+      const code = this.generateCCTVOperatorCode();
+      const codeRef = doc(db, 'cctvOperatorOTPs', code);
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+      await setDoc(codeRef, {
+        code,
+        isUsed: false,
+        createdBy: adminUid,
+        createdAt: serverTimestamp(),
+        expiresAt,
+        usedBy: null,
+        usedAt: null
+      });
+
+      return code;
+    } catch (error) {
+      throw new AppError('Failed to create CCTV operator access code', 'otp/create-error', error);
+    }
+  }
+
+  // Validate CCTV Operator access code during signup
+  async validateCCTVOperatorCode(code) {
+    try {
+      const codeRef = doc(db, 'cctvOperatorOTPs', code);
+      const codeSnap = await getDoc(codeRef);
+
+      if (!codeSnap.exists()) {
+        throw new AppError('Invalid CCTV operator access code', 'otp/invalid-code');
+      }
+
+      const codeData = codeSnap.data();
+
+      if (codeData.isUsed) {
+        throw new AppError('This access code has already been used', 'otp/already-used');
+      }
+
+      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
+      if (expiresAt && expiresAt < new Date()) {
+        throw new AppError('This access code has expired', 'otp/expired');
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to validate CCTV operator code', 'otp/validation-error', error);
+    }
+  }
+
+  // Mark CCTV Operator access code as used after successful registration
+  async markCCTVOperatorCodeAsUsed(code, uid) {
+    try {
+      const codeRef = doc(db, 'cctvOperatorOTPs', code);
+      await updateDoc(codeRef, {
+        isUsed: true,
+        usedBy: uid,
+        usedAt: serverTimestamp()
+      });
+    } catch (error) {
+      throw new AppError('Failed to mark CCTV operator code as used', 'otp/update-error', error);
+    }
+  }
+
+  // Admin: Get all CCTV operator codes with pagination
+  async getCCTVOperatorCodesPaginated(limitCount = 10, lastDoc = null) {
+    try {
+      const codesRef = collection(db, 'cctvOperatorOTPs');
+      let q;
+
+      if (lastDoc) {
+        q = query(codesRef, orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(limitCount));
+      } else {
+        q = query(codesRef, orderBy('createdAt', 'desc'), limit(limitCount));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const codes = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return {
+        codes,
+        lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
+        hasMore: querySnapshot.docs.length === limitCount
+      };
+    } catch (error) {
+      throw new AppError('Failed to fetch CCTV operator codes', 'otp/fetch-error', error);
     }
   }
 

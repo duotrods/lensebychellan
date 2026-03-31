@@ -1,42 +1,70 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { useStaffLiveCCTVFaults, usePaginatedCCTVFaults } from '../../hooks/useCCTVFaults';
-import { Eye, CameraOff, ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2, Clock, CheckCircle2, Send, MessageSquare } from 'lucide-react';
-import { USER_ROLES } from '../../utils/constants';
-import { clientDataService } from '../../services/clientDataService';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import {
+  useStaffLiveCCTVFaults,
+  usePaginatedCCTVFaults,
+} from "../../hooks/useCCTVFaults";
+import {
+  Eye,
+  CameraOff,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Clock,
+  CheckCircle2,
+  Send,
+  MessageSquare,
+} from "lucide-react";
+import { USER_ROLES } from "../../utils/constants";
+import { clientDataService } from "../../services/clientDataService";
+import { toast } from "react-hot-toast";
 
 const formatNoteTime = (addedAt) => {
-  if (!addedAt) return '';
+  if (!addedAt) return "";
   const d = new Date(addedAt);
-  return `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+  return `${d.toLocaleDateString("en-GB")} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 };
 
 const NoteThread = ({ notes, legacyNote }) => {
   const allNotes = notes?.length
     ? notes
     : legacyNote
-    ? [{ text: legacyNote, addedAt: null, authorRole: 'cctvfaultoperator', authorName: 'Operator' }]
-    : [];
+      ? [
+          {
+            text: legacyNote,
+            addedAt: null,
+            authorRole: "cctvfaultoperator",
+            authorName: "Operator",
+          },
+        ]
+      : [];
 
   if (!allNotes.length) return null;
 
   return (
     <div className="space-y-2 pb-2">
       {allNotes.map((note, idx) => {
-        const isCCTV = note.authorRole === 'cctvfaultoperator';
+        const isCCTV = note.authorRole === "cctvfaultoperator";
         return (
-          <div key={idx} className={`flex flex-col ${isCCTV ? 'items-end' : 'items-start'}`}>
-            <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${
-              isCCTV
-                ? 'bg-teal-500 text-white rounded-tr-sm'
-                : 'bg-blue-100 text-blue-900 rounded-tl-sm'
-            }`}>
+          <div
+            key={idx}
+            className={`flex flex-col ${isCCTV ? "items-end" : "items-start"}`}
+          >
+            <div
+              className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${
+                isCCTV
+                  ? "bg-teal-500 text-white rounded-tr-sm"
+                  : "bg-blue-100 text-blue-900 rounded-tl-sm"
+              }`}
+            >
               {note.text}
             </div>
             <span className="text-xs text-gray-400 mt-0.5">
-              {note.authorName || (isCCTV ? 'Operator' : 'Staff')}
+              {note.authorName || (isCCTV ? "Operator" : "Staff")}
               {note.addedAt && ` · ${formatNoteTime(note.addedAt)}`}
             </span>
           </div>
@@ -46,14 +74,18 @@ const NoteThread = ({ notes, legacyNote }) => {
   );
 };
 
-const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/dashboard/client/cctv-fault' }) => {
+const LiveCameraFaultsPage = ({
+  hideDashboardLink = false,
+  faultBasePath = "/dashboard/client/cctv-fault",
+}) => {
   const navigate = useNavigate();
   const { userProfile, role } = useAuth();
   const canAddNote = role === USER_ROLES.CCTVOPERATOR;
-  const authorName = userProfile?.displayName || userProfile?.name || '';
+  const authorName = userProfile?.displayName || userProfile?.name || "";
 
   // Real-time subscription for ALL schemes — notes update automatically via onSnapshot
-  const { faults: recentFaults, loading: recentLoading } = useStaffLiveCCTVFaults();
+  const { faults: recentFaults, loading: recentLoading } =
+    useStaffLiveCCTVFaults();
 
   // Server-side paginated completed fault history — all schemes (null = no scheme filter)
   const {
@@ -71,7 +103,10 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
   // When a live fault gets completed, auto-refresh history
   const prevLiveFaultCount = useRef(recentFaults.length);
   useEffect(() => {
-    if (prevLiveFaultCount.current > 0 && recentFaults.length < prevLiveFaultCount.current) {
+    if (
+      prevLiveFaultCount.current > 0 &&
+      recentFaults.length < prevLiveFaultCount.current
+    ) {
       refreshHistory();
     }
     prevLiveFaultCount.current = recentFaults.length;
@@ -92,24 +127,29 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
     if (fault.clientAcknowledged) return;
     setAcknowledging((prev) => ({ ...prev, [fault.id]: true }));
     try {
-      await clientDataService.acknowledgeCCTVFault(fault.id, notes[fault.id] || '', role, authorName);
-      toast.success('Fault acknowledged — staff have been notified.');
+      await clientDataService.acknowledgeCCTVFault(
+        fault.id,
+        notes[fault.id] || "",
+        role,
+        authorName,
+      );
+      toast.success("Fault acknowledged — staff have been notified.");
     } catch {
-      toast.error('Failed to acknowledge fault. Please try again.');
+      toast.error("Failed to acknowledge fault. Please try again.");
     } finally {
       setAcknowledging((prev) => ({ ...prev, [fault.id]: false }));
     }
   };
 
   const handleSendNote = async (fault) => {
-    const text = (newNotes[fault.id] || '').trim();
+    const text = (newNotes[fault.id] || "").trim();
     if (!text) return;
     setSavingNote((prev) => ({ ...prev, [fault.id]: true }));
     try {
       await clientDataService.addClientNote(fault.id, text, role, authorName);
-      setNewNotes((prev) => ({ ...prev, [fault.id]: '' }));
+      setNewNotes((prev) => ({ ...prev, [fault.id]: "" }));
     } catch {
-      toast.error('Failed to add note. Please try again.');
+      toast.error("Failed to add note. Please try again.");
     } finally {
       setSavingNote((prev) => ({ ...prev, [fault.id]: false }));
     }
@@ -126,14 +166,15 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
         <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center gap-4 mb-2">
             <button
-              onClick={() => navigate('/dashboard/client')}
+              onClick={() => navigate("/dashboard/client")}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h4 className="font-bold text-gray-800">
-                Go Back to <span className="font-semibold text-brand-400">Dashboard</span>
+                Go Back to{" "}
+                <span className="font-semibold text-brand-400">Dashboard</span>
               </h4>
             </div>
           </div>
@@ -148,7 +189,9 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
         <>
           <div className="mb-8 bg-white rounded-xl text-center p-6 shadow-sm">
             <h4 className="font-bold text-gray-800">Camera Fault Reports</h4>
-            <p className="text-gray-500">All schemes — live and completed faults</p>
+            <p className="text-gray-500">
+              All schemes — live and completed faults
+            </p>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm">
@@ -159,7 +202,9 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                     <CameraOff className="w-6 h-6 text-red-500" />
                   </div>
-                  <span className="text-white font-semibold text-2xl">Live Faults</span>
+                  <span className="text-white font-semibold text-2xl">
+                    Live Faults
+                  </span>
                   <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
                     {recentFaults.length} Active
                   </span>
@@ -181,15 +226,20 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                               onClick={() => handleViewFault(fault)}
                             >
                               <span className="text-red-400 font-mono font-semibold">
-                                {fault.time || 'N/A'}
+                                {fault.time || "N/A"}
                               </span>
                               <span className="text-red-500 font-bold">|</span>
                               <span className="font-medium">
-                                {fault.referenceId || `Fault #${fault.id.slice(0, 6)}`}
+                                {fault.referenceId ||
+                                  `Fault #${fault.id.slice(0, 6)}`}
                               </span>
                               <span className="text-red-500 font-bold">|</span>
                               <span className="font-medium text-gray-700">
-                                {fault.camera || 'N/A'}
+                                {fault.camera || "N/A"}
+                              </span>
+                              <span className="text-red-500 font-bold">|</span>
+                              <span className="font-medium text-gray-700">
+                                {fault.scheme || "N/A"}
                               </span>
                             </div>
                             <button
@@ -204,7 +254,7 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                           {/* Date + comment */}
                           <div className="flex items-center gap-3 mt-1">
                             <p className="text-slate-400 text-sm">
-                              Date: {fault.date || 'N/A'}
+                              Date: {fault.date || "N/A"}
                             </p>
                             {fault.comments && (
                               <>
@@ -220,7 +270,9 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                           <div className="mt-3 pt-3 border-t border-gray-100">
                             {/* Collapsible notes toggle */}
                             {(() => {
-                              const count = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
+                              const count =
+                                fault.clientNotes?.length ||
+                                (fault.clientNote ? 1 : 0);
                               const isOpen = notesOpen[fault.id];
                               return count > 0 ? (
                                 <button
@@ -228,14 +280,23 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                                   className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 mb-2"
                                 >
                                   <MessageSquare className="w-3.5 h-3.5" />
-                                  <span>{count} {count === 1 ? 'note' : 'notes'}</span>
-                                  {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                  <span>
+                                    {count} {count === 1 ? "note" : "notes"}
+                                  </span>
+                                  {isOpen ? (
+                                    <ChevronUp className="w-3 h-3" />
+                                  ) : (
+                                    <ChevronDown className="w-3 h-3" />
+                                  )}
                                 </button>
                               ) : null;
                             })()}
                             {/* Chat thread — real-time via onSnapshot */}
                             {notesOpen[fault.id] && (
-                              <NoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+                              <NoteThread
+                                notes={fault.clientNotes}
+                                legacyNote={fault.clientNote}
+                              />
                             )}
 
                             {fault.clientAcknowledged ? (
@@ -250,12 +311,15 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                                     <input
                                       type="text"
                                       placeholder="Add a note..."
-                                      value={newNotes[fault.id] || ''}
+                                      value={newNotes[fault.id] || ""}
                                       onChange={(e) =>
-                                        setNewNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
+                                        setNewNotes((prev) => ({
+                                          ...prev,
+                                          [fault.id]: e.target.value,
+                                        }))
                                       }
                                       onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                        if (e.key === "Enter" && !e.shiftKey) {
                                           e.preventDefault();
                                           handleSendNote(fault);
                                         }
@@ -265,12 +329,17 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                                     />
                                     <button
                                       onClick={() => handleSendNote(fault)}
-                                      disabled={savingNote[fault.id] || !(newNotes[fault.id] || '').trim()}
+                                      disabled={
+                                        savingNote[fault.id] ||
+                                        !(newNotes[fault.id] || "").trim()
+                                      }
                                       className="p-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg disabled:opacity-50 transition-colors"
                                     >
-                                      {savingNote[fault.id]
-                                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                                        : <Send className="w-4 h-4" />}
+                                      {savingNote[fault.id] ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Send className="w-4 h-4" />
+                                      )}
                                     </button>
                                   </div>
                                 )}
@@ -281,9 +350,12 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                                   <textarea
                                     rows={2}
                                     placeholder="Add a note (e.g. will fix on Tuesday)..."
-                                    value={notes[fault.id] || ''}
+                                    value={notes[fault.id] || ""}
                                     onChange={(e) =>
-                                      setNotes((prev) => ({ ...prev, [fault.id]: e.target.value }))
+                                      setNotes((prev) => ({
+                                        ...prev,
+                                        [fault.id]: e.target.value,
+                                      }))
                                     }
                                     className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-brand-400"
                                   />
@@ -295,13 +367,14 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                                       className="checkbox checkbox-sm checkbox-success"
                                       disabled={acknowledging[fault.id]}
                                       onChange={(e) => {
-                                        if (e.target.checked) handleAcknowledge(fault);
+                                        if (e.target.checked)
+                                          handleAcknowledge(fault);
                                       }}
                                     />
                                     <span className="text-sm text-gray-600">
                                       {acknowledging[fault.id]
-                                        ? 'Sending acknowledgment...'
-                                        : 'Mark as received / acknowledged'}
+                                        ? "Sending acknowledgment..."
+                                        : "Mark as received / acknowledged"}
                                     </span>
                                   </label>
                                 )}
@@ -321,7 +394,9 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                     <Clock className="w-6 h-6 text-brand-500" />
                   </div>
-                  <span className="text-white font-semibold text-2xl">Fault History</span>
+                  <span className="text-white font-semibold text-2xl">
+                    Fault History
+                  </span>
                   <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
                     {totalCount} Completed
                   </span>
@@ -348,15 +423,23 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3 flex-wrap">
                                 <span className="text-black font-mono">
-                                  {fault.date || 'N/A'}
+                                  {fault.date || "N/A"}
                                 </span>
-                                <span className="text-brand-500 font-bold">|</span>
+                                <span className="text-brand-500 font-bold">
+                                  |
+                                </span>
                                 <span className="font-mono text-gray-700">
-                                  {fault.time || 'N/A'}
+                                  {fault.time || "N/A"}
                                 </span>
-                                <span className="text-brand-500 font-bold">|</span>
+                                <span className="text-brand-500 font-bold">
+                                  |
+                                </span>
                                 <span className="text-black font-medium">
-                                  {fault.referenceId || `Fault #${fault.id.slice(0, 6)}`}
+                                  {fault.referenceId ||
+                                    `Fault #${fault.id.slice(0, 6)}`}
+                                </span>
+                                <span className="text-black font-medium">
+                                  {fault.scheme || "N/A"}
                                 </span>
                               </div>
                               <button
@@ -368,15 +451,24 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                             </div>
                             <div className="flex items-center justify-between mt-1">
                               <p className="text-slate-400 text-sm">
-                                Camera: <span className="font-medium text-gray-700">{fault.camera || 'N/A'}</span>
+                                Camera:{" "}
+                                <span className="font-medium text-gray-700">
+                                  {fault.camera || "N/A"}
+                                </span>
                               </p>
                               <div className="flex items-center gap-2">
                                 {fault.clientAcknowledged && (
-                                  <CheckCircle2 className="w-4 h-4 text-green-500" title="Client acknowledged" />
+                                  <CheckCircle2
+                                    className="w-4 h-4 text-green-500"
+                                    title="Client acknowledged"
+                                  />
                                 )}
                                 {fault.completedBy?.name && (
                                   <span className="text-slate-400 text-sm">
-                                    By: <span className="text-black font-semibold">{fault.completedBy.name}</span>
+                                    By:{" "}
+                                    <span className="text-black font-semibold">
+                                      {fault.completedBy.name}
+                                    </span>
                                   </span>
                                 )}
                               </div>
@@ -389,7 +481,9 @@ const LiveCameraFaultsPage = ({ hideDashboardLink = false, faultBasePath = '/das
                       {totalPages > 1 && (
                         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
                           <span className="text-sm text-gray-500">
-                            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                            Showing {(currentPage - 1) * pageSize + 1}–
+                            {Math.min(currentPage * pageSize, totalCount)} of{" "}
+                            {totalCount}
                           </span>
                           <div className="flex items-center gap-2">
                             <button

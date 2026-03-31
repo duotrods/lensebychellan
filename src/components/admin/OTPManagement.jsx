@@ -3,13 +3,25 @@ import { toast } from "react-hot-toast";
 import { otpService } from "../../services/otpService";
 import { useAuth } from "../../hooks/useAuth";
 import { SCHEMES } from "../../utils/schemes";
-import { Copy, Plus, CheckCircle, XCircle, RefreshCw, Users, Building2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Copy,
+  Plus,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Users,
+  Building2,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 const OTPManagement = () => {
   const { userProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState("client"); // "client" or "staff"
+  const [activeTab, setActiveTab] = useState("client"); // "client", "staff", or "cctv"
   const [clientOTPs, setClientOTPs] = useState([]);
   const [staffInviteCodes, setStaffInviteCodes] = useState([]);
+  const [cctvCodes, setCctvCodes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -31,11 +43,18 @@ const OTPManagement = () => {
   const [staffTotalCount, setStaffTotalCount] = useState(0);
   const [staffCurrentPage, setStaffCurrentPage] = useState(1);
 
+  // Pagination state for CCTV operator codes
+  const [cctvLastDoc, setCctvLastDoc] = useState(null);
+  const [cctvHasMore, setCctvHasMore] = useState(true);
+  const [cctvTotalCount, setCctvTotalCount] = useState(0);
+  const [cctvCurrentPage, setCctvCurrentPage] = useState(1);
+
   const codesPerPage = 10;
 
   useEffect(() => {
     loadClientCodes(true);
     loadStaffCodes(true);
+    loadCCTVCodes(true);
     loadTotalCounts();
   }, []);
 
@@ -43,13 +62,12 @@ const OTPManagement = () => {
     setLoading(true);
     try {
       // Use server-side pagination for client OTPs
-      const result = await otpService.getAllOTPsPaginated(
-        codesPerPage,
-        resetPage ? null : clientLastDoc
-      ).catch((err) => {
-        console.error('Error loading client OTPs:', err);
-        return { otps: [], lastDoc: null, hasMore: false };
-      });
+      const result = await otpService
+        .getAllOTPsPaginated(codesPerPage, resetPage ? null : clientLastDoc)
+        .catch((err) => {
+          console.error("Error loading client OTPs:", err);
+          return { otps: [], lastDoc: null, hasMore: false };
+        });
 
       setClientOTPs(result.otps);
       setClientLastDoc(result.lastDoc);
@@ -72,14 +90,16 @@ const OTPManagement = () => {
     setLoading(true);
     try {
       // Use server-side pagination for staff invite codes
-      const result = await otpService.getAllStaffInviteCodesPaginated(
-        codesPerPage,
-        resetPage ? null : staffLastDoc
-      ).catch((err) => {
-        console.error('Error loading staff invite codes:', err);
-        console.log('This is normal if no staff codes have been created yet');
-        return { codes: [], lastDoc: null, hasMore: false };
-      });
+      const result = await otpService
+        .getAllStaffInviteCodesPaginated(
+          codesPerPage,
+          resetPage ? null : staffLastDoc,
+        )
+        .catch((err) => {
+          console.error("Error loading staff invite codes:", err);
+          console.log("This is normal if no staff codes have been created yet");
+          return { codes: [], lastDoc: null, hasMore: false };
+        });
 
       setStaffInviteCodes(result.codes);
       setStaffLastDoc(result.lastDoc);
@@ -98,20 +118,50 @@ const OTPManagement = () => {
     }
   };
 
+  const loadCCTVCodes = async (resetPage = false) => {
+    setLoading(true);
+    try {
+      const result = await otpService
+        .getCCTVOperatorCodesPaginated(
+          codesPerPage,
+          resetPage ? null : cctvLastDoc,
+        )
+        .catch((err) => {
+          console.error("Error loading CCTV operator codes:", err);
+          return { codes: [], lastDoc: null, hasMore: false };
+        });
+
+      setCctvCodes(result.codes);
+      setCctvLastDoc(result.lastDoc);
+      setCctvHasMore(result.hasMore);
+
+      if (resetPage) {
+        setCctvCurrentPage(1);
+      }
+    } catch (error) {
+      console.error("Failed to load CCTV operator codes:", error);
+      toast.error("Failed to load CCTV operator codes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadTotalCounts = async () => {
     try {
-      // Use aggregation - only 2 reads regardless of how many codes exist
+      // Use aggregation - only 3 reads regardless of how many codes exist
       const counts = await otpService.getOTPCounts();
       setClientTotalCount(counts.clientTotal);
       setStaffTotalCount(counts.staffTotal);
+      setCctvTotalCount(counts.cctvTotal);
     } catch (error) {
-      console.warn('Could not load total counts:', error);
+      console.warn("Could not load total counts:", error);
     }
   };
 
   const loadAllCodes = () => {
     loadClientCodes(true);
     loadStaffCodes(true);
+    loadCCTVCodes(true);
     loadTotalCounts();
   };
 
@@ -128,15 +178,35 @@ const OTPManagement = () => {
       const otpCode = await otpService.createOTP(
         formData.schemeId.toUpperCase(),
         formData.schemeName,
-        userProfile.uid
+        userProfile.uid,
+        formData.expiresInDays,
       );
 
       toast.success(`Client Access Code created: ${otpCode}`);
       setFormData({ schemeId: "", schemeName: "", expiresInDays: 30, maxUses: 1 });
       setShowCreateModal(false);
       loadAllCodes();
+      // eslint-disable-next-line no-unused-vars
     } catch (error) {
       toast.error("Failed to create access code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateCCTVCode = async (e) => {
+    e.preventDefault();
+
+    setLoading(true);
+    try {
+      const code = await otpService.createCCTVOperatorCode(userProfile.uid, formData.expiresInDays);
+
+      toast.success(`CCTV Operator Access Code created: ${code}`);
+      setFormData({ schemeId: "", schemeName: "", expiresInDays: 30, maxUses: 1 });
+      setShowCreateModal(false);
+      loadAllCodes();
+    } catch (error) {
+      toast.error("Failed to create CCTV operator access code");
     } finally {
       setLoading(false);
     }
@@ -151,11 +221,16 @@ const OTPManagement = () => {
         userProfile.uid,
         userProfile.displayName,
         formData.expiresInDays,
-        formData.maxUses
+        formData.maxUses,
       );
 
       toast.success(`Staff Invite Code created: ${inviteCode}`);
-      setFormData({ schemeId: "", schemeName: "", expiresInDays: 30, maxUses: 1 });
+      setFormData({
+        schemeId: "",
+        schemeName: "",
+        expiresInDays: 30,
+        maxUses: 1,
+      });
       setShowCreateModal(false);
       loadAllCodes();
     } catch (error) {
@@ -172,7 +247,9 @@ const OTPManagement = () => {
 
   const formatDate = (timestamp) => {
     if (!timestamp) return "N/A";
-    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    const date = timestamp.seconds
+      ? new Date(timestamp.seconds * 1000)
+      : new Date(timestamp);
     return date.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
@@ -184,28 +261,40 @@ const OTPManagement = () => {
 
   const isExpired = (expiresAt) => {
     if (!expiresAt) return false;
-    const date = expiresAt.seconds ? new Date(expiresAt.seconds * 1000) : new Date(expiresAt);
+    const date = expiresAt.seconds
+      ? new Date(expiresAt.seconds * 1000)
+      : new Date(expiresAt);
     return date < new Date();
   };
 
-  const displayCodes = activeTab === "client" ? clientOTPs : staffInviteCodes;
-  const availableCount = activeTab === "client"
-    ? clientOTPs.filter(otp => !otp.isUsed).length
-    : staffInviteCodes.filter(code => !code.isUsed && !isExpired(code.expiresAt)).length;
+  const displayCodes =
+    activeTab === "client"
+      ? clientOTPs
+      : activeTab === "cctv"
+        ? cctvCodes
+        : staffInviteCodes;
+  const availableCount =
+    activeTab === "client"
+      ? clientOTPs.filter((otp) => !otp.isUsed && !isExpired(otp.expiresAt)).length
+      : activeTab === "cctv"
+        ? cctvCodes.filter((c) => !c.isUsed && !isExpired(c.expiresAt)).length
+        : staffInviteCodes.filter(
+            (code) => !code.isUsed && !isExpired(code.expiresAt),
+          ).length;
 
   // Pagination handlers for client codes
   const clientTotalPages = Math.ceil(clientTotalCount / codesPerPage);
 
   const handleClientNextPage = () => {
     if (clientHasMore) {
-      setClientCurrentPage(prev => prev + 1);
+      setClientCurrentPage((prev) => prev + 1);
       loadClientCodes(false);
     }
   };
 
   const handleClientPrevPage = () => {
     if (clientCurrentPage > 1) {
-      setClientCurrentPage(prev => prev - 1);
+      setClientCurrentPage((prev) => prev - 1);
       loadClientCodes(true);
     }
   };
@@ -215,15 +304,32 @@ const OTPManagement = () => {
 
   const handleStaffNextPage = () => {
     if (staffHasMore) {
-      setStaffCurrentPage(prev => prev + 1);
+      setStaffCurrentPage((prev) => prev + 1);
       loadStaffCodes(false);
     }
   };
 
   const handleStaffPrevPage = () => {
     if (staffCurrentPage > 1) {
-      setStaffCurrentPage(prev => prev - 1);
+      setStaffCurrentPage((prev) => prev - 1);
       loadStaffCodes(true);
+    }
+  };
+
+  // Pagination handlers for CCTV operator codes
+  const cctvTotalPages = Math.ceil(cctvTotalCount / codesPerPage);
+
+  const handleCctvNextPage = () => {
+    if (cctvHasMore) {
+      setCctvCurrentPage((prev) => prev + 1);
+      loadCCTVCodes(false);
+    }
+  };
+
+  const handleCctvPrevPage = () => {
+    if (cctvCurrentPage > 1) {
+      setCctvCurrentPage((prev) => prev - 1);
+      loadCCTVCodes(true);
     }
   };
 
@@ -271,6 +377,17 @@ const OTPManagement = () => {
           Client Access Codes
         </button>
         <button
+          onClick={() => setActiveTab("cctv")}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold border-b-2 transition-colors ${
+            activeTab === "cctv"
+              ? "border-teal-500 text-teal-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <Camera className="w-5 h-5" />
+          CCTV Operator Codes
+        </button>
+        <button
           onClick={() => setActiveTab("staff")}
           className={`flex items-center gap-2 px-4 py-3 font-semibold border-b-2 transition-colors ${
             activeTab === "staff"
@@ -288,7 +405,11 @@ const OTPManagement = () => {
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500 mb-1">Total Codes</p>
           <p className="text-2xl font-bold text-gray-800">
-            {activeTab === "client" ? clientTotalCount : staffTotalCount}
+            {activeTab === "client"
+              ? clientTotalCount
+              : activeTab === "cctv"
+                ? cctvTotalCount
+                : staffTotalCount}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
@@ -313,10 +434,19 @@ const OTPManagement = () => {
                   Code
                 </th>
                 {activeTab === "client" ? (
+                  <>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Scheme
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Expires
+                    </th>
+                  </>
+                ) : activeTab === "cctv" ? (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Scheme
+                    Expires
                   </th>
-                ) : (
+                ) : activeTab === "staff" ? (
                   <>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created By
@@ -328,7 +458,7 @@ const OTPManagement = () => {
                       Uses
                     </th>
                   </>
-                )}
+                ) : null}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
@@ -341,98 +471,147 @@ const OTPManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {activeTab === "client" ? (
-                clientOTPs.map((otp) => (
-                  <tr key={otp.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                        {otp.otpCode}
-                      </code>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">
-                          {otp.schemeId}
+              {activeTab === "client"
+                ? clientOTPs.map((otp) => (
+                    <tr key={otp.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                          {otp.otpCode}
+                        </code>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">
+                            {otp.schemeId}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {otp.schemeName}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className={`text-sm ${isExpired(otp.expiresAt) ? "text-red-500" : "text-gray-500"}`}>
+                          {formatDate(otp.expiresAt)}
                         </p>
-                        <p className="text-xs text-gray-500">{otp.schemeName}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {otp.isUsed ? (
-                        <span className="flex items-center gap-1 text-sm text-gray-500">
-                          <XCircle className="w-4 h-4" />
-                          Used
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-sm text-green-600">
-                          <CheckCircle className="w-4 h-4" />
-                          Available
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(otp.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => copyToClipboard(otp.otpCode)}
-                        className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
-                      >
-                        <Copy className="w-4 h-4" />
-                        Copy
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                staffInviteCodes.map((code) => (
-                  <tr key={code.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                        {code.inviteCode}
-                      </code>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-800">{code.createdByName || 'Admin'}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className={`text-sm ${isExpired(code.expiresAt) ? 'text-red-500' : 'text-gray-500'}`}>
-                        {formatDate(code.expiresAt)}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-800">
-                        {code.usesRemaining}/{code.maxUses}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {code.isUsed || isExpired(code.expiresAt) ? (
-                        <span className="flex items-center gap-1 text-sm text-gray-500">
-                          <XCircle className="w-4 h-4" />
-                          {isExpired(code.expiresAt) ? 'Expired' : 'Used'}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-sm text-green-600">
-                          <CheckCircle className="w-4 h-4" />
-                          Available
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(code.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => copyToClipboard(code.inviteCode)}
-                        className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
-                      >
-                        <Copy className="w-4 h-4" />
-                        Copy
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {otp.isUsed || isExpired(otp.expiresAt) ? (
+                          <span className="flex items-center gap-1 text-sm text-gray-500">
+                            <XCircle className="w-4 h-4" />
+                            {isExpired(otp.expiresAt) ? "Expired" : "Used"}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-sm text-green-600">
+                            <CheckCircle className="w-4 h-4" />
+                            Available
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(otp.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => copyToClipboard(otp.otpCode)}
+                          className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
+                        >
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                : activeTab === "cctv"
+                  ? cctvCodes.map((c) => (
+                      <tr key={c.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                            {c.code}
+                          </code>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className={`text-sm ${isExpired(c.expiresAt) ? "text-red-500" : "text-gray-500"}`}>
+                            {formatDate(c.expiresAt)}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {c.isUsed || isExpired(c.expiresAt) ? (
+                            <span className="flex items-center gap-1 text-sm text-gray-500">
+                              <XCircle className="w-4 h-4" />
+                              {isExpired(c.expiresAt) ? "Expired" : "Used"}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-sm text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              Available
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(c.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => copyToClipboard(c.code)}
+                            className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
+                          >
+                            <Copy className="w-4 h-4" />
+                            Copy
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  : staffInviteCodes.map((code) => (
+                      <tr key={code.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                            {code.inviteCode}
+                          </code>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="text-sm text-gray-800">
+                            {code.createdByName || "Admin"}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p
+                            className={`text-sm ${isExpired(code.expiresAt) ? "text-red-500" : "text-gray-500"}`}
+                          >
+                            {formatDate(code.expiresAt)}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="text-sm text-gray-800">
+                            {code.usesRemaining}/{code.maxUses}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {code.isUsed || isExpired(code.expiresAt) ? (
+                            <span className="flex items-center gap-1 text-sm text-gray-500">
+                              <XCircle className="w-4 h-4" />
+                              {isExpired(code.expiresAt) ? "Expired" : "Used"}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-sm text-green-600">
+                              <CheckCircle className="w-4 h-4" />
+                              Available
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(code.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => copyToClipboard(code.inviteCode)}
+                            className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
+                          >
+                            <Copy className="w-4 h-4" />
+                            Copy
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
             </tbody>
           </table>
         </div>
@@ -447,7 +626,8 @@ const OTPManagement = () => {
         {activeTab === "client" && clientTotalPages > 1 && (
           <div className="flex items-center justify-between p-4 border-t">
             <p className="text-sm text-gray-600">
-              Showing page {clientCurrentPage} of {clientTotalPages} ({clientTotalCount} total codes)
+              Showing page {clientCurrentPage} of {clientTotalPages} (
+              {clientTotalCount} total codes)
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -462,7 +642,9 @@ const OTPManagement = () => {
               </span>
               <button
                 onClick={handleClientNextPage}
-                disabled={!clientHasMore || clientCurrentPage === clientTotalPages}
+                disabled={
+                  !clientHasMore || clientCurrentPage === clientTotalPages
+                }
                 className="btn btn-sm btn-outline"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -474,7 +656,8 @@ const OTPManagement = () => {
         {activeTab === "staff" && staffTotalPages > 1 && (
           <div className="flex items-center justify-between p-4 border-t">
             <p className="text-sm text-gray-600">
-              Showing page {staffCurrentPage} of {staffTotalPages} ({staffTotalCount} total codes)
+              Showing page {staffCurrentPage} of {staffTotalPages} (
+              {staffTotalCount} total codes)
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -497,6 +680,34 @@ const OTPManagement = () => {
             </div>
           </div>
         )}
+
+        {activeTab === "cctv" && cctvTotalPages > 1 && (
+          <div className="flex items-center justify-between p-4 border-t">
+            <p className="text-sm text-gray-600">
+              Showing page {cctvCurrentPage} of {cctvTotalPages} (
+              {cctvTotalCount} total codes)
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCctvPrevPage}
+                disabled={cctvCurrentPage === 1}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium">
+                Page {cctvCurrentPage} of {cctvTotalPages}
+              </span>
+              <button
+                onClick={handleCctvNextPage}
+                disabled={!cctvHasMore || cctvCurrentPage === cctvTotalPages}
+                className="btn btn-sm btn-outline"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -504,9 +715,22 @@ const OTPManagement = () => {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
             <h5 className="text-xl font-bold text-gray-800 mb-4">
-              {activeTab === "client" ? "Generate Client Access Code" : "Generate Staff Invite Code"}
+              {activeTab === "client"
+                ? "Generate Client Access Code"
+                : activeTab === "cctv"
+                  ? "Generate CCTV Operator Access Code"
+                  : "Generate Staff Invite Code"}
             </h5>
-            <form onSubmit={activeTab === "client" ? handleCreateClientOTP : handleCreateStaffInvite} className="space-y-4">
+            <form
+              onSubmit={
+                activeTab === "client"
+                  ? handleCreateClientOTP
+                  : activeTab === "cctv"
+                    ? handleCreateCCTVCode
+                    : handleCreateStaffInvite
+              }
+              className="space-y-4"
+            >
               {activeTab === "client" ? (
                 <div className="form-control">
                   <label className="label">
@@ -518,7 +742,7 @@ const OTPManagement = () => {
                     value={formData.schemeId}
                     onChange={(e) => {
                       const selectedScheme = SCHEMES.find(
-                        (s) => s.id === e.target.value
+                        (s) => s.id === e.target.value,
                       );
                       setFormData({
                         ...formData,
@@ -542,6 +766,50 @@ const OTPManagement = () => {
                         `Code will be generated for: ${formData.schemeId}`}
                     </span>
                   </label>
+                  <div className="form-control mt-2">
+                    <label className="label">
+                      <span className="label-text font-semibold">Expires In (Days)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={formData.expiresInDays}
+                      onChange={(e) => setFormData({ ...formData, expiresInDays: parseInt(e.target.value) })}
+                      className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                      required
+                    />
+                    <label className="label">
+                      <span className="label-text-alt text-gray-500">
+                        Code will expire in {formData.expiresInDays} days. Single-use only.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              ) : activeTab === "cctv" ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-500">
+                    This code grants access to all CCTV fault reports across all schemes.
+                  </p>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-semibold">Expires In (Days)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={formData.expiresInDays}
+                      onChange={(e) => setFormData({ ...formData, expiresInDays: parseInt(e.target.value) })}
+                      className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                      required
+                    />
+                    <label className="label">
+                      <span className="label-text-alt text-gray-500">
+                        Code will expire in {formData.expiresInDays} days. Single-use only.
+                      </span>
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -556,13 +824,19 @@ const OTPManagement = () => {
                       min="1"
                       max="365"
                       value={formData.expiresInDays}
-                      onChange={(e) => setFormData({ ...formData, expiresInDays: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          expiresInDays: parseInt(e.target.value),
+                        })
+                      }
                       className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
                       required
                     />
                     <label className="label">
                       <span className="label-text-alt text-gray-500">
-                        Code will expire in {formData.expiresInDays} days. Each code is single-use only.
+                        Code will expire in {formData.expiresInDays} days. Each
+                        code is single-use only.
                       </span>
                     </label>
                   </div>
@@ -574,7 +848,12 @@ const OTPManagement = () => {
                   type="button"
                   onClick={() => {
                     setShowCreateModal(false);
-                    setFormData({ schemeId: "", schemeName: "", expiresInDays: 30, maxUses: 1 });
+                    setFormData({
+                      schemeId: "",
+                      schemeName: "",
+                      expiresInDays: 30,
+                      maxUses: 1,
+                    });
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >

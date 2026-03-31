@@ -222,11 +222,11 @@ class AuthService {
   }
   async signUpCCTVFaultOperatorWithOTP(email, password, userData, otpCode) {
     try {
-      // Uses scheme-based OTP (same as client) so they're tied to a specific scheme
-      const otpValidation = await otpService.validateOTP(otpCode);
+      // Uses dedicated CCTV operator access codes (cctvOperatorOTPs collection)
+      const otpValidation = await otpService.validateCCTVOperatorCode(otpCode);
 
       if (!otpValidation.isValid) {
-        throw new AppError('Invalid OTP code', 'auth/invalid-otp');
+        throw new AppError('Invalid CCTV operator access code', 'auth/invalid-otp');
       }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -239,21 +239,19 @@ class AuthService {
         ...userData,
         email,
         role: USER_ROLES.CCTVOPERATOR,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
         emailVerified: false,
         metadata: {
           signInMethod: 'email',
           ipAddress: null,
           userAgent: navigator.userAgent,
-          otpCode: otpCode
+          accessCode: otpCode
         }
       });
 
       try {
-        await otpService.markOTPAsUsed(otpCode, user.uid);
+        await otpService.markCCTVOperatorCodeAsUsed(otpCode, user.uid);
       } catch (otpError) {
-        console.warn('Failed to mark OTP as used, but signup succeeded:', otpError);
+        console.warn('Failed to mark CCTV operator code as used, but signup succeeded:', otpError);
       }
 
       return user;

@@ -222,11 +222,15 @@ const SignUpForm = () => {
           </select>
         </div>
 
-        {/* OTP Code - Required for both Client and Staff */}
+        {/* Access Code — label and placeholder differ per role */}
         <div className="form-control">
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              {[USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR].includes(formData.role) ? "Scheme Access Code" : "Staff Invite Code"}
+              {formData.role === USER_ROLES.CLIENT
+                ? "Client Access Code"
+                : formData.role === USER_ROLES.CCTVOPERATOR
+                ? "CCTV Operator Access Code"
+                : "Staff Invite Code"}
             </span>
           </label>
           <input
@@ -234,13 +238,19 @@ const SignUpForm = () => {
             name="otpCode"
             value={formData.otpCode}
             onChange={handleChange}
-            placeholder={[USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR].includes(formData.role) ? "e.g., A417-2024-ABC123" : "e.g., STAFF-2024-XYZ789"}
+            placeholder={
+              formData.role === USER_ROLES.CLIENT
+                ? "e.g., A417-2024-ABC123"
+                : formData.role === USER_ROLES.CCTVOPERATOR
+                ? "e.g., CCTV-A417-2024-ABC123"
+                : "e.g., STAFF-2024-XYZ789"
+            }
             className="input w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
             required
           />
           <label className="label">
             <span className="label-text-alt text-gray-500">
-              Enter the {[USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR].includes(formData.role) ? "access" : "invite"} code provided by your administrator
+              Enter the access code provided by your administrator
             </span>
           </label>
         </div>
