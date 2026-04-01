@@ -248,13 +248,6 @@ const NewStaffDashboard = () => {
       color: 'from-purple-500 to-purple-600'
     },
     {
-      title: 'Asset Damage Logs',
-      count: stats?.assetDamageTotal || 0,
-      subtitle: 'Total Submissions',
-      icon: AlertTriangle,
-      color: 'from-orange-500 to-orange-600'
-    },
-    {
       title: 'CCTV Faults',
       count: stats?.cctvFaultsTotal || 0,
       subtitle: 'Total Submissions',
@@ -376,7 +369,6 @@ const NewStaffDashboard = () => {
     const formTypeMap = {
       'CCTV Check Sheet': 'cctv-check',
       'Incident Report': 'incident',
-      'Asset Damage': 'asset-damage',
       'Daily Occurrence': 'daily-occurrence',
       'CCTV Faults': 'cctv-faults'
     };
@@ -414,8 +406,6 @@ const NewStaffDashboard = () => {
       navigate(`/dashboard/staff/reports/cctv-check/${form.id}`);
     } else if (form.type === "Incident Report") {
       navigate(`/dashboard/staff/reports/incident/${form.id}`);
-    } else if (form.type === "Asset Damage") {
-      navigate(`/dashboard/staff/reports/asset-damage/${form.id}`);
     } else if (form.type === "Daily Occurrence") {
       navigate(`/dashboard/staff/reports/daily-logs/${form.id}`);
     } else if (form.type === "CCTV Faults") {
@@ -429,8 +419,6 @@ const NewStaffDashboard = () => {
       navigate(`/dashboard/staff/forms/cctv-check?edit=${form.id}`);
     } else if (form.type === "Incident Report") {
       navigate(`/dashboard/staff/forms/incident-report?edit=${form.id}`);
-    } else if (form.type === "Asset Damage") {
-      navigate(`/dashboard/staff/forms/asset-damage?edit=${form.id}`);
     } else if (form.type === "Daily Occurrence") {
       navigate(`/dashboard/staff/forms/daily-occurence?edit=${form.id}`);
     } else if (form.type === "CCTV Faults") {
@@ -445,8 +433,6 @@ const NewStaffDashboard = () => {
         reportType = 'cctv-check';
       } else if (form.type === "Incident Report") {
         reportType = 'incident';
-      } else if (form.type === "Asset Damage") {
-        reportType = 'asset-damage';
       } else if (form.type === "Daily Occurrence") {
         reportType = 'daily-occurrence';
       } else if (form.type === "CCTV Faults") {
@@ -551,7 +537,6 @@ const NewStaffDashboard = () => {
                   >
                     <option value="all">All Types</option>
                     <option value="incident">Incident Reports</option>
-                    <option value="asset-damage">Asset Damage</option>
                     <option value="daily-occurrence">Daily Occurrence</option>
                     <option value="cctv-check">CCTV Checks</option>
                     <option value="cctv-faults">CCTV Faults</option>

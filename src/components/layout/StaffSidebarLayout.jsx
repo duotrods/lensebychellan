@@ -73,7 +73,6 @@ const StaffSidebarLayoutInner = ({ children }) => {
         { name: "CCTV Check Sheet", path: "/dashboard/staff/forms/cctv-check" },
         { name: "Incident Report", path: "/dashboard/staff/forms/incident-report" },
         { name: "Daily Occurrence", path: "/dashboard/staff/forms/daily-occurence" },
-        { name: "Asset Damage", path: "/dashboard/staff/forms/asset-damage" },
         { name: "CCTV Faults", path: "/dashboard/staff/forms/cctv-faults" },
       ],
     },

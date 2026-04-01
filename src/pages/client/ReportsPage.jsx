@@ -607,18 +607,6 @@ const ReportsPage = () => {
         {/* Row 2: Incident Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-yellow-500 transition-all"
-            onClick={() => handleCardClick("incident", "asset-damage")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
-              <p className="text-gray-500 text-sm">Asset Damage</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.incidentAssetDamage}
-            </p>
-          </div>
-          <div
             className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-green-500 transition-all"
             onClick={() => handleCardClick("incident", "free-recovery")}
           >
@@ -711,7 +699,6 @@ const ReportsPage = () => {
               >
                 <option value="all">All Types</option>
                 <option value="incident">Incident Reports</option>
-                <option value="asset-damage">Asset Damage</option>
                 <option value="daily-occurrence">Daily Occurrence</option>
                 <option value="cctv-check">CCTV Checks</option>
                 <option value="cctv-faults">CCTV Faults</option>
