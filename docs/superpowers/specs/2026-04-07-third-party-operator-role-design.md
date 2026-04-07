@@ -21,7 +21,7 @@ This spec covers the access layer only — role definitions, invite code flows, 
 | `thirdpartyliveoperator` | `liveoperator` | Live incident operator | Monitor live incidents for their scheme |
 | `thirdpartycctvoperator` | `cctvfaultoperator` | CCTV fault operator | Log and manage CCTV faults for their scheme |
 
-All four roles are scoped to their assigned scheme only. All use the same invite code pattern — scheme baked in at code generation time by an admin.
+All four roles are scoped to their assigned scheme(s) only. They sign up with one starting scheme baked into their invite code. Admins can then assign additional schemes via the existing SchemeAssignment page — exactly the same way it works for internal `client` users.
 
 ---
 
@@ -31,9 +31,10 @@ All four roles are scoped to their assigned scheme only. All use the same invite
 - Four new role constants, labels, routes, and helpers
 - Four new Firestore collections for invite codes (one per role)
 - OTP service methods for each role (create, validate, mark used)
-- Auth service signup methods for each role
+- Auth service signup methods for each role — signup assigns one starting scheme from the invite code
 - New protected routes and dashboard entry points for each role
 - Admin UI — new "Third Party Codes" section in OTP Management page covering all four roles
+- SchemeAssignment page extended to show all four third-party roles so admins can assign additional schemes after signup
 
 **Out of scope:**
 - Making CCTV Check / other form sections data-driven per scheme
@@ -45,15 +46,18 @@ All four roles are scoped to their assigned scheme only. All use the same invite
 ## Data Model
 
 ### User document (Firestore `users` collection)
-All four third-party roles follow the same user document shape:
+All four third-party roles follow the same user document shape. They start with one scheme from the invite code. Additional schemes are added by an admin via SchemeAssignment — stored in `schemeIds` (array), exactly like internal `client` users.
 
 ```js
 {
   displayName: "John Smith",
   email: "john@newco.com",
   role: "thirdpartyoperator",         // or thirdpartyclient, thirdpartyliveoperator, thirdpartycctvoperator
-  schemeId: "NEWCO1",
+  schemeId: "NEWCO1",                 // starting scheme — kept for backward compatibility
   schemeName: "NewCo Scheme - NewCo",
+  schemeIds: ["NEWCO1"],              // array — grows as admin assigns more schemes
+  schemeNames: { "NEWCO1": "NewCo Scheme - NewCo" },
+  activeSchemeId: "NEWCO1",           // which scheme is currently active (for multi-scheme switcher)
   emailVerified: false,
   metadata: {
     signInMethod: "email",
@@ -249,6 +253,18 @@ Each sub-tab has:
 
 ---
 
+## Section 6: Admin — Scheme Assignment (Multi-Scheme Support)
+
+**File:** `src/components/admin/SchemeAssignment.jsx`
+
+The existing SchemeAssignment page already handles `client` and `cctvfaultoperator` users. It needs to be extended to also show all four third-party roles in the role filter tabs:
+
+- Add **Third Party Operator**, **Third Party Client**, **Third Party Live Operator**, **Third Party CCTV Operator** tabs to the role filter
+- No changes to the assign/remove scheme logic — it already works with `schemeIds` arrays and works the same for any role
+- This is how admins add additional schemes to a third-party user after their initial signup
+
+---
+
 ## Key Design Decisions
 
 | Decision | Choice | Reason |
@@ -278,3 +294,4 @@ Each sub-tab has:
 | `src/components/auth/ProtectedRoute.jsx` | Audit and extend allowedRoles for all 4 roles |
 | `src/pages/admin/OTPManagementPage.jsx` | Add Third Party Codes section |
 | `src/components/admin/OTPManagement.jsx` | Add Third Party Codes UI with 4 sub-tabs |
+| `src/components/admin/SchemeAssignment.jsx` | Add all 4 third-party roles to role filter tabs |
