@@ -1863,8 +1863,10 @@ class ClientDataService {
           ...doc.data(),
           dateTime: doc.data().createdAt,
         }));
-        // Only return reports that have files attached
-        return docs.filter((doc) => doc.files && doc.files.length > 0);
+        // Only return reports that have video files, strip out non-video files
+        return docs
+          .map((doc) => ({ ...doc, files: (doc.files || []).filter((f) => f.fileType?.startsWith("video/")) }))
+          .filter((doc) => doc.files.length > 0);
       } catch (indexError) {
         if (
           indexError.code === "failed-precondition" ||
@@ -1883,7 +1885,8 @@ class ClientDataService {
             dateTime: doc.data().createdAt,
           }));
           return docs
-            .filter((doc) => doc.files && doc.files.length > 0)
+            .map((doc) => ({ ...doc, files: (doc.files || []).filter((f) => f.fileType?.startsWith("video/")) }))
+            .filter((doc) => doc.files.length > 0)
             .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         }
         throw indexError;
