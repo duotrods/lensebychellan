@@ -1,4 +1,4 @@
-# Third Party Operator Role — Design Spec
+# Third Party Subscriber Roles — Design Spec
 **Date:** 2026-04-07  
 **Status:** Approved
 
@@ -6,21 +6,34 @@
 
 ## Overview
 
-Add a `thirdpartyoperator` role to LENSE to support external companies subscribing to the platform. Third-party operators get the same functionality as internal staff (Incident Sheet, Daily Occurrence, CCTV Check forms, dashboard) but are scoped to their assigned scheme(s) only.
+Add a full set of third-party subscriber roles to LENSE to support external companies paying to use the platform. Each third-party company gets a complete mirror of the internal role set, scoped to their assigned scheme only. They cannot see any other scheme's data.
 
-This spec covers the access layer only — role definition, invite code flow, signup, routing, and admin management. Form internals (making camera sections data-driven per scheme) are out of scope and will be tackled in a future spec.
+This spec covers the access layer only — role definitions, invite code flows, signup, routing, and admin management. Form internals (making camera sections data-driven per scheme) and form data isolation are out of scope and will be tackled in a future spec.
+
+---
+
+## Third-Party Role Set
+
+| Role | Internal Equivalent | Who | What they do |
+|------|-------------------|-----|-------------|
+| `thirdpartyoperator` | `staff` | On-the-ground staff | Submit forms (Incident, Daily Occurrence, CCTV Check) |
+| `thirdpartyclient` | `client` | Manager/supervisor | View reports, analytics, data for their scheme |
+| `thirdpartyliveoperator` | `liveoperator` | Live incident operator | Monitor live incidents for their scheme |
+| `thirdpartycctvoperator` | `cctvfaultoperator` | CCTV fault operator | Log and manage CCTV faults for their scheme |
+
+All four roles are scoped to their assigned scheme only. All use the same invite code pattern — scheme baked in at code generation time by an admin.
 
 ---
 
 ## Scope
 
 **In scope:**
-- New `thirdpartyoperator` role constant and helper
-- New Firestore collection `thirdPartyOperatorCodes` for invite codes with scheme baked in
-- New OTP service methods for creating, validating, and marking codes used
-- New auth service signup method
-- New protected route `/dashboard/thirdparty` with its own dashboard entry point
-- Admin UI tab in OTP Management page for generating third-party invite codes
+- Four new role constants, labels, routes, and helpers
+- Four new Firestore collections for invite codes (one per role)
+- OTP service methods for each role (create, validate, mark used)
+- Auth service signup methods for each role
+- New protected routes and dashboard entry points for each role
+- Admin UI — new "Third Party Codes" section in OTP Management page covering all four roles
 
 **Out of scope:**
 - Making CCTV Check / other form sections data-driven per scheme
@@ -32,13 +45,13 @@ This spec covers the access layer only — role definition, invite code flow, si
 ## Data Model
 
 ### User document (Firestore `users` collection)
-Third-party operator users follow the same shape as `cctvfaultoperator` users:
+All four third-party roles follow the same user document shape:
 
 ```js
 {
   displayName: "John Smith",
   email: "john@newco.com",
-  role: "thirdpartyoperator",
+  role: "thirdpartyoperator",         // or thirdpartyclient, thirdpartyliveoperator, thirdpartycctvoperator
   schemeId: "NEWCO1",
   schemeName: "NewCo Scheme - NewCo",
   emailVerified: false,
@@ -51,8 +64,18 @@ Third-party operator users follow the same shape as `cctvfaultoperator` users:
 }
 ```
 
-### Invite code document (Firestore `thirdPartyOperatorCodes` collection)
+### Invite code documents
 
+Four Firestore collections, one per role, all with the same document shape:
+
+| Role | Collection |
+|------|-----------|
+| `thirdpartyoperator` | `thirdPartyOperatorCodes` |
+| `thirdpartyclient` | `thirdPartyClientCodes` |
+| `thirdpartyliveoperator` | `thirdPartyLiveOperatorCodes` |
+| `thirdpartycctvoperator` | `thirdPartyCCTVOperatorCodes` |
+
+Each document:
 ```js
 {
   code: "ABC123",
@@ -76,24 +99,36 @@ One code per user. Codes are single-use. Admin generates and shares them out-of-
 
 Add to `USER_ROLES`:
 ```js
-THIRDPARTYOPERATOR: 'thirdpartyoperator'
+THIRDPARTYOPERATOR: 'thirdpartyoperator',
+THIRDPARTYCLIENT: 'thirdpartyclient',
+THIRDPARTYLIVEOPERATOR: 'thirdpartyliveoperator',
+THIRDPARTYCCTVOPERATOR: 'thirdpartycctvoperator',
 ```
 
 Add to `ROLE_LABELS`:
 ```js
-thirdpartyoperator: 'Third Party Operator'
+thirdpartyoperator: 'Third Party Operator',
+thirdpartyclient: 'Third Party Client',
+thirdpartyliveoperator: 'Third Party Live Operator',
+thirdpartycctvoperator: 'Third Party CCTV Operator',
 ```
 
 Add to `DASHBOARD_ROUTES`:
 ```js
-thirdpartyoperator: '/dashboard/thirdparty'
+thirdpartyoperator: '/dashboard/thirdparty/operator',
+thirdpartyclient: '/dashboard/thirdparty/client',
+thirdpartyliveoperator: '/dashboard/thirdparty/liveoperator',
+thirdpartycctvoperator: '/dashboard/thirdparty/cctvoperator',
 ```
 
 **File:** `src/utils/roleHelpers.js`
 
-Add helper:
+Add helpers:
 ```js
 export const isThirdPartyOperator = (role) => role === USER_ROLES.THIRDPARTYOPERATOR;
+export const isThirdPartyClient = (role) => role === USER_ROLES.THIRDPARTYCLIENT;
+export const isThirdPartyLiveOperator = (role) => role === USER_ROLES.THIRDPARTYLIVEOPERATOR;
+export const isThirdPartyCCTVOperator = (role) => role === USER_ROLES.THIRDPARTYCCTVOPERATOR;
 ```
 
 ---
@@ -102,20 +137,21 @@ export const isThirdPartyOperator = (role) => role === USER_ROLES.THIRDPARTYOPER
 
 **File:** `src/services/otpService.js`
 
-Three new methods mirroring the `cctvOperatorOTPs` pattern:
+Three methods per role (12 total), all following the same pattern as `cctvOperatorOTPs`:
 
-### `createThirdPartyOperatorCode(schemeId, schemeName, adminUid)`
-- Generates a random alphanumeric code
-- Writes a document to `thirdPartyOperatorCodes` with `isUsed: false`
-- Returns the generated code string
+For each role, implement:
+- `create[Role]Code(schemeId, schemeName, adminUid)` — generates alphanumeric code, writes to the role's collection
+- `validate[Role]Code(code)` — returns `{ isValid, schemeId, schemeName }`
+- `mark[Role]CodeAsUsed(code, uid)` — sets `isUsed: true`, `usedBy`, `usedAt`
 
-### `validateThirdPartyOperatorCode(code)`
-- Queries `thirdPartyOperatorCodes` where `code == code` and `isUsed == false`
-- Returns `{ isValid: true, schemeId, schemeName }` on success
-- Returns `{ isValid: false }` if not found or already used
+Concrete method names:
 
-### `markThirdPartyOperatorCodeAsUsed(code, uid)`
-- Updates the matching document: `isUsed: true`, `usedBy: uid`, `usedAt: serverTimestamp()`
+| Role | Create | Validate | Mark Used |
+|------|--------|----------|-----------|
+| `thirdpartyoperator` | `createThirdPartyOperatorCode` | `validateThirdPartyOperatorCode` | `markThirdPartyOperatorCodeAsUsed` |
+| `thirdpartyclient` | `createThirdPartyClientCode` | `validateThirdPartyClientCode` | `markThirdPartyClientCodeAsUsed` |
+| `thirdpartyliveoperator` | `createThirdPartyLiveOperatorCode` | `validateThirdPartyLiveOperatorCode` | `markThirdPartyLiveOperatorCodeAsUsed` |
+| `thirdpartycctvoperator` | `createThirdPartyCCTVOperatorCode` | `validateThirdPartyCCTVOperatorCode` | `markThirdPartyCCTVOperatorCodeAsUsed` |
 
 ---
 
@@ -123,41 +159,74 @@ Three new methods mirroring the `cctvOperatorOTPs` pattern:
 
 **File:** `src/services/authService.js`
 
-New method: `signUpThirdPartyOperatorWithOTP(email, password, userData, otpCode)`
+Four new signup methods, one per role, all following the same steps as `signUpCCTVFaultOperatorWithOTP`:
 
-Steps:
-1. Call `otpService.validateThirdPartyOperatorCode(otpCode)` — throw `AppError` if invalid
-2. `createUserWithEmailAndPassword` — create Firebase Auth user
+1. Validate the invite code via the role's `validate*Code` method — throw `AppError` if invalid
+2. `createUserWithEmailAndPassword`
 3. `updateProfile` — set display name
 4. `sendEmailVerification`
-5. `firestoreService.createUserDocument` with `role: 'thirdpartyoperator'`, `schemeId`, `schemeName` from validation result
-6. `otpService.markThirdPartyOperatorCodeAsUsed` (non-blocking, same pattern as other roles)
+5. `firestoreService.createUserDocument` with the role string, `schemeId`, `schemeName` from the validated code
+6. `mark*CodeAsUsed` (non-blocking)
 
-**Signup UI:**  
-The existing staff signup page (`SignUpPage` / relevant form) gains a new role option for third-party operators. When selected, the flow uses `signUpThirdPartyOperatorWithOTP`. The invite code field label and placeholder are updated to reflect the third-party context (e.g. "Third Party Access Code").
+Methods:
+- `signUpThirdPartyOperatorWithOTP`
+- `signUpThirdPartyClientWithOTP`
+- `signUpThirdPartyLiveOperatorWithOTP`
+- `signUpThirdPartyCCTVOperatorWithOTP`
+
+**Signup UI:**
+The existing signup page gains four new role options under a "Third Party" group. Each option uses its corresponding signup method. The invite code field label updates to "Third Party Access Code" for all four.
 
 ---
 
-## Section 4: Routing & Dashboard
+## Section 4: Routing & Dashboards
 
-**File:** `src/utils/constants.js`  
-`DASHBOARD_ROUTES['thirdpartyoperator'] = '/dashboard/thirdparty'` (covered in Section 1)
+**File:** `src/App.jsx`
 
-**File:** `src/App.jsx`  
-New protected route:
+Four new protected routes:
+
 ```jsx
-<Route path="/dashboard/thirdparty/*" element={
+<Route path="/dashboard/thirdparty/operator/*" element={
   <ProtectedRoute allowedRoles={['thirdpartyoperator']}>
-    <ThirdPartyDashboard />
+    <ThirdPartyOperatorDashboard />
+  </ProtectedRoute>
+} />
+<Route path="/dashboard/thirdparty/client/*" element={
+  <ProtectedRoute allowedRoles={['thirdpartyclient']}>
+    <ThirdPartyClientDashboard />
+  </ProtectedRoute>
+} />
+<Route path="/dashboard/thirdparty/liveoperator/*" element={
+  <ProtectedRoute allowedRoles={['thirdpartyliveoperator']}>
+    <ThirdPartyLiveOperatorDashboard />
+  </ProtectedRoute>
+} />
+<Route path="/dashboard/thirdparty/cctvoperator/*" element={
+  <ProtectedRoute allowedRoles={['thirdpartycctvoperator']}>
+    <ThirdPartyCCTVOperatorDashboard />
   </ProtectedRoute>
 } />
 ```
 
-**File:** `src/pages/thirdparty/ThirdPartyDashboard.jsx` (new file)  
-A thin wrapper that renders `NewStaffDashboard` (or `StaffSidebarLayout` with the same content). No logic duplication. Exists as its own route entry point so it can diverge independently in future.
+**New dashboard files** (all thin wrappers over existing dashboards):
 
-**File:** `src/components/auth/ProtectedRoute.jsx`  
-Audit every `allowedRoles` array in `ProtectedRoute` and in `App.jsx` route definitions. Any route that allows `staff` (forms, reports, CCTV check, daily occurrence, incident report) must also allow `thirdpartyoperator`. Routes that are staff-only for internal reasons (e.g. admin tools, staff management) must not be extended.
+| File | Wraps |
+|------|-------|
+| `src/pages/thirdparty/ThirdPartyOperatorDashboard.jsx` | `NewStaffDashboard` |
+| `src/pages/thirdparty/ThirdPartyClientDashboard.jsx` | `NewClientDashboard` |
+| `src/pages/thirdparty/ThirdPartyLiveOperatorDashboard.jsx` | existing live operator dashboard |
+| `src/pages/thirdparty/ThirdPartyCCTVOperatorDashboard.jsx` | existing CCTV fault operator dashboard |
+
+No logic duplication. Each exists as its own route entry point so it can diverge independently in future.
+
+**File:** `src/components/auth/ProtectedRoute.jsx`
+
+Audit every `allowedRoles` array in `ProtectedRoute` and `App.jsx`:
+- Routes allowing `staff` → also allow `thirdpartyoperator`
+- Routes allowing `client` → also allow `thirdpartyclient`
+- Routes allowing `liveoperator` → also allow `thirdpartyliveoperator`
+- Routes allowing `cctvfaultoperator` → also allow `thirdpartycctvoperator`
+- Admin-only routes must not be extended to any third-party role
 
 ---
 
@@ -165,12 +234,18 @@ Audit every `allowedRoles` array in `ProtectedRoute` and in `App.jsx` route defi
 
 **File:** `src/pages/admin/OTPManagementPage.jsx` and `src/components/admin/OTPManagement.jsx`
 
-A new tab **"Third Party Codes"** is added alongside the existing CCTV operator codes tab. The tab UI matches the existing pattern:
+A new **"Third Party Codes"** section is added to the OTP Management page. It contains four sub-tabs, one per third-party role:
 
-- Scheme selector dropdown (from `SCHEMES` list, plus a free-text field for new scheme IDs not yet in the list)
-- "Generate Code" button — calls `otpService.createThirdPartyOperatorCode`
+- **Operator Codes** — for `thirdpartyoperator`
+- **Client Codes** — for `thirdpartyclient`
+- **Live Operator Codes** — for `thirdpartyliveoperator`
+- **CCTV Operator Codes** — for `thirdpartycctvoperator`
+
+Each sub-tab has:
+- Scheme selector dropdown (from `SCHEMES` list, plus a free-text field for scheme IDs not yet in the list)
+- "Generate Code" button — calls the appropriate `create*Code` method
 - Code display with copy-to-clipboard
-- List of existing codes showing: scheme, created date, used/unused status, used-by name if used
+- List of existing codes: scheme, created date, used/unused status, used-by name if used
 
 ---
 
@@ -178,11 +253,11 @@ A new tab **"Third Party Codes"** is added alongside the existing CCTV operator 
 
 | Decision | Choice | Reason |
 |----------|--------|--------|
-| New role vs flag on staff | New role | Clean separation, consistent with existing role system |
+| New roles vs flags on existing roles | Four new roles | Clean separation, consistent with existing role system |
 | Invite code approach | Scheme baked into code at creation | Matches `cctvfaultoperator` pattern, admin controls access precisely |
-| Dashboard route | Own route `/dashboard/thirdparty` | Isolation for future divergence |
+| Dashboard routes | Own routes under `/dashboard/thirdparty/` | Isolation for future divergence per role |
 | Form changes | Out of scope | Form data-driving is a separate, larger piece of work |
-| Data isolation | Out of scope | Tackled when forms become data-driven |
+| Form data isolation | Out of scope | Tackled when forms become data-driven |
 
 ---
 
@@ -190,13 +265,16 @@ A new tab **"Third Party Codes"** is added alongside the existing CCTV operator 
 
 | File | Change |
 |------|--------|
-| `src/utils/constants.js` | Add role, label, route |
-| `src/utils/roleHelpers.js` | Add `isThirdPartyOperator` helper |
-| `src/services/otpService.js` | Add 3 new methods |
-| `src/services/authService.js` | Add `signUpThirdPartyOperatorWithOTP` |
-| `src/pages/auth/SignUpPage.jsx` | Add third-party operator option |
-| `src/App.jsx` | Add `/dashboard/thirdparty` route |
-| `src/pages/thirdparty/ThirdPartyDashboard.jsx` | New file — thin wrapper |
-| `src/components/auth/ProtectedRoute.jsx` | Audit and add `thirdpartyoperator` to allowed roles |
-| `src/pages/admin/OTPManagementPage.jsx` | Add Third Party Codes tab |
-| `src/components/admin/OTPManagement.jsx` | Add Third Party Codes tab UI |
+| `src/utils/constants.js` | Add 4 roles, labels, routes |
+| `src/utils/roleHelpers.js` | Add 4 helper functions |
+| `src/services/otpService.js` | Add 12 new methods (3 per role) |
+| `src/services/authService.js` | Add 4 signup methods |
+| `src/pages/auth/SignUpPage.jsx` | Add third-party role options |
+| `src/App.jsx` | Add 4 new protected routes |
+| `src/pages/thirdparty/ThirdPartyOperatorDashboard.jsx` | New file — thin wrapper |
+| `src/pages/thirdparty/ThirdPartyClientDashboard.jsx` | New file — thin wrapper |
+| `src/pages/thirdparty/ThirdPartyLiveOperatorDashboard.jsx` | New file — thin wrapper |
+| `src/pages/thirdparty/ThirdPartyCCTVOperatorDashboard.jsx` | New file — thin wrapper |
+| `src/components/auth/ProtectedRoute.jsx` | Audit and extend allowedRoles for all 4 roles |
+| `src/pages/admin/OTPManagementPage.jsx` | Add Third Party Codes section |
+| `src/components/admin/OTPManagement.jsx` | Add Third Party Codes UI with 4 sub-tabs |
