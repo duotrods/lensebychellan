@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   CameraOff,
   Car,
+  Hammer,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
@@ -640,6 +641,18 @@ const ReportsPage = () => {
             </div>
             <p className="text-2xl font-bold text-brand-500">
               {reportStats.vehiclesDispatched}
+            </p>
+          </div>
+          <div
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-yellow-500 transition-all"
+            onClick={() => handleCardClick("incident", "asset-damage")}
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <Hammer className="w-3.5 h-3.5 text-yellow-500" />
+              <p className="text-gray-500 text-sm">Asset Damage</p>
+            </div>
+            <p className="text-2xl font-bold text-brand-500">
+              {reportStats.incidentAssetDamage}
             </p>
           </div>
         </div>

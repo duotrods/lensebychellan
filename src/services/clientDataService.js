@@ -1845,35 +1845,34 @@ class ClientDataService {
     }
   }
 
-  // Get CCTV recordings for a specific scheme
+  // Get CCTV recordings for a specific scheme — pulls from incidentReports with video/image files
   async getCCTVRecordings(schemeId, limitCount = 100) {
     try {
-      const recordingsRef = collection(db, "cctvUploads");
+      const reportsRef = collection(db, "incidentReports");
 
       try {
         const q = query(
-          recordingsRef,
+          reportsRef,
           where("schemeIds", "array-contains", schemeId),
-          orderBy("uploadedAt", "desc"),
+          orderBy("createdAt", "desc"),
           limit(limitCount),
         );
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map((doc) => ({
+        const docs = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-          dateTime: doc.data().uploadedAt || doc.data().dateTime,
+          dateTime: doc.data().createdAt,
         }));
+        // Only return reports that have files attached
+        return docs.filter((doc) => doc.files && doc.files.length > 0);
       } catch (indexError) {
-        // Check if it's an index error or permissions error
         if (
           indexError.code === "failed-precondition" ||
           indexError.message?.includes("index")
         ) {
-          console.warn(
-            "Index not available for cctvUploads, trying simplified query",
-          );
+          console.warn("Index not available for incidentReports, trying simplified query");
           const simpleQuery = query(
-            recordingsRef,
+            reportsRef,
             where("schemeIds", "array-contains", schemeId),
             limit(limitCount),
           );
@@ -1881,14 +1880,11 @@ class ClientDataService {
           const docs = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
-            dateTime: doc.data().uploadedAt || doc.data().dateTime,
+            dateTime: doc.data().createdAt,
           }));
-          // Sort in memory
-          return docs.sort((a, b) => {
-            const timeA = a.uploadedAt?.seconds || 0;
-            const timeB = b.uploadedAt?.seconds || 0;
-            return timeB - timeA;
-          });
+          return docs
+            .filter((doc) => doc.files && doc.files.length > 0)
+            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         }
         throw indexError;
       }

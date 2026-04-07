@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
-import { storage } from "../../config/firebase";
-import { ref, getBlob } from "firebase/storage";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import {
   Camera,
@@ -13,9 +11,9 @@ import {
   Calendar,
   MapPin,
   Video,
+  Image,
   ChevronLeft,
   ChevronRight,
-  Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { SCHEMES } from "../../utils/schemes";
@@ -29,6 +27,7 @@ const CCTVRecordingsPage = () => {
   const [cameraFilter, setCameraFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecording, setSelectedRecording] = useState(null);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
   const recordingsPerPage = 12;
 
   useEffect(() => {
@@ -66,12 +65,13 @@ const CCTVRecordingsPage = () => {
     ...new Set(recordings.map((r) => r.cameraNumber)),
   ].sort();
 
-  // Filter recordings
+  // Filter recordings — includes reference ID search
   const filteredRecordings = recordings.filter((recording) => {
     const matchesSearch =
       recording.cameraNumber?.toString().includes(searchTerm) ||
       recording.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      recording.scheme?.toLowerCase().includes(searchTerm.toLowerCase());
+      recording.scheme?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      recording.referenceId?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCamera =
       cameraFilter === "all" ||
@@ -139,70 +139,57 @@ const CCTVRecordingsPage = () => {
     setSelectedRecording(recording);
   };
 
-  const downloadFileAsBlob = async (storagePath, fileName) => {
-    const blob = await getBlob(ref(storage, storagePath));
-    const objectUrl = URL.createObjectURL(blob);
+  const downloadFile = (downloadUrl, fileName) => {
     const link = document.createElement("a");
-    link.href = objectUrl;
+    link.href = downloadUrl;
     link.download = fileName;
+    link.target = "_blank";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(objectUrl);
   };
 
   const handleDownloadRecording = async (recording) => {
     try {
       if (recording.files && recording.files.length > 0) {
-        toast.success(
-          `Downloading ${recording.files.length} file(s) for Camera ${recording.cameraNumber}`,
-        );
+        toast.success(`Downloading ${recording.files.length} file(s)`);
         for (const [idx, file] of recording.files.entries()) {
-          await downloadFileAsBlob(
-            file.fileUrl,
-            file.name || `Camera_${recording.cameraNumber}_${idx + 1}.mp4`,
+          downloadFile(
+            file.downloadUrl,
+            file.fileName || file.name || `file_${idx + 1}`,
           );
         }
       } else {
-        toast.error("No video files available for download");
+        toast.error("No files available for download");
       }
     } catch (error) {
       console.error("Failed to download files:", error);
-      toast.error("Failed to download video files");
+      toast.error("Failed to download files");
     }
   };
 
-  const recordingStats = {
-    total: recordings.length,
-    today: recordings.filter((r) => {
-      const date = r.dateTime?.seconds
-        ? new Date(r.dateTime.seconds * 1000)
-        : new Date(r.dateTime);
-      const today = new Date();
-      return date.toDateString() === today.toDateString();
-    }).length,
-    cameras: uniqueCameras.length,
-    incidents: recordings.filter((r) => r.incidentRelated).length,
+  // Get file type counts for a recording
+  const getFileCounts = (files = []) => {
+    const videos = files.filter((f) => f.fileType?.startsWith("video/")).length;
+    const images = files.filter((f) => f.fileType?.startsWith("image/")).length;
+    return { videos, images };
+  };
+
+  // Get first video file URL for hover preview
+  const getFirstVideoUrl = (files = []) => {
+    const video = files.find((f) => f.fileType?.startsWith("video/"));
+    return video?.downloadUrl || null;
   };
 
   // Get the active scheme name for display
   const getActiveSchemeName = () => {
-    // If activeSchemeName is set, use it
-    if (userProfile?.activeSchemeName) {
-      return userProfile.activeSchemeName;
-    }
-
-    // If we have an activeSchemeId but no activeSchemeName, look it up
+    if (userProfile?.activeSchemeName) return userProfile.activeSchemeName;
     if (userProfile?.activeSchemeId) {
       const activeSchemeObj = SCHEMES.find(
         (s) => s.id === userProfile.activeSchemeId,
       );
-      if (activeSchemeObj) {
-        return activeSchemeObj.fullName;
-      }
+      if (activeSchemeObj) return activeSchemeObj.fullName;
     }
-
-    // Fall back to the default scheme name
     return userProfile?.schemeName;
   };
 
@@ -217,71 +204,15 @@ const CCTVRecordingsPage = () => {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Video className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">Total Recordings</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {recordingStats.total}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-50 rounded-lg">
-                <Calendar className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">Today's Uploads</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {recordingStats.today}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <Camera className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">Active Cameras</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {recordingStats.cameras}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <Eye className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-gray-500 text-sm">Incident Related</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {recordingStats.incidents}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
+            {/* Search — now includes reference ID */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by camera number or description..."
+                placeholder="Search by reference ID, camera, description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="input input-bordered w-full pl-10 bg-white border-gray-300"
@@ -331,87 +262,131 @@ const CCTVRecordingsPage = () => {
           ) : currentRecordings.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentRecordings.map((recording, index) => (
-                  <div
-                    key={index}
-                    className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-                  >
-                    {/* Thumbnail — static placeholder, no video loaded until View is clicked */}
-                    <div className="relative bg-gray-900 aspect-video">
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                        <Video className="w-12 h-12 text-gray-500" />
-                        <span className="text-xs text-gray-500">
-                          {recording.incidentId || "Incident"}
-                        </span>
-                      </div>
-                      <div className="absolute top-2 right-2">
-                        {recording.incidentRelated && (
-                          <span className="badge badge-error badge-sm font-mono">
-                            {recording.incidentId || "Incident"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="absolute bottom-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                        {recording.fileCount || 1} file(s)
-                      </div>
-                    </div>
+                {currentRecordings.map((recording, index) => {
+                  const { videos, images } = getFileCounts(recording.files);
+                  const firstVideoUrl = getFirstVideoUrl(recording.files);
+                  const isHovered = hoveredIndex === index;
 
-                    {/* Info */}
-                    <div className="p-4">
-                      <div className="mb-2">
-                        <h3 className="font-bold text-lg text-gray-800 mb-2">
-                          {recording.incidentId || "Incident"}
-                        </h3>
-                        <span className="badge badge-brand badge-sm wrap-break-word">
-                          {recording.scheme || userProfile?.schemeId}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar className="w-4 h-4" />
-                          <span>{formatDate(recording.dateTime)}</span>
-                          <span className="text-gray-400">•</span>
-                          <span>{formatTime(recording.dateTime)}</span>
-                        </div>
-
-                        {recording.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {recording.description}
-                          </p>
+                  return (
+                    <div
+                      key={index}
+                      className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                    >
+                      {/* Thumbnail with hover video preview */}
+                      <div
+                        className="relative bg-gray-900 aspect-video cursor-pointer"
+                        onMouseEnter={() =>
+                          firstVideoUrl && setHoveredIndex(index)
+                        }
+                        onMouseLeave={() => setHoveredIndex(null)}
+                        onClick={() => handleViewRecording(recording)}
+                      >
+                        {firstVideoUrl && isHovered ? (
+                          <video
+                            src={firstVideoUrl}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                            <Video className="w-12 h-12 text-gray-500" />
+                            <span className="text-xs text-gray-400">
+                              Hover to preview
+                            </span>
+                          </div>
                         )}
 
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <MapPin className="w-4 h-4" />
-                          <span>
-                            Uploaded by{" "}
-                            {recording.uploadedBy?.name ||
-                              recording.uploadedBy ||
-                              "Staff"}
+                        {/* Reference ID badge — top left */}
+                        <div className="absolute top-2 left-2">
+                          <span className="badge badge-neutral badge-sm font-mono">
+                            {recording.referenceId || "—"}
                           </span>
+                        </div>
+
+                        {/* File type indicator — bottom */}
+                        <div className="absolute bottom-2 left-2 flex gap-1">
+                          {videos > 0 && (
+                            <span className="flex items-center gap-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                              <Video className="w-3 h-3" />
+                              {videos}
+                            </span>
+                          )}
+                          {images > 0 && (
+                            <span className="flex items-center gap-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                              <Image className="w-3 h-3" />
+                              {images}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewRecording(recording)}
-                          className="btn btn-sm btn-brand flex-1"
-                        >
-                          <Play className="w-4 h-4 mr-1" />
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleDownloadRecording(recording)}
-                          className="btn btn-sm btn-outline"
-                          title="Download video"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
+                      {/* Info */}
+                      <div className="p-4">
+                        <div className="mb-2">
+                          <h3 className="font-bold text-lg text-gray-800 mb-2">
+                            {recording.referenceId || "Incident"}
+                          </h3>
+                          <span className="badge badge-brand badge-sm wrap-break-word">
+                            {recording.scheme || userProfile?.schemeId}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Calendar className="w-4 h-4" />
+                            <span>{formatDate(recording.dateTime)}</span>
+                            <span className="text-gray-400">•</span>
+                            <span>{formatTime(recording.dateTime)}</span>
+                          </div>
+
+                          {recording.cameraNumber && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Camera className="w-4 h-4" />
+                              <span>Camera {recording.cameraNumber}</span>
+                            </div>
+                          )}
+
+                          {recording.description && (
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                              {recording.description}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <MapPin className="w-4 h-4" />
+                            <span>
+                              Submitted by{" "}
+                              {recording.submittedBy?.name ||
+                                recording.uploadedBy?.name ||
+                                "Staff"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewRecording(recording)}
+                            className="btn btn-sm btn-brand flex-1"
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleDownloadRecording(recording)}
+                            className="btn btn-sm btn-outline"
+                            title="Download files"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Pagination */}
@@ -467,7 +442,7 @@ const CCTVRecordingsPage = () => {
             <div className="p-6 border-b sticky top-0 bg-white">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-800">
-                  {selectedRecording.incidentId || "Incident"} - Recording
+                  {selectedRecording.referenceId || "Incident"} — Recording
                   Details
                 </h2>
                 <button
@@ -479,28 +454,33 @@ const CCTVRecordingsPage = () => {
               </div>
             </div>
             <div className="p-6">
-              {/* Video Player */}
+              {/* Video/Image Player */}
               {selectedRecording.files &&
               selectedRecording.files.length > 0 &&
               selectedRecording.files[0].downloadUrl ? (
                 <div className="bg-gray-900 aspect-video rounded-lg overflow-hidden mb-6">
-                  <video
-                    controls
-                    preload="none"
-                    className="w-full h-full"
-                    src={selectedRecording.files[0].downloadUrl}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+                  {selectedRecording.files[0].fileType?.startsWith("video/") ? (
+                    <video
+                      controls
+                      preload="none"
+                      className="w-full h-full"
+                      src={selectedRecording.files[0].downloadUrl}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <img
+                      src={selectedRecording.files[0].downloadUrl}
+                      alt="Incident file"
+                      className="w-full h-full object-contain"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="bg-gray-900 aspect-video rounded-lg flex items-center justify-center mb-6">
                   <div className="text-center text-white">
                     <Play className="w-20 h-20 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg">No Video Available</p>
-                    <p className="text-sm text-gray-400 mt-2">
-                      Video file not found
-                    </p>
+                    <p className="text-lg">No File Available</p>
                   </div>
                 </div>
               )}
@@ -508,9 +488,15 @@ const CCTVRecordingsPage = () => {
               {/* Details Grid */}
               <div className="grid grid-cols-2 gap-6 mb-6">
                 <div>
+                  <p className="text-sm text-gray-500 mb-1">Reference ID</p>
+                  <p className="font-semibold text-lg font-mono">
+                    {selectedRecording.referenceId || "—"}
+                  </p>
+                </div>
+                <div>
                   <p className="text-sm text-gray-500 mb-1">Camera Number</p>
                   <p className="font-semibold text-lg">
-                    Camera {selectedRecording.cameraNumber}
+                    Camera {selectedRecording.cameraNumber || "—"}
                   </p>
                 </div>
                 <div>
@@ -527,17 +513,11 @@ const CCTVRecordingsPage = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Uploaded By</p>
+                  <p className="text-sm text-gray-500 mb-1">Submitted By</p>
                   <p className="font-semibold">
-                    {selectedRecording.uploadedBy?.name ||
-                      selectedRecording.uploadedBy ||
+                    {selectedRecording.submittedBy?.name ||
+                      selectedRecording.uploadedBy?.name ||
                       "Staff Member"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">File Count</p>
-                  <p className="font-semibold">
-                    {selectedRecording.fileCount || 1} file(s)
                   </p>
                 </div>
                 <div>
@@ -569,31 +549,47 @@ const CCTVRecordingsPage = () => {
                       Files ({selectedRecording.files.length})
                     </p>
                     <div className="space-y-2">
-                      {selectedRecording.files.map((file, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Video className="w-5 h-5 text-gray-500" />
-                            <span className="text-sm font-medium">
-                              {file.name || `Video ${idx + 1}`}
-                            </span>
-                          </div>
-                          <button
-                            className="btn btn-sm btn-ghost"
-                            onClick={() =>
-                              downloadFileAsBlob(
-                                file.fileUrl,
-                                file.name ||
-                                  `Camera_${selectedRecording.cameraNumber}_${idx + 1}.mp4`,
-                              ).then(() => toast.success("Downloading file..."))
-                            }
+                      {selectedRecording.files.map((file, idx) => {
+                        const isVideo = file.fileType?.startsWith("video/");
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                           >
-                            <Download className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-3">
+                              {isVideo ? (
+                                <Video className="w-5 h-5 text-gray-500" />
+                              ) : (
+                                <Image className="w-5 h-5 text-gray-500" />
+                              )}
+                              <div>
+                                <span className="text-sm font-medium">
+                                  {file.fileName ||
+                                    file.name ||
+                                    `File ${idx + 1}`}
+                                </span>
+                                <span className="ml-2 badge badge-sm badge-ghost">
+                                  {isVideo ? "Video" : "Image"}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              className="btn btn-sm btn-ghost"
+                              onClick={() => {
+                                downloadFile(
+                                  file.downloadUrl,
+                                  file.fileName ||
+                                    file.name ||
+                                    `file_${idx + 1}`,
+                                );
+                                toast.success("Downloading file...");
+                              }}
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

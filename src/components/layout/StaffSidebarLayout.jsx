@@ -7,7 +7,6 @@ import { staffService } from "../../services/staffService";
 import {
   LayoutDashboard,
   FileText,
-  Video,
   LogOut,
   ChevronDown,
   CameraOff,
@@ -81,11 +80,6 @@ const StaffSidebarLayoutInner = ({ children }) => {
       path: "/dashboard/staff/cctv-faults",
       icon: CameraOff,
       liveCount: liveFaults.length,
-    },
-    {
-      name: "CCTV Uploads",
-      path: "/dashboard/staff/cctv-uploads",
-      icon: Video,
     },
   ];
 
