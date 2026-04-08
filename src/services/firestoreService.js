@@ -18,6 +18,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
 import { USER_ROLES } from '../utils/constants';
+import { MULTI_SCHEME_ROLES } from '../utils/roleHelpers';
 import { AppError } from '../utils/errorHandling';
 
 class FirestoreService {
@@ -37,7 +38,7 @@ class FirestoreService {
       };
 
       // If this is a client user with schemeId, convert to multi-scheme format
-      if (userData.role === USER_ROLES.CLIENT && userData.schemeId) {
+      if (MULTI_SCHEME_ROLES.has(userData.role) && userData.schemeId) {
         docData.schemeIds = [userData.schemeId];
         docData.schemeNames = {
           [userData.schemeId]: userData.schemeName
@@ -309,8 +310,17 @@ class FirestoreService {
     try {
       // Verify admin role
       const adminUser = await this.getUserDocument(adminUid);
-      if (adminUser?.role !== USER_ROLES.ADMIN) {
+      const isFullAdmin = adminUser?.role === USER_ROLES.ADMIN;
+      const isTPAdmin = adminUser?.role === USER_ROLES.THIRDPARTYADMIN;
+      if (!isFullAdmin && !isTPAdmin) {
         throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+      // Third-party admins can only assign schemes they themselves belong to
+      if (isTPAdmin) {
+        const adminSchemes = adminUser.schemeIds || [];
+        if (!adminSchemes.includes(schemeId)) {
+          throw new AppError('Unauthorized: cannot assign a scheme outside your own', 'firestore/permission-denied');
+        }
       }
 
       // Get target user
@@ -319,10 +329,9 @@ class FirestoreService {
         throw new AppError('User not found', 'firestore/not-found');
       }
 
-      // Verify target is a client or CCTV fault operator
-      const schemeAssignableRoles = [USER_ROLES.CLIENT, USER_ROLES.CCTVOPERATOR];
-      if (!schemeAssignableRoles.includes(targetUser.role)) {
-        throw new AppError('Can only assign schemes to client or CCTV fault operator users', 'firestore/permission-denied');
+      // Verify target role supports multi-scheme assignment
+      if (!MULTI_SCHEME_ROLES.has(targetUser.role)) {
+        throw new AppError('Cannot assign schemes to this role', 'firestore/permission-denied');
       }
 
       // Check if scheme already assigned
@@ -368,8 +377,16 @@ class FirestoreService {
     try {
       // Verify admin role
       const adminUser = await this.getUserDocument(adminUid);
-      if (adminUser?.role !== USER_ROLES.ADMIN) {
+      const isFullAdmin = adminUser?.role === USER_ROLES.ADMIN;
+      const isTPAdmin = adminUser?.role === USER_ROLES.THIRDPARTYADMIN;
+      if (!isFullAdmin && !isTPAdmin) {
         throw new AppError('Unauthorized', 'firestore/permission-denied');
+      }
+      if (isTPAdmin) {
+        const adminSchemes = adminUser.schemeIds || [];
+        if (!adminSchemes.includes(schemeId)) {
+          throw new AppError('Unauthorized: cannot remove a scheme outside your own', 'firestore/permission-denied');
+        }
       }
 
       // Get target user
@@ -666,6 +683,22 @@ class FirestoreService {
   async getLoginLogsCount() {
     const snap = await getCountFromServer(collection(db, 'loginLogs'));
     return snap.data().count;
+  }
+
+  async getUsersBySchemeAndRoles(schemeId, roles) {
+    try {
+      const usersRef = collection(db, 'users');
+      const results = await Promise.all(
+        roles.map(role =>
+          getDocs(query(usersRef, where('role', '==', role), where('schemeIds', 'array-contains', schemeId)))
+        )
+      );
+      return results.flatMap(snapshot =>
+        snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }))
+      );
+    } catch (error) {
+      throw new AppError('Failed to fetch users by scheme', 'firestore/read-error', error);
+    }
   }
 }
 
