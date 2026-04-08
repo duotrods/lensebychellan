@@ -484,6 +484,258 @@ class OTPService {
       throw new AppError('Failed to fetch available staff invite codes', 'staff-invite/fetch-error', error);
     }
   }
+
+  // ==================== THIRD-PARTY INVITE CODE METHODS ====================
+
+  // Generate third-party admin access code
+  generateThirdPartyAdminCode() {
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const year = new Date().getFullYear();
+    return `TPADMIN-${year}-${randomPart}`;
+  }
+
+  // Generate third-party operator access code
+  generateThirdPartyOperatorCode() {
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const year = new Date().getFullYear();
+    return `TPOP-${year}-${randomPart}`;
+  }
+
+  // Generate third-party client access code
+  generateThirdPartyClientCode() {
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const year = new Date().getFullYear();
+    return `TPCL-${year}-${randomPart}`;
+  }
+
+  // Generate third-party live operator access code
+  generateThirdPartyLiveOperatorCode() {
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const year = new Date().getFullYear();
+    return `TPLIVE-${year}-${randomPart}`;
+  }
+
+  // Generate third-party CCTV operator access code
+  generateThirdPartyCCTVOperatorCode() {
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const year = new Date().getFullYear();
+    return `TPCCTV-${year}-${randomPart}`;
+  }
+
+  // ==================== THIRD-PARTY ADMIN CODE METHODS ====================
+
+  async createThirdPartyAdminCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
+    try {
+      const code = this.generateThirdPartyAdminCode();
+      const codeRef = doc(db, 'thirdPartyAdminCodes', code);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      await setDoc(codeRef, {
+        code, schemeId, schemeName, isUsed: false,
+        createdBy: adminUid, createdAt: serverTimestamp(),
+        expiresAt, usedBy: null, usedAt: null
+      });
+      return code;
+    } catch (error) {
+      throw new AppError('Failed to create third party admin code', 'otp/create-error', error);
+    }
+  }
+
+  async validateThirdPartyAdminCode(code) {
+    try {
+      const codeRef = doc(db, 'thirdPartyAdminCodes', code);
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) throw new AppError('Invalid third party admin access code', 'otp/invalid-code');
+      const codeData = codeSnap.data();
+      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
+      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
+      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
+      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to validate third party admin code', 'otp/validation-error', error);
+    }
+  }
+
+  async markThirdPartyAdminCodeAsUsed(code, uid) {
+    try {
+      await updateDoc(doc(db, 'thirdPartyAdminCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
+    } catch (error) {
+      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
+    }
+  }
+
+  // ==================== THIRD-PARTY OPERATOR CODE METHODS ====================
+
+  async createThirdPartyOperatorCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
+    try {
+      const code = this.generateThirdPartyOperatorCode();
+      const codeRef = doc(db, 'thirdPartyOperatorCodes', code);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      await setDoc(codeRef, {
+        code, schemeId, schemeName, isUsed: false,
+        createdBy: adminUid, createdAt: serverTimestamp(),
+        expiresAt, usedBy: null, usedAt: null
+      });
+      return code;
+    } catch (error) {
+      throw new AppError('Failed to create third party operator code', 'otp/create-error', error);
+    }
+  }
+
+  async validateThirdPartyOperatorCode(code) {
+    try {
+      const codeRef = doc(db, 'thirdPartyOperatorCodes', code);
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
+      const codeData = codeSnap.data();
+      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
+      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
+      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
+      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to validate third party operator code', 'otp/validation-error', error);
+    }
+  }
+
+  async markThirdPartyOperatorCodeAsUsed(code, uid) {
+    try {
+      await updateDoc(doc(db, 'thirdPartyOperatorCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
+    } catch (error) {
+      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
+    }
+  }
+
+  // ==================== THIRD-PARTY CLIENT CODE METHODS ====================
+
+  async createThirdPartyClientCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
+    try {
+      const code = this.generateThirdPartyClientCode();
+      const codeRef = doc(db, 'thirdPartyClientCodes', code);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      await setDoc(codeRef, {
+        code, schemeId, schemeName, isUsed: false,
+        createdBy: adminUid, createdAt: serverTimestamp(),
+        expiresAt, usedBy: null, usedAt: null
+      });
+      return code;
+    } catch (error) {
+      throw new AppError('Failed to create third party client code', 'otp/create-error', error);
+    }
+  }
+
+  async validateThirdPartyClientCode(code) {
+    try {
+      const codeRef = doc(db, 'thirdPartyClientCodes', code);
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
+      const codeData = codeSnap.data();
+      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
+      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
+      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
+      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to validate third party client code', 'otp/validation-error', error);
+    }
+  }
+
+  async markThirdPartyClientCodeAsUsed(code, uid) {
+    try {
+      await updateDoc(doc(db, 'thirdPartyClientCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
+    } catch (error) {
+      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
+    }
+  }
+
+  // ==================== THIRD-PARTY LIVE OPERATOR CODE METHODS ====================
+
+  async createThirdPartyLiveOperatorCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
+    try {
+      const code = this.generateThirdPartyLiveOperatorCode();
+      const codeRef = doc(db, 'thirdPartyLiveOperatorCodes', code);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      await setDoc(codeRef, {
+        code, schemeId, schemeName, isUsed: false,
+        createdBy: adminUid, createdAt: serverTimestamp(),
+        expiresAt, usedBy: null, usedAt: null
+      });
+      return code;
+    } catch (error) {
+      throw new AppError('Failed to create third party live operator code', 'otp/create-error', error);
+    }
+  }
+
+  async validateThirdPartyLiveOperatorCode(code) {
+    try {
+      const codeRef = doc(db, 'thirdPartyLiveOperatorCodes', code);
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
+      const codeData = codeSnap.data();
+      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
+      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
+      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
+      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to validate third party live operator code', 'otp/validation-error', error);
+    }
+  }
+
+  async markThirdPartyLiveOperatorCodeAsUsed(code, uid) {
+    try {
+      await updateDoc(doc(db, 'thirdPartyLiveOperatorCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
+    } catch (error) {
+      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
+    }
+  }
+
+  // ==================== THIRD-PARTY CCTV OPERATOR CODE METHODS ====================
+
+  async createThirdPartyCCTVOperatorCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
+    try {
+      const code = this.generateThirdPartyCCTVOperatorCode();
+      const codeRef = doc(db, 'thirdPartyCCTVOperatorCodes', code);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      await setDoc(codeRef, {
+        code, schemeId, schemeName, isUsed: false,
+        createdBy: adminUid, createdAt: serverTimestamp(),
+        expiresAt, usedBy: null, usedAt: null
+      });
+      return code;
+    } catch (error) {
+      throw new AppError('Failed to create third party CCTV operator code', 'otp/create-error', error);
+    }
+  }
+
+  async validateThirdPartyCCTVOperatorCode(code) {
+    try {
+      const codeRef = doc(db, 'thirdPartyCCTVOperatorCodes', code);
+      const codeSnap = await getDoc(codeRef);
+      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
+      const codeData = codeSnap.data();
+      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
+      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
+      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
+      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError('Failed to validate third party CCTV operator code', 'otp/validation-error', error);
+    }
+  }
+
+  async markThirdPartyCCTVOperatorCodeAsUsed(code, uid) {
+    try {
+      await updateDoc(doc(db, 'thirdPartyCCTVOperatorCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
+    } catch (error) {
+      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
+    }
+  }
 }
 
 export const otpService = new OTPService();
