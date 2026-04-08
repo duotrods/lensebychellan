@@ -3,7 +3,13 @@ export const USER_ROLES = {
   STAFF: 'staff',
   CLIENT: 'client',
   LIVEOPERATOR: 'liveoperator',
-  CCTVOPERATOR: 'cctvfaultoperator'
+  CCTVOPERATOR: 'cctvfaultoperator',
+  // Third-party subscriber roles
+  THIRDPARTYADMIN: 'thirdpartyadmin',
+  THIRDPARTYOPERATOR: 'thirdpartyoperator',
+  THIRDPARTYCLIENT: 'thirdpartyclient',
+  THIRDPARTYLIVEOPERATOR: 'thirdpartyliveoperator',
+  THIRDPARTYCCTVOPERATOR: 'thirdpartycctvoperator',
 };
 
 export const ROLE_LABELS = {
@@ -11,7 +17,13 @@ export const ROLE_LABELS = {
   staff: 'Staff Member',
   client: 'Client',
   liveoperator: 'Live Operator',
-  cctvfaultoperator: 'CCTV Fault Operator'
+  cctvfaultoperator: 'CCTV Fault Operator',
+  // Third-party
+  thirdpartyadmin: 'Third Party Admin',
+  thirdpartyoperator: 'Third Party Operator',
+  thirdpartyclient: 'Third Party Client',
+  thirdpartyliveoperator: 'Third Party Live Operator',
+  thirdpartycctvoperator: 'Third Party CCTV Operator',
 };
 
 export const DASHBOARD_ROUTES = {
@@ -19,7 +31,13 @@ export const DASHBOARD_ROUTES = {
   staff: '/dashboard/staff',
   client: '/dashboard/client',
   liveoperator: '/dashboard/liveoperator',
-  cctvfaultoperator: '/dashboard/cctvoperator'
+  cctvfaultoperator: '/dashboard/cctvoperator',
+  // Third-party
+  thirdpartyadmin: '/dashboard/thirdparty/admin',
+  thirdpartyoperator: '/dashboard/thirdparty/operator',
+  thirdpartyclient: '/dashboard/thirdparty/client',
+  thirdpartyliveoperator: '/dashboard/thirdparty/liveoperator',
+  thirdpartycctvoperator: '/dashboard/thirdparty/cctvoperator',
 };
 
 export const AUTH_ERRORS = {
