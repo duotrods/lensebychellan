@@ -22,22 +22,19 @@ const queryClient = new QueryClient({
 // Existing components
 
 // New pages
-import SignInPage from './pages/SignInPage';
-import SignUpPage from './pages/SignUpPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import SignInPage from './pages/auth/SignInPage';
+import SignUpPage from './pages/auth/SignUpPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import AuthActionPage from './pages/auth/AuthActionPage';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/shared/Dashboard';
 import FormsSelectionPage from './pages/staff/FormsSelectionPage';
 import CCTVCheckFormPage from './pages/staff/CCTVCheckFormPage';
 import IncidentReportFormPage from './pages/staff/IncidentReportFormPage';
-import AssetDamageFormPage from './pages/staff/AssetDamageFormPage';
 import DailyOccurrenceFormPage from './pages/staff/DailyOccurrenceFormPage';
 import CCTVFaultsFormPage from './pages/staff/CCTVFaultsFormPage';
 import CCTVFaultsLivePage from './pages/staff/CCTVFaultsLivePage';
-import CCTVUploadsPage from './pages/staff/CCTVUploadsPage';
 import IncidentReportView from './pages/staff/IncidentReportView';
 import CCTVCheckView from './pages/staff/CCTVCheckView';
-import AssetDamageView from './pages/staff/AssetDamageView';
 import DailyOccurrenceView from './pages/staff/DailyOccurrenceView';
 import CCTVFaultsView from './pages/staff/CCTVFaultsView';
 import OTPManagementPage from './pages/admin/OTPManagementPage';
@@ -48,7 +45,6 @@ import StaffReportsPage from './pages/admin/StaffReportsPage';
 import ClientChartsPage from './pages/admin/ClientChartsPage';
 import IncidentReportDetailPage from './pages/admin/IncidentReportDetailPage';
 import CCTVCheckDetailPage from './pages/admin/CCTVCheckDetailPage';
-import AssetDamageDetailPage from './pages/admin/AssetDamageDetailPage';
 import DailyLogsDetailPage from './pages/admin/DailyLogsDetailPage';
 
 // Live Operator pages
@@ -59,7 +55,6 @@ import AnalyticsPage from './pages/client/AnalyticsPage';
 import ReportsPage from './pages/client/ReportsPage';
 import CCTVRecordingsPage from './pages/client/CCTVRecordingsPage';
 import ClientIncidentReportView from './pages/client/IncidentReportView';
-import ClientAssetDamageView from './pages/client/AssetDamageView';
 import ClientDailyOccurrenceView from './pages/client/DailyOccurrenceView';
 import ClientCCTVCheckView from './pages/client/CCTVCheckView';
 import ClientLiveIncidentsPage from './pages/client/LiveIncidentsPage';
@@ -180,14 +175,6 @@ const App = () => {
               }
             />
 
-            <Route
-              path="/dashboard/admin/staff-reports/asset/:id"
-              element={
-                <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                  <AssetDamageDetailPage />
-                </ProtectedRoute>
-              }
-            />
 
             <Route
               path="/dashboard/admin/staff-reports/daily/:id"
@@ -235,14 +222,6 @@ const App = () => {
               }
             />
 
-            <Route
-              path="/dashboard/staff/forms/asset-damage"
-              element={
-                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
-                  <AssetDamageFormPage />
-                </ProtectedRoute>
-              }
-            />
 
             <Route
               path="/dashboard/staff/forms/daily-occurence"
@@ -290,14 +269,6 @@ const App = () => {
               }
             />
 
-            <Route
-              path="/dashboard/staff/reports/asset-damage/:id"
-              element={
-                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
-                  <AssetDamageView />
-                </ProtectedRoute>
-              }
-            />
 
             <Route
               path="/dashboard/staff/reports/daily-logs/:id"
@@ -317,14 +288,6 @@ const App = () => {
               }
             />
 
-            <Route
-              path="/dashboard/staff/cctv-uploads"
-              element={
-                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
-                  <CCTVUploadsPage />
-                </ProtectedRoute>
-              }
-            />
 
             {/* CCTV Fault Operator Routes */}
             <Route
@@ -442,14 +405,6 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
                   <ClientIncidentReportView />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/client/reports/asset-damage/:id"
-              element={
-                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
-                  <ClientAssetDamageView />
                 </ProtectedRoute>
               }
             />

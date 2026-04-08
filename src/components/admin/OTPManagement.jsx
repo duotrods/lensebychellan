@@ -179,11 +179,15 @@ const OTPManagement = () => {
         formData.schemeId.toUpperCase(),
         formData.schemeName,
         userProfile.uid,
-        formData.expiresInDays,
       );
 
       toast.success(`Client Access Code created: ${otpCode}`);
-      setFormData({ schemeId: "", schemeName: "", expiresInDays: 30, maxUses: 1 });
+      setFormData({
+        schemeId: "",
+        schemeName: "",
+        expiresInDays: 30,
+        maxUses: 1,
+      });
       setShowCreateModal(false);
       loadAllCodes();
       // eslint-disable-next-line no-unused-vars
@@ -197,14 +201,29 @@ const OTPManagement = () => {
   const handleCreateCCTVCode = async (e) => {
     e.preventDefault();
 
+    if (!formData.schemeId || !formData.schemeName) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
     setLoading(true);
     try {
-      const code = await otpService.createCCTVOperatorCode(userProfile.uid, formData.expiresInDays);
+      const code = await otpService.createCCTVOperatorCode(
+        formData.schemeId.toUpperCase(),
+        formData.schemeName,
+        userProfile.uid,
+      );
 
       toast.success(`CCTV Operator Access Code created: ${code}`);
-      setFormData({ schemeId: "", schemeName: "", expiresInDays: 30, maxUses: 1 });
+      setFormData({
+        schemeId: "",
+        schemeName: "",
+        expiresInDays: 30,
+        maxUses: 1,
+      });
       setShowCreateModal(false);
       loadAllCodes();
+      // eslint-disable-next-line no-unused-vars
     } catch (error) {
       toast.error("Failed to create CCTV operator access code");
     } finally {
@@ -233,6 +252,7 @@ const OTPManagement = () => {
       });
       setShowCreateModal(false);
       loadAllCodes();
+      // eslint-disable-next-line no-unused-vars
     } catch (error) {
       toast.error("Failed to create staff invite code");
     } finally {
@@ -275,9 +295,9 @@ const OTPManagement = () => {
         : staffInviteCodes;
   const availableCount =
     activeTab === "client"
-      ? clientOTPs.filter((otp) => !otp.isUsed && !isExpired(otp.expiresAt)).length
+      ? clientOTPs.filter((otp) => !otp.isUsed).length
       : activeTab === "cctv"
-        ? cctvCodes.filter((c) => !c.isUsed && !isExpired(c.expiresAt)).length
+        ? cctvCodes.filter((c) => !c.isUsed).length
         : staffInviteCodes.filter(
             (code) => !code.isUsed && !isExpired(code.expiresAt),
           ).length;
@@ -433,20 +453,11 @@ const OTPManagement = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Code
                 </th>
-                {activeTab === "client" ? (
-                  <>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Scheme
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Expires
-                    </th>
-                  </>
-                ) : activeTab === "cctv" ? (
+                {activeTab === "client" || activeTab === "cctv" ? (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Expires
+                    Scheme
                   </th>
-                ) : activeTab === "staff" ? (
+                ) : (
                   <>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created By
@@ -458,7 +469,7 @@ const OTPManagement = () => {
                       Uses
                     </th>
                   </>
-                ) : null}
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
@@ -490,15 +501,10 @@ const OTPManagement = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <p className={`text-sm ${isExpired(otp.expiresAt) ? "text-red-500" : "text-gray-500"}`}>
-                          {formatDate(otp.expiresAt)}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {otp.isUsed || isExpired(otp.expiresAt) ? (
+                        {otp.isUsed ? (
                           <span className="flex items-center gap-1 text-sm text-gray-500">
                             <XCircle className="w-4 h-4" />
-                            {isExpired(otp.expiresAt) ? "Expired" : "Used"}
+                            Used
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-sm text-green-600">
@@ -530,15 +536,20 @@ const OTPManagement = () => {
                           </code>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <p className={`text-sm ${isExpired(c.expiresAt) ? "text-red-500" : "text-gray-500"}`}>
-                            {formatDate(c.expiresAt)}
-                          </p>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">
+                              {c.schemeId}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {c.schemeName}
+                            </p>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {c.isUsed || isExpired(c.expiresAt) ? (
+                          {c.isUsed ? (
                             <span className="flex items-center gap-1 text-sm text-gray-500">
                               <XCircle className="w-4 h-4" />
-                              {isExpired(c.expiresAt) ? "Expired" : "Used"}
+                              Used
                             </span>
                           ) : (
                             <span className="flex items-center gap-1 text-sm text-green-600">
@@ -731,7 +742,7 @@ const OTPManagement = () => {
               }
               className="space-y-4"
             >
-              {activeTab === "client" ? (
+              {activeTab === "client" || activeTab === "cctv" ? (
                 <div className="form-control">
                   <label className="label">
                     <span className="label-text font-semibold">
@@ -766,50 +777,6 @@ const OTPManagement = () => {
                         `Code will be generated for: ${formData.schemeId}`}
                     </span>
                   </label>
-                  <div className="form-control mt-2">
-                    <label className="label">
-                      <span className="label-text font-semibold">Expires In (Days)</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={formData.expiresInDays}
-                      onChange={(e) => setFormData({ ...formData, expiresInDays: parseInt(e.target.value) })}
-                      className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-                      required
-                    />
-                    <label className="label">
-                      <span className="label-text-alt text-gray-500">
-                        Code will expire in {formData.expiresInDays} days. Single-use only.
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              ) : activeTab === "cctv" ? (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-500">
-                    This code grants access to all CCTV fault reports across all schemes.
-                  </p>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-semibold">Expires In (Days)</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={formData.expiresInDays}
-                      onChange={(e) => setFormData({ ...formData, expiresInDays: parseInt(e.target.value) })}
-                      className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-                      required
-                    />
-                    <label className="label">
-                      <span className="label-text-alt text-gray-500">
-                        Code will expire in {formData.expiresInDays} days. Single-use only.
-                      </span>
-                    </label>
-                  </div>
                 </div>
               ) : (
                 <>

@@ -2,10 +2,18 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { ArrowLeft, Upload, X, ChevronRight } from "lucide-react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
-import { storage } from "../../config/firebase";
+
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: import.meta.env.VITE_R2_ENDPOINT,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+});
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { compressImage } from "../../utils/imageCompression";
 import { SCHEMES, isDemoUser } from "../../utils/schemes";
@@ -218,19 +226,24 @@ const IncidentReportFormPage = () => {
     setUploadingFiles(true);
     const uploadPromises = files.map(async (file) => {
       const compressedFile = await compressImage(file);
+      const key = `incident-reports/${userProfile.uid}/${Date.now()}_${file.name}`;
+      const arrayBuffer = await compressedFile.arrayBuffer();
 
-      const fileName = `incident-reports/${userProfile.uid}/${Date.now()}_${
-        file.name
-      }`;
-      const storageRef = ref(storage, fileName);
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: import.meta.env.VITE_R2_BUCKET,
+          Key: key,
+          Body: new Uint8Array(arrayBuffer),
+          ContentType: file.type,
+        }),
+      );
 
-      await uploadBytes(storageRef, compressedFile);
-      const downloadURL = await getDownloadURL(storageRef);
+      const downloadUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${key}`;
 
       return {
         fileName: file.name,
-        fileUrl: fileName,
-        downloadUrl: downloadURL,
+        fileUrl: key,
+        downloadUrl,
         fileSize: compressedFile.size,
         fileType: file.type,
       };
@@ -666,7 +679,7 @@ const IncidentReportFormPage = () => {
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"
-            accept="image/*"
+            accept="image/*,video/*"
           />
           <label htmlFor="file-upload" className="cursor-pointer">
             <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />

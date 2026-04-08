@@ -1,6 +1,6 @@
-import SignInForm from "../components/auth/SignInForm";
-import heroImage from "../assets/signbg.jpg";
-import logomarkdark from "../assets/Logo White.svg";
+import SignInForm from "../../components/auth/SignInForm";
+import heroImage from "../../assets/signbg.jpg";
+import logomarkdark from "../../assets/Logo White.svg";
 
 const SignInPage = () => {
   return (

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { FileText, Camera, Calendar, AlertTriangle } from 'lucide-react';
+import { FileText, Camera, Calendar } from 'lucide-react';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
 
 const FormsSelectionPage = () => {
@@ -32,14 +32,6 @@ const FormsSelectionPage = () => {
       bgColor: 'bg-purple-50',
       path: '/dashboard/staff/forms/cctv-check'
     },
-    {
-      title: 'Asset Damage Sheet',
-      description: 'Document damage to highway infrastructure',
-      icon: AlertTriangle,
-      color: 'from-orange-400 to-orange-500',
-      bgColor: 'bg-orange-50',
-      path: '/dashboard/staff/forms/asset-damage'
-    }
   ];
 
   return (
