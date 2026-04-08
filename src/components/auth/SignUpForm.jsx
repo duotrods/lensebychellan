@@ -91,6 +91,16 @@ const SignUpForm = () => {
           userData,
           formData.otpCode
         );
+      } else if (formData.role === USER_ROLES.THIRDPARTYADMIN) {
+        await authService.signUpThirdPartyAdminWithOTP(formData.email, formData.password, userData, formData.otpCode);
+      } else if (formData.role === USER_ROLES.THIRDPARTYOPERATOR) {
+        await authService.signUpThirdPartyOperatorWithOTP(formData.email, formData.password, userData, formData.otpCode);
+      } else if (formData.role === USER_ROLES.THIRDPARTYCLIENT) {
+        await authService.signUpThirdPartyClientWithOTP(formData.email, formData.password, userData, formData.otpCode);
+      } else if (formData.role === USER_ROLES.THIRDPARTYLIVEOPERATOR) {
+        await authService.signUpThirdPartyLiveOperatorWithOTP(formData.email, formData.password, userData, formData.otpCode);
+      } else if (formData.role === USER_ROLES.THIRDPARTYCCTVOPERATOR) {
+        await authService.signUpThirdPartyCCTVOperatorWithOTP(formData.email, formData.password, userData, formData.otpCode);
       } else {
         await authService.signUpWithEmail(
           formData.email,
@@ -105,6 +115,32 @@ const SignUpForm = () => {
       toast.error(getAuthErrorMessage(error.code));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getCodeLabel = (role) => {
+    switch (role) {
+      case USER_ROLES.CLIENT: return 'Client Access Code';
+      case USER_ROLES.CCTVOPERATOR: return 'CCTV Operator Access Code';
+      case USER_ROLES.THIRDPARTYADMIN: return 'Third Party Admin Access Code';
+      case USER_ROLES.THIRDPARTYOPERATOR: return 'Third Party Operator Access Code';
+      case USER_ROLES.THIRDPARTYCLIENT: return 'Third Party Client Access Code';
+      case USER_ROLES.THIRDPARTYLIVEOPERATOR: return 'Third Party Live Operator Access Code';
+      case USER_ROLES.THIRDPARTYCCTVOPERATOR: return 'Third Party CCTV Operator Access Code';
+      default: return 'Staff Invite Code';
+    }
+  };
+
+  const getCodePlaceholder = (role) => {
+    switch (role) {
+      case USER_ROLES.CLIENT: return 'e.g., A417-2024-ABC123';
+      case USER_ROLES.CCTVOPERATOR: return 'e.g., CCTV-2024-ABC123';
+      case USER_ROLES.THIRDPARTYADMIN: return 'e.g., TPADMIN-2025-ABC123';
+      case USER_ROLES.THIRDPARTYOPERATOR: return 'e.g., TPOP-2025-ABC123';
+      case USER_ROLES.THIRDPARTYCLIENT: return 'e.g., TPCL-2025-ABC123';
+      case USER_ROLES.THIRDPARTYLIVEOPERATOR: return 'e.g., TPLIVE-2025-ABC123';
+      case USER_ROLES.THIRDPARTYCCTVOPERATOR: return 'e.g., TPCCTV-2025-ABC123';
+      default: return 'e.g., STAFF-2024-XYZ789';
     }
   };
 
@@ -219,6 +255,23 @@ const SignUpForm = () => {
             <option value={USER_ROLES.CCTVOPERATOR}>
               {ROLE_LABELS[USER_ROLES.CCTVOPERATOR]}
             </option>
+            <optgroup label="Third Party">
+              <option value={USER_ROLES.THIRDPARTYADMIN}>
+                {ROLE_LABELS[USER_ROLES.THIRDPARTYADMIN]}
+              </option>
+              <option value={USER_ROLES.THIRDPARTYOPERATOR}>
+                {ROLE_LABELS[USER_ROLES.THIRDPARTYOPERATOR]}
+              </option>
+              <option value={USER_ROLES.THIRDPARTYCLIENT}>
+                {ROLE_LABELS[USER_ROLES.THIRDPARTYCLIENT]}
+              </option>
+              <option value={USER_ROLES.THIRDPARTYLIVEOPERATOR}>
+                {ROLE_LABELS[USER_ROLES.THIRDPARTYLIVEOPERATOR]}
+              </option>
+              <option value={USER_ROLES.THIRDPARTYCCTVOPERATOR}>
+                {ROLE_LABELS[USER_ROLES.THIRDPARTYCCTVOPERATOR]}
+              </option>
+            </optgroup>
           </select>
         </div>
 
@@ -226,11 +279,7 @@ const SignUpForm = () => {
         <div className="form-control">
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              {formData.role === USER_ROLES.CLIENT
-                ? "Client Access Code"
-                : formData.role === USER_ROLES.CCTVOPERATOR
-                ? "CCTV Operator Access Code"
-                : "Staff Invite Code"}
+              {getCodeLabel(formData.role)}
             </span>
           </label>
           <input
@@ -238,13 +287,7 @@ const SignUpForm = () => {
             name="otpCode"
             value={formData.otpCode}
             onChange={handleChange}
-            placeholder={
-              formData.role === USER_ROLES.CLIENT
-                ? "e.g., A417-2024-ABC123"
-                : formData.role === USER_ROLES.CCTVOPERATOR
-                ? "e.g., CCTV-A417-2024-ABC123"
-                : "e.g., STAFF-2024-XYZ789"
-            }
+            placeholder={getCodePlaceholder(formData.role)}
             className="input w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
             required
           />
