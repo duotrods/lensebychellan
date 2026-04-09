@@ -3,43 +3,33 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 const functions = getFunctions();
 
 /**
- * Send notification emails for Asset Damage reports
- * @param {Object} reportData - The report data to include in the email
- * @param {Array} notificationTypes - Array of notification types (e.g., ['TM Manager', 'Client'])
+ * Send alert email when an incident report contains incursion YES or asset damage.
+ * Recipients are hardcoded server-side — no email addresses in the frontend.
+ * @param {Object} reportData - The report data
  * @param {boolean} isUpdate - Whether this is an update to an existing report
- * @returns {Promise<Object>} - Result of the email sending operation
  */
-export const sendAssetDamageNotification = async (reportData, notificationTypes, isUpdate = false) => {
-  // Don't send if no notifications selected or only N/A
-  if (!notificationTypes || notificationTypes.length === 0) {
-    return { success: true, message: 'No notifications to send', emailsSent: 0 };
-  }
+export const sendIncidentAlertNotification = async (reportData, isUpdate = false) => {
+  const hasIncursion = reportData.incursion === "YES";
+  const hasAssetDamage = reportData.propertyDamage === true;
 
-  const validNotifications = notificationTypes.filter(n => n !== 'N/A');
-  if (validNotifications.length === 0) {
-    return { success: true, message: 'No notifications to send (N/A selected)', emailsSent: 0 };
+  if (!hasIncursion && !hasAssetDamage) {
+    return { success: true, message: "No alert triggers present", emailsSent: 0 };
   }
 
   try {
-    const sendNotification = httpsCallable(functions, 'sendAssetDamageNotification');
-    const result = await sendNotification({
-      reportData,
-      notificationTypes: validNotifications,
-      isUpdate
-    });
-
+    const sendAlert = httpsCallable(functions, 'sendIncidentAlertNotification');
+    const result = await sendAlert({ reportData, isUpdate });
     return result.data;
   } catch (error) {
-    console.error('Error sending notification emails:', error);
-    // Don't throw - we don't want email failures to break the form submission
+    console.error('Error sending incident alert:', error);
     return {
       success: false,
-      message: `Failed to send notifications: ${error.message}`,
-      emailsSent: 0
+      message: `Failed to send alert: ${error.message}`,
+      emailsSent: 0,
     };
   }
 };
 
 export default {
-  sendAssetDamageNotification
+  sendIncidentAlertNotification,
 };

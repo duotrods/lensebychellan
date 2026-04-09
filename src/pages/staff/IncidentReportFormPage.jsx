@@ -5,6 +5,7 @@ import { ArrowLeft, Upload, X, ChevronRight } from "lucide-react";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
+import { sendIncidentAlertNotification } from "../../services/emailService";
 
 const r2Client = new S3Client({
   region: "auto",
@@ -386,6 +387,12 @@ const IncidentReportFormPage = () => {
         userProfile.displayName
       );
 
+      // Send alert if incursion or asset damage
+      await sendIncidentAlertNotification(
+        { ...updateData, submittedBy: userProfile.displayName },
+        true
+      );
+
       toast.success("Progress saved! Incident is still live.");
       navigate("/dashboard/staff");
     } catch (error) {
@@ -445,6 +452,12 @@ const IncidentReportFormPage = () => {
           userProfile.displayName
         );
 
+        // Send alert if incursion or asset damage
+        await sendIncidentAlertNotification(
+          { ...updateData, submittedBy: userProfile.displayName },
+          !isEditingLiveIncident
+        );
+
         if (isEditingLiveIncident) {
           toast.success("Incident Report completed successfully!");
         } else {
@@ -462,6 +475,12 @@ const IncidentReportFormPage = () => {
           userProfile.displayName,
           "submitted"
         );
+        // Send alert if incursion or asset damage
+        await sendIncidentAlertNotification(
+          { ...dataWithTimings, submittedBy: userProfile.displayName },
+          false
+        );
+
         toast.success("Incident Report submitted successfully!");
 
         // Reset form
