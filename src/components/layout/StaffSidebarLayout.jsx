@@ -21,7 +21,7 @@ import { useCCTVReminder } from "../../hooks/useCCTVReminder";
 import { isDemoUser } from "../../utils/schemes";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
-const StaffSidebarLayoutInner = ({ children }) => {
+const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) => {
   const { userProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -59,25 +59,25 @@ const StaffSidebarLayoutInner = ({ children }) => {
   const navItems = [
     {
       name: "Dashboard",
-      path: "/dashboard/staff",
+      path: basePath,
       icon: LayoutDashboard,
       exact: true,
     },
     {
       name: "Forms",
-      path: "/dashboard/staff/forms",
+      path: `${basePath}/forms`,
       icon: FileText,
       hasSubmenu: true,
       submenu: [
-        { name: "CCTV Check Sheet", path: "/dashboard/staff/forms/cctv-check" },
-        { name: "Incident Report", path: "/dashboard/staff/forms/incident-report" },
-        { name: "Daily Occurrence", path: "/dashboard/staff/forms/daily-occurence" },
-        { name: "CCTV Faults", path: "/dashboard/staff/forms/cctv-faults" },
+        { name: "CCTV Check Sheet", path: `${basePath}/forms/cctv-check` },
+        { name: "Incident Report", path: `${basePath}/forms/incident-report` },
+        { name: "Daily Occurrence", path: `${basePath}/forms/daily-occurence` },
+        { name: "CCTV Faults", path: `${basePath}/forms/cctv-faults` },
       ],
     },
     {
       name: "CCTV Faults",
-      path: "/dashboard/staff/cctv-faults",
+      path: `${basePath}/cctv-faults`,
       icon: CameraOff,
       liveCount: liveFaults.length,
     },
@@ -105,11 +105,11 @@ const StaffSidebarLayoutInner = ({ children }) => {
         {/* Logo */}
         <div className="p-4 border-b flex items-center justify-center">
           {!collapsed ? (
-            <Link to="/dashboard/staff" className="flex items-center">
+            <Link to={basePath} className="flex items-center">
               <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
             </Link>
           ) : (
-            <Link to="/dashboard/staff" className="flex items-center justify-center">
+            <Link to={basePath} className="flex items-center justify-center">
               <img src={logomark} alt="L" className="h-8 w-8 object-contain" />
             </Link>
           )}
@@ -269,9 +269,9 @@ const StaffSidebarLayoutInner = ({ children }) => {
   );
 };
 
-const StaffSidebarLayout = ({ children }) => (
+const StaffSidebarLayout = ({ children, basePath = '/dashboard/staff' }) => (
   <StaffCCTVFaultsProvider>
-    <StaffSidebarLayoutInner>{children}</StaffSidebarLayoutInner>
+    <StaffSidebarLayoutInner basePath={basePath}>{children}</StaffSidebarLayoutInner>
   </StaffCCTVFaultsProvider>
 );
 

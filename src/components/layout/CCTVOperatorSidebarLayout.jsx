@@ -7,7 +7,7 @@ import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 
-const CCTVOperatorSidebarLayout = ({ children }) => {
+const CCTVOperatorSidebarLayout = ({ children, basePath = '/dashboard/cctvoperator' }) => {
   const { userProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ const CCTVOperatorSidebarLayout = ({ children }) => {
   const navItems = [
     {
       name: "Dashboard",
-      path: "/dashboard/cctvoperator",
+      path: basePath,
       icon: LayoutDashboard,
     },
   ];
@@ -51,11 +51,11 @@ const CCTVOperatorSidebarLayout = ({ children }) => {
         {/* Logo */}
         <div className="p-4 border-b flex items-center justify-center">
           {!collapsed ? (
-            <Link to="/dashboard/cctvoperator" className="flex items-center">
+            <Link to={basePath} className="flex items-center">
               <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
             </Link>
           ) : (
-            <Link to="/dashboard/cctvoperator" className="flex items-center justify-center">
+            <Link to={basePath} className="flex items-center justify-center">
               <img src={logomark} alt="L" className="h-8 w-8 object-contain" />
             </Link>
           )}

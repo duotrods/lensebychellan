@@ -2,22 +2,12 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
-import {
-  LayoutDashboard,
-  FileText,
-  Video,
-  LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Menu,
-} from "lucide-react";
+import { LayoutDashboard, KeyRound, Users, LogOut, PanelLeftClose, PanelLeftOpen, Menu } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
-import SchemeSwitcher from "../client/SchemeSwitcher";
-import { isDemoUser } from "../../utils/schemes";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 
-const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
+const ThirdPartyAdminSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -25,7 +15,6 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Close mobile sidebar on route change
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const handleSignOut = async () => {
@@ -34,29 +23,14 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
   };
 
   const isActive = (path, exact = false) => {
-    if (exact) {
-      return location.pathname === path;
-    }
+    if (exact) return location.pathname === path;
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   const navItems = [
-    {
-      name: "Dashboard",
-      path: basePath,
-      icon: LayoutDashboard,
-      exact: true,
-    },
-    {
-      name: "Reports",
-      path: `${basePath}/reports`,
-      icon: FileText,
-    },
-    {
-      name: "CCTV Recordings",
-      path: `${basePath}/cctv-recordings`,
-      icon: Video,
-    },
+    { name: "Dashboard", path: "/dashboard/thirdparty/admin", icon: LayoutDashboard, exact: true },
+    { name: "Access Codes", path: "/dashboard/thirdparty/admin/codes", icon: KeyRound },
+    { name: "My Users", path: "/dashboard/thirdparty/admin/users", icon: Users },
   ];
 
   return (
@@ -78,31 +52,20 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
         {/* Logo */}
         <div className="p-4 border-b flex items-center justify-center">
           {!collapsed ? (
-            <Link to={basePath} className="flex items-center">
+            <Link to="/dashboard/thirdparty/admin" className="flex items-center">
               <img src={headerLogo} alt="Lens by Chellan" className="h-8" />
             </Link>
           ) : (
-            <Link to={basePath} className="flex items-center justify-center">
+            <Link to="/dashboard/thirdparty/admin" className="flex items-center justify-center">
               <img src={logomark} alt="L" className="h-8 w-8 object-contain" />
             </Link>
           )}
         </div>
 
-        {/* Demo Mode Badge */}
-        {!collapsed && isDemoUser(userProfile) && (
-          <div className="mx-4 mt-4 px-3 py-2 bg-amber-100 border border-amber-300 rounded-lg">
-            <p className="text-xs font-bold text-amber-800 text-center uppercase tracking-wide">
-              Demo Mode
-            </p>
-          </div>
-        )}
-
         {/* Scheme Info */}
         {!collapsed && (
           <div className="px-6 py-4 bg-teal-50 border-b">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-              {userProfile?.schemeIds?.length > 1 ? "Active Scheme" : "Your Scheme"}
-            </p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Your Scheme</p>
             <p className="text-lg font-bold text-teal-700">
               {userProfile?.activeSchemeId || userProfile?.schemeId || "N/A"}
             </p>
@@ -133,13 +96,6 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
           ))}
         </nav>
 
-        {/* Scheme Switcher - only when expanded */}
-        {!collapsed && (
-          <div className="px-4 py-2">
-            <SchemeSwitcher />
-          </div>
-        )}
-
         {/* Collapse toggle */}
         <div className="px-2 pb-2">
           <button
@@ -157,22 +113,20 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
           {!collapsed && (
             <div className="flex items-center gap-3 px-2 py-3 mb-2">
               <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
-                {userProfile?.displayName?.charAt(0) || "C"}
+                {userProfile?.displayName?.charAt(0) || "A"}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-800 truncate">
                   {userProfile?.displayName}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {userProfile?.company}
-                </p>
+                <p className="text-xs text-gray-500">Third Party Admin</p>
               </div>
             </div>
           )}
           {collapsed && (
             <div className="flex justify-center mb-2 py-1">
               <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
-                {userProfile?.displayName?.charAt(0) || "C"}
+                {userProfile?.displayName?.charAt(0) || "A"}
               </div>
             </div>
           )}
@@ -197,7 +151,7 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
           </button>
           <img src={headerLogo} alt="Lens by Chellan" className="h-7" />
         </div>
-        <main id="client-main-scroll" className="flex-1 overflow-y-auto bg-gray-50 px-5 py-5 md:px-10 md:py-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto bg-gray-50 px-5 py-5 md:px-10 md:py-6 lg:p-8">
           {children}
         </main>
       </div>
@@ -205,4 +159,4 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
   );
 };
 
-export default ClientSidebarLayout;
+export default ThirdPartyAdminSidebarLayout;

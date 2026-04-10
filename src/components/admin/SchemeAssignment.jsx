@@ -90,15 +90,26 @@ const SchemeAssignment = () => {
   const loadOverview = async () => {
     setOverviewLoading(true);
     try {
-      const [clientResult, liveOpResult, cctvOpResult] = await Promise.all([
+      const [clientResult, liveOpResult, cctvOpResult,
+             tpAdminResult, tpOpResult, tpClientResult, tpLiveOpResult, tpCCTVOpResult] = await Promise.all([
         firestoreService.getAllUsersPaginated(100, null, "client"),
         firestoreService.getAllUsersPaginated(100, null, "liveoperator"),
         firestoreService.getAllUsersPaginated(100, null, "cctvfaultoperator"),
+        firestoreService.getAllUsersPaginated(100, null, "thirdpartyadmin"),
+        firestoreService.getAllUsersPaginated(100, null, "thirdpartyoperator"),
+        firestoreService.getAllUsersPaginated(100, null, "thirdpartyclient"),
+        firestoreService.getAllUsersPaginated(100, null, "thirdpartyliveoperator"),
+        firestoreService.getAllUsersPaginated(100, null, "thirdpartycctvoperator"),
       ]);
       setOverviewUsers([
         ...clientResult.users,
         ...liveOpResult.users,
         ...cctvOpResult.users,
+        ...tpAdminResult.users,
+        ...tpOpResult.users,
+        ...tpClientResult.users,
+        ...tpLiveOpResult.users,
+        ...tpCCTVOpResult.users,
       ]);
     } catch (error) {
       console.error("Failed to load scheme overview:", error);
@@ -312,6 +323,61 @@ const SchemeAssignment = () => {
             >
               <CameraOff className="w-4 h-4" />
               CCTV Operators
+            </button>
+            <button
+              onClick={() => handleRoleFilterChange("thirdpartyadmin")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === "thirdpartyadmin"
+                  ? "bg-orange-500 text-white"
+                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              TP Admin
+            </button>
+            <button
+              onClick={() => handleRoleFilterChange("thirdpartyoperator")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === "thirdpartyoperator"
+                  ? "bg-teal-500 text-white"
+                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <User className="w-4 h-4" />
+              TP Operator
+            </button>
+            <button
+              onClick={() => handleRoleFilterChange("thirdpartyclient")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === "thirdpartyclient"
+                  ? "bg-blue-500 text-white"
+                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              TP Client
+            </button>
+            <button
+              onClick={() => handleRoleFilterChange("thirdpartyliveoperator")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === "thirdpartyliveoperator"
+                  ? "bg-purple-500 text-white"
+                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Radio className="w-4 h-4" />
+              TP Live Op
+            </button>
+            <button
+              onClick={() => handleRoleFilterChange("thirdpartycctvoperator")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === "thirdpartycctvoperator"
+                  ? "bg-pink-500 text-white"
+                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <CameraOff className="w-4 h-4" />
+              TP CCTV Op
             </button>
           </div>
 

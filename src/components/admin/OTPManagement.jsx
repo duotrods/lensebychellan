@@ -16,9 +16,17 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+const TP_TABS = [
+  { key: 'tpadmin', label: 'Admin', create: (sid, sn, uid) => otpService.createThirdPartyAdminCode(sid, sn, uid) },
+  { key: 'tpoperator', label: 'Operator', create: (sid, sn, uid) => otpService.createThirdPartyOperatorCode(sid, sn, uid) },
+  { key: 'tpclient', label: 'Client', create: (sid, sn, uid) => otpService.createThirdPartyClientCode(sid, sn, uid) },
+  { key: 'tpliveoperator', label: 'Live Operator', create: (sid, sn, uid) => otpService.createThirdPartyLiveOperatorCode(sid, sn, uid) },
+  { key: 'tpcctvoperator', label: 'CCTV Operator', create: (sid, sn, uid) => otpService.createThirdPartyCCTVOperatorCode(sid, sn, uid) },
+];
+
 const OTPManagement = () => {
   const { userProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState("client"); // "client", "staff", or "cctv"
+  const [activeTab, setActiveTab] = useState("client"); // "client", "staff", "cctv", or "thirdparty"
   const [clientOTPs, setClientOTPs] = useState([]);
   const [staffInviteCodes, setStaffInviteCodes] = useState([]);
   const [cctvCodes, setCctvCodes] = useState([]);
@@ -48,6 +56,12 @@ const OTPManagement = () => {
   const [cctvHasMore, setCctvHasMore] = useState(true);
   const [cctvTotalCount, setCctvTotalCount] = useState(0);
   const [cctvCurrentPage, setCctvCurrentPage] = useState(1);
+
+  // Third Party tab state
+  const [tpSubTab, setTpSubTab] = useState('tpoperator');
+  const [tpFormData, setTpFormData] = useState({ schemeId: '', schemeName: '' });
+  const [tpLoading, setTpLoading] = useState(false);
+  const [lastTpCode, setLastTpCode] = useState(null);
 
   const codesPerPage = 10;
 
@@ -260,6 +274,26 @@ const OTPManagement = () => {
     }
   };
 
+  const handleCreateTPCode = async (e) => {
+    e.preventDefault();
+    if (!tpFormData.schemeId || !tpFormData.schemeName) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    setTpLoading(true);
+    try {
+      const tabConfig = TP_TABS.find(t => t.key === tpSubTab);
+      const code = await tabConfig.create(tpFormData.schemeId.toUpperCase(), tpFormData.schemeName, userProfile.uid);
+      setLastTpCode(code);
+      toast.success(`Third Party ${tabConfig.label} code created: ${code}`);
+      setTpFormData({ schemeId: '', schemeName: '' });
+    } catch {
+      toast.error('Failed to create third party code');
+    } finally {
+      setTpLoading(false);
+    }
+  };
+
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard!");
@@ -418,10 +452,21 @@ const OTPManagement = () => {
           <Users className="w-5 h-5" />
           Staff Invite Codes
         </button>
+        <button
+          onClick={() => setActiveTab("thirdparty")}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold border-b-2 transition-colors ${
+            activeTab === "thirdparty"
+              ? "border-teal-500 text-teal-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <Building2 className="w-5 h-5" />
+          Third Party Codes
+        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Stats — not shown for third party tab (it has its own UI) */}
+      {activeTab !== "thirdparty" && <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500 mb-1">Total Codes</p>
           <p className="text-2xl font-bold text-gray-800">
@@ -442,9 +487,10 @@ const OTPManagement = () => {
             {displayCodes.filter((code) => code.isUsed).length}
           </p>
         </div>
-      </div>
+      </div>}
 
-      {/* Table */}
+      {/* Table — not shown for third party tab */}
+      {activeTab !== "thirdparty" && <>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -720,6 +766,80 @@ const OTPManagement = () => {
           </div>
         )}
       </div>
+
+      </>}
+
+      {/* Third Party Codes Panel */}
+      {activeTab === "thirdparty" && (
+        <div>
+          {/* Sub-tabs */}
+          <div className="flex gap-1 mb-6 border-b">
+            {TP_TABS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => { setTpSubTab(key); setLastTpCode(null); }}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  tpSubTab === key
+                    ? 'border-teal-500 text-teal-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleCreateTPCode} className="bg-white rounded-lg shadow p-6 mb-6">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">
+              Generate {TP_TABS.find(t => t.key === tpSubTab)?.label} Access Code
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Scheme ID</label>
+                <input
+                  type="text"
+                  value={tpFormData.schemeId}
+                  onChange={(e) => setTpFormData(prev => ({ ...prev, schemeId: e.target.value }))}
+                  placeholder="e.g. NEWCO1"
+                  className="input input-bordered w-full bg-white border-gray-300"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Scheme Name</label>
+                <input
+                  type="text"
+                  value={tpFormData.schemeName}
+                  onChange={(e) => setTpFormData(prev => ({ ...prev, schemeName: e.target.value }))}
+                  placeholder="e.g. NewCo Road Scheme"
+                  className="input input-bordered w-full bg-white border-gray-300"
+                  required
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={tpLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors disabled:opacity-50"
+            >
+              {tpLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Generate Code
+            </button>
+            {lastTpCode && (
+              <div className="mt-4 p-4 bg-teal-50 rounded-lg border border-teal-200 flex items-center gap-4">
+                <code className="text-lg font-mono font-bold text-teal-800">{lastTpCode}</code>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(lastTpCode)}
+                  className="flex items-center gap-1 px-3 py-1 bg-teal-500 text-white rounded text-sm hover:bg-teal-600"
+                >
+                  <Copy className="w-3 h-3" /> Copy
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      )}
 
       {/* Create Modal */}
       {showCreateModal && (

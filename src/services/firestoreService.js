@@ -490,9 +490,11 @@ class FirestoreService {
   // Admin-only: Archive user
   async archiveUser(targetUid, adminUid) {
     try {
-      // Verify admin role
+      // Verify admin role (full admin or third-party admin)
       const adminUser = await this.getUserDocument(adminUid);
-      if (adminUser?.role !== USER_ROLES.ADMIN) {
+      const isFullAdmin = adminUser?.role === USER_ROLES.ADMIN;
+      const isTPAdmin = adminUser?.role === USER_ROLES.THIRDPARTYADMIN;
+      if (!isFullAdmin && !isTPAdmin) {
         throw new AppError('Unauthorized', 'firestore/permission-denied');
       }
 
@@ -502,8 +504,18 @@ class FirestoreService {
         throw new AppError('User not found', 'firestore/not-found');
       }
 
+      // TP admin can only archive users within their own scheme(s)
+      if (isTPAdmin) {
+        const adminSchemes = adminUser.schemeIds || [];
+        const targetSchemes = targetUser.schemeIds || [];
+        const hasOverlap = adminSchemes.some(s => targetSchemes.includes(s));
+        if (!hasOverlap) {
+          throw new AppError('Unauthorized: user is not in your scheme', 'firestore/permission-denied');
+        }
+      }
+
       // Prevent archiving other admins
-      if (targetUser.role === USER_ROLES.ADMIN) {
+      if (targetUser.role === USER_ROLES.ADMIN || targetUser.role === USER_ROLES.THIRDPARTYADMIN) {
         throw new AppError('Cannot archive admin users', 'firestore/permission-denied');
       }
 
@@ -544,9 +556,11 @@ class FirestoreService {
   // Admin-only: Unarchive user
   async unarchiveUser(targetUid, adminUid) {
     try {
-      // Verify admin role
+      // Verify admin role (full admin or third-party admin)
       const adminUser = await this.getUserDocument(adminUid);
-      if (adminUser?.role !== USER_ROLES.ADMIN) {
+      const isFullAdmin = adminUser?.role === USER_ROLES.ADMIN;
+      const isTPAdmin = adminUser?.role === USER_ROLES.THIRDPARTYADMIN;
+      if (!isFullAdmin && !isTPAdmin) {
         throw new AppError('Unauthorized', 'firestore/permission-denied');
       }
 
@@ -554,6 +568,16 @@ class FirestoreService {
       const targetUser = await this.getUserDocument(targetUid);
       if (!targetUser) {
         throw new AppError('User not found', 'firestore/not-found');
+      }
+
+      // TP admin can only unarchive users within their own scheme(s)
+      if (isTPAdmin) {
+        const adminSchemes = adminUser.schemeIds || [];
+        const targetSchemes = targetUser.schemeIds || [];
+        const hasOverlap = adminSchemes.some(s => targetSchemes.includes(s));
+        if (!hasOverlap) {
+          throw new AppError('Unauthorized: user is not in your scheme', 'firestore/permission-denied');
+        }
       }
 
       // Update user document to remove archive status
