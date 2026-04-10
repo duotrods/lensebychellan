@@ -45,6 +45,7 @@ const NoteThread = ({ notes, legacyNote }) => {
 
   if (!allNotes.length) return null;
 
+  // test
   return (
     <div className="space-y-2 pb-2">
       {allNotes.map((note, idx) => {

@@ -1,12 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { staffService } from '../../services/staffService';
-import NoticeBoard from '../staff/NoticeBoard';
-import { FileText, Camera, Calendar, AlertTriangle, Eye, Edit, Download, Search, Filter, ChevronLeft, ChevronRight, Radio, CheckCircle, Forward, FilePlus, FilePlus2 } from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { generateReportPDF } from '../../utils/pdfGenerator';
-import { isDemoUser, DEMO_SCHEME_ID } from '../../utils/schemes';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { staffService } from "../../services/staffService";
+import NoticeBoard from "../staff/NoticeBoard";
+import {
+  FileText,
+  Camera,
+  Calendar,
+  AlertTriangle,
+  Eye,
+  Edit,
+  Download,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  Radio,
+  CheckCircle,
+  Forward,
+  FilePlus,
+  FilePlus2,
+} from "lucide-react";
+import { toast } from "react-hot-toast";
+import { generateReportPDF } from "../../utils/pdfGenerator";
+import { isDemoUser, DEMO_SCHEME_ID } from "../../utils/schemes";
 
 // Module-level variable — survives component unmount/remount, no serialization needed
 let _dashRestore = null;
@@ -16,15 +33,15 @@ const NewStaffDashboard = () => {
   const { userProfile } = useAuth();
   // Check if notice board has been shown in this session
   const [showNoticeBoard, setShowNoticeBoard] = useState(() => {
-    const hasSeenNotice = sessionStorage.getItem('hasSeenNoticeBoard');
+    const hasSeenNotice = sessionStorage.getItem("hasSeenNoticeBoard");
     return !hasSeenNotice; // Show only if not seen yet
   });
   const [stats, setStats] = useState(null);
   const [latestForms, setLatestForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({}); // Cache: { [pageNumber]: { cursors, typeCursor, data, hasMore } }
@@ -56,14 +73,16 @@ const NewStaffDashboard = () => {
       setTypeCount(_dashRestore.typeCount || 0);
       setTotalCount(_dashRestore.totalCount || 0);
       // Restore the full page cache so Prev/Next navigation works on all cached pages
-      pageCacheRef.current = _dashRestore.pageCache ? { ..._dashRestore.pageCache } : {
-        [_dashRestore.page]: {
-          data: _dashRestore.forms,
-          cursors: _dashRestore.cursors || {},
-          typeCursor: _dashRestore.typeCursor || null,
-          hasMore: _dashRestore.hasMore,
-        }
-      };
+      pageCacheRef.current = _dashRestore.pageCache
+        ? { ..._dashRestore.pageCache }
+        : {
+            [_dashRestore.page]: {
+              data: _dashRestore.forms,
+              cursors: _dashRestore.cursors || {},
+              typeCursor: _dashRestore.typeCursor || null,
+              hasMore: _dashRestore.hasMore,
+            },
+          };
       setLoading(false);
       wasRestoredRef.current = true;
     } else {
@@ -71,7 +90,13 @@ const NewStaffDashboard = () => {
     }
   }, [userProfile?.uid]);
 
-  const loadDashboardData = async (resetPage = false, overrideFilter = null, cursorOverride = null, targetPage = null, silent = false) => {
+  const loadDashboardData = async (
+    resetPage = false,
+    overrideFilter = null,
+    cursorOverride = null,
+    targetPage = null,
+    silent = false,
+  ) => {
     if (!userProfile) return;
 
     // Check page cache first (targetPage is set by pagination handlers)
@@ -89,18 +114,23 @@ const NewStaffDashboard = () => {
       if (!silent) setLoading(true);
 
       const isDemo = isDemoUser(userProfile);
-      const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
+      const activeFilter =
+        overrideFilter !== null ? overrideFilter : filterType;
 
       let rawForms;
       let newCursors = {};
       let newTypeCursor = null;
       let newHasMore = true;
 
-      if (activeFilter === 'all') {
-        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
+      if (activeFilter === "all") {
+        const effectiveCursors = cursorOverride
+          ? cursorOverride.cursors
+          : resetPage
+            ? {}
+            : cursors;
         const result = await staffService.getAllFormsPaginated(
           formsPerPage,
-          effectiveCursors
+          effectiveCursors,
         );
         rawForms = result.forms;
         newCursors = result.cursors;
@@ -108,11 +138,15 @@ const NewStaffDashboard = () => {
         setCursors(newCursors);
         setHasMore(newHasMore);
       } else {
-        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
+        const effectiveTypeCursor = cursorOverride
+          ? cursorOverride.typeCursor
+          : resetPage
+            ? null
+            : typeCursor;
         const result = await staffService.getFormsByTypePaginated(
           activeFilter,
           formsPerPage,
-          effectiveTypeCursor
+          effectiveTypeCursor,
         );
         rawForms = result.forms;
         newTypeCursor = result.lastDoc;
@@ -124,21 +158,29 @@ const NewStaffDashboard = () => {
       // Filter forms based on demo status
       let filteredForms = rawForms;
       if (isDemo) {
-        filteredForms = rawForms.filter(form => {
-          if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
-            return form.schemeIds.every(id => id === DEMO_SCHEME_ID);
+        filteredForms = rawForms.filter((form) => {
+          if (
+            form.schemeIds &&
+            Array.isArray(form.schemeIds) &&
+            form.schemeIds.length > 0
+          ) {
+            return form.schemeIds.every((id) => id === DEMO_SCHEME_ID);
           }
           if (form.schemeId) return form.schemeId === DEMO_SCHEME_ID;
-          const schemeId = form.scheme?.split(' ')[0];
+          const schemeId = form.scheme?.split(" ")[0];
           return schemeId === DEMO_SCHEME_ID;
         });
       } else {
-        filteredForms = rawForms.filter(form => {
-          if (form.schemeIds && Array.isArray(form.schemeIds) && form.schemeIds.length > 0) {
-            return !form.schemeIds.every(id => id === DEMO_SCHEME_ID);
+        filteredForms = rawForms.filter((form) => {
+          if (
+            form.schemeIds &&
+            Array.isArray(form.schemeIds) &&
+            form.schemeIds.length > 0
+          ) {
+            return !form.schemeIds.every((id) => id === DEMO_SCHEME_ID);
           }
           if (form.schemeId) return form.schemeId !== DEMO_SCHEME_ID;
-          const schemeId = form.scheme?.split(' ')[0];
+          const schemeId = form.scheme?.split(" ")[0];
           return schemeId !== DEMO_SCHEME_ID;
         });
       }
@@ -156,8 +198,8 @@ const NewStaffDashboard = () => {
 
       if (resetPage) setCurrentPage(1);
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-      toast.error('Failed to load forms');
+      console.error("Failed to load dashboard data:", error);
+      toast.error("Failed to load forms");
     } finally {
       setLoading(false);
     }
@@ -168,7 +210,7 @@ const NewStaffDashboard = () => {
       const count = await staffService.getAllFormsCount();
       setTotalCount(count);
     } catch (error) {
-      console.warn('Could not load total count:', error);
+      console.warn("Could not load total count:", error);
     }
   };
 
@@ -177,7 +219,7 @@ const NewStaffDashboard = () => {
       const counts = await staffService.getAllFormsCountByType();
       setStats(counts);
     } catch (error) {
-      console.warn('Could not load stat counts:', error);
+      console.warn("Could not load stat counts:", error);
     }
   };
 
@@ -186,11 +228,16 @@ const NewStaffDashboard = () => {
   };
 
   const runSearch = async (term) => {
-    if (!term.trim()) { setSearchResults([]); return; }
+    if (!term.trim()) {
+      setSearchResults([]);
+      return;
+    }
     const now = Date.now();
-    searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
+    searchRateLimitRef.current = searchRateLimitRef.current.filter(
+      (t) => now - t < 30000,
+    );
     if (searchRateLimitRef.current.length >= 10) {
-      toast.error('Too many searches. Please wait a moment.');
+      toast.error("Too many searches. Please wait a moment.");
       return;
     }
     searchRateLimitRef.current.push(now);
@@ -201,8 +248,8 @@ const NewStaffDashboard = () => {
       if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
       setSearchResults(results);
     } catch (err) {
-      console.error('Search failed:', err);
-      toast.error('Search failed. Please try again.');
+      console.error("Search failed:", err);
+      toast.error("Search failed. Please try again.");
     } finally {
       setSearchLoading(false);
     }
@@ -215,7 +262,7 @@ const NewStaffDashboard = () => {
     pageCacheRef.current = {};
     setCurrentPage(1);
     loadDashboardData(true, newType);
-    if (newType !== 'all') {
+    if (newType !== "all") {
       try {
         const count = await staffService.getFormCountForType(newType);
         setTypeCount(count);
@@ -227,61 +274,61 @@ const NewStaffDashboard = () => {
 
   const statCards = [
     {
-      title: 'Incident Report Form',
+      title: "Incident Report Form",
       count: stats?.incidentReportTotal || 0,
-      subtitle: 'Total Submissions',
+      subtitle: "Total Submissions",
       icon: FileText,
-      color: 'from-teal-500 to-teal-600'
+      color: "from-teal-500 to-teal-600",
     },
     {
-      title: 'CCTV Check Sheet',
+      title: "CCTV Check Sheet",
       count: stats?.cctvCheckTotal || 0,
-      subtitle: 'Total Submissions',
+      subtitle: "Total Submissions",
       icon: Camera,
-      color: 'from-blue-500 to-blue-600'
+      color: "from-blue-500 to-blue-600",
     },
     {
-      title: 'Daily Occurence',
+      title: "Daily Occurence",
       count: stats?.dailyLogsTotal || 0,
-      subtitle: 'Total Submissions',
+      subtitle: "Total Submissions",
       icon: Calendar,
-      color: 'from-purple-500 to-purple-600'
+      color: "from-purple-500 to-purple-600",
     },
     {
-      title: 'CCTV Faults',
+      title: "CCTV Faults",
       count: stats?.cctvFaultsTotal || 0,
-      subtitle: 'Total Submissions',
+      subtitle: "Total Submissions",
       icon: Eye,
-      color: 'from-purple-500 to-purple-600'
-    }
+      color: "from-purple-500 to-purple-600",
+    },
   ];
 
   const formatDate = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     // If it's already a string (form.date), return as-is or format it
-    if (typeof dateString === 'string') {
+    if (typeof dateString === "string") {
       return dateString;
     }
     // If it's a timestamp, convert it
     const date = dateString.toDate();
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
     });
   };
 
   const getFormTypeIcon = (type) => {
     switch (type) {
-      case 'Incident Report':
+      case "Incident Report":
         return <AlertTriangle className="w-5 h-5 text-orange-500" />;
-      case 'CCTV Check Sheet':
+      case "CCTV Check Sheet":
         return <Eye className="w-5 h-5 text-green-500" />;
-      case 'Daily Occurrence':
+      case "Daily Occurrence":
         return <Calendar className="w-5 h-5 text-blue-500" />;
-      case 'Asset Damage':
+      case "Asset Damage":
         return <FileText className="w-5 h-5 text-red-500" />;
-      case 'CCTV Faults':
+      case "CCTV Faults":
         return <Eye className="w-5 h-5 text-purple-500" />;
       default:
         return <FileText className="w-5 h-5 text-gray-500" />;
@@ -290,40 +337,42 @@ const NewStaffDashboard = () => {
 
   const getFormTypeBadge = (type) => {
     const badges = {
-      'Incident Report': 'badge-warning',
-      'Asset Damage': 'badge-error',
-      'Daily Occurrence': 'badge-info',
-      'CCTV Check Sheet': 'badge-success',
-      'CCTV Faults': 'badge-secondary'
+      "Incident Report": "badge-warning",
+      "Asset Damage": "badge-error",
+      "Daily Occurrence": "badge-info",
+      "CCTV Check Sheet": "badge-success",
+      "CCTV Faults": "badge-secondary",
     };
-    return badges[type] || 'badge-ghost';
+    return badges[type] || "badge-ghost";
   };
 
   // Get scheme(s) from form - handles different form structures
   const getFormScheme = (form) => {
     // For Daily Occurrence - has occurrences array with scheme in each
-    if (form.type === 'Daily Occurrence' && form.occurrences) {
-      const schemes = [...new Set(form.occurrences.map(o => o.scheme).filter(Boolean))];
-      if (schemes.length === 0) return 'N/A';
+    if (form.type === "Daily Occurrence" && form.occurrences) {
+      const schemes = [
+        ...new Set(form.occurrences.map((o) => o.scheme).filter(Boolean)),
+      ];
+      if (schemes.length === 0) return "N/A";
       if (schemes.length === 1) return schemes[0];
-      return schemes.join(', ');
+      return schemes.join(", ");
     }
     // For CCTV Check Sheet - covers all schemes
-    if (form.type === 'CCTV Check Sheet') {
-      return 'All Schemes';
+    if (form.type === "CCTV Check Sheet") {
+      return "All Schemes";
     }
     // For Incident Report and Asset Damage - single scheme field
-    return form.scheme || 'N/A';
+    return form.scheme || "N/A";
   };
 
   // Get the appropriate date from form
   const getFormDate = (form) => {
     // For Daily Occurrence (array-based) - use createdAt
-    if (form.type === 'Daily Occurrence') {
+    if (form.type === "Daily Occurrence") {
       if (form.createdAt) {
         return formatDate(form.createdAt);
       }
-      return 'N/A';
+      return "N/A";
     }
     // For other forms - use form.date if available, otherwise createdAt
     if (form.date) {
@@ -333,22 +382,27 @@ const NewStaffDashboard = () => {
     if (form.createdAt) {
       return formatDate(form.createdAt);
     }
-    return 'N/A';
+    return "N/A";
   };
 
   // Get the appropriate time from form
   const getFormTime = (form) => {
     // For Incident Reports - always use timeSpotted
-    if (form.type === 'Incident Report' && form.timeSpotted) {
+    if (form.type === "Incident Report" && form.timeSpotted) {
       return form.timeSpotted;
     }
     // For Daily Occurrence (array-based) - use createdAt time
-    if (form.type === 'Daily Occurrence') {
+    if (form.type === "Daily Occurrence") {
       if (form.createdAt) {
-        const date = form.createdAt.toDate ? form.createdAt.toDate() : new Date(form.createdAt);
-        return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const date = form.createdAt.toDate
+          ? form.createdAt.toDate()
+          : new Date(form.createdAt);
+        return date.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
       }
-      return 'N/A';
+      return "N/A";
     }
     // For other forms - use form.time if available, otherwise createdAt time
     if (form.time) {
@@ -356,28 +410,33 @@ const NewStaffDashboard = () => {
     }
     // Fallback to createdAt time
     if (form.createdAt) {
-      const date = form.createdAt.toDate ? form.createdAt.toDate() : new Date(form.createdAt);
-      return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const date = form.createdAt.toDate
+        ? form.createdAt.toDate()
+        : new Date(form.createdAt);
+      return date.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     }
-    return 'N/A';
+    return "N/A";
   };
 
-  const isSearchMode = searchTerm.trim() !== '';
+  const isSearchMode = searchTerm.trim() !== "";
 
   // Type filter is handled server-side; text search uses Firestore query
-  const filteredForms = latestForms.filter(form => {
+  const filteredForms = latestForms.filter((form) => {
     const formTypeMap = {
-      'CCTV Check Sheet': 'cctv-check',
-      'Incident Report': 'incident',
-      'Daily Occurrence': 'daily-occurrence',
-      'CCTV Faults': 'cctv-faults'
+      "CCTV Check Sheet": "cctv-check",
+      "Incident Report": "incident",
+      "Daily Occurrence": "daily-occurrence",
+      "CCTV Faults": "cctv-faults",
     };
-    return filterType === 'all' || formTypeMap[form.type] === filterType;
+    return filterType === "all" || formTypeMap[form.type] === filterType;
   });
 
   // Use Firestore search results when searching, otherwise use paginated page data
   const currentForms = isSearchMode ? searchResults : filteredForms;
-  const activeCount = filterType === 'all' ? totalCount : typeCount;
+  const activeCount = filterType === "all" ? totalCount : typeCount;
   const totalPages = Math.ceil(activeCount / formsPerPage);
 
   // Pagination handlers
@@ -401,7 +460,17 @@ const NewStaffDashboard = () => {
   };
 
   const handleViewForm = (form) => {
-    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
+    _dashRestore = {
+      page: currentPage,
+      filter: filterType,
+      forms: latestForms,
+      hasMore,
+      cursors,
+      typeCursor,
+      typeCount,
+      totalCount,
+      pageCache: { ...pageCacheRef.current },
+    };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/reports/cctv-check/${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -414,7 +483,17 @@ const NewStaffDashboard = () => {
   };
 
   const handleEditForm = (form) => {
-    _dashRestore = { page: currentPage, filter: filterType, forms: latestForms, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
+    _dashRestore = {
+      page: currentPage,
+      filter: filterType,
+      forms: latestForms,
+      hasMore,
+      cursors,
+      typeCursor,
+      typeCount,
+      totalCount,
+      pageCache: { ...pageCacheRef.current },
+    };
     if (form.type === "CCTV Check Sheet") {
       navigate(`/dashboard/staff/forms/cctv-check?edit=${form.id}`);
     } else if (form.type === "Incident Report") {
@@ -430,41 +509,39 @@ const NewStaffDashboard = () => {
     try {
       let reportType;
       if (form.type === "CCTV Check Sheet") {
-        reportType = 'cctv-check';
+        reportType = "cctv-check";
       } else if (form.type === "Incident Report") {
-        reportType = 'incident';
+        reportType = "incident";
       } else if (form.type === "Daily Occurrence") {
-        reportType = 'daily-occurrence';
+        reportType = "daily-occurrence";
       } else if (form.type === "CCTV Faults") {
-        reportType = 'cctv-faults';
+        reportType = "cctv-faults";
       }
 
       await generateReportPDF(form, reportType);
       toast.success(`Downloaded ${form.type} as PDF`);
     } catch (error) {
-      console.error('Failed to download PDF:', error);
-      toast.error('Failed to download PDF');
+      console.error("Failed to download PDF:", error);
+      toast.error("Failed to download PDF");
     }
   };
 
   const handleCloseNoticeBoard = () => {
     // Mark notice board as seen in this session
-    sessionStorage.setItem('hasSeenNoticeBoard', 'true');
+    sessionStorage.setItem("hasSeenNoticeBoard", "true");
     setShowNoticeBoard(false);
   };
 
   return (
     <>
-      <NoticeBoard
-        isOpen={showNoticeBoard}
-        onClose={handleCloseNoticeBoard}
-      />
+      <NoticeBoard isOpen={showNoticeBoard} onClose={handleCloseNoticeBoard} />
 
       <div>
         {/* Welcome Header */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">
-            Welcome back, <span className="text-teal-500">{userProfile?.displayName}!</span>
+            Welcome back,{" "}
+            <span className="text-teal-500">{userProfile?.displayName}!</span>
           </h2>
         </div>
 
@@ -475,22 +552,30 @@ const NewStaffDashboard = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {statCards.map((card, index) => (
                 <div
                   key={index}
                   className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-10 h-10 rounded-lg bg-linear-to-br ${card.color} flex items-center justify-center shrink-0`}>
+                    <div
+                      className={`w-10 h-10 rounded-lg bg-linear-to-br ${card.color} flex items-center justify-center shrink-0`}
+                    >
                       <card.icon className="w-5 h-5 text-white" />
                     </div>
-                    <h6 className="text-sm font-medium text-gray-600 leading-tight">{card.title}</h6>
+                    <h6 className="text-sm font-medium text-gray-600 leading-tight">
+                      {card.title}
+                    </h6>
                   </div>
 
                   <div className="mt-2">
-                    <span className="text-3xl font-bold text-gray-800">{card.count}</span>
-                    <p className="text-sm text-gray-500 mt-1">{card.subtitle}</p>
+                    <span className="text-3xl font-bold text-gray-800">
+                      {card.count}
+                    </span>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {card.subtitle}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -509,7 +594,8 @@ const NewStaffDashboard = () => {
                     onChange={(e) => {
                       const value = e.target.value;
                       setSearchTerm(value);
-                      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                      if (searchDebounceRef.current)
+                        clearTimeout(searchDebounceRef.current);
                       if (!value.trim()) {
                         setSearchResults([]);
                         setCurrentPage(1);
@@ -571,8 +657,12 @@ const NewStaffDashboard = () => {
                       <tr>
                         <td colSpan="7" className="text-center py-12">
                           <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                          <p className="text-gray-500 text-lg">No forms found</p>
-                          <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
+                          <p className="text-gray-500 text-lg">
+                            No forms found
+                          </p>
+                          <p className="text-gray-400 text-sm mt-2">
+                            Try adjusting your search or filter criteria
+                          </p>
                         </td>
                       </tr>
                     ) : (
@@ -581,25 +671,35 @@ const NewStaffDashboard = () => {
                           <td>
                             <div className="flex items-center gap-2">
                               {getFormTypeIcon(form.type)}
-                              <span className={`badge ${getFormTypeBadge(form.type)} badge-sm`}>
+                              <span
+                                className={`badge ${getFormTypeBadge(form.type)} badge-sm`}
+                              >
                                 {form.type.toUpperCase()}
                               </span>
                             </div>
                           </td>
                           <td className="font-mono text-sm font-semibold">
-                            <div>{form.referenceId || form.id.slice(0, 12)}</div>
-                            {form.type === 'Incident Report' && form.incursion === 'YES' && (
-                              <span className="badge badge-error badge-xs mt-1">Incursion</span>
-                            )}
+                            <div>
+                              {form.referenceId || form.id.slice(0, 12)}
+                            </div>
+                            {form.type === "Incident Report" &&
+                              form.incursion === "YES" && (
+                                <span className="badge badge-error badge-xs mt-1">
+                                  Incursion
+                                </span>
+                              )}
                           </td>
                           <td className="text-sm">
                             <div>
                               <div className="text-gray-800">
-                                {form.submittedBy?.name || `${form.firstName || ''} ${form.lastName || ''}`.trim() || 'N/A'}
+                                {form.submittedBy?.name ||
+                                  `${form.firstName || ""} ${form.lastName || ""}`.trim() ||
+                                  "N/A"}
                               </div>
                               {form.lastEditedBy && (
                                 <div className="text-xs text-blue-600 mt-1">
-                                  Edited by: {form.lastEditedBy?.name || 'Unknown'}
+                                  Edited by:{" "}
+                                  {form.lastEditedBy?.name || "Unknown"}
                                 </div>
                               )}
                             </div>
@@ -608,50 +708,61 @@ const NewStaffDashboard = () => {
                             {getFormScheme(form)}
                           </td>
                           <td className="text-sm">
-                            <div className="text-gray-800 font-medium">{getFormDate(form)}</div>
-                            <div className="text-gray-400">{getFormTime(form)}</div>
+                            <div className="text-gray-800 font-medium">
+                              {getFormDate(form)}
+                            </div>
+                            <div className="text-gray-400">
+                              {getFormTime(form)}
+                            </div>
                           </td>
                           <td>
                             <div className="flex items-center justify-center gap-2 font-semibold">
-                              {(form.type === 'Incident Report' || form.type === 'CCTV Faults') && form.status === 'live' && (
-                              <div className="badge badge-error badge-soft">
-                                <Radio className="w-4 h-4 text-red-500" />
-                                Live
-                                </div>
-                              )}
-                              {form.type === 'CCTV Faults' && form.clientAcknowledged && form.status !== 'completed' && (
-                                <div className="badge badge-info badge-soft">
-                                  <Eye className="w-4 h-4 text-blue-500" />
-                                  Client Seen
-                                </div>
-                              )}
-                            {(form.type === 'Incident Report' || form.type === 'CCTV Faults') && form.status === 'completed' &&(
-                              <div className="badge badge-success badge-soft">
-                                <CheckCircle className="w-4 h-4 text-brand-400" />
-                                Completed
-                              </div>
-                              )}
-                              
+                              {(form.type === "Incident Report" ||
+                                form.type === "CCTV Faults") &&
+                                form.status === "live" && (
+                                  <div className="badge badge-error badge-soft">
+                                    <Radio className="w-4 h-4 text-red-500" />
+                                    Live
+                                  </div>
+                                )}
+                              {form.type === "CCTV Faults" &&
+                                form.clientAcknowledged &&
+                                form.status !== "completed" && (
+                                  <div className="badge badge-info badge-soft">
+                                    <Eye className="w-4 h-4 text-blue-500" />
+                                    Client Seen
+                                  </div>
+                                )}
+                              {(form.type === "Incident Report" ||
+                                form.type === "CCTV Faults") &&
+                                form.status === "completed" && (
+                                  <div className="badge badge-success badge-soft">
+                                    <CheckCircle className="w-4 h-4 text-brand-400" />
+                                    Completed
+                                  </div>
+                                )}
                             </div>
                           </td>
                           <td>
                             <div className="flex items-center justify-center gap-2">
-                              {(form.type === 'Incident Report' || form.type === 'CCTV Faults')  && form.status === 'live' ? (
-                              <button
-                                onClick={() => handleEditForm(form)}
-                                className="btn btn-sm btn-ghost text-red-500 hover:text-red-800"
-                                title="Edit"
-                              >
-                                <FilePlus2 className="w-4 h-4" />
-                              </button>
-                              ):(
-                              <button
-                                onClick={() => handleEditForm(form)}
-                                className="btn btn-sm btn-ghost text-green-600 hover:text-green-800"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
+                              {(form.type === "Incident Report" ||
+                                form.type === "CCTV Faults") &&
+                              form.status === "live" ? (
+                                <button
+                                  onClick={() => handleEditForm(form)}
+                                  className="btn btn-sm btn-ghost text-red-500 hover:text-red-800"
+                                  title="Edit"
+                                >
+                                  <FilePlus2 className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleEditForm(form)}
+                                  className="btn btn-sm btn-ghost text-green-600 hover:text-green-800"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
                               )}
                               <button
                                 onClick={() => handleViewForm(form)}
@@ -660,7 +771,7 @@ const NewStaffDashboard = () => {
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
-                              
+
                               <button
                                 onClick={() => handleDownloadForm(form)}
                                 className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
@@ -681,14 +792,17 @@ const NewStaffDashboard = () => {
               {isSearchMode && (
                 <div className="p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing {searchResults.length} search result{searchResults.length !== 1 ? 's' : ''} (max 10)
+                    Showing {searchResults.length} search result
+                    {searchResults.length !== 1 ? "s" : ""} (max 10)
                   </p>
                 </div>
               )}
               {!isSearchMode && (currentPage > 1 || hasMore) && (
                 <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}{activeCount > 0 ? ` (${activeCount} total forms)` : ''}
+                    Page {currentPage}
+                    {totalPages > 1 ? ` of ${totalPages}` : ""}
+                    {activeCount > 0 ? ` (${activeCount} total forms)` : ""}
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -699,7 +813,8 @@ const NewStaffDashboard = () => {
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
-                      Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}
+                      Page {currentPage}
+                      {totalPages > 1 ? ` of ${totalPages}` : ""}
                     </span>
                     <button
                       onClick={handleNextPage}

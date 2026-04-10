@@ -5,6 +5,7 @@ import { ArrowLeft, Upload, X, ChevronRight } from "lucide-react";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
+import { sendIncidentAlertNotification } from "../../services/emailService";
 
 const r2Client = new S3Client({
   region: "auto",
@@ -18,13 +19,13 @@ import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { compressImage } from "../../utils/imageCompression";
 import { SCHEMES, isDemoUser } from "../../utils/schemes";
 
-import chellanlogo from "../../assets/chellanpng.png"
+import chellanlogo from "../../assets/chellanpng.png";
 
 const IncidentReportFormPage = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('edit');
+  const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [files, setFiles] = useState([]);
@@ -33,12 +34,13 @@ const IncidentReportFormPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isEditingLiveIncident, setIsEditingLiveIncident] = useState(false);
   const [liveIncidentId, setLiveIncidentId] = useState(null);
+  const [existingReferenceId, setExistingReferenceId] = useState(null);
 
   // Helper function to format date as DD/MM/YYYY
   const formatDateToBritish = (date) => {
     const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   };
@@ -84,9 +86,10 @@ const IncidentReportFormPage = () => {
     try {
       setLoading(true);
       const reports = await staffService.getIncidentReports(null);
-      const report = reports.find(r => r.id === editId);
+      const report = reports.find((r) => r.id === editId);
 
       if (report) {
+        setExistingReferenceId(report.referenceId || null);
         setFormData({
           scheme: report.scheme || "",
           section: report.section || "",
@@ -105,7 +108,12 @@ const IncidentReportFormPage = () => {
           incidentType: report.incidentType || "",
           affectedLanes: report.affectedLanes || [],
           emergencyServices: report.emergencyServices || [],
-          recoveryRequested: report.recoveryRequested || { light: 0, heavy: 0, ipv: 0, hetos: 0 },
+          recoveryRequested: report.recoveryRequested || {
+            light: 0,
+            heavy: 0,
+            ipv: 0,
+            hetos: 0,
+          },
           timeSpotted: report.timeSpotted || "",
           timeOnSite: report.timeOnSite || "",
           timeCleared: report.timeCleared || "",
@@ -114,22 +122,24 @@ const IncidentReportFormPage = () => {
           propertyDamage: report.propertyDamage || false,
           assetType: report.assetType || "",
           damageType: report.damageType || "",
-          vehicles: report.vehicles || [{ type: "", make: "", model: "", vin: "" }],
+          vehicles: report.vehicles || [
+            { type: "", make: "", model: "", vin: "" },
+          ],
           description: report.description || "",
         });
 
         // If editing a live incident, go directly to Step 2
-        if (report.status === 'live') {
+        if (report.status === "live") {
           setCurrentStep(2);
           setIsEditingLiveIncident(true);
         }
       } else {
-        toast.error('Form not found');
-        navigate('/dashboard/staff');
+        toast.error("Form not found");
+        navigate("/dashboard/staff");
       }
     } catch (error) {
-      console.error('Failed to load form:', error);
-      toast.error('Failed to load form data');
+      console.error("Failed to load form:", error);
+      toast.error("Failed to load form data");
     } finally {
       setLoading(false);
     }
@@ -204,13 +214,15 @@ const IncidentReportFormPage = () => {
     e.stopPropagation();
 
     const droppedFiles = Array.from(e.dataTransfer.files);
-    const allowedTypes = ['image/', 'video/', 'application/pdf'];
-    const validFiles = droppedFiles.filter(file =>
-      allowedTypes.some(type => file.type.startsWith(type))
+    const allowedTypes = ["image/", "video/", "application/pdf"];
+    const validFiles = droppedFiles.filter((file) =>
+      allowedTypes.some((type) => file.type.startsWith(type)),
     );
 
     if (validFiles.length !== droppedFiles.length) {
-      toast.error('Some files were rejected. Only images, videos, and PDFs are allowed.');
+      toast.error(
+        "Some files were rejected. Only images, videos, and PDFs are allowed.",
+      );
     }
 
     setFiles((prev) => [...prev, ...validFiles]);
@@ -258,8 +270,8 @@ const IncidentReportFormPage = () => {
     const calculateMinutes = (time1, time2) => {
       if (!time1 || !time2) return null;
 
-      const [hours1, mins1] = time1.split(':').map(Number);
-      const [hours2, mins2] = time2.split(':').map(Number);
+      const [hours1, mins1] = time1.split(":").map(Number);
+      const [hours2, mins2] = time2.split(":").map(Number);
 
       const totalMins1 = hours1 * 60 + mins1;
       const totalMins2 = hours2 * 60 + mins2;
@@ -294,7 +306,13 @@ const IncidentReportFormPage = () => {
   const handleStep1Submit = async (e) => {
     e.preventDefault();
 
-    if (!formData.scheme || !formData.markerPost || !formData.date || !formData.firstName || !formData.timeSpotted) {
+    if (
+      !formData.scheme ||
+      !formData.markerPost ||
+      !formData.date ||
+      !formData.firstName ||
+      !formData.timeSpotted
+    ) {
       toast.error("Please fill in all required fields for Step 1");
       return;
     }
@@ -338,17 +356,19 @@ const IncidentReportFormPage = () => {
       };
 
       // Submit as live incident
-      const newIncidentId = await staffService.submitIncidentReport(
-        step1Data,
-        userProfile.uid,
-        userProfile.displayName,
-        "live" // Status = live
-      );
+      const { id: newIncidentId, referenceId: newRefId } =
+        await staffService.submitIncidentReport(
+          step1Data,
+          userProfile.uid,
+          userProfile.displayName,
+          "live", // Status = live
+        );
 
       toast.success("Live Incident created! Please complete the full report.");
 
       // Store the new incident ID and continue to Step 2
       setLiveIncidentId(newIncidentId);
+      setExistingReferenceId(newRefId);
       setIsEditingLiveIncident(true);
       setCurrentStep(2);
     } catch (error) {
@@ -383,7 +403,17 @@ const IncidentReportFormPage = () => {
         incidentId,
         updateData,
         userProfile.uid,
-        userProfile.displayName
+        userProfile.displayName,
+      );
+
+      // Send alert if incursion or asset damage
+      await sendIncidentAlertNotification(
+        {
+          ...updateData,
+          referenceId: existingReferenceId,
+          submittedBy: userProfile.displayName,
+        },
+        true,
       );
 
       toast.success("Progress saved! Incident is still live.");
@@ -442,7 +472,17 @@ const IncidentReportFormPage = () => {
           incidentId,
           updateData,
           userProfile.uid,
-          userProfile.displayName
+          userProfile.displayName,
+        );
+
+        // Send alert if incursion or asset damage
+        await sendIncidentAlertNotification(
+          {
+            ...updateData,
+            referenceId: existingReferenceId,
+            submittedBy: userProfile.displayName,
+          },
+          !isEditingLiveIncident,
         );
 
         if (isEditingLiveIncident) {
@@ -453,15 +493,26 @@ const IncidentReportFormPage = () => {
         navigate("/dashboard/staff");
       } else {
         // Submit new form (regular flow - not using 2-step)
-        await staffService.submitIncidentReport(
+        const { referenceId: newReferenceId } =
+          await staffService.submitIncidentReport(
+            {
+              ...dataWithTimings,
+              files: uploadedFiles,
+            },
+            userProfile.uid,
+            userProfile.displayName,
+            "submitted",
+          );
+        // Send alert if incursion or asset damage
+        await sendIncidentAlertNotification(
           {
             ...dataWithTimings,
-            files: uploadedFiles,
+            referenceId: newReferenceId,
+            submittedBy: userProfile.displayName,
           },
-          userProfile.uid,
-          userProfile.displayName,
-          "submitted"
+          false,
         );
+
         toast.success("Incident Report submitted successfully!");
 
         // Reset form
@@ -509,23 +560,37 @@ const IncidentReportFormPage = () => {
   const StepIndicator = () => (
     <div className="flex items-center justify-center mb-8">
       <div className="flex items-center">
-        <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
-          currentStep >= 1 ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'
-        }`}>
+        <div
+          className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
+            currentStep >= 1
+              ? "bg-teal-500 text-white"
+              : "bg-gray-200 text-gray-500"
+          }`}
+        >
           1
         </div>
-        <span className={`ml-2 font-medium ${currentStep >= 1 ? 'text-teal-600' : 'text-gray-400'}`}>
+        <span
+          className={`ml-2 font-medium ${currentStep >= 1 ? "text-teal-600" : "text-gray-400"}`}
+        >
           Live Incident
         </span>
       </div>
-      <div className={`w-16 h-1 mx-4 ${currentStep >= 2 ? 'bg-teal-500' : 'bg-gray-200'}`} />
+      <div
+        className={`w-16 h-1 mx-4 ${currentStep >= 2 ? "bg-teal-500" : "bg-gray-200"}`}
+      />
       <div className="flex items-center">
-        <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
-          currentStep >= 2 ? 'bg-teal-500 text-white' : 'bg-gray-200 text-gray-500'
-        }`}>
+        <div
+          className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
+            currentStep >= 2
+              ? "bg-teal-500 text-white"
+              : "bg-gray-200 text-gray-500"
+          }`}
+        >
           2
         </div>
-        <span className={`ml-2 font-medium ${currentStep >= 2 ? 'text-teal-600' : 'text-gray-400'}`}>
+        <span
+          className={`ml-2 font-medium ${currentStep >= 2 ? "text-teal-600" : "text-gray-400"}`}
+        >
           Complete Report
         </span>
       </div>
@@ -534,7 +599,10 @@ const IncidentReportFormPage = () => {
 
   // Render Step 1 Form
   const renderStep1 = () => (
-    <form onSubmit={handleStep1Submit} className="bg-white rounded-xl shadow-md p-8 space-y-6">
+    <form
+      onSubmit={handleStep1Submit}
+      className="bg-white rounded-xl shadow-md p-8 space-y-6"
+    >
       <div className="flex justify-center items-center space-x-2 mb-8">
         <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
       </div>
@@ -543,7 +611,10 @@ const IncidentReportFormPage = () => {
 
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
         <p className="text-red-700 font-medium">Step 1: Create Live Incident</p>
-        <p className="text-red-600 text-sm mt-1">Fill in the essential details to log a live incident. You can complete the full report later.</p>
+        <p className="text-red-600 text-sm mt-1">
+          Fill in the essential details to log a live incident. You can complete
+          the full report later.
+        </p>
       </div>
 
       {/* Scheme and Section */}
@@ -562,14 +633,13 @@ const IncidentReportFormPage = () => {
             required
           >
             <option value="">Please Select</option>
-            {SCHEMES
-              .filter(scheme => isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo)
-              .map(scheme => (
-                <option key={scheme.id} value={scheme.fullName}>
-                  {scheme.fullName}
-                </option>
-              ))
-            }
+            {SCHEMES.filter((scheme) =>
+              isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo,
+            ).map((scheme) => (
+              <option key={scheme.id} value={scheme.fullName}>
+                {scheme.fullName}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -724,7 +794,11 @@ const IncidentReportFormPage = () => {
             disabled={loading || uploadingFiles}
             className="px-8 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors font-semibold flex items-center gap-2"
           >
-            {loading ? "Creating..." : uploadingFiles ? "Uploading..." : (
+            {loading ? (
+              "Creating..."
+            ) : uploadingFiles ? (
+              "Uploading..."
+            ) : (
               <>
                 Create Live Incident
                 <ChevronRight className="w-5 h-5" />
@@ -738,7 +812,10 @@ const IncidentReportFormPage = () => {
 
   // Render Step 2 Form (Full Form)
   const renderStep2 = () => (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-8 space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white rounded-xl shadow-md p-8 space-y-6"
+    >
       <div className="flex justify-center items-center space-x-2 mb-8">
         <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
       </div>
@@ -747,8 +824,12 @@ const IncidentReportFormPage = () => {
 
       {isEditingLiveIncident && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <p className="text-green-700 font-medium">Step 2: Complete the Report</p>
-          <p className="text-green-600 text-sm mt-1">Fill in the remaining details to complete this incident report.</p>
+          <p className="text-green-700 font-medium">
+            Step 2: Complete the Report
+          </p>
+          <p className="text-green-600 text-sm mt-1">
+            Fill in the remaining details to complete this incident report.
+          </p>
         </div>
       )}
 
@@ -768,14 +849,13 @@ const IncidentReportFormPage = () => {
             required
           >
             <option value="">Please Select</option>
-            {SCHEMES
-              .filter(scheme => isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo)
-              .map(scheme => (
-                <option key={scheme.id} value={scheme.fullName}>
-                  {scheme.fullName}
-                </option>
-              ))
-            }
+            {SCHEMES.filter((scheme) =>
+              isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo,
+            ).map((scheme) => (
+              <option key={scheme.id} value={scheme.fullName}>
+                {scheme.fullName}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -1152,6 +1232,7 @@ const IncidentReportFormPage = () => {
             <option value="Pedestrian">Pedestrian</option>
             <option value="Medical Incident">Medical Incident</option>
             <option value="Incursion">Incursion</option>
+            <option value="Footage Request">Footage Request</option>
           </select>
         </div>
       </div>
@@ -1199,24 +1280,20 @@ const IncidentReportFormPage = () => {
           </span>
         </label>
         <div className="flex gap-6">
-          {["N/A", "Police", "Ambulance", "Fire", "HETO'S"].map(
-            (service) => (
-              <label
-                key={service}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.emergencyServices.includes(service)}
-                  onChange={() =>
-                    handleCheckbox("emergencyServices", service)
-                  }
-                  className="checkbox checkbox-sm checkbox-neutral"
-                />
-                <span className="text-sm">{service}</span>
-              </label>
-            )
-          )}
+          {["N/A", "Police", "Ambulance", "Fire", "HETO'S"].map((service) => (
+            <label
+              key={service}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={formData.emergencyServices.includes(service)}
+                onChange={() => handleCheckbox("emergencyServices", service)}
+                className="checkbox checkbox-sm checkbox-neutral"
+              />
+              <span className="text-sm">{service}</span>
+            </label>
+          ))}
         </div>
       </div>
 
@@ -1247,9 +1324,7 @@ const IncidentReportFormPage = () => {
                           <input
                             type="radio"
                             name={`recovery_${type}`}
-                            checked={
-                              formData.recoveryRequested[type] === num
-                            }
+                            checked={formData.recoveryRequested[type] === num}
                             onChange={() => handleRecoveryChange(type, num)}
                             className="radio radio-sm radio-neutral"
                           />
@@ -1412,11 +1487,7 @@ const IncidentReportFormPage = () => {
                         type="text"
                         value={vehicle.model}
                         onChange={(e) =>
-                          handleVehicleChange(
-                            index,
-                            "model",
-                            e.target.value
-                          )
+                          handleVehicleChange(index, "model", e.target.value)
                         }
                         className="input input-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
                       />
@@ -1499,9 +1570,7 @@ const IncidentReportFormPage = () => {
           <label htmlFor="file-upload-step2" className="cursor-pointer">
             <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-teal-600 font-semibold mb-1">Browse Files</p>
-            <p className="text-gray-500 text-sm">
-              Drag and drop files here
-            </p>
+            <p className="text-gray-500 text-sm">Drag and drop files here</p>
           </label>
 
           {files.length > 0 && (
@@ -1539,7 +1608,7 @@ const IncidentReportFormPage = () => {
           }}
           className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
         >
-          {!editId && !isEditingLiveIncident ? 'Back to Step 1' : 'Cancel'}
+          {!editId && !isEditingLiveIncident ? "Back to Step 1" : "Cancel"}
         </button>
         <div className="flex gap-3">
           {/* Save & Return — only shown on live incidents so operator can return later */}
@@ -1558,17 +1627,21 @@ const IncidentReportFormPage = () => {
             disabled={loading || uploadingFiles}
             className={`px-8 py-3 text-white rounded-lg disabled:opacity-50 transition-colors font-semibold ${
               isEditingLiveIncident
-                ? 'bg-green-500 hover:bg-green-600'
-                : 'bg-teal-500 hover:bg-teal-600'
+                ? "bg-green-500 hover:bg-green-600"
+                : "bg-teal-500 hover:bg-teal-600"
             }`}
           >
             {loading
-              ? (editId ? "Updating..." : "Submitting...")
+              ? editId
+                ? "Updating..."
+                : "Submitting..."
               : uploadingFiles
-              ? "Uploading Files..."
-              : isEditingLiveIncident
-              ? "Complete Incident Report"
-              : (editId ? "Update" : "Submit")}
+                ? "Uploading Files..."
+                : isEditingLiveIncident
+                  ? "Complete Incident Report"
+                  : editId
+                    ? "Update"
+                    : "Submit"}
           </button>
         </div>
       </div>
@@ -1588,9 +1661,10 @@ const IncidentReportFormPage = () => {
           </button>
           <h3 className="text-2xl font-bold text-gray-800">
             {editId
-              ? (isEditingLiveIncident ? 'Complete Live Incident' : 'Edit Incident Report')
-              : 'Incident Report Log'
-            }
+              ? isEditingLiveIncident
+                ? "Complete Live Incident"
+                : "Edit Incident Report"
+              : "Incident Report Log"}
           </h3>
         </div>
 
@@ -1599,8 +1673,10 @@ const IncidentReportFormPage = () => {
           <div className="flex justify-center py-12">
             <span className="loading loading-spinner loading-lg text-teal-500"></span>
           </div>
+        ) : currentStep === 1 && !editId ? (
+          renderStep1()
         ) : (
-          currentStep === 1 && !editId ? renderStep1() : renderStep2()
+          renderStep2()
         )}
       </div>
     </StaffSidebarLayout>

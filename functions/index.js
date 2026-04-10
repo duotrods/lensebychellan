@@ -1,39 +1,312 @@
+/* eslint-disable no-undef */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
 const PDFDocument = require("pdfkit");
 const {
-  EMAIL_RECIPIENTS,
-  CCTV_REPORT_RECIPIENTS,
-  CCTV_M3_RECIPIENTS,
+  INCIDENT_ALERT_RECIPIENTS,
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
 
 admin.initializeApp();
 
-// Define the SMTP password secret
 const smtpPass = defineSecret("SMTP_PASS");
 
-// Email configuration will be created inside the function to access the secret
+// Logo embedded as base64 so the Cloud Function doesn't need file system access
+const fs = require("fs");
+const path = require("path");
+const LOGO_B64 = fs.readFileSync(path.join(__dirname, "chellanpng.png")).toString("base64");
 
 /**
- * Get recipient email based on scheme and notification type
+ * Generates a PDF buffer for an incident report using pdfkit.
+ * Layout mirrors the frontend jsPDF version in pdfGenerator.js.
  */
-function getRecipientEmail(scheme, notificationType) {
-  const schemeConfig = EMAIL_RECIPIENTS[scheme] || EMAIL_RECIPIENTS["default"];
-  return schemeConfig[notificationType] || null;
+function generateIncidentPDF(report) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      bufferPages: true,
+    });
+    const buffers = [];
+    doc.on("data", (chunk) => buffers.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(buffers)));
+    doc.on("error", reject);
+
+    // All measurements in mm converted to points (1mm = 2.8346pt) to exactly match jsPDF frontend
+    const MM = 2.8346;
+    const PW = 595.28;
+    const PH = 841.89;
+    const M = 20 * MM;   // 20mm margin = 56.7pt
+    const CW = PW - M * 2;
+    const TEAL = "#00BAA8";
+
+    const now = new Date();
+    const genDate = now.toLocaleDateString("en-GB");
+    const genTime = now.toLocaleTimeString("en-GB");
+
+    // yPosition starts at 50mm (matching jsPDF yPosition = 50 after header)
+    let y = 50 * MM;
+
+    doc.on("pageAdded", () => {
+      y = 20 * MM;
+      doc.y = y;
+    });
+
+    const sync = () => { doc.y = y; };
+
+    const checkBreak = (neededMM = 14) => {
+      if (y + neededMM * MM > PH - 15 * MM) {
+        doc.addPage();
+        y = 20 * MM;
+        doc.y = y;
+      }
+    };
+
+    // ── HEADER ── exact match to jsPDF frontend ──────────────────────────────
+    // Frontend: white rect height=40mm, logo 50×25mm centered at y=5mm,
+    // "LENSE BY CHELLAN" bold 14pt at y=35mm, then yPosition=50mm
+    doc.rect(0, 0, PW, 40 * MM).fill("#FFFFFF");
+
+    const logoW = 50 * MM;   // 50mm
+    const logoH = 25 * MM;   // 25mm
+    const logoX = (PW - logoW) / 2;
+    try {
+      doc.image(Buffer.from(LOGO_B64, "base64"), logoX, 5 * MM, {
+        width: logoW,
+        height: logoH,
+      });
+    } catch {
+      // fallback — white space only
+    }
+
+    doc
+      .fontSize(14)
+      .fillColor("#000000")
+      .font("Helvetica-Bold")
+      .text("LENSE BY CHELLAN", 0, 35 * MM, { align: "center", width: PW, lineBreak: false });
+
+    // ── REPORT TITLE BANNER ── matches frontend exactly ──────────────────────
+    // Frontend: doc.setFillColor(240,240,240); doc.rect(margin, yPosition-5, contentWidth, 12, "F")
+    // doc.text("Incident Report", margin+5, yPosition+3, fontSize=14 bold); yPosition+=15
+    doc.rect(M, y - 5 * MM, CW, 12 * MM).fill("#F0F0F0");
+    doc
+      .fontSize(14)
+      .fillColor("#000000")
+      .font("Helvetica-Bold")
+      .text("Incident Report", M + 5 * MM, y + 1 * MM, { width: CW, lineBreak: false });
+    y += 15 * MM;
+    sync();
+
+    // Reference number
+    if (report.referenceId) {
+      doc
+        .fontSize(10)
+        .fillColor("#646464")
+        .font("Helvetica")
+        .text(`Reference Number: ${report.referenceId}`, M, y, { lineBreak: false });
+      y += 6 * MM;
+      sync();
+    }
+
+    // Generated timestamp
+    doc
+      .fontSize(9)
+      .fillColor("#787878")
+      .font("Helvetica")
+      .text(`Generated: ${genDate} at ${genTime}`, M, y, { lineBreak: false });
+    y += 10 * MM;
+    sync();
+
+    // Teal divider
+    doc.moveTo(M, y).lineTo(PW - M, y).strokeColor(TEAL).lineWidth(0.5).stroke();
+    y += 12 * MM;
+    sync();
+
+    // ── HELPERS ──────────────────────────────────────────────────────────────
+    const addSectionHeader = (title) => {
+      checkBreak(14);
+      // Frontend: rect at yPosition-2, height 8, teal; text at margin+3, yPosition+4; y+=12
+      doc.rect(M, y - 2 * MM, CW, 8 * MM).fill(TEAL);
+      doc
+        .fontSize(10)
+        .fillColor("#FFFFFF")
+        .font("Helvetica-Bold")
+        .text(title, M + 3 * MM, y + 2 * MM, { width: CW - 6 * MM, lineBreak: false });
+      y += 12 * MM;
+      sync();
+      doc.fillColor("#000000");
+    };
+
+    const addField = (label, value) => {
+      if (value === undefined || value === null || value === "") return;
+      checkBreak(7);
+      const rowY = y;
+      // Frontend: label at margin, value at margin+50mm; label width = 49mm, value width = contentWidth-50mm
+      doc
+        .fontSize(10)
+        .fillColor("#3C3C3C")
+        .font("Helvetica-Bold")
+        .text(`${label}:`, M, rowY, { width: 49 * MM, lineBreak: false });
+      doc
+        .font("Helvetica")
+        .fillColor("#000000")
+        .text(value.toString(), M + 50 * MM, rowY, { width: CW - 50 * MM });
+      y = Math.max(doc.y, rowY + 7 * MM) + 0.5 * MM;
+      sync();
+    };
+
+    // ── BASIC INFORMATION ────────────────────────────────────────────────────
+    addSectionHeader("BASIC INFORMATION");
+    addField("Report Date", report.date || "N/A");
+    addField("Time Spotted", report.timeSpotted || "N/A");
+    addField("Scheme/Location", report.scheme || "N/A");
+    y += 3 * MM;
+    sync();
+
+    // ── REPORT DETAILS ───────────────────────────────────────────────────────
+    addSectionHeader("REPORT DETAILS");
+    if (report.section) addField("Section", report.section);
+    if (report.weatherConditions)
+      addField("Weather Conditions", report.weatherConditions);
+    if (report.trafficConditions)
+      addField("Traffic Conditions", report.trafficConditions);
+    if (report.nhLog) addField("NH Log", report.nhLog);
+    if (report.collarNumber) addField("Collar Number", report.collarNumber);
+    addField("Incursion", report.incursion || "NO");
+    addField("Asset Damage?", report.propertyDamage ? "Yes" : "No");
+    if (report.propertyDamage && report.assetType)
+      addField("Asset Type", report.assetType);
+    if (report.propertyDamage && report.damageType)
+      addField("Damage Type", report.damageType);
+    if (report.reportedBy) addField("Reported By", report.reportedBy);
+    if (report.cameraNumber) addField("Camera Number", report.cameraNumber);
+    if (report.markerPost) addField("Marker Post", report.markerPost);
+    if (report.track) addField("Track", report.track);
+    if (report.incidentType) addField("Incident Type", report.incidentType);
+    if (report.fault) addField("Fault", report.fault);
+    if (report.affectedLanes && report.affectedLanes.length > 0) {
+      addField("Affected Lanes", report.affectedLanes.join(", "));
+    }
+    if (report.emergencyServices && report.emergencyServices.length > 0) {
+      addField("Emergency Services", report.emergencyServices.join(", "));
+    }
+    if (report.recoveryRequested) {
+      const r = report.recoveryRequested;
+      const parts = [];
+      if (r.light) parts.push(`Light: ${r.light}`);
+      if (r.heavy) parts.push(`Heavy: ${r.heavy}`);
+      if (r.ipv) parts.push(`IPV: ${r.ipv}`);
+      if (r.hetos) parts.push(`HETOS: ${r.hetos}`);
+      if (parts.length > 0) addField("Recovery Requested", parts.join(", "));
+    }
+    y += 3 * MM;
+    sync();
+
+    // ── TIME INFORMATION ─────────────────────────────────────────────────────
+    addSectionHeader("TIME INFORMATION");
+    if (report.timeSpotted) addField("Time Spotted", report.timeSpotted);
+    if (report.timeOnSite) addField("Time On Site", report.timeOnSite);
+    if (report.timeCleared) addField("Time Cleared", report.timeCleared);
+    if (report.closedLogCollar)
+      addField("Closed Log Collar Number", report.closedLogCollar);
+    y += 3 * MM;
+    sync();
+
+    // ── VEHICLES INVOLVED ────────────────────────────────────────────────────
+    if (
+      report.vehicles &&
+      report.vehicles.some((v) => v.type || v.make || v.model || v.vin)
+    ) {
+      addSectionHeader("VEHICLES INVOLVED");
+      report.vehicles.forEach((v, i) => {
+        if (v.type || v.make || v.model || v.vin) {
+          const vehicleStr = [v.type, v.make, v.model, v.vin]
+            .filter(Boolean)
+            .join(" | ");
+          addField(`Vehicle ${i + 1}`, vehicleStr);
+        }
+      });
+      y += 3 * MM;
+      sync();
+    }
+
+    // ── DESCRIPTION ──────────────────────────────────────────────────────────
+    if (report.description) {
+      addSectionHeader("DESCRIPTION");
+      checkBreak(10);
+      doc
+        .fontSize(10)
+        .fillColor("#000000")
+        .font("Helvetica")
+        .text(report.description, M, y, { width: CW });
+      y = doc.y + 8 * MM;
+      sync();
+    }
+
+    // ── REPORT INFORMATION ───────────────────────────────────────────────────
+    y += 5 * MM;
+    addSectionHeader("REPORT INFORMATION");
+    const submitter =
+      report.submittedBy?.name ||
+      report.submittedBy ||
+      report.firstName ||
+      "N/A";
+    addField("Submitted By", submitter);
+    if (report.lastEditedBy?.name)
+      addField("Last Edited By", report.lastEditedBy.name);
+
+    // ── FOOTER on every page ─────────────────────────────────────────────────
+    const range = doc.bufferedPageRange();
+    const totalPages = range.count;
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(range.start + i);
+      doc
+        .moveTo(M, PH - 10 * MM)
+        .lineTo(PW - M, PH - 10 * MM)
+        .strokeColor("#C8C8C8")
+        .lineWidth(0.3)
+        .stroke();
+      doc
+        .fontSize(8)
+        .fillColor("#808080")
+        .font("Helvetica")
+        .text(`Generated on ${genDate} at ${genTime}`, M, PH - 7 * MM, {
+          width: CW / 2,
+          lineBreak: false,
+        });
+      doc.text(`Page ${i + 1} of ${totalPages}`, M + CW / 2, PH - 7 * MM, {
+        align: "right",
+        width: CW / 2,
+        lineBreak: false,
+      });
+    }
+
+    doc.end();
+  });
 }
 
 /**
- * Callable function to send notification emails for Asset Damage reports
+ * Returns the list of recipients for a given scheme name.
  */
-exports.sendAssetDamageNotification = onCall(
+function getRecipientsForScheme(scheme) {
+  return (
+    INCIDENT_ALERT_RECIPIENTS[scheme] ||
+    INCIDENT_ALERT_RECIPIENTS["default"] ||
+    []
+  );
+}
+
+/**
+ * Callable function to send alert emails when an incident report contains
+ * an incursion (YES) or asset damage. Includes a PDF attachment matching the
+ * frontend report layout. Recipients are hardcoded per scheme, server-side only.
+ */
+exports.sendIncidentAlertNotification = onCall(
   { secrets: [smtpPass] },
   async (request) => {
-    // Check if the request is authenticated
     if (!request.auth) {
       throw new HttpsError(
         "unauthenticated",
@@ -41,27 +314,46 @@ exports.sendAssetDamageNotification = onCall(
       );
     }
 
-    const { reportData, notificationTypes, isUpdate } = request.data;
+    const { reportData, isUpdate } = request.data;
 
-    if (!reportData || !notificationTypes || notificationTypes.length === 0) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Report data and notification types are required",
-      );
+    if (!reportData) {
+      throw new HttpsError("invalid-argument", "Report data is required");
     }
 
-    // Filter out "N/A" from notifications
-    const validNotifications = notificationTypes.filter((n) => n !== "N/A");
+    const hasIncursion = reportData.incursion === "YES";
+    const hasAssetDamage = reportData.propertyDamage === true;
 
-    if (validNotifications.length === 0) {
+    if (!hasIncursion && !hasAssetDamage) {
       return {
         success: true,
-        message: "No notifications to send (N/A selected)",
+        message: "No alert triggers present",
         emailsSent: 0,
       };
     }
 
-    // Create transporter inside function to access the secret
+    const triggers = [];
+    if (hasIncursion) triggers.push("Incursion");
+    if (hasAssetDamage) triggers.push("Asset Damage");
+    const triggerLabel = triggers.join(" & ");
+
+    const scheme = reportData.scheme || "Unknown Scheme";
+    const recipients = getRecipientsForScheme(scheme);
+
+    if (recipients.length === 0) {
+      console.log(`No recipients configured for scheme: ${scheme}`);
+      return {
+        success: true,
+        message: "No recipients configured for this scheme",
+        emailsSent: 0,
+      };
+    }
+
+    // Generate PDF attachment
+    const pdfBuffer = await generateIncidentPDF({
+      ...reportData,
+      submittedBy: reportData.submittedBy || request.auth.token?.name || "N/A",
+    });
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -70,31 +362,26 @@ exports.sendAssetDamageNotification = onCall(
       },
     });
 
-    const scheme = reportData.scheme || "Unknown Scheme";
-    const emailPromises = [];
-    const emailsSentTo = [];
+    const subject = `${isUpdate ? "[UPDATED] " : ""}ALERT: ${triggerLabel} — ${scheme} — ${reportData.referenceId || "New Report"}`;
 
-    for (const notificationType of validNotifications) {
-      const recipientEmail = getRecipientEmail(scheme, notificationType);
-
-      if (!recipientEmail) {
-        console.log(`No email configured for ${scheme} - ${notificationType}`);
-        continue;
-      }
-
-      // Build email content
-      const subject = `${isUpdate ? "[UPDATED] " : ""}Asset Damage Report - ${scheme} - ${reportData.referenceId || "New Report"}`;
-
-      const htmlContent = `
+    const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #0d9488; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">Asset Damage Report</h1>
-          <p style="margin: 5px 0 0 0;">${isUpdate ? "Report Updated" : "New Report Submitted"}</p>
+        <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">Incident Alert</h1>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">${triggerLabel} Reported</p>
         </div>
 
         <div style="padding: 20px; background-color: #f9fafb;">
-          <h2 style="color: #374151; border-bottom: 2px solid #0d9488; padding-bottom: 10px;">
-            Report Details
+          <div style="padding: 12px; background-color: #fee2e2; border-left: 4px solid #dc2626; border-radius: 4px; margin-bottom: 20px;">
+            <strong style="color: #991b1b;">Triggers:</strong>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #991b1b;">
+              ${hasIncursion ? "<li>Incursion: YES</li>" : ""}
+              ${hasAssetDamage ? `<li>Asset Damage: ${reportData.assetType || "N/A"} — ${reportData.damageType || "N/A"}</li>` : ""}
+            </ul>
+          </div>
+
+          <h2 style="color: #374151; border-bottom: 2px solid #dc2626; padding-bottom: 10px;">
+            Incident Details
           </h2>
 
           <table style="width: 100%; border-collapse: collapse;">
@@ -115,471 +402,99 @@ exports.sendAssetDamageNotification = onCall(
               <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Time:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.time || "N/A"}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Location:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.location || "N/A"}</td>
-            </tr>
-            <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Marker Post:</td>
               <td style="padding: 8px 0; color: #111827;">${reportData.markerPost || "N/A"}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Asset Type:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.assetType || "N/A"}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Damage Type:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.damageType || "N/A"}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Report #:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.incidentnum || "N/A"}</td>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Type:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.incidentType || "N/A"}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">NH Log:</td>
               <td style="padding: 8px 0; color: #111827;">${reportData.nhLog || "N/A"}</td>
             </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy || "N/A"}</td>
+            </tr>
           </table>
 
+          ${
+            reportData.description
+              ? `
           <h3 style="color: #374151; margin-top: 20px;">Description</h3>
           <p style="background-color: white; padding: 15px; border-radius: 8px; color: #374151;">
-            ${reportData.description || "No description provided"}
-          </p>
-
-          ${
-            reportData.actionTaken
-              ? `
-          <h3 style="color: #374151; margin-top: 20px;">Action Taken</h3>
-          <p style="background-color: white; padding: 15px; border-radius: 8px; color: #374151;">
-            ${reportData.actionTaken}
-          </p>
-          `
+            ${reportData.description}
+          </p>`
               : ""
           }
 
-          <div style="margin-top: 20px; padding: 15px; background-color: #fef3c7; border-radius: 8px;">
-            <p style="margin: 0; color: #92400e;">
-              <strong>Notification sent to:</strong> ${notificationType}
-            </p>
-            <p style="margin: 5px 0 0 0; color: #92400e;">
-              <strong>Submitted by:</strong> ${reportData.submittedBy || "Unknown"}
-            </p>
-          </div>
+          <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">
+            The full incident report is attached as a PDF.
+          </p>
         </div>
 
         <div style="background-color: #374151; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p style="margin: 0;">This is an automated notification from LENSE by Chellan</p>
+          <p style="margin: 0;">This is an automated alert from LENSE by Chellan</p>
         </div>
       </div>
     `;
 
-      const mailOptions = {
-        from: SMTP_SENDER,
-        to: recipientEmail,
-        subject: subject,
-        html: htmlContent,
-      };
+    const pdfFilename = `incident-report-${reportData.referenceId || Date.now()}.pdf`;
 
-      emailPromises.push(
-        transporter
-          .sendMail(mailOptions)
-          .then(() => {
-            console.log(
-              `Email sent to ${recipientEmail} for ${notificationType}`,
-            );
-            emailsSentTo.push({
-              type: notificationType,
-              email: recipientEmail,
-            });
-          })
-          .catch((error) => {
-            console.error(`Failed to send email to ${recipientEmail}:`, error);
-          }),
-      );
-    }
+    const emailPromises = recipients.map((recipient) =>
+      transporter
+        .sendMail({
+          from: SMTP_SENDER,
+          to: recipient,
+          subject,
+          html: htmlContent,
+          attachments: [
+            {
+              filename: pdfFilename,
+              content: pdfBuffer,
+              contentType: "application/pdf",
+            },
+          ],
+        })
+        .then(() => {
+          console.log(`Incident alert sent to ${recipient} (${scheme})`);
+        })
+        .catch((err) => {
+          console.error(`Failed to send incident alert to ${recipient}:`, err);
+        }),
+    );
 
-    try {
-      await Promise.all(emailPromises);
+    await Promise.all(emailPromises);
 
-      // Log the notification in Firestore
-      await admin
-        .firestore()
-        .collection("emailLogs")
-        .add({
-          reportType: "asset-damage",
-          reportId: reportData.id || null,
-          referenceId: reportData.referenceId || null,
-          scheme: scheme,
-          notificationTypes: validNotifications,
-          emailsSentTo: emailsSentTo,
-          isUpdate: isUpdate || false,
-          sentBy: request.auth.uid,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        });
+    await admin
+      .firestore()
+      .collection("emailLogs")
+      .add({
+        reportType: "incident-alert",
+        reportId: reportData.id || null,
+        referenceId: reportData.referenceId || null,
+        scheme,
+        triggers,
+        recipients,
+        isUpdate: isUpdate || false,
+        sentBy: request.auth.uid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-      return {
-        success: true,
-        message: `Notifications sent successfully`,
-        emailsSent: emailsSentTo.length,
-        recipients: emailsSentTo,
-      };
-    } catch (error) {
-      console.error("Error sending notifications:", error);
-      throw new HttpsError(
-        "internal",
-        `Failed to send notifications: ${error.message}`,
-      );
-    }
+    return {
+      success: true,
+      message: `Incident alert sent for: ${triggerLabel}`,
+      emailsSent: recipients.length,
+    };
   },
 );
 
-// ─── Scheduled CCTV Check Email ───────────────────────────────────────────────
-
-// /**
-//  * Generates a PDF buffer from a cctvCheckForms document.
-//  * Layout matches the frontend pdfGenerator.js (jsPDF version).
-//  */
-// function generateCCTVCheckPDF(check, schemeFilter = null) {
-//   return new Promise((resolve, reject) => {
-//     // margins: 0 so pdfkit's auto-page-break never fires before our manual guard
-//     const doc = new PDFDocument({
-//       size: "A4",
-//       margins: { top: 0, bottom: 0, left: 0, right: 0 },
-//     });
-//     const buffers = [];
-//     doc.on("data", (chunk) => buffers.push(chunk));
-//     doc.on("end", () => resolve(Buffer.concat(buffers)));
-//     doc.on("error", reject);
-
-//     const PW = 595.28;
-//     const PH = 841.89;
-//     const M = 50;
-//     const CW = PW - M * 2;
-//     const TEAL = "#00BAA8";
-//     let y = 20;
-
-//     // Keep pdfkit's internal cursor in sync with our y so it never auto-adds pages
-//     const sync = () => {
-//       doc.y = y;
-//     };
-
-//     const checkBreak = (needed = 40) => {
-//       if (y + needed > PH - 60) {
-//         doc.addPage();
-//         y = 20;
-//         doc.y = y;
-//       }
-//     };
-
-//     const addSectionHeader = (title) => {
-//       checkBreak(22);
-//       doc.rect(M, y, CW, 16).fill(TEAL);
-//       doc
-//         .fontSize(10)
-//         .fillColor("#FFFFFF")
-//         .font("Helvetica-Bold")
-//         .text(title, M + 5, y + 3, { width: CW - 10, lineBreak: false });
-//       y += 22;
-//       sync();
-//       doc.fillColor("#000000");
-//     };
-
-//     const addField = (label, value, bold = false) => {
-//       if (value === undefined || value === null || value === "") return;
-//       checkBreak(16);
-//       const rowY = y;
-//       doc
-//         .fontSize(10)
-//         .fillColor("#3C3C3C")
-//         .font("Helvetica-Bold")
-//         .text(`${label}:`, M, rowY, { width: 130, lineBreak: false });
-//       doc
-//         .font(bold ? "Helvetica-Bold" : "Helvetica")
-//         .fillColor("#000000")
-//         .text(value.toString(), M + 135, rowY, { width: CW - 135 });
-//       // Let pdfkit report where the wrapped value ended, then add a small gap
-//       y = Math.max(doc.y, rowY + 14) + 2;
-//       sync();
-//     };
-
-//     const addSubHeader = (title) => {
-//       checkBreak(18);
-//       doc.rect(M, y, CW, 14).fill("#F5F5F5");
-//       doc
-//         .fontSize(11)
-//         .fillColor("#000000")
-//         .font("Helvetica-Bold")
-//         .text(title, M + 3, y + 1, { width: CW - 6, lineBreak: false });
-//       y += 18;
-//       sync();
-//     };
-
-//     // ── HEADER ──────────────────────────────────────────────────────────
-//     doc.rect(0, 0, PW, 55).fill("#FFFFFF");
-//     doc
-//       .fontSize(14)
-//       .fillColor("#000000")
-//       .font("Helvetica-Bold")
-//       .text("LENSE BY CHELLAN", 0, 26, {
-//         align: "center",
-//         width: PW,
-//         lineBreak: false,
-//       });
-//     y = 62;
-//     sync();
-
-//     // ── REPORT TITLE BANNER ─────────────────────────────────────────────
-//     doc.rect(M, y - 5, CW, 18).fill("#F0F0F0");
-//     doc
-//       .fontSize(14)
-//       .fillColor("#000000")
-//       .font("Helvetica-Bold")
-//       .text("CCTV Check Report", M + 5, y, { width: CW, lineBreak: false });
-//     y += 22;
-//     sync();
-
-//     // Reference number
-//     if (check.referenceId) {
-//       doc
-//         .fontSize(10)
-//         .fillColor("#646464")
-//         .font("Helvetica")
-//         .text(`Reference Number: ${check.referenceId}`, M, y, {
-//           lineBreak: false,
-//         });
-//       y += 14;
-//       sync();
-//     }
-
-//     // Generated timestamp
-//     const now = new Date();
-//     const genDate = now.toLocaleDateString("en-GB");
-//     const genTime = now.toLocaleTimeString("en-GB");
-//     doc
-//       .fontSize(9)
-//       .fillColor("#787878")
-//       .font("Helvetica")
-//       .text(`Generated: ${genDate} at ${genTime}`, M, y, { lineBreak: false });
-//     y += 14;
-//     sync();
-
-//     // Teal divider
-//     doc
-//       .moveTo(M, y)
-//       .lineTo(PW - M, y)
-//       .strokeColor(TEAL)
-//       .lineWidth(0.5)
-//       .stroke();
-//     y += 16;
-//     sync();
-
-//     // ── BASIC INFORMATION ───────────────────────────────────────────────
-//     addSectionHeader("BASIC INFORMATION");
-//     if (check.date) addField("Report Date", check.date);
-//     if (check.time) addField("Report Time", check.time);
-//     addField("Scheme/Location", "All Schemes");
-//     if (check.firstName) addField("Checked By", check.firstName);
-//     y += 5;
-//     sync();
-
-//     // ── REPORT DETAILS ──────────────────────────────────────────────────
-//     addSectionHeader("REPORT DETAILS");
-
-//     const allSections = [
-//       { label: "A417", key: "a417Cameras", commentsKey: "a417Comments" },
-//       {
-//         label: "A11/A47 Kier/Core",
-//         key: "kierCore",
-//         commentsKey: "kierCoreComments",
-//       },
-//       { label: "M3 Jct 9", key: "m3Jct9", commentsKey: "m3Jct9Comments" },
-//       { label: "A452 HS2", key: "A452", commentsKey: "A452Comments" },
-//     ];
-//     // If schemeFilter is provided (e.g. ["M3 Jct 9"]), only show those sections.
-//     // If null, show everything — same as before.
-//     const sections = schemeFilter
-//       ? allSections.filter((s) => schemeFilter.includes(s.label))
-//       : allSections;
-
-//     let hasSections = false;
-//     sections.forEach(({ label, key, commentsKey }) => {
-//       const cameras = check[key];
-//       if (!cameras || cameras.length === 0) return;
-//       hasSections = true;
-//       y += 3;
-//       sync();
-//       addSubHeader(label);
-//       const allWorking =
-//         cameras.includes("All Working Correctly") || cameras.includes("NONE");
-//       if (allWorking) {
-//         addField("Status", "All cameras working correctly", true);
-//       } else {
-//         addField("Issues Reported", cameras.join(", "), true);
-//       }
-//       if (check[commentsKey] && check[commentsKey].trim() !== "") {
-//         addField("Comments", check[commentsKey]);
-//       }
-//       y += 3;
-//       sync();
-//     });
-
-//     if (!hasSections) {
-//       doc
-//         .fontSize(11)
-//         .fillColor("#6b7280")
-//         .font("Helvetica")
-//         .text("No camera data recorded.", M, y);
-//       y = doc.y + 5;
-//       sync();
-//     }
-
-//     // ── REPORT INFORMATION ──────────────────────────────────────────────
-//     y += 5;
-//     sync();
-//     addSectionHeader("REPORT INFORMATION");
-//     const submitter =
-//       check.submittedBy?.name ||
-//       (typeof check.submittedBy === "string" ? check.submittedBy : null);
-//     if (submitter) addField("Submitted By", submitter);
-
-//     // Light divider
-//     y += 8;
-//     doc
-//       .moveTo(M, y)
-//       .lineTo(PW - M, y)
-//       .strokeColor("#C8C8C8")
-//       .lineWidth(0.3)
-//       .stroke();
-
-//     // ── FOOTER ──────────────────────────────────────────────────────────
-//     doc
-//       .fontSize(8)
-//       .fillColor("#808080")
-//       .font("Helvetica")
-//       .text(`Generated on ${genDate} at ${genTime}`, M, PH - 25, {
-//         width: CW / 2,
-//         lineBreak: false,
-//       });
-//     doc.text("Page 1 of 1", M + CW / 2, PH - 25, {
-//       align: "right",
-//       width: CW / 2,
-//       lineBreak: false,
-//     });
-
-//     doc.end();
-//   });
-// }
-
-// /**
-//  * PRODUCTION — sends a PDF of the latest CCTV check at 8am and 11pm (London time)
-//  */
-// exports.scheduledCCTVCheckEmail = onSchedule(
-//   {
-//     schedule: "0 0,12 * * *",
-
-//     timeZone: "Europe/London",
-//     secrets: [smtpPass],
-//   },
-//   // For testing, use this schedule instead to run every 3 minute — just remember to change it back before deploying to production!
-//   // {
-//   //   schedule: "*/3 * * * *", // every 3 minutes — for testing only
-//   //   timeZone: "Europe/London",
-//   //   secrets: [smtpPass],
-//   // },
-//   async () => {
-//     // 1. Fetch the latest CCTV check
-//     const snapshot = await admin
-//       .firestore()
-//       .collection("cctvCheckForms")
-//       .orderBy("createdAt", "desc")
-//       .limit(1)
-//       .get();
-
-//     if (snapshot.empty) {
-//       console.log("No CCTV checks found — skipping scheduled email.");
-//       return;
-//     }
-
-//     const check = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-//     console.log(`Sending scheduled CCTV report for: ${check.referenceId}`);
-
-//     // 2. Generate PDF
-//     const pdfBuffer = await generateCCTVCheckPDF(check);
-
-//     // 3. Create transporter
-//     const transporter = nodemailer.createTransport({
-//       service: "gmail",
-//       auth: {
-//         user: SMTP_USER,
-//         pass: smtpPass.value(),
-//       },
-//     });
-
-//     // 4. Send to each recipient
-//     for (const recipient of CCTV_REPORT_RECIPIENTS) {
-//       await transporter.sendMail({
-//         from: SMTP_SENDER,
-//         to: recipient,
-//         subject:
-//           `CCTV Check Report — ${check.date || "N/A"} ${check.time || ""}`.trim(),
-//         text: `The latest CCTV check (${check.referenceId || "N/A"}) is attached as a PDF.`,
-//         attachments: [
-//           {
-//             filename: `cctv-check-${check.referenceId || check.id}.pdf`,
-//             content: pdfBuffer,
-//             contentType: "application/pdf",
-//           },
-//         ],
-//       });
-//       console.log(`CCTV report emailed to: ${recipient}`);
-//     }
-
-//     // 5. Send M3-only PDF to M3 recipients
-//     const m3PdfBuffer = await generateCCTVCheckPDF(check, ["M3 Jct 9"]);
-//     for (const recipient of CCTV_M3_RECIPIENTS) {
-//       await transporter.sendMail({
-//         from: SMTP_SENDER,
-//         to: recipient,
-//         subject:
-//           `M3 Jct 9 CCTV Check Report — ${check.date || "N/A"} ${check.time || ""}`.trim(),
-//         text: `The latest M3 Jct 9 CCTV check (${check.referenceId || "N/A"}) is attached as a PDF.`,
-//         attachments: [
-//           {
-//             filename: `cctv-check-m3-${check.referenceId || check.id}.pdf`,
-//             content: m3PdfBuffer,
-//             contentType: "application/pdf",
-//           },
-//         ],
-//       });
-//       console.log(`M3-only CCTV report emailed to: ${recipient}`);
-//     }
-
-//     // 6. Log to Firestore
-//     await admin
-//       .firestore()
-//       .collection("emailLogs")
-//       .add({
-//         reportType: "cctv-check-scheduled",
-//         reportId: check.id,
-//         referenceId: check.referenceId || null,
-//         recipients: CCTV_REPORT_RECIPIENTS,
-//         m3Recipients: CCTV_M3_RECIPIENTS,
-//         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-//       });
-//   },
-// );
-
-// ─── End Scheduled CCTV Check Email ───────────────────────────────────────────
-
 /**
- * Callable function to delete a user from both Authentication and Firestore
- * This function can only be called by authenticated admin users
+ * Callable function to delete a user from both Authentication and Firestore.
+ * Can only be called by authenticated admin users.
  */
 exports.deleteUserAccount = onCall(async (request) => {
-  // Check if the request is authenticated
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
@@ -591,7 +506,6 @@ exports.deleteUserAccount = onCall(async (request) => {
   const callerUid = request.auth.uid;
 
   try {
-    // Get the caller's Firestore document to verify admin role
     const callerDoc = await admin
       .firestore()
       .collection("users")
@@ -602,7 +516,6 @@ exports.deleteUserAccount = onCall(async (request) => {
       throw new HttpsError("permission-denied", "Only admins can delete users");
     }
 
-    // Get target user document
     const targetUserDoc = await admin
       .firestore()
       .collection("users")
@@ -615,17 +528,14 @@ exports.deleteUserAccount = onCall(async (request) => {
 
     const targetUserData = targetUserDoc.data();
 
-    // Prevent deletion of admin users
     if (targetUserData.role === "admin") {
       throw new HttpsError("permission-denied", "Cannot delete admin users");
     }
 
-    // Prevent self-deletion
     if (targetUid === callerUid) {
       throw new HttpsError("invalid-argument", "Cannot delete yourself");
     }
 
-    // Create audit log before deletion
     await admin
       .firestore()
       .collection("auditLogs")
@@ -642,21 +552,17 @@ exports.deleteUserAccount = onCall(async (request) => {
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-    // Delete from Firebase Authentication
     try {
       await admin.auth().deleteUser(targetUid);
       console.log(`Successfully deleted auth user: ${targetUid}`);
     } catch (authError) {
       console.error("Error deleting from Auth:", authError);
-      // If user doesn't exist in Auth, continue with Firestore deletion
       if (authError.code !== "auth/user-not-found") {
         throw authError;
       }
     }
 
-    // Delete from Firestore
     await admin.firestore().collection("users").doc(targetUid).delete();
-
     console.log(`Successfully deleted user document: ${targetUid}`);
 
     return {
@@ -665,13 +571,7 @@ exports.deleteUserAccount = onCall(async (request) => {
     };
   } catch (error) {
     console.error("Delete user error:", error);
-
-    // If it's already an HttpsError, rethrow it
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-
-    // Otherwise, wrap it in an HttpsError
+    if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", `Failed to delete user: ${error.message}`);
   }
 });

@@ -1,41 +1,33 @@
+/* eslint-disable no-undef */
 /**
  * Email recipient configuration.
- * Update these addresses when scheme contacts change.
+ * Update these addresses when contacts change.
  */
 
-// Notification recipients per scheme and role
-const EMAIL_RECIPIENTS = {
-  "M3 Jct 9 - Balfour Beatty": {
-    "TM Manager": "david@chellan.co.uk",
-    "Maintenance Team": "chellanclientdemo@outlook.com",
-    "Safety Officer": "chellanstaffdemo@outlook.com",
-  },
-  "A417 Missing Link - Kier": {
-    "TM Manager": "david@chellan.co.uk",
-    "Maintenance Team": "chellanclientdemo@outlook.com",
-    "Safety Officer": "chellanstaffdemo@outlook.com",
-  },
-  "A47 Thickthorn - Core": {
-    "TM Manager": "david@chellan.co.uk",
-    "Maintenance Team": "chellanclientdemo@outlook.com",
-    "Safety Officer": "chellanstaffdemo@outlook.com",
-  },
+// Per-scheme recipients for incident alert emails (incursion YES or asset damage).
+// Key matches the scheme's fullName as stored in Firestore reports.
+const INCIDENT_ALERT_RECIPIENTS = {
+  "A417 Missing Link - Kier": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  "M3 Jct 9 - Balfour Beatty": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  "A47 Thickthorn - Core": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  "A452 HS2 - Traffix": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
 };
 
-// Recipients for the scheduled CCTV check report (all schemes)
-const CCTV_REPORT_RECIPIENTS = ["david@chellan.co.uk"];
-
-// Recipients who only want to see the M3 Jct 9 section
-const CCTV_M3_RECIPIENTS = ["david@chellan.co.uk"];
+// const INCIDENT_ALERT_RECIPIENTS = {
+//   "A417 Missing Link - Kier": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   "M3 Jct 9 - Balfour Beatty": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   "A47 Thickthorn - Core": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   "A452 HS2 - Traffix": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   default: ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+// };
 
 // SMTP sender address
 const SMTP_SENDER = '"LENSE by Chellan" <alerts@chellan.co.uk>';
 const SMTP_USER = "alerts@chellan.co.uk";
 
 module.exports = {
-  EMAIL_RECIPIENTS,
-  CCTV_REPORT_RECIPIENTS,
-  CCTV_M3_RECIPIENTS,
+  INCIDENT_ALERT_RECIPIENTS,
   SMTP_SENDER,
   SMTP_USER,
 };
