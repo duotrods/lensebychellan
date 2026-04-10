@@ -7,12 +7,20 @@
 // Per-scheme recipients for incident alert emails (incursion YES or asset damage).
 // Key matches the scheme's fullName as stored in Firestore reports.
 const INCIDENT_ALERT_RECIPIENTS = {
-  "A417 Missing Link - Kier": ["david@chellan.co.uk"],
-  "M3 Jct 9 - Balfour Beatty": ["david@chellan.co.uk"],
-  "A47 Thickthorn - Core": ["david@chellan.co.uk"],
-  "A452 HS2 - Traffix": ["david@chellan.co.uk"],
-  default: ["david@chellan.co.uk"],
+  "A417 Missing Link - Kier": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  "M3 Jct 9 - Balfour Beatty": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  "A47 Thickthorn - Core": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  "A452 HS2 - Traffix": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
 };
+
+// const INCIDENT_ALERT_RECIPIENTS = {
+//   "A417 Missing Link - Kier": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   "M3 Jct 9 - Balfour Beatty": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   "A47 Thickthorn - Core": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   "A452 HS2 - Traffix": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   default: ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+// };
 
 // SMTP sender address
 const SMTP_SENDER = '"LENSE by Chellan" <alerts@chellan.co.uk>';

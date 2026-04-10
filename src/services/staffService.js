@@ -351,7 +351,7 @@ class StaffService {
         relatedFormId: docRef.id,
       });
 
-      return docRef.id;
+      return { id: docRef.id, referenceId };
     } catch (error) {
       console.error("Failed to submit incident report:", error);
       throw error;
