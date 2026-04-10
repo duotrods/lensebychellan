@@ -18,7 +18,7 @@ const INCIDENT_ALERT_RECIPIENTS = {
 //   "A417 Missing Link - Kier": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
 //   "M3 Jct 9 - Balfour Beatty": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
 //   "A47 Thickthorn - Core": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
-//   "A452 HS2 - Traffix": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+//   "A452 HS2 - Trafffix": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
 //   default: ["duotrodolinor@gmail.com, rroduot@gmail.com"],
 // };
 
