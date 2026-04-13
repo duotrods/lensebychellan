@@ -423,14 +423,14 @@ const LiveCameraFaultsPage = ({
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3 flex-wrap">
-                                <span className="text-black font-mono">
-                                  {fault.date || "N/A"}
+                                <span className="font-mono text-gray-700">
+                                  {fault.time || "N/A"}
                                 </span>
                                 <span className="text-brand-500 font-bold">
                                   |
                                 </span>
-                                <span className="font-mono text-gray-700">
-                                  {fault.time || "N/A"}
+                                <span className="text-black font-mono">
+                                  {fault.date || "N/A"}
                                 </span>
                                 <span className="text-brand-500 font-bold">
                                   |

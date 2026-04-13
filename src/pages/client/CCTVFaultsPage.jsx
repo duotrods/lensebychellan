@@ -1,10 +1,21 @@
-import { useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { useLiveCCTVFaults, usePaginatedCCTVFaults } from '../../hooks/useCCTVFaults';
-import { Eye, Camera, ArrowLeft, ChevronLeft, ChevronRight, Loader2, CheckCircle } from 'lucide-react';
-import { SCHEMES } from '../../utils/schemes';
-import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
+import { useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import {
+  useLiveCCTVFaults,
+  usePaginatedCCTVFaults,
+} from "../../hooks/useCCTVFaults";
+import {
+  Eye,
+  Camera,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  CheckCircle,
+} from "lucide-react";
+import { SCHEMES } from "../../utils/schemes";
+import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 
 const CCTVFaultsPage = () => {
   const navigate = useNavigate();
@@ -15,13 +26,14 @@ const CCTVFaultsPage = () => {
   const getActiveSchemeName = () => {
     if (userProfile?.activeSchemeName) return userProfile.activeSchemeName;
     if (userProfile?.activeSchemeId) {
-      const found = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
+      const found = SCHEMES.find((s) => s.id === userProfile.activeSchemeId);
       if (found) return found.fullName;
     }
     return userProfile?.schemeName;
   };
 
-  const { faults: liveFaults, loading: liveLoading } = useLiveCCTVFaults(schemeId);
+  const { faults: liveFaults, loading: liveLoading } =
+    useLiveCCTVFaults(schemeId);
 
   const {
     faults: resolvedFaults,
@@ -38,7 +50,10 @@ const CCTVFaultsPage = () => {
   // When a live fault gets resolved, refresh the completed list
   const prevLiveCount = useRef(liveFaults.length);
   useEffect(() => {
-    if (prevLiveCount.current > 0 && liveFaults.length < prevLiveCount.current) {
+    if (
+      prevLiveCount.current > 0 &&
+      liveFaults.length < prevLiveCount.current
+    ) {
       refresh();
     }
     prevLiveCount.current = liveFaults.length;
@@ -55,14 +70,15 @@ const CCTVFaultsPage = () => {
         <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center gap-4 mb-2">
             <button
-              onClick={() => navigate('/dashboard/client')}
+              onClick={() => navigate("/dashboard/client")}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h4 className="font-bold text-gray-800">
-                Go Back to <span className="font-semibold text-brand-400">Dashboard</span>
+                Go Back to{" "}
+                <span className="font-semibold text-brand-400">Dashboard</span>
               </h4>
             </div>
           </div>
@@ -73,25 +89,28 @@ const CCTVFaultsPage = () => {
           <h4 className="font-bold text-gray-800">
             <span className="font-semibold text-brand-400">
               {schemeId} ({getActiveSchemeName()})
-            </span>{' '}
+            </span>{" "}
             CCTV Faults
           </h4>
-          <p className="text-gray-500">Monitor live and resolved camera faults for your scheme</p>
+          <p className="text-gray-500">
+            Monitor live and resolved camera faults for your scheme
+          </p>
         </div>
 
         {/* Columns */}
         <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
             {/* Live Faults */}
             <div className="flex flex-col">
               <div className="bg-linear-to-br from-red-500 to-red-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                   <Camera className="w-6 h-6 text-red-500" />
                 </div>
-                <span className="text-white font-semibold text-2xl">Live Faults</span>
+                <span className="text-white font-semibold text-2xl">
+                  Live Faults
+                </span>
                 <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
-                  {liveLoading ? '...' : `${liveFaults.length} Active`}
+                  {liveLoading ? "..." : `${liveFaults.length} Active`}
                 </span>
               </div>
 
@@ -115,7 +134,11 @@ const CCTVFaultsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 flex-wrap">
                             <span className="text-red-400 font-mono font-semibold">
-                              {fault.time || 'N/A'}
+                              {fault.time || "N/A"}
+                            </span>
+                            <span className="text-green-500 font-bold">|</span>
+                            <span className="text-black font-mono">
+                              {fault.date || "N/A"}
                             </span>
                             <span className="text-red-500 font-bold">|</span>
                             <span className="font-medium">
@@ -123,7 +146,7 @@ const CCTVFaultsPage = () => {
                             </span>
                             <span className="text-red-500 font-bold">|</span>
                             <span className="font-medium">
-                              Camera: {fault.camera || 'N/A'}
+                              Camera: {fault.camera || "N/A"}
                             </span>
                           </div>
                           <button
@@ -151,9 +174,11 @@ const CCTVFaultsPage = () => {
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                   <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
-                <span className="text-white font-semibold text-2xl">Resolved Faults</span>
+                <span className="text-white font-semibold text-2xl">
+                  Resolved Faults
+                </span>
                 <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
-                  {resolvedLoading ? '...' : `${totalCount} Total`}
+                  {resolvedLoading ? "..." : `${totalCount} Total`}
                 </span>
               </div>
 
@@ -178,15 +203,25 @@ const CCTVFaultsPage = () => {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-wrap">
                               <span className="text-black font-mono">
-                                {fault.time || 'N/A'}
+                                {fault.time || "N/A"}
                               </span>
-                              <span className="text-green-500 font-bold">|</span>
+                              <span className="text-green-500 font-bold">
+                                |
+                              </span>
+                              <span className="text-black font-mono">
+                                {fault.date || "N/A"}
+                              </span>
+                              <span className="text-green-500 font-bold">
+                                |
+                              </span>
                               <span className="font-medium">
                                 {fault.referenceId || fault.id.slice(0, 6)}
                               </span>
-                              <span className="text-green-500 font-bold">|</span>
+                              <span className="text-green-500 font-bold">
+                                |
+                              </span>
                               <span className="text-black font-medium">
-                                Camera: {fault.camera || 'N/A'}
+                                Camera: {fault.camera || "N/A"}
                               </span>
                             </div>
                             <button
@@ -209,7 +244,9 @@ const CCTVFaultsPage = () => {
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
                         <span className="text-sm text-gray-500">
-                          Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} of {totalCount}
+                          Showing {(currentPage - 1) * pageSize + 1}–
+                          {Math.min(currentPage * pageSize, totalCount)} of{" "}
+                          {totalCount}
                         </span>
                         <div className="flex items-center gap-2">
                           <button
@@ -236,7 +273,6 @@ const CCTVFaultsPage = () => {
                 )}
               </div>
             </div>
-
           </div>
         </div>
       </div>
