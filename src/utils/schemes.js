@@ -36,6 +36,35 @@ export const SCHEMES = [
   },
 ];
 
+// Third-party subscriber schemes
+// Add a new entry here whenever you onboard a new third-party company or scheme.
+// - id: unique scheme ID baked into every invite code — must be consistent across all users on that scheme
+// - fullName: human-readable name shown in dropdowns and stored on user accounts
+// - company: used to group schemes in the dropdown — all schemes for the same company share this value
+export const THIRD_PARTY_SCHEMES = [
+  { id: "NEWCO1", fullName: "NewCo - Scheme 1", company: "NewCo" },
+  { id: "CO2", fullName: "CO2 - Scheme 2", company: "NewCo" },
+  { id: "NEWCO2", fullName: "NewCo - Scheme 2", company: "NewCo3" },
+];
+
+// Returns the filtered list of SCHEMES a user should see in form dropdowns.
+// - Demo users: only the demo scheme
+// - Third-party staff: only their assigned scheme(s), looked up from THIRD_PARTY_SCHEMES
+// - Internal staff: all non-demo schemes
+export const getSchemesForUser = (userProfile) => {
+  if (!userProfile) return [];
+  if (isDemoUser(userProfile)) {
+    return SCHEMES.filter((s) => s.isDemo);
+  }
+  if (userProfile.role === "thirdpartyoperator") {
+    const assignedIds =
+      userProfile.schemeIds ||
+      (userProfile.schemeId ? [userProfile.schemeId] : []);
+    return THIRD_PARTY_SCHEMES.filter((s) => assignedIds.includes(s.id));
+  }
+  return SCHEMES.filter((s) => !s.isDemo);
+};
+
 // Helper function to get scheme by ID
 export const getSchemeById = (id) => {
   return SCHEMES.find((scheme) => scheme.id === id);

@@ -5,7 +5,6 @@ export const USER_ROLES = {
   LIVEOPERATOR: 'liveoperator',
   CCTVOPERATOR: 'cctvfaultoperator',
   // Third-party subscriber roles
-  THIRDPARTYADMIN: 'thirdpartyadmin',
   THIRDPARTYOPERATOR: 'thirdpartyoperator',
   THIRDPARTYCLIENT: 'thirdpartyclient',
   THIRDPARTYLIVEOPERATOR: 'thirdpartyliveoperator',
@@ -19,8 +18,7 @@ export const ROLE_LABELS = {
   liveoperator: 'Live Operator',
   cctvfaultoperator: 'CCTV Fault Operator',
   // Third-party
-  thirdpartyadmin: 'Third Party Admin',
-  thirdpartyoperator: 'Third Party Operator',
+  thirdpartyoperator: 'Third Party Staff',
   thirdpartyclient: 'Third Party Client',
   thirdpartyliveoperator: 'Third Party Live Operator',
   thirdpartycctvoperator: 'Third Party CCTV Operator',
@@ -33,7 +31,6 @@ export const DASHBOARD_ROUTES = {
   liveoperator: '/dashboard/liveoperator',
   cctvfaultoperator: '/dashboard/cctvoperator',
   // Third-party
-  thirdpartyadmin: '/dashboard/thirdparty/admin',
   thirdpartyoperator: '/dashboard/thirdparty/operator',
   thirdpartyclient: '/dashboard/thirdparty/client',
   thirdpartyliveoperator: '/dashboard/thirdparty/liveoperator',

@@ -24,6 +24,7 @@ import {
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 import { isDemoUser, DEMO_SCHEME_ID } from "../../utils/schemes";
+import { USER_ROLES } from "../../utils/constants";
 
 // Module-level variable — survives component unmount/remount, no serialization needed
 let _dashRestore = null;
@@ -31,6 +32,10 @@ let _dashRestore = null;
 const NewStaffDashboard = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  // Third-party staff are scoped to their assigned scheme only
+  const tpSchemeId = userProfile?.role === USER_ROLES.THIRDPARTYOPERATOR
+    ? (userProfile?.activeSchemeId || userProfile?.schemeId || null)
+    : null;
   // Check if notice board has been shown in this session
   const [showNoticeBoard, setShowNoticeBoard] = useState(() => {
     const hasSeenNotice = sessionStorage.getItem("hasSeenNoticeBoard");
@@ -131,6 +136,7 @@ const NewStaffDashboard = () => {
         const result = await staffService.getAllFormsPaginated(
           formsPerPage,
           effectiveCursors,
+          tpSchemeId,
         );
         rawForms = result.forms;
         newCursors = result.cursors;
@@ -147,6 +153,7 @@ const NewStaffDashboard = () => {
           activeFilter,
           formsPerPage,
           effectiveTypeCursor,
+          tpSchemeId,
         );
         rawForms = result.forms;
         newTypeCursor = result.lastDoc;

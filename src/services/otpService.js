@@ -487,13 +487,6 @@ class OTPService {
 
   // ==================== THIRD-PARTY INVITE CODE METHODS ====================
 
-  // Generate third-party admin access code
-  generateThirdPartyAdminCode() {
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const year = new Date().getFullYear();
-    return `TPADMIN-${year}-${randomPart}`;
-  }
-
   // Generate third-party operator access code
   generateThirdPartyOperatorCode() {
     const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -520,49 +513,6 @@ class OTPService {
     const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
     const year = new Date().getFullYear();
     return `TPCCTV-${year}-${randomPart}`;
-  }
-
-  // ==================== THIRD-PARTY ADMIN CODE METHODS ====================
-
-  async createThirdPartyAdminCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
-    try {
-      const code = this.generateThirdPartyAdminCode();
-      const codeRef = doc(db, 'thirdPartyAdminCodes', code);
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
-      await setDoc(codeRef, {
-        code, schemeId, schemeName, isUsed: false,
-        createdBy: adminUid, createdAt: serverTimestamp(),
-        expiresAt, usedBy: null, usedAt: null
-      });
-      return code;
-    } catch (error) {
-      throw new AppError('Failed to create third party admin code', 'otp/create-error', error);
-    }
-  }
-
-  async validateThirdPartyAdminCode(code) {
-    try {
-      const codeRef = doc(db, 'thirdPartyAdminCodes', code);
-      const codeSnap = await getDoc(codeRef);
-      if (!codeSnap.exists()) throw new AppError('Invalid third party admin access code', 'otp/invalid-code');
-      const codeData = codeSnap.data();
-      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
-      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
-      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
-      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate third party admin code', 'otp/validation-error', error);
-    }
-  }
-
-  async markThirdPartyAdminCodeAsUsed(code, uid) {
-    try {
-      await updateDoc(doc(db, 'thirdPartyAdminCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
-    } catch (error) {
-      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
-    }
   }
 
   // ==================== THIRD-PARTY OPERATOR CODE METHODS ====================

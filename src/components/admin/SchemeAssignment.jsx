@@ -91,11 +91,10 @@ const SchemeAssignment = () => {
     setOverviewLoading(true);
     try {
       const [clientResult, liveOpResult, cctvOpResult,
-             tpAdminResult, tpOpResult, tpClientResult, tpLiveOpResult, tpCCTVOpResult] = await Promise.all([
+             tpOpResult, tpClientResult, tpLiveOpResult, tpCCTVOpResult] = await Promise.all([
         firestoreService.getAllUsersPaginated(100, null, "client"),
         firestoreService.getAllUsersPaginated(100, null, "liveoperator"),
         firestoreService.getAllUsersPaginated(100, null, "cctvfaultoperator"),
-        firestoreService.getAllUsersPaginated(100, null, "thirdpartyadmin"),
         firestoreService.getAllUsersPaginated(100, null, "thirdpartyoperator"),
         firestoreService.getAllUsersPaginated(100, null, "thirdpartyclient"),
         firestoreService.getAllUsersPaginated(100, null, "thirdpartyliveoperator"),
@@ -105,7 +104,6 @@ const SchemeAssignment = () => {
         ...clientResult.users,
         ...liveOpResult.users,
         ...cctvOpResult.users,
-        ...tpAdminResult.users,
         ...tpOpResult.users,
         ...tpClientResult.users,
         ...tpLiveOpResult.users,
@@ -323,17 +321,6 @@ const SchemeAssignment = () => {
             >
               <CameraOff className="w-4 h-4" />
               CCTV Operators
-            </button>
-            <button
-              onClick={() => handleRoleFilterChange("thirdpartyadmin")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "thirdpartyadmin"
-                  ? "bg-orange-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              TP Admin
             </button>
             <button
               onClick={() => handleRoleFilterChange("thirdpartyoperator")}

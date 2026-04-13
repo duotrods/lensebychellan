@@ -41,38 +41,22 @@ service cloud.firestore {
       return userSchemes != null && docSchemeId != null && docSchemeId in userSchemes;
     }
 
-    // Helper: check if user is a third-party admin
-    function isTPAdmin() {
-      return getUserRole() == 'thirdpartyadmin';
-    }
-
-    // Helper: check if TP admin's schemes overlap with document's schemes
-    function tpAdminHasSchemeAccess(docSchemeIds) {
-      let adminSchemes = getUserSchemes();
-      return adminSchemes != null && docSchemeIds != null && adminSchemes.hasAny(docSchemeIds);
-    }
-
     // Users collection
     match /users/{userId} {
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
-        getUserRole() == 'admin' ||
-        (isTPAdmin() && tpAdminHasSchemeAccess(resource.data.schemeIds))
+        getUserRole() == 'admin'
       );
 
       // SECURITY FIX: Self-update is restricted to safe fields only.
       // This prevents a user from escalating their own role to 'admin' or
       // toggling flags like 'canCreateAdmins' or 'isArchived'.
       // Admins can update any field on any user document.
-      // TP admins can archive/unarchive users within their own scheme.
       allow update: if isSignedIn() && (
         (request.auth.uid == userId &&
          request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['displayName', 'activeSchemeId', 'lastLogoutAt', 'lastLoginAt', 'emailVerified', 'updatedAt'])) ||
-        getUserRole() == 'admin' ||
-        (isTPAdmin() &&
-         tpAdminHasSchemeAccess(resource.data.schemeIds) &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isArchived', 'updatedAt']))
+        getUserRole() == 'admin'
       );
 
       allow create: if isSignedIn();
@@ -112,39 +96,32 @@ service cloud.firestore {
       allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
-    // Third Party Admin Codes — only your internal admin can create these
-    match /thirdPartyAdminCodes/{codeId} {
+    // Third Party Operator Codes — admin only
+    match /thirdPartyOperatorCodes/{codeId} {
       allow write: if isSignedIn() && getUserRole() == 'admin';
       allow get: if true;
       allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
-    // Third Party Operator Codes — admin or TP admin can create
-    match /thirdPartyOperatorCodes/{codeId} {
-      allow write: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
-      allow get: if true;
-      allow list: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
-    }
-
-    // Third Party Client Codes — admin or TP admin can create
+    // Third Party Client Codes — admin only
     match /thirdPartyClientCodes/{codeId} {
-      allow write: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
+      allow write: if isSignedIn() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
+      allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
-    // Third Party Live Operator Codes — admin or TP admin can create
+    // Third Party Live Operator Codes — admin only
     match /thirdPartyLiveOperatorCodes/{codeId} {
-      allow write: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
+      allow write: if isSignedIn() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
+      allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
-    // Third Party CCTV Operator Codes — admin or TP admin can create
+    // Third Party CCTV Operator Codes — admin only
     match /thirdPartyCCTVOperatorCodes/{codeId} {
-      allow write: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
+      allow write: if isSignedIn() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && (getUserRole() == 'admin' || isTPAdmin());
+      allow list: if isSignedIn() && getUserRole() == 'admin';
     }
 
     // Incident Reports

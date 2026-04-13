@@ -91,8 +91,6 @@ const SignUpForm = () => {
           userData,
           formData.otpCode
         );
-      } else if (formData.role === USER_ROLES.THIRDPARTYADMIN) {
-        await authService.signUpThirdPartyAdminWithOTP(formData.email, formData.password, userData, formData.otpCode);
       } else if (formData.role === USER_ROLES.THIRDPARTYOPERATOR) {
         await authService.signUpThirdPartyOperatorWithOTP(formData.email, formData.password, userData, formData.otpCode);
       } else if (formData.role === USER_ROLES.THIRDPARTYCLIENT) {
@@ -122,7 +120,6 @@ const SignUpForm = () => {
     switch (role) {
       case USER_ROLES.CLIENT: return 'Client Access Code';
       case USER_ROLES.CCTVOPERATOR: return 'CCTV Operator Access Code';
-      case USER_ROLES.THIRDPARTYADMIN: return 'Third Party Admin Access Code';
       case USER_ROLES.THIRDPARTYOPERATOR: return 'Third Party Operator Access Code';
       case USER_ROLES.THIRDPARTYCLIENT: return 'Third Party Client Access Code';
       case USER_ROLES.THIRDPARTYLIVEOPERATOR: return 'Third Party Live Operator Access Code';
@@ -135,7 +132,6 @@ const SignUpForm = () => {
     switch (role) {
       case USER_ROLES.CLIENT: return 'e.g., A417-2024-ABC123';
       case USER_ROLES.CCTVOPERATOR: return 'e.g., CCTV-2024-ABC123';
-      case USER_ROLES.THIRDPARTYADMIN: return 'e.g., TPADMIN-2025-ABC123';
       case USER_ROLES.THIRDPARTYOPERATOR: return 'e.g., TPOP-2025-ABC123';
       case USER_ROLES.THIRDPARTYCLIENT: return 'e.g., TPCL-2025-ABC123';
       case USER_ROLES.THIRDPARTYLIVEOPERATOR: return 'e.g., TPLIVE-2025-ABC123';
@@ -256,9 +252,6 @@ const SignUpForm = () => {
               {ROLE_LABELS[USER_ROLES.CCTVOPERATOR]}
             </option>
             <optgroup label="Third Party">
-              <option value={USER_ROLES.THIRDPARTYADMIN}>
-                {ROLE_LABELS[USER_ROLES.THIRDPARTYADMIN]}
-              </option>
               <option value={USER_ROLES.THIRDPARTYOPERATOR}>
                 {ROLE_LABELS[USER_ROLES.THIRDPARTYOPERATOR]}
               </option>

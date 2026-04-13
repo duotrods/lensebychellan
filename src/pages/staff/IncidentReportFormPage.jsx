@@ -17,7 +17,7 @@ const r2Client = new S3Client({
 });
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { compressImage } from "../../utils/imageCompression";
-import { SCHEMES, isDemoUser } from "../../utils/schemes";
+import { getSchemesForUser } from "../../utils/schemes";
 
 import chellanlogo from "../../assets/chellanpng.png";
 
@@ -633,9 +633,7 @@ const IncidentReportFormPage = () => {
             required
           >
             <option value="">Please Select</option>
-            {SCHEMES.filter((scheme) =>
-              isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo,
-            ).map((scheme) => (
+            {getSchemesForUser(userProfile).map((scheme) => (
               <option key={scheme.id} value={scheme.fullName}>
                 {scheme.fullName}
               </option>
@@ -849,9 +847,7 @@ const IncidentReportFormPage = () => {
             required
           >
             <option value="">Please Select</option>
-            {SCHEMES.filter((scheme) =>
-              isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo,
-            ).map((scheme) => (
+            {getSchemesForUser(userProfile).map((scheme) => (
               <option key={scheme.id} value={scheme.fullName}>
                 {scheme.fullName}
               </option>

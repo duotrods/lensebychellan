@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { otpService } from "../../services/otpService";
 import { useAuth } from "../../hooks/useAuth";
-import { SCHEMES } from "../../utils/schemes";
+import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 import {
   Copy,
   Plus,
@@ -17,8 +17,7 @@ import {
 } from "lucide-react";
 
 const TP_TABS = [
-  { key: 'tpadmin', label: 'Admin', create: (sid, sn, uid) => otpService.createThirdPartyAdminCode(sid, sn, uid) },
-  { key: 'tpoperator', label: 'Operator', create: (sid, sn, uid) => otpService.createThirdPartyOperatorCode(sid, sn, uid) },
+  { key: 'tpoperator', label: 'Staff', create: (sid, sn, uid) => otpService.createThirdPartyOperatorCode(sid, sn, uid) },
   { key: 'tpclient', label: 'Client', create: (sid, sn, uid) => otpService.createThirdPartyClientCode(sid, sn, uid) },
   { key: 'tpliveoperator', label: 'Live Operator', create: (sid, sn, uid) => otpService.createThirdPartyLiveOperatorCode(sid, sn, uid) },
   { key: 'tpcctvoperator', label: 'CCTV Operator', create: (sid, sn, uid) => otpService.createThirdPartyCCTVOperatorCode(sid, sn, uid) },
@@ -793,29 +792,37 @@ const OTPManagement = () => {
             <h4 className="text-lg font-semibold text-gray-800 mb-4">
               Generate {TP_TABS.find(t => t.key === tpSubTab)?.label} Access Code
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Scheme ID</label>
-                <input
-                  type="text"
-                  value={tpFormData.schemeId}
-                  onChange={(e) => setTpFormData(prev => ({ ...prev, schemeId: e.target.value }))}
-                  placeholder="e.g. NEWCO1"
-                  className="input input-bordered w-full bg-white border-gray-300"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Scheme Name</label>
-                <input
-                  type="text"
-                  value={tpFormData.schemeName}
-                  onChange={(e) => setTpFormData(prev => ({ ...prev, schemeName: e.target.value }))}
-                  placeholder="e.g. NewCo Road Scheme"
-                  className="input input-bordered w-full bg-white border-gray-300"
-                  required
-                />
-              </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scheme</label>
+              <select
+                value={tpFormData.schemeId}
+                onChange={(e) => {
+                  const selected = THIRD_PARTY_SCHEMES.find(s => s.id === e.target.value);
+                  setTpFormData(prev => ({
+                    ...prev,
+                    schemeId: selected ? selected.id : "",
+                    schemeName: selected ? selected.fullName : "",
+                  }));
+                }}
+                className="select select-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                required
+              >
+                <option value="">Select a scheme</option>
+                {Object.entries(
+                  THIRD_PARTY_SCHEMES.reduce((groups, s) => {
+                    const key = s.company || "Other";
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(s);
+                    return groups;
+                  }, {})
+                ).map(([company, schemes]) => (
+                  <optgroup key={company} label={company}>
+                    {schemes.map(s => (
+                      <option key={s.id} value={s.id}>{s.fullName} ({s.id})</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </div>
             <button
               type="submit"

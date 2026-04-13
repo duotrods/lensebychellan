@@ -315,41 +315,6 @@ class AuthService {
     }
   }
 
-  async signUpThirdPartyAdminWithOTP(email, password, userData, otpCode) {
-    try {
-      const otpValidation = await otpService.validateThirdPartyAdminCode(otpCode);
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid third party admin access code', 'auth/invalid-otp');
-      }
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await updateProfile(user, { displayName: userData.displayName });
-      await sendEmailVerification(user);
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.THIRDPARTYADMIN,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          accessCode: otpCode
-        }
-      });
-      try {
-        await otpService.markThirdPartyAdminCodeAsUsed(otpCode, user.uid);
-      } catch (e) {
-        console.warn('Failed to mark TP admin code as used, but signup succeeded:', e);
-      }
-      return user;
-    } catch (error) {
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-
   async signUpThirdPartyOperatorWithOTP(email, password, userData, otpCode) {
     try {
       const otpValidation = await otpService.validateThirdPartyOperatorCode(otpCode);

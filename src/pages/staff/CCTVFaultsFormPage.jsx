@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
-import { SCHEMES, isDemoUser } from "../../utils/schemes";
+import { getSchemesForUser } from "../../utils/schemes";
 
 import chellanlogo from "../../assets/chellanpng.png";
 
@@ -285,9 +285,7 @@ const CCTVFaultsFormPage = () => {
                 required
               >
                 <option value="">Please Select</option>
-                {SCHEMES.filter((scheme) =>
-                  isDemoUser(userProfile) ? scheme.isDemo : !scheme.isDemo
-                ).map((scheme) => (
+                {getSchemesForUser(userProfile).map((scheme) => (
                   <option key={scheme.id} value={scheme.fullName}>
                     {scheme.fullName}
                   </option>

@@ -6,7 +6,6 @@ export const isClient = (role) => role === USER_ROLES.CLIENT;
 export const isLiveOperator = (role) => role === USER_ROLES.LIVEOPERATOR;
 export const isCCTVOperator = (role) => role === USER_ROLES.CCTVOPERATOR;
 
-export const isThirdPartyAdmin = (role) => role === USER_ROLES.THIRDPARTYADMIN;
 export const isThirdPartyOperator = (role) =>
   role === USER_ROLES.THIRDPARTYOPERATOR;
 export const isThirdPartyClient = (role) =>
@@ -18,7 +17,6 @@ export const isThirdPartyCCTVOperator = (role) =>
 
 export const isAnyThirdParty = (role) =>
   [
-    USER_ROLES.THIRDPARTYADMIN,
     USER_ROLES.THIRDPARTYOPERATOR,
     USER_ROLES.THIRDPARTYCLIENT,
     USER_ROLES.THIRDPARTYLIVEOPERATOR,
@@ -29,7 +27,6 @@ export const isAnyThirdParty = (role) =>
 export const MULTI_SCHEME_ROLES = new Set([
   USER_ROLES.CLIENT,
   USER_ROLES.CCTVOPERATOR,
-  USER_ROLES.THIRDPARTYADMIN,
   USER_ROLES.THIRDPARTYOPERATOR,
   USER_ROLES.THIRDPARTYCLIENT,
   USER_ROLES.THIRDPARTYLIVEOPERATOR,
@@ -46,7 +43,6 @@ export const validateRoleSelection = (role) => {
     USER_ROLES.CLIENT,
     USER_ROLES.LIVEOPERATOR,
     USER_ROLES.CCTVOPERATOR,
-    USER_ROLES.THIRDPARTYADMIN,
     USER_ROLES.THIRDPARTYOPERATOR,
     USER_ROLES.THIRDPARTYCLIENT,
     USER_ROLES.THIRDPARTYLIVEOPERATOR,

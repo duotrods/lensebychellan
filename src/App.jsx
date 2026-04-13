@@ -62,9 +62,6 @@ import ClientLiveCameraFaultsPage from './components/dashboard/CCTVFaultOperator
 import ClientCCTVFaultView from './pages/client/CCTVFaultView';
 import ClientCCTVFaultsPage from './pages/client/CCTVFaultsPage';
 
-// Third Party pages
-import ThirdPartyAdminOTPPage from './pages/thirdparty/ThirdPartyAdminOTPPage';
-
 import { USER_ROLES } from './utils/constants';
 import './index.css';
 
@@ -441,24 +438,6 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
                   <CCTVRecordingsPage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Third Party Admin Routes */}
-            <Route
-              path="/dashboard/thirdparty/admin"
-              element={
-                <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYADMIN]}>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/thirdparty/admin/codes"
-              element={
-                <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYADMIN]}>
-                  <ThirdPartyAdminOTPPage />
                 </ProtectedRoute>
               }
             />

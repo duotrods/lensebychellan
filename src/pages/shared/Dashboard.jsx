@@ -5,13 +5,11 @@ import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import LiveOperatorSidebarLayout from "../../components/layout/LiveOperatorSidebarLayout";
 import CCTVOperatorSidebarLayout from "../../components/layout/CCTVOperatorSidebarLayout";
-import ThirdPartyAdminSidebarLayout from "../../components/layout/ThirdPartyAdminSidebarLayout";
 import AdminDashboard from "../../components/dashboard/AdminDashboard";
 import NewStaffDashboard from "../../components/dashboard/NewStaffDashboard";
 import NewClientDashboard from "../../components/dashboard/NewClientDashboard";
 import LiveOperatorDashboard from "../../components/dashboard/LiveOperatorDashboard";
 import LiveCameraFaultsPage from "../../components/dashboard/CCTVFaultOperatorDashboard";
-import ThirdPartyAdminDashboard from "../../components/thirdparty/ThirdPartyAdminDashboard";
 import { USER_ROLES } from "../../utils/constants";
 
 const Dashboard = () => {
@@ -56,12 +54,6 @@ const Dashboard = () => {
               faultBasePath="/dashboard/cctvoperator/cctv-fault"
             />
           </CCTVOperatorSidebarLayout>
-        );
-      case USER_ROLES.THIRDPARTYADMIN:
-        return (
-          <ThirdPartyAdminSidebarLayout>
-            <ThirdPartyAdminDashboard />
-          </ThirdPartyAdminSidebarLayout>
         );
       case USER_ROLES.THIRDPARTYOPERATOR:
         return (
