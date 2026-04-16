@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { ArrowLeft, Download, Edit, Trash2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { getStaffBasePath } from "../../utils/constants";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { generateReportPDF } from "../../utils/pdfGenerator";
@@ -10,7 +11,8 @@ import { generateReportPDF } from "../../utils/pdfGenerator";
 const IncidentReportView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,7 +31,7 @@ const IncidentReportView = () => {
         setReport(foundReport);
       } else {
         toast.error("Report not found");
-        navigate("/dashboard/staff");
+        navigate(basePath);
       }
     } catch (error) {
       console.error("Failed to load report:", error);
@@ -40,7 +42,7 @@ const IncidentReportView = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/dashboard/staff/forms/incident-report?edit=${id}`);
+    navigate(`${basePath}/forms/incident-report?edit=${id}`);
   };
 
   const handleDelete = async () => {
@@ -59,7 +61,7 @@ const IncidentReportView = () => {
         userProfile.displayName,
       );
       toast.success("Incident Report deleted successfully");
-      navigate("/dashboard/staff");
+      navigate(basePath);
     } catch (error) {
       console.error("Failed to delete report:", error);
       toast.error("Failed to delete report");
@@ -90,7 +92,7 @@ const IncidentReportView = () => {
 
   if (loading) {
     return (
-      <StaffSidebarLayout>
+      <StaffSidebarLayout basePath={basePath}>
         <div className="flex justify-center items-center h-64">
           <span className="loading loading-spinner loading-lg text-teal-500"></span>
         </div>
@@ -100,7 +102,7 @@ const IncidentReportView = () => {
 
   if (!report) {
     return (
-      <StaffSidebarLayout>
+      <StaffSidebarLayout basePath={basePath}>
         <div className="text-center py-12">
           <p className="text-gray-500">Report not found</p>
         </div>
@@ -109,7 +111,7 @@ const IncidentReportView = () => {
   }
 
   return (
-    <StaffSidebarLayout>
+    <StaffSidebarLayout basePath={basePath}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

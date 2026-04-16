@@ -4,6 +4,7 @@ import { CameraOff, Edit, CheckCircle2, Eye, MessageSquare, Send, Loader2 } from
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 import { useAuth } from "../../hooks/useAuth";
+import { getStaffBasePath } from "../../utils/constants";
 import { clientDataService } from "../../services/clientDataService";
 import { toast } from "react-hot-toast";
 
@@ -120,14 +121,15 @@ const NoteThread = ({ notes, legacyNote, faultId, onNotesUpdated }) => {
 const CCTVFaultsLivePageInner = () => {
   const navigate = useNavigate();
   const { faults, loading } = useStaffCCTVFaultsContext();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
 
   const [expandedNotes, setExpandedNotes] = useState({});
   const [staffNote, setStaffNote] = useState({});
   const [savingNote, setSavingNote] = useState({});
 
   const handleEdit = (fault) => {
-    navigate(`/dashboard/staff/forms/cctv-faults?edit=${fault.id}`);
+    navigate(`${basePath}/forms/cctv-faults?edit=${fault.id}`);
   };
 
   const toggleNotes = (faultId) => {
@@ -352,10 +354,14 @@ const CCTVFaultsLivePageInner = () => {
   );
 };
 
-const CCTVFaultsLivePage = () => (
-  <StaffSidebarLayout>
-    <CCTVFaultsLivePageInner />
-  </StaffSidebarLayout>
-);
+const CCTVFaultsLivePage = () => {
+  const { role } = useAuth();
+  const basePath = getStaffBasePath(role);
+  return (
+    <StaffSidebarLayout basePath={basePath}>
+      <CCTVFaultsLivePageInner />
+    </StaffSidebarLayout>
+  );
+};
 
 export default CCTVFaultsLivePage;

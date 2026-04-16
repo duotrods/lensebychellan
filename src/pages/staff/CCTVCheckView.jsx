@@ -10,6 +10,7 @@ import {
   Download,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { getStaffBasePath } from "../../utils/constants";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { generateReportPDF } from "../../utils/pdfGenerator";
@@ -17,7 +18,8 @@ import { generateReportPDF } from "../../utils/pdfGenerator";
 const CCTVCheckView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +38,7 @@ const CCTVCheckView = () => {
         setForm(foundForm);
       } else {
         toast.error("Form not found");
-        navigate("/dashboard/staff");
+        navigate(basePath);
       }
     } catch (error) {
       console.error("Failed to load form:", error);
@@ -47,7 +49,7 @@ const CCTVCheckView = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/dashboard/staff/forms/cctv-check?edit=${id}`);
+    navigate(`${basePath}/forms/cctv-check?edit=${id}`);
   };
 
   const handleDelete = async () => {
@@ -66,7 +68,7 @@ const CCTVCheckView = () => {
         userProfile.displayName,
       );
       toast.success("CCTV Check Form deleted successfully");
-      navigate("/dashboard/staff");
+      navigate(basePath);
     } catch (error) {
       console.error("Failed to delete form:", error);
       toast.error("Failed to delete form");
@@ -237,7 +239,7 @@ const CCTVCheckView = () => {
 
   if (loading) {
     return (
-      <StaffSidebarLayout>
+      <StaffSidebarLayout basePath={basePath}>
         <div className="flex justify-center items-center h-64">
           <span className="loading loading-spinner loading-lg text-teal-500"></span>
         </div>
@@ -247,7 +249,7 @@ const CCTVCheckView = () => {
 
   if (!form) {
     return (
-      <StaffSidebarLayout>
+      <StaffSidebarLayout basePath={basePath}>
         <div className="text-center py-12">
           <p className="text-gray-500">Form not found</p>
         </div>
@@ -256,7 +258,7 @@ const CCTVCheckView = () => {
   }
 
   return (
-    <StaffSidebarLayout>
+    <StaffSidebarLayout basePath={basePath}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

@@ -20,7 +20,12 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { referenceIdService } from "./referenceIdService";
-import { extractSchemeId, SCHEMES, DEMO_SCHEME_ID } from "../utils/schemes";
+import {
+  extractSchemeId,
+  SCHEMES,
+  DEMO_SCHEME_ID,
+  getThirdPartySchemeById,
+} from "../utils/schemes";
 
 class StaffService {
   // ============================================
@@ -47,7 +52,7 @@ class StaffService {
         activitiesRef,
         where("createdAt", ">", lastLogoutTime),
         orderBy("createdAt", "desc"),
-        limit(25) // Fetch a few extra to account for client-side filtering
+        limit(25), // Fetch a few extra to account for client-side filtering
       );
 
       const snapshot = await getDocs(q);
@@ -71,32 +76,57 @@ class StaffService {
       const schemeIds = [];
 
       // Check A417 section
-      const hasA417Data = (formData.a417Cameras && formData.a417Cameras.length > 0) ||
-                          (formData.a417Comments && formData.a417Comments.trim() !== "");
+      const hasA417Data =
+        (formData.a417Cameras && formData.a417Cameras.length > 0) ||
+        (formData.a417Comments && formData.a417Comments.trim() !== "");
       if (hasA417Data) {
         schemeIds.push("A417");
       }
 
       // Check A11/A47 Kier/Core section
-      const hasKierCoreData = (formData.kierCore && formData.kierCore.length > 0) ||
-                              (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
+      const hasKierCoreData =
+        (formData.kierCore && formData.kierCore.length > 0) ||
+        (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
       if (hasKierCoreData) {
         schemeIds.push("A47");
       }
 
       // Check M3 Jct 9 section
-      const hasM3Data = (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
-                        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
+      const hasM3Data =
+        (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
+        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
       if (hasM3Data) {
         schemeIds.push("M3");
       }
 
       // Check Demo section
-      const hasDemoData = (formData.demoCameras && formData.demoCameras.length > 0) ||
-                          (formData.demoComments && formData.demoComments.trim() !== "");
+      const hasDemoData =
+        (formData.demoCameras && formData.demoCameras.length > 0) ||
+        (formData.demoComments && formData.demoComments.trim() !== "");
       if (hasDemoData) {
         schemeIds.push("DMO1");
       }
+
+      // Check third party dynamic scheme sections (keys: tp_{schemeId}_cameras / tp_{schemeId}_comments)
+      const tpSchemeIds = Object.keys(formData)
+        .filter(
+          (k) =>
+            k.startsWith("tp_") &&
+            k.endsWith("_cameras") &&
+            formData[k]?.length > 0,
+        )
+        .map((k) => k.replace(/^tp_/, "").replace(/_cameras$/, ""));
+      const tpCommentIds = Object.keys(formData)
+        .filter(
+          (k) =>
+            k.startsWith("tp_") &&
+            k.endsWith("_comments") &&
+            formData[k]?.trim?.(),
+        )
+        .map((k) => k.replace(/^tp_/, "").replace(/_comments$/, ""));
+      [...new Set([...tpSchemeIds, ...tpCommentIds])].forEach((id) => {
+        if (!schemeIds.includes(id)) schemeIds.push(id);
+      });
 
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
@@ -110,10 +140,18 @@ class StaffService {
       // Check if this is a demo submission (only has DMO1 scheme)
       const isDemo = schemeIds.length === 1 && schemeIds[0] === DEMO_SCHEME_ID;
 
-      // Generate reference ID (with separate counter for demo)
+      // Check if this is a third party submission (all schemeIds are third party schemes)
+      const tpSchemeId =
+        schemeIds.length > 0 &&
+        schemeIds.every((id) => getThirdPartySchemeById(id))
+          ? schemeIds[0]
+          : null;
+
+      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "cctvCheck",
-        isDemo
+        isDemo,
+        tpSchemeId,
       );
 
       const formsRef = collection(db, "cctvCheckForms");
@@ -159,12 +197,12 @@ class StaffService {
               formsRef,
               where("submittedBy.userId", "==", userId),
               orderBy("createdAt", "desc"),
-              limit(limitCount)
+              limit(limitCount),
             )
           : query(
               formsRef,
               where("submittedBy.userId", "==", userId),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
             );
       } else {
         // When fetching all, no limit unless explicitly provided
@@ -205,29 +243,33 @@ class StaffService {
       const schemeIds = [];
 
       // Check A417 section
-      const hasA417Data = (formData.a417Cameras && formData.a417Cameras.length > 0) ||
-                          (formData.a417Comments && formData.a417Comments.trim() !== "");
+      const hasA417Data =
+        (formData.a417Cameras && formData.a417Cameras.length > 0) ||
+        (formData.a417Comments && formData.a417Comments.trim() !== "");
       if (hasA417Data) {
         schemeIds.push("A417");
       }
 
       // Check A11/A47 Kier/Core section
-      const hasKierCoreData = (formData.kierCore && formData.kierCore.length > 0) ||
-                              (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
+      const hasKierCoreData =
+        (formData.kierCore && formData.kierCore.length > 0) ||
+        (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
       if (hasKierCoreData) {
         schemeIds.push("A47");
       }
 
       // Check M3 Jct 9 section
-      const hasM3Data = (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
-                        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
+      const hasM3Data =
+        (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
+        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
       if (hasM3Data) {
         schemeIds.push("M3");
       }
 
       // Check Demo section
-      const hasDemoData = (formData.demoCameras && formData.demoCameras.length > 0) ||
-                          (formData.demoComments && formData.demoComments.trim() !== "");
+      const hasDemoData =
+        (formData.demoCameras && formData.demoCameras.length > 0) ||
+        (formData.demoComments && formData.demoComments.trim() !== "");
       if (hasDemoData) {
         schemeIds.push("DMO1");
       }
@@ -306,7 +348,11 @@ class StaffService {
   async _updateSchemeVehicleStats(schemeId, delta) {
     if (!schemeId || delta === 0) return;
     const statsRef = doc(db, "schemeStats", schemeId);
-    await setDoc(statsRef, { totalVehiclesDispatched: increment(delta) }, { merge: true });
+    await setDoc(
+      statsRef,
+      { totalVehiclesDispatched: increment(delta) },
+      { merge: true },
+    );
   }
 
   async submitIncidentReport(formData, userId, userName, status = "submitted") {
@@ -317,10 +363,14 @@ class StaffService {
       // Check if this is a demo submission
       const isDemo = schemeId === DEMO_SCHEME_ID;
 
-      // Generate reference ID (with separate counter for demo)
+      // Check if this is a third party submission
+      const tpSchemeId = getThirdPartySchemeById(schemeId) ? schemeId : null;
+
+      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "incident",
-        isDemo
+        isDemo,
+        tpSchemeId,
       );
 
       const reportsRef = collection(db, "incidentReports");
@@ -340,7 +390,8 @@ class StaffService {
 
       // Update running vehicle total for this scheme
       const vehicleDelta = this._countVehicles(formData);
-      if (vehicleDelta > 0) await this._updateSchemeVehicleStats(schemeId, vehicleDelta);
+      if (vehicleDelta > 0)
+        await this._updateSchemeVehicleStats(schemeId, vehicleDelta);
 
       // Log activity
       await this.logActivity({
@@ -370,12 +421,12 @@ class StaffService {
               reportsRef,
               where("submittedBy.userId", "==", userId),
               orderBy("createdAt", "desc"),
-              limit(limitCount)
+              limit(limitCount),
             )
           : query(
               reportsRef,
               where("submittedBy.userId", "==", userId),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
             );
       } else {
         // When fetching all, no limit unless explicitly provided
@@ -485,7 +536,8 @@ class StaffService {
       // Subtract vehicles from running total
       const vehicleDelta = this._countVehicles(currentData);
       if (vehicleDelta > 0) {
-        const deletedSchemeId = currentData.schemeId || extractSchemeId(currentData.scheme);
+        const deletedSchemeId =
+          currentData.schemeId || extractSchemeId(currentData.scheme);
         await this._updateSchemeVehicleStats(deletedSchemeId, -vehicleDelta);
       }
 
@@ -521,7 +573,7 @@ class StaffService {
       reportsRef,
       where("status", "==", "live"),
       orderBy("createdAt", "desc"),
-      limit(50) // Reasonable limit for live incidents
+      limit(50), // Reasonable limit for live incidents
     );
 
     return onSnapshot(
@@ -533,7 +585,7 @@ class StaffService {
         }));
         callback(incidents);
       },
-      onError
+      onError,
     );
   }
 
@@ -571,14 +623,14 @@ class StaffService {
           where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
           startAfter(lastDoc),
-          limit(pageSize)
+          limit(pageSize),
         );
       } else {
         q = query(
           reportsRef,
           where("status", "==", "completed"),
           orderBy("createdAt", "desc"),
-          limit(pageSize)
+          limit(pageSize),
         );
       }
 
@@ -633,7 +685,7 @@ class StaffService {
         q = query(
           collectionRef,
           where("submittedBy.userId", "==", userId),
-          where("createdAt", ">=", sinceTimestamp)
+          where("createdAt", ">=", sinceTimestamp),
         );
       } else {
         q = query(collectionRef, where("createdAt", ">=", sinceTimestamp));
@@ -669,22 +721,22 @@ class StaffService {
           this.getCollectionCountSince(
             "cctvCheckForms",
             userId,
-            oneWeekAgoTimestamp
+            oneWeekAgoTimestamp,
           ),
           this.getCollectionCountSince(
             "incidentReports",
             userId,
-            oneWeekAgoTimestamp
+            oneWeekAgoTimestamp,
           ),
           this.getCollectionCountSince(
             "assetDamageReports",
             userId,
-            oneWeekAgoTimestamp
+            oneWeekAgoTimestamp,
           ),
           this.getCollectionCountSince(
             "dailyOccurrenceReports",
             userId,
-            oneWeekAgoTimestamp
+            oneWeekAgoTimestamp,
           ),
         ]);
 
@@ -763,7 +815,7 @@ class StaffService {
           uploadsRef,
           where("uploadedBy.userId", "==", userId),
           orderBy("uploadedAt", "desc"),
-          limit(limitCount)
+          limit(limitCount),
         );
       } else {
         q = query(uploadsRef, orderBy("uploadedAt", "desc"), limit(limitCount));
@@ -842,10 +894,14 @@ class StaffService {
       // Check if this is a demo submission
       const isDemo = schemeId === DEMO_SCHEME_ID;
 
-      // Generate reference ID (with separate counter for demo)
+      // Check if this is a third party submission
+      const tpSchemeId = getThirdPartySchemeById(schemeId) ? schemeId : null;
+
+      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "assetDamage",
-        isDemo
+        isDemo,
+        tpSchemeId,
       );
 
       const reportsRef = collection(db, "assetDamageReports");
@@ -891,12 +947,12 @@ class StaffService {
               reportsRef,
               where("submittedBy.userId", "==", userId),
               orderBy("createdAt", "desc"),
-              limit(limitCount)
+              limit(limitCount),
             )
           : query(
               reportsRef,
               where("submittedBy.userId", "==", userId),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
             );
       } else {
         // When fetching all, no limit unless explicitly provided
@@ -966,9 +1022,16 @@ class StaffService {
 
   async submitCCTVFaultsReport(formData, userId, userName) {
     try {
-      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : null;
+      const schemeId = formData.scheme
+        ? extractSchemeId(formData.scheme)
+        : null;
       const isDemo = schemeId === DEMO_SCHEME_ID;
-      const referenceId = await referenceIdService.generateReferenceId("cctvFaults", isDemo);
+      const tpSchemeId = getThirdPartySchemeById(schemeId) ? schemeId : null;
+      const referenceId = await referenceIdService.generateReferenceId(
+        "cctvFaults",
+        isDemo,
+        tpSchemeId,
+      );
 
       const docRef = await addDoc(collection(db, "cctvFaultsReports"), {
         ...formData,
@@ -1003,7 +1066,7 @@ class StaffService {
     try {
       const q = query(
         collection(db, "cctvFaultsReports"),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "desc"),
       );
       const snapshot = await getDocs(q);
       return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -1028,7 +1091,9 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy,
       });
 
-      const schemeId = formData.scheme ? extractSchemeId(formData.scheme) : currentData.schemeId;
+      const schemeId = formData.scheme
+        ? extractSchemeId(formData.scheme)
+        : currentData.schemeId;
 
       await updateDoc(reportRef, {
         ...formData,
@@ -1054,8 +1119,48 @@ class StaffService {
     }
   }
 
-  // Real-time subscription to ALL live CCTV faults (staff-side, no scheme filter)
-  subscribeAllLiveCCTVFaults(callback, onError) {
+  // Real-time subscription to live CCTV faults.
+  // Pass tpSchemeIds array to scope the feed to a company's schemes.
+  // null = real staff (see all).
+  subscribeAllLiveCCTVFaults(callback, onError, tpSchemeIds = null) {
+    const hasFilter = tpSchemeIds && tpSchemeIds.length > 0;
+
+    if (hasFilter) {
+      // TP staff: one listener per scheme — avoids composite index requirement
+      // and the "in" operator SDK crash.
+      const resultsByScheme = {};
+      const unsubs = tpSchemeIds.map((schemeId) => {
+        const q = query(
+          collection(db, "cctvFaultsReports"),
+          where("status", "==", "live"),
+          where("schemeId", "==", schemeId),
+          orderBy("createdAt", "desc"),
+          limit(100),
+        );
+        return onSnapshot(
+          q,
+          (snapshot) => {
+            resultsByScheme[schemeId] = snapshot.docs.map((d) => ({
+              id: d.id,
+              ...d.data(),
+            }));
+            const merged = Object.values(resultsByScheme)
+              .flat()
+              .sort(
+                (a, b) =>
+                  (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+              );
+            callback(merged);
+          },
+          (err) => {
+            if (onError) onError(err);
+          },
+        );
+      });
+      return () => unsubs.forEach((u) => u());
+    }
+
+    // Real staff — single query, no scheme filter needed.
     const q = query(
       collection(db, "cctvFaultsReports"),
       where("status", "==", "live"),
@@ -1066,12 +1171,20 @@ class StaffService {
     return onSnapshot(
       q,
       (snapshot) => {
-        const faults = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const faults = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         callback(faults);
       },
       (error) => {
-        if (error.code === "failed-precondition" || error.message?.includes("index")) {
-          console.warn("Index not available for live CCTV faults, using fallback");
+        if (
+          error.code === "failed-precondition" ||
+          error.message?.includes("index")
+        ) {
+          console.warn(
+            "Index not available for live CCTV faults, using fallback",
+          );
           const fallback = query(
             collection(db, "cctvFaultsReports"),
             where("status", "==", "live"),
@@ -1082,7 +1195,10 @@ class StaffService {
             (snapshot) => {
               const faults = snapshot.docs
                 .map((doc) => ({ id: doc.id, ...doc.data() }))
-                .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                .sort(
+                  (a, b) =>
+                    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+                );
               callback(faults);
             },
             onError,
@@ -1172,7 +1288,7 @@ class StaffService {
       const dateQuery = query(
         reportsRef,
         where("occurrences", "!=", null),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "desc"),
       );
 
       const snapshot = await getDocs(dateQuery);
@@ -1190,7 +1306,7 @@ class StaffService {
         if (data.occurrences && data.occurrences.length > 0) {
           // Check if any occurrence in the existing report matches today's date
           const hasMatchingDate = data.occurrences.some(
-            (occ) => occ.date === firstOccurrenceDate
+            (occ) => occ.date === firstOccurrenceDate,
           );
           if (hasMatchingDate) {
             // Use the report's schemeIds array directly (more reliable than extracting from occurrences)
@@ -1198,8 +1314,9 @@ class StaffService {
             const reportSchemeIds = data.schemeIds || [];
 
             const hasAnyDemo = reportSchemeIds.includes(DEMO_SCHEME_ID);
-            const hasOnlyDemo = reportSchemeIds.length > 0 &&
-              reportSchemeIds.every(id => id === DEMO_SCHEME_ID);
+            const hasOnlyDemo =
+              reportSchemeIds.length > 0 &&
+              reportSchemeIds.every((id) => id === DEMO_SCHEME_ID);
 
             // For demo submission: only merge with reports that are EXCLUSIVELY demo
             // For real submission: only merge with reports that have NO demo schemes
@@ -1230,18 +1347,20 @@ class StaffService {
 
         // Recalculate schemeIds from all occurrences
         const hasAllSchemes = mergedOccurrences.some(
-          (occ) => occ.scheme === "All Schemes"
+          (occ) => occ.scheme === "All Schemes",
         );
         let schemeIds;
         if (hasAllSchemes) {
           // Exclude demo scheme from "All Schemes"
-          schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
+          schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map(
+            (scheme) => scheme.id,
+          );
         } else {
           schemeIds = [
             ...new Set(
               mergedOccurrences
                 .map((occ) => (occ.scheme ? extractSchemeId(occ.scheme) : null))
-                .filter((id) => id !== null)
+                .filter((id) => id !== null),
             ),
           ];
         }
@@ -1276,26 +1395,37 @@ class StaffService {
       }
 
       // No existing report found - create a new one
-      // Generate reference ID (with separate counter for demo)
+      // Check if this is a third party submission
+      const tpSchemeId =
+        !isNewSubmissionDemo &&
+        newSubmissionSchemeId &&
+        getThirdPartySchemeById(newSubmissionSchemeId)
+          ? newSubmissionSchemeId
+          : null;
+
+      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "dailyOccurrence",
-        isNewSubmissionDemo
+        isNewSubmissionDemo,
+        tpSchemeId,
       );
 
       // Extract unique schemeIds from all occurrences
       const hasAllSchemes = formData.occurrences.some(
-        (occ) => occ.scheme === "All Schemes"
+        (occ) => occ.scheme === "All Schemes",
       );
       let schemeIds;
       if (hasAllSchemes) {
         // Exclude demo scheme from "All Schemes"
-        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
+        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map(
+          (scheme) => scheme.id,
+        );
       } else {
         schemeIds = [
           ...new Set(
             formData.occurrences
               .map((occ) => (occ.scheme ? extractSchemeId(occ.scheme) : null))
-              .filter((id) => id !== null)
+              .filter((id) => id !== null),
           ),
         ];
       }
@@ -1341,12 +1471,12 @@ class StaffService {
               reportsRef,
               where("submittedBy.userId", "==", userId),
               orderBy("createdAt", "desc"),
-              limit(limitCount)
+              limit(limitCount),
             )
           : query(
               reportsRef,
               where("submittedBy.userId", "==", userId),
-              orderBy("createdAt", "desc")
+              orderBy("createdAt", "desc"),
             );
       } else {
         // When fetching all, no limit unless explicitly provided
@@ -1386,20 +1516,22 @@ class StaffService {
       // Recalculate schemeIds when occurrences are updated
       // Check if any occurrence has "All Schemes"
       const hasAllSchemes = formData.occurrences?.some(
-        (occ) => occ.scheme === "All Schemes"
+        (occ) => occ.scheme === "All Schemes",
       );
 
       let schemeIds;
       if (hasAllSchemes) {
         // Include all scheme IDs except demo when "All Schemes" is selected
-        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
+        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map(
+          (scheme) => scheme.id,
+        );
       } else if (formData.occurrences) {
         // Extract unique scheme IDs from occurrences
         schemeIds = [
           ...new Set(
             formData.occurrences
               .map((occ) => (occ.scheme ? extractSchemeId(occ.scheme) : null))
-              .filter((id) => id !== null)
+              .filter((id) => id !== null),
           ),
         ];
       } else {
@@ -1459,7 +1591,12 @@ class StaffService {
   }
 
   // Remove a single occurrence from a daily occurrence report (admin only)
-  async removeOccurrenceFromReport(reportId, occurrenceIndex, userId, userName) {
+  async removeOccurrenceFromReport(
+    reportId,
+    occurrenceIndex,
+    userId,
+    userName,
+  ) {
     try {
       const reportRef = doc(db, "dailyOccurrenceReports", reportId);
       const reportDoc = await getDoc(reportRef);
@@ -1479,7 +1616,9 @@ class StaffService {
       const removedOccurrence = occurrences[occurrenceIndex];
 
       // Remove the occurrence at the specified index
-      const updatedOccurrences = occurrences.filter((_, i) => i !== occurrenceIndex);
+      const updatedOccurrences = occurrences.filter(
+        (_, i) => i !== occurrenceIndex,
+      );
 
       // If no occurrences left, delete the entire report
       if (updatedOccurrences.length === 0) {
@@ -1498,18 +1637,20 @@ class StaffService {
 
       // Recalculate schemeIds from remaining occurrences
       const hasAllSchemes = updatedOccurrences.some(
-        (occ) => occ.scheme === "All Schemes"
+        (occ) => occ.scheme === "All Schemes",
       );
 
       let schemeIds;
       if (hasAllSchemes) {
-        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map((scheme) => scheme.id);
+        schemeIds = SCHEMES.filter((scheme) => !scheme.isDemo).map(
+          (scheme) => scheme.id,
+        );
       } else {
         schemeIds = [
           ...new Set(
             updatedOccurrences
               .map((occ) => extractSchemeId(occ.scheme))
-              .filter(Boolean)
+              .filter(Boolean),
           ),
         ];
       }
@@ -1543,7 +1684,11 @@ class StaffService {
         relatedFormId: reportId,
       });
 
-      return { deleted: false, reportId, remainingOccurrences: updatedOccurrences.length };
+      return {
+        deleted: false,
+        reportId,
+        remainingOccurrences: updatedOccurrences.length,
+      };
     } catch (error) {
       console.error("Failed to remove occurrence from report:", error);
       throw error;
@@ -1573,26 +1718,77 @@ class StaffService {
    * @param {object} cursors - Cursors for each collection type
    * @returns {Promise<{forms: Array, cursors: object, hasMore: boolean}>}
    */
-  async getAllFormsPaginated(pageSize = 10, cursors = {}, schemeId = null) {
+  async getAllFormsPaginated(pageSize = 10, cursors = {}, schemeIds = null) {
     try {
       // Fetch pageSize from each type so the merged result is truly chronological
       const perTypeLimit = pageSize;
 
-      const [cctvForms, incidentReports, assetDamageReports, dailyOccurrenceReports, cctvFaultsReports] = await Promise.all([
-        this.fetchPaginatedForms("cctvCheckForms", perTypeLimit, cursors.cctv, schemeId),
-        this.fetchPaginatedForms("incidentReports", perTypeLimit, cursors.incident, schemeId),
-        this.fetchPaginatedForms("assetDamageReports", perTypeLimit, cursors.assetDamage, schemeId),
-        this.fetchPaginatedForms("dailyOccurrenceReports", perTypeLimit, cursors.dailyOccurrence, schemeId),
-        this.fetchPaginatedForms("cctvFaultsReports", perTypeLimit, cursors.cctvFaults, schemeId)
+      const [
+        cctvForms,
+        incidentReports,
+        assetDamageReports,
+        dailyOccurrenceReports,
+        cctvFaultsReports,
+      ] = await Promise.all([
+        this.fetchPaginatedForms(
+          "cctvCheckForms",
+          perTypeLimit,
+          cursors.cctv,
+          schemeIds,
+        ),
+        this.fetchPaginatedForms(
+          "incidentReports",
+          perTypeLimit,
+          cursors.incident,
+          schemeIds,
+        ),
+        this.fetchPaginatedForms(
+          "assetDamageReports",
+          perTypeLimit,
+          cursors.assetDamage,
+          schemeIds,
+        ),
+        this.fetchPaginatedForms(
+          "dailyOccurrenceReports",
+          perTypeLimit,
+          cursors.dailyOccurrence,
+          schemeIds,
+        ),
+        this.fetchPaginatedForms(
+          "cctvFaultsReports",
+          perTypeLimit,
+          cursors.cctvFaults,
+          schemeIds,
+        ),
       ]);
 
       // Transform and combine all forms — tag each with its source for cursor tracking
       const allForms = [
-        ...cctvForms.docs.map(f => ({ ...f, type: 'CCTV Check Sheet', _source: 'cctv' })),
-        ...incidentReports.docs.map(f => ({ ...f, type: 'Incident Report', _source: 'incident' })),
-        ...assetDamageReports.docs.map(f => ({ ...f, type: 'Asset Damage', _source: 'assetDamage' })),
-        ...dailyOccurrenceReports.docs.map(f => ({ ...f, type: 'Daily Occurrence', _source: 'dailyOccurrence' })),
-        ...cctvFaultsReports.docs.map(f => ({ ...f, type: 'CCTV Faults', _source: 'cctvFaults' }))
+        ...cctvForms.docs.map((f) => ({
+          ...f,
+          type: "CCTV Check Sheet",
+          _source: "cctv",
+        })),
+        ...incidentReports.docs.map((f) => ({
+          ...f,
+          type: "Incident Report",
+          _source: "incident",
+        })),
+        ...assetDamageReports.docs.map((f) => ({
+          ...f,
+          type: "Asset Damage",
+          _source: "assetDamage",
+        })),
+        ...dailyOccurrenceReports.docs.map((f) => ({
+          ...f,
+          type: "Daily Occurrence",
+          _source: "dailyOccurrence",
+        })),
+        ...cctvFaultsReports.docs.map((f) => ({
+          ...f,
+          type: "CCTV Faults",
+          _source: "cctvFaults",
+        })),
       ];
 
       // Sort by createdAt and take only pageSize items
@@ -1607,20 +1803,26 @@ class StaffService {
       // Only advance cursors for collections that had docs included in the final slice.
       // This prevents skipping unseen docs from collections that were fetched but not displayed.
       const newCursors = { ...cursors };
-      sortedForms.forEach(form => {
+      sortedForms.forEach((form) => {
         if (form._firestoreDoc) {
           newCursors[form._source] = form._firestoreDoc;
         }
       });
 
       // Clean internal tracking fields before returning
-      const cleanForms = sortedForms.map(({ _source, _firestoreDoc, ...rest }) => rest);
+      const cleanForms = sortedForms.map(
+        ({ _source, _firestoreDoc, ...rest }) => rest,
+      );
 
       return {
         forms: cleanForms,
         cursors: newCursors,
-        hasMore: cctvForms.hasMore || incidentReports.hasMore ||
-                 assetDamageReports.hasMore || dailyOccurrenceReports.hasMore || cctvFaultsReports.hasMore,
+        hasMore:
+          cctvForms.hasMore ||
+          incidentReports.hasMore ||
+          assetDamageReports.hasMore ||
+          dailyOccurrenceReports.hasMore ||
+          cctvFaultsReports.hasMore,
       };
     } catch (error) {
       console.error("Failed to get paginated forms:", error);
@@ -1632,20 +1834,39 @@ class StaffService {
    * Get forms of a specific type with true server-side pagination
    * Used when a type filter is active — fetches exactly pageSize of that type only
    */
-  async getFormsByTypePaginated(formType, pageSize = 10, lastDoc = null, schemeId = null) {
+  async getFormsByTypePaginated(
+    formType,
+    pageSize = 10,
+    lastDoc = null,
+    schemeIds = null,
+  ) {
     const configMap = {
-      'cctv-check':        { collection: 'cctvCheckForms',          label: 'CCTV Check Sheet' },
-      'incident':          { collection: 'incidentReports',         label: 'Incident Report' },
-      'asset-damage':      { collection: 'assetDamageReports',      label: 'Asset Damage' },
-      'daily-occurrence':  { collection: 'dailyOccurrenceReports',  label: 'Daily Occurrence' },
-      'cctv-faults':       { collection: 'cctvFaultsReports',       label: 'CCTV Faults' },
+      "cctv-check": { collection: "cctvCheckForms", label: "CCTV Check Sheet" },
+      incident: { collection: "incidentReports", label: "Incident Report" },
+      "asset-damage": {
+        collection: "assetDamageReports",
+        label: "Asset Damage",
+      },
+      "daily-occurrence": {
+        collection: "dailyOccurrenceReports",
+        label: "Daily Occurrence",
+      },
+      "cctv-faults": { collection: "cctvFaultsReports", label: "CCTV Faults" },
     };
     const config = configMap[formType];
     if (!config) return { forms: [], lastDoc: null, hasMore: false };
 
     try {
-      const result = await this.fetchPaginatedForms(config.collection, pageSize, lastDoc, schemeId);
-      const forms = result.docs.map(({ _firestoreDoc, ...f }) => ({ ...f, type: config.label }));
+      const result = await this.fetchPaginatedForms(
+        config.collection,
+        pageSize,
+        lastDoc,
+        schemeIds,
+      );
+      const forms = result.docs.map(({ _firestoreDoc, ...f }) => ({
+        ...f,
+        type: config.label,
+      }));
       return { forms, lastDoc: result.lastDoc, hasMore: result.hasMore };
     } catch (error) {
       console.error(`Error fetching ${formType} forms:`, error);
@@ -1656,13 +1877,18 @@ class StaffService {
   /**
    * Helper method to fetch paginated documents from a collection
    */
-  async fetchPaginatedForms(collectionName, limitCount, lastDoc, schemeId = null) {
+  async fetchPaginatedForms(
+    collectionName,
+    limitCount,
+    lastDoc,
+    schemeIds = null,
+  ) {
     try {
       const collectionRef = collection(db, collectionName);
       // Build query constraints: optional scheme filter + orderBy + optional cursor + limit
       const constraints = [];
-      if (schemeId) {
-        constraints.push(where("schemeIds", "array-contains", schemeId));
+      if (schemeIds && schemeIds.length > 0) {
+        constraints.push(where("schemeIds", "array-contains-any", schemeIds));
       }
       constraints.push(orderBy("createdAt", "desc"));
       if (lastDoc) {
@@ -1691,21 +1917,54 @@ class StaffService {
   }
 
   /**
-   * Get total count of all forms excluding demo submissions (for pagination display)
-   * Uses getCountFromServer - only 4 reads total
+   * Get total count of all forms.
+   * tpSchemeIds: array of scheme IDs for a TP company — scopes count to those schemes.
+   * null = real staff (excludes demo, sees everything else).
    */
-  async getAllFormsCount() {
+  async getAllFormsCount(tpSchemeIds = null) {
     try {
-      const [cctvCount, incidentCount, assetCount, dailyCount, cctvFaultsCount] = await Promise.all([
-        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
-        this.getCollectionCountServerExcludeDemo("incidentReports"),
-        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
-        this.getCollectionCountServer("dailyOccurrenceReports"),
-        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
+      const hasFilter = tpSchemeIds && tpSchemeIds.length > 0;
+      const [
+        cctvCount,
+        incidentCount,
+        assetCount,
+        dailyCount,
+        cctvFaultsCount,
+      ] = await Promise.all([
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "cctvCheckForms",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "incidentReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("incidentReports"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "assetDamageReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("assetDamageReports"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "dailyOccurrenceReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServer("dailyOccurrenceReports"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "cctvFaultsReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
       ]);
-
-      return cctvCount + incidentCount + assetCount + dailyCount + cctvFaultsCount;
+      return (
+        cctvCount + incidentCount + assetCount + dailyCount + cctvFaultsCount
+      );
     } catch (error) {
       console.warn("Could not get total forms count:", error);
       return 0;
@@ -1713,20 +1972,51 @@ class StaffService {
   }
 
   /**
-   * Get count per form type excluding demo submissions (for stat cards)
-   * Uses getCountFromServer - only 4 reads total
+   * Get count per form type (for stat cards).
+   * tpSchemeIds: array of scheme IDs for a TP company — scopes count to those schemes.
+   * null = real staff (excludes demo).
    */
-  async getAllFormsCountByType() {
+  async getAllFormsCountByType(tpSchemeIds = null) {
     try {
-      const [cctvCount, incidentCount, assetCount, dailyCount, cctvFaultsCount] = await Promise.all([
-        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
-        this.getCollectionCountServerExcludeDemo("incidentReports"),
-        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
-        this.getCollectionCountServer("dailyOccurrenceReports"),
-        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
+      const hasFilter = tpSchemeIds && tpSchemeIds.length > 0;
+      const [
+        cctvCount,
+        incidentCount,
+        assetCount,
+        dailyCount,
+        cctvFaultsCount,
+      ] = await Promise.all([
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "cctvCheckForms",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "incidentReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("incidentReports"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "assetDamageReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("assetDamageReports"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "dailyOccurrenceReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServer("dailyOccurrenceReports"),
+        hasFilter
+          ? this.getCollectionCountServerForSchemes(
+              "cctvFaultsReports",
+              tpSchemeIds,
+            )
+          : this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
       ]);
-
       return {
         cctvCheckTotal: cctvCount,
         incidentReportTotal: incidentCount,
@@ -1736,34 +2026,45 @@ class StaffService {
       };
     } catch (error) {
       console.warn("Could not get forms count by type:", error);
-      return { cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0, cctvFaultsTotal: 0 };
+      return {
+        cctvCheckTotal: 0,
+        incidentReportTotal: 0,
+        assetDamageTotal: 0,
+        dailyLogsTotal: 0,
+        cctvFaultsTotal: 0,
+      };
     }
   }
 
   /**
-   * Get count for a specific form type excluding demo submissions (for filtered pagination display)
+   * Get count for a specific form type (for filtered pagination display).
+   * tpSchemeIds: array of scheme IDs for a TP company — scopes count to those schemes.
+   * null = real staff (excludes demo).
    */
-  async getFormCountForType(formType) {
+  async getFormCountForType(formType, tpSchemeIds = null) {
     const collectionMap = {
-      'cctv-check':        'cctvCheckForms',
-      'incident':          'incidentReports',
-      'asset-damage':      'assetDamageReports',
-      'daily-occurrence':  'dailyOccurrenceReports',
-      'cctv-faults':       'cctvFaultsReports',
+      "cctv-check": "cctvCheckForms",
+      incident: "incidentReports",
+      "asset-damage": "assetDamageReports",
+      "daily-occurrence": "dailyOccurrenceReports",
+      "cctv-faults": "cctvFaultsReports",
     };
     const collectionName = collectionMap[formType];
     if (!collectionName) return 0;
-    // Daily occurrence forms don't have a top-level schemeId, use regular count
-    if (formType === 'daily-occurrence') {
+    if (tpSchemeIds && tpSchemeIds.length > 0) {
+      return await this.getCollectionCountServerForSchemes(
+        collectionName,
+        tpSchemeIds,
+      );
+    }
+    if (formType === "daily-occurrence") {
       return await this.getCollectionCountServer(collectionName);
     }
     return await this.getCollectionCountServerExcludeDemo(collectionName);
   }
 
   /**
-   * Helper: count documents in a collection excluding demo submissions.
-   * Every form stores schemeId = its primary scheme. Demo forms have schemeId = "DMO1".
-   * Querying schemeId != DMO1 gives us only real submissions. 1 read regardless of collection size.
+   * Helper: count documents excluding demo submissions.
    */
   async getCollectionCountServerExcludeDemo(collectionName) {
     try {
@@ -1772,7 +2073,26 @@ class StaffService {
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
     } catch (error) {
-      console.warn(`Could not get non-demo count for ${collectionName}:`, error);
+      console.warn(
+        `Could not get non-demo count for ${collectionName}:`,
+        error,
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Helper: count documents scoped to a set of scheme IDs (for TP company filtering).
+   * Uses "in" query — supports up to 30 values (Firestore limit).
+   */
+  async getCollectionCountServerForSchemes(collectionName, schemeIds) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      const q = query(collectionRef, where("schemeId", "in", schemeIds));
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn(`Could not get scheme count for ${collectionName}:`, error);
       return 0;
     }
   }
@@ -1782,25 +2102,43 @@ class StaffService {
     if (!raw) return [];
     const termRef = raw.toUpperCase();
     const termName = raw;
-    const termRefEnd = termRef + '\uf8ff';
-    const termNameEnd = termName + '\uf8ff';
+    const termRefEnd = termRef + "\uf8ff";
+    const termNameEnd = termName + "\uf8ff";
 
     const COLLECTIONS = [
-      { name: 'incidentReports',        type: 'Incident Report'  },
-      { name: 'assetDamageReports',     type: 'Asset Damage'     },
-      { name: 'dailyOccurrenceReports', type: 'Daily Occurrence' },
-      { name: 'cctvCheckForms',         type: 'CCTV Check Sheet' },
-      { name: 'cctvFaultsReports',      type: 'CCTV Faults'      },
+      { name: "incidentReports", type: "Incident Report" },
+      { name: "assetDamageReports", type: "Asset Damage" },
+      { name: "dailyOccurrenceReports", type: "Daily Occurrence" },
+      { name: "cctvCheckForms", type: "CCTV Check Sheet" },
+      { name: "cctvFaultsReports", type: "CCTV Faults" },
     ];
 
     // Run referenceId and submittedBy.name queries in parallel
     const [refSnapshots, nameSnapshots] = await Promise.all([
-      Promise.all(COLLECTIONS.map(({ name }) =>
-        getDocs(query(collection(db, name), where('referenceId', '>=', termRef), where('referenceId', '<=', termRefEnd), limit(10)))
-      )),
-      Promise.all(COLLECTIONS.map(({ name }) =>
-        getDocs(query(collection(db, name), where('submittedBy.name', '>=', termName), where('submittedBy.name', '<=', termNameEnd), limit(10)))
-      )),
+      Promise.all(
+        COLLECTIONS.map(({ name }) =>
+          getDocs(
+            query(
+              collection(db, name),
+              where("referenceId", ">=", termRef),
+              where("referenceId", "<=", termRefEnd),
+              limit(10),
+            ),
+          ),
+        ),
+      ),
+      Promise.all(
+        COLLECTIONS.map(({ name }) =>
+          getDocs(
+            query(
+              collection(db, name),
+              where("submittedBy.name", ">=", termName),
+              where("submittedBy.name", "<=", termNameEnd),
+              limit(10),
+            ),
+          ),
+        ),
+      ),
     ]);
 
     const seen = new Set();
@@ -1809,7 +2147,7 @@ class StaffService {
     const addDocs = (snapshots) => {
       snapshots.forEach((snap, i) => {
         const { type } = COLLECTIONS[i];
-        snap.docs.forEach(d => {
+        snap.docs.forEach((d) => {
           if (seen.has(d.id)) return;
           seen.add(d.id);
           results.push({ id: d.id, ...d.data(), type });
@@ -1820,7 +2158,9 @@ class StaffService {
     addDocs(refSnapshots);
     addDocs(nameSnapshots);
 
-    results.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    results.sort(
+      (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+    );
     return results.slice(0, 20);
   }
 

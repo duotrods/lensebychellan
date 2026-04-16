@@ -13,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
+  Hash,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -72,6 +73,11 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Client Charts",
       path: "/dashboard/admin/client-charts",
       icon: BarChart3,
+    },
+    {
+      name: "Reference IDs",
+      path: "/dashboard/admin/reference-id-manager",
+      icon: Hash,
     },
   ];
 

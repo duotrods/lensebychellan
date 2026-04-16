@@ -6,15 +6,22 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { isDemoUser, getSchemesForUser } from "../../utils/schemes";
+import { isAnyThirdParty } from "../../utils/roleHelpers";
+import { getStaffBasePath } from "../../utils/constants";
 
 import chellanlogo from "../../assets/chellanpng.png"
 
 const DailyOccurrenceFormPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
+
+  const isThirdParty = isAnyThirdParty(userProfile?.role);
+  const availableSchemes = getSchemesForUser(userProfile);
+  const singleScheme = isThirdParty && availableSchemes.length === 1 ? availableSchemes[0] : null;
 
   // Helper function to format date as DD/MM/YYYY
   const formatDateToBritish = (date) => {
@@ -37,7 +44,7 @@ const DailyOccurrenceFormPage = () => {
         recoveryRequired: "",
         rcc: "",
         nameInitials: userProfile?.displayName || "", // Auto-fill full name
-        scheme: "",
+        scheme: singleScheme ? singleScheme.fullName : "",
       },
     ],
   });
@@ -73,7 +80,7 @@ const DailyOccurrenceFormPage = () => {
         });
       } else {
         toast.error("Form not found");
-        navigate("/dashboard/staff");
+        navigate(basePath);
       }
     } catch (error) {
       console.error("Failed to load form:", error);
@@ -104,7 +111,7 @@ const DailyOccurrenceFormPage = () => {
           recoveryRequired: "",
           rcc: "",
           nameInitials: userProfile?.displayName || "", // Auto-fill full name
-          scheme: "",
+          scheme: singleScheme ? singleScheme.fullName : "",
         },
       ],
     }));
@@ -145,7 +152,7 @@ const DailyOccurrenceFormPage = () => {
           userProfile.displayName
         );
         toast.success("Daily Occurrence Report updated successfully!");
-        navigate("/dashboard/staff");
+        navigate(basePath);
       } else {
         const result = await staffService.submitDailyOccurrenceReport(
           trimmedFormData,
@@ -176,7 +183,7 @@ const DailyOccurrenceFormPage = () => {
               recoveryRequired: "",
               rcc: "",
               nameInitials: userProfile?.displayName || "",
-              scheme: "",
+              scheme: singleScheme ? singleScheme.fullName : "",
             },
           ],
         });
@@ -190,7 +197,7 @@ const DailyOccurrenceFormPage = () => {
   };
 
   return (
-    <StaffSidebarLayout>
+    <StaffSidebarLayout basePath={basePath}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -258,22 +265,33 @@ const DailyOccurrenceFormPage = () => {
                         Scheme <span className="text-red-500">*</span>
                       </span>
                     </label>
-                    <select
-                      value={occurrence.scheme}
-                      onChange={(e) =>
-                        handleOccurrenceChange(index, "scheme", e.target.value)
-                      }
-                      className="select select-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                      required
-                    >
-                      <option value="">Please Select</option>
-                      {!isDemoUser(userProfile) && userProfile?.role !== 'thirdpartyoperator' && <option value="All Schemes">All Schemes</option>}
-                      {getSchemesForUser(userProfile).map((scheme) => (
-                        <option key={scheme.id} value={scheme.fullName}>
-                          {scheme.fullName}
-                        </option>
-                      ))}
-                    </select>
+                    {singleScheme ? (
+                      <input
+                        type="text"
+                        value={singleScheme.fullName}
+                        readOnly
+                        className="input input-sm bg-gray-100 border-gray-300 rounded-lg w-full cursor-not-allowed text-gray-500"
+                      />
+                    ) : (
+                      <select
+                        value={occurrence.scheme}
+                        onChange={(e) =>
+                          handleOccurrenceChange(index, "scheme", e.target.value)
+                        }
+                        className="select select-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                        required
+                      >
+                        <option value="">Please Select</option>
+                        {!isDemoUser(userProfile) && !isThirdParty && (
+                          <option value="All Schemes">All Schemes</option>
+                        )}
+                        {availableSchemes.map((scheme) => (
+                          <option key={scheme.id} value={scheme.fullName}>
+                            {scheme.fullName}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   {/* Date, Time, Location, URN */}

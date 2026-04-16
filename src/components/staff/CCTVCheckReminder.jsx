@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { Video, X } from 'lucide-react';
 
-const CCTVCheckReminder = ({ onDismiss }) => {
+const CCTVCheckReminder = ({ onDismiss, basePath = '/dashboard/staff' }) => {
   const navigate = useNavigate();
 
   const handleStartCheck = () => {
     onDismiss();
-    navigate('/dashboard/staff/cctv-check-form');
+    navigate(`${basePath}/forms/cctv-check`);
   };
 
   return (

@@ -95,7 +95,7 @@ const SchemeAssignment = () => {
         firestoreService.getAllUsersPaginated(100, null, "client"),
         firestoreService.getAllUsersPaginated(100, null, "liveoperator"),
         firestoreService.getAllUsersPaginated(100, null, "cctvfaultoperator"),
-        firestoreService.getAllUsersPaginated(100, null, "thirdpartyoperator"),
+        firestoreService.getAllUsersPaginated(100, null, "thirdpartystaff"),
         firestoreService.getAllUsersPaginated(100, null, "thirdpartyclient"),
         firestoreService.getAllUsersPaginated(100, null, "thirdpartyliveoperator"),
         firestoreService.getAllUsersPaginated(100, null, "thirdpartycctvoperator"),
@@ -323,9 +323,9 @@ const SchemeAssignment = () => {
               CCTV Operators
             </button>
             <button
-              onClick={() => handleRoleFilterChange("thirdpartyoperator")}
+              onClick={() => handleRoleFilterChange("thirdpartystaff")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "thirdpartyoperator"
+                roleFilter === "thirdpartystaff"
                   ? "bg-teal-500 text-white"
                   : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}

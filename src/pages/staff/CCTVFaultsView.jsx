@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, Edit, Radio, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
+import { useAuth } from '../../hooks/useAuth';
+import { getStaffBasePath } from '../../utils/constants';
 
 const formatNoteTime = (addedAt) => {
   if (!addedAt) return '';
@@ -47,6 +49,8 @@ const NoteThread = ({ notes, legacyNote }) => {
 const CCTVFaultsView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const basePath = getStaffBasePath(role);
   const [fault, setFault] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -64,7 +68,7 @@ const CCTVFaultsView = () => {
         setFault(found);
       } else {
         toast.error('Fault report not found');
-        navigate('/dashboard/staff');
+        navigate(basePath);
       }
     } catch (error) {
       console.error('Failed to load fault report:', error);
@@ -88,7 +92,7 @@ const CCTVFaultsView = () => {
 
   if (loading) {
     return (
-      <StaffSidebarLayout>
+      <StaffSidebarLayout basePath={basePath}>
         <div className="flex justify-center items-center h-64">
           <span className="loading loading-spinner loading-lg text-teal-500"></span>
         </div>
@@ -98,7 +102,7 @@ const CCTVFaultsView = () => {
 
   if (!fault) {
     return (
-      <StaffSidebarLayout>
+      <StaffSidebarLayout basePath={basePath}>
         <div className="text-center py-12">
           <p className="text-gray-500">Fault report not found</p>
         </div>
@@ -107,7 +111,7 @@ const CCTVFaultsView = () => {
   }
 
   return (
-    <StaffSidebarLayout>
+    <StaffSidebarLayout basePath={basePath}>
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -127,7 +131,7 @@ const CCTVFaultsView = () => {
           </div>
 
           <button
-            onClick={() => navigate(`/dashboard/staff/forms/cctv-faults?edit=${id}`)}
+            onClick={() => navigate(`${basePath}/forms/cctv-faults?edit=${id}`)}
             className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
           >
             <Edit className="w-4 h-4" />

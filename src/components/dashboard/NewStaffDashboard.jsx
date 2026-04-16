@@ -23,19 +23,24 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
-import { isDemoUser, DEMO_SCHEME_ID } from "../../utils/schemes";
-import { USER_ROLES } from "../../utils/constants";
+import { isDemoUser, DEMO_SCHEME_ID, getSchemeIdsForCompany } from "../../utils/schemes";
+import { USER_ROLES, getStaffBasePath } from "../../utils/constants";
+
+const TP_STAFF_ROLES = [USER_ROLES.THIRDPARTYSTAFF, USER_ROLES.THIRDPARTYLIVEOPERATOR, USER_ROLES.THIRDPARTYCCTVOPERATOR];
 
 // Module-level variable — survives component unmount/remount, no serialization needed
 let _dashRestore = null;
 
 const NewStaffDashboard = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
-  // Third-party staff are scoped to their assigned scheme only
-  const tpSchemeId = userProfile?.role === USER_ROLES.THIRDPARTYOPERATOR
-    ? (userProfile?.activeSchemeId || userProfile?.schemeId || null)
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
+  // TP Staff/LiveOp/CCTVOp are scoped to all schemes belonging to their company.
+  // null = real staff (no filter).
+  const _ids = TP_STAFF_ROLES.includes(userProfile?.role) && userProfile?.company
+    ? getSchemeIdsForCompany(userProfile.company)
     : null;
+  const tpSchemeIds = _ids && _ids.length > 0 ? _ids : null;
   // Check if notice board has been shown in this session
   const [showNoticeBoard, setShowNoticeBoard] = useState(() => {
     const hasSeenNotice = sessionStorage.getItem("hasSeenNoticeBoard");
@@ -136,7 +141,7 @@ const NewStaffDashboard = () => {
         const result = await staffService.getAllFormsPaginated(
           formsPerPage,
           effectiveCursors,
-          tpSchemeId,
+          tpSchemeIds,
         );
         rawForms = result.forms;
         newCursors = result.cursors;
@@ -153,7 +158,7 @@ const NewStaffDashboard = () => {
           activeFilter,
           formsPerPage,
           effectiveTypeCursor,
-          tpSchemeId,
+          tpSchemeIds,
         );
         rawForms = result.forms;
         newTypeCursor = result.lastDoc;
@@ -214,7 +219,7 @@ const NewStaffDashboard = () => {
 
   const loadTotalCount = async () => {
     try {
-      const count = await staffService.getAllFormsCount();
+      const count = await staffService.getAllFormsCount(tpSchemeIds);
       setTotalCount(count);
     } catch (error) {
       console.warn("Could not load total count:", error);
@@ -223,7 +228,7 @@ const NewStaffDashboard = () => {
 
   const loadStatCounts = async () => {
     try {
-      const counts = await staffService.getAllFormsCountByType();
+      const counts = await staffService.getAllFormsCountByType(tpSchemeIds);
       setStats(counts);
     } catch (error) {
       console.warn("Could not load stat counts:", error);
@@ -271,7 +276,7 @@ const NewStaffDashboard = () => {
     loadDashboardData(true, newType);
     if (newType !== "all") {
       try {
-        const count = await staffService.getFormCountForType(newType);
+        const count = await staffService.getFormCountForType(newType, tpSchemeIds);
         setTypeCount(count);
       } catch {
         setTypeCount(0);
@@ -479,13 +484,13 @@ const NewStaffDashboard = () => {
       pageCache: { ...pageCacheRef.current },
     };
     if (form.type === "CCTV Check Sheet") {
-      navigate(`/dashboard/staff/reports/cctv-check/${form.id}`);
+      navigate(`${basePath}/reports/cctv-check/${form.id}`);
     } else if (form.type === "Incident Report") {
-      navigate(`/dashboard/staff/reports/incident/${form.id}`);
+      navigate(`${basePath}/reports/incident/${form.id}`);
     } else if (form.type === "Daily Occurrence") {
-      navigate(`/dashboard/staff/reports/daily-logs/${form.id}`);
+      navigate(`${basePath}/reports/daily-logs/${form.id}`);
     } else if (form.type === "CCTV Faults") {
-      navigate(`/dashboard/staff/reports/cctv-faults/${form.id}`);
+      navigate(`${basePath}/reports/cctv-faults/${form.id}`);
     }
   };
 
@@ -502,13 +507,13 @@ const NewStaffDashboard = () => {
       pageCache: { ...pageCacheRef.current },
     };
     if (form.type === "CCTV Check Sheet") {
-      navigate(`/dashboard/staff/forms/cctv-check?edit=${form.id}`);
+      navigate(`${basePath}/forms/cctv-check?edit=${form.id}`);
     } else if (form.type === "Incident Report") {
-      navigate(`/dashboard/staff/forms/incident-report?edit=${form.id}`);
+      navigate(`${basePath}/forms/incident-report?edit=${form.id}`);
     } else if (form.type === "Daily Occurrence") {
-      navigate(`/dashboard/staff/forms/daily-occurence?edit=${form.id}`);
+      navigate(`${basePath}/forms/daily-occurence?edit=${form.id}`);
     } else if (form.type === "CCTV Faults") {
-      navigate(`/dashboard/staff/forms/cctv-faults?edit=${form.id}`);
+      navigate(`${basePath}/forms/cctv-faults?edit=${form.id}`);
     }
   };
 

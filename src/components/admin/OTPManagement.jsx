@@ -16,11 +16,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+// 'byCompany: true' = OTP is tied to a company (Staff, LiveOp, CCTVOp)
+// 'byCompany: false' = OTP is tied to a scheme (Client only)
 const TP_TABS = [
-  { key: 'tpoperator', label: 'Staff', create: (sid, sn, uid) => otpService.createThirdPartyOperatorCode(sid, sn, uid) },
-  { key: 'tpclient', label: 'Client', create: (sid, sn, uid) => otpService.createThirdPartyClientCode(sid, sn, uid) },
-  { key: 'tpliveoperator', label: 'Live Operator', create: (sid, sn, uid) => otpService.createThirdPartyLiveOperatorCode(sid, sn, uid) },
-  { key: 'tpcctvoperator', label: 'CCTV Operator', create: (sid, sn, uid) => otpService.createThirdPartyCCTVOperatorCode(sid, sn, uid) },
+  { key: 'tpoperator',    label: 'Staff',         byCompany: true,  create: (company, uid) => otpService.createThirdPartyOperatorCode(company, uid) },
+  { key: 'tpclient',      label: 'Client',        byCompany: false, create: (sid, sn, uid) => otpService.createThirdPartyClientCode(sid, sn, uid) },
+  { key: 'tpliveoperator', label: 'Live Operator', byCompany: true, create: (company, uid) => otpService.createThirdPartyLiveOperatorCode(company, uid) },
+  { key: 'tpcctvoperator', label: 'CCTV Operator', byCompany: true, create: (company, uid) => otpService.createThirdPartyCCTVOperatorCode(company, uid) },
 ];
 
 const OTPManagement = () => {
@@ -58,7 +60,7 @@ const OTPManagement = () => {
 
   // Third Party tab state
   const [tpSubTab, setTpSubTab] = useState('tpoperator');
-  const [tpFormData, setTpFormData] = useState({ schemeId: '', schemeName: '' });
+  const [tpFormData, setTpFormData] = useState({ company: '', schemeId: '', schemeName: '' });
   const [tpLoading, setTpLoading] = useState(false);
   const [lastTpCode, setLastTpCode] = useState(null);
 
@@ -275,17 +277,23 @@ const OTPManagement = () => {
 
   const handleCreateTPCode = async (e) => {
     e.preventDefault();
-    if (!tpFormData.schemeId || !tpFormData.schemeName) {
-      toast.error('Please fill in all fields');
+    const tabConfig = TP_TABS.find(t => t.key === tpSubTab);
+    if (tabConfig.byCompany && !tpFormData.company) {
+      toast.error('Please select a company');
+      return;
+    }
+    if (!tabConfig.byCompany && (!tpFormData.schemeId || !tpFormData.schemeName)) {
+      toast.error('Please select a scheme');
       return;
     }
     setTpLoading(true);
     try {
-      const tabConfig = TP_TABS.find(t => t.key === tpSubTab);
-      const code = await tabConfig.create(tpFormData.schemeId.toUpperCase(), tpFormData.schemeName, userProfile.uid);
+      const code = tabConfig.byCompany
+        ? await tabConfig.create(tpFormData.company, userProfile.uid)
+        : await tabConfig.create(tpFormData.schemeId.toUpperCase(), tpFormData.schemeName, userProfile.uid);
       setLastTpCode(code);
       toast.success(`Third Party ${tabConfig.label} code created: ${code}`);
-      setTpFormData({ schemeId: '', schemeName: '' });
+      setTpFormData({ company: '', schemeId: '', schemeName: '' });
     } catch {
       toast.error('Failed to create third party code');
     } finally {
@@ -776,7 +784,7 @@ const OTPManagement = () => {
             {TP_TABS.map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => { setTpSubTab(key); setLastTpCode(null); }}
+                onClick={() => { setTpSubTab(key); setLastTpCode(null); setTpFormData({ company: '', schemeId: '', schemeName: '' }); }}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tpSubTab === key
                     ? 'border-teal-500 text-teal-600'
@@ -793,36 +801,61 @@ const OTPManagement = () => {
               Generate {TP_TABS.find(t => t.key === tpSubTab)?.label} Access Code
             </h4>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Scheme</label>
-              <select
-                value={tpFormData.schemeId}
-                onChange={(e) => {
-                  const selected = THIRD_PARTY_SCHEMES.find(s => s.id === e.target.value);
-                  setTpFormData(prev => ({
-                    ...prev,
-                    schemeId: selected ? selected.id : "",
-                    schemeName: selected ? selected.fullName : "",
-                  }));
-                }}
-                className="select select-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-                required
-              >
-                <option value="">Select a scheme</option>
-                {Object.entries(
-                  THIRD_PARTY_SCHEMES.reduce((groups, s) => {
-                    const key = s.company || "Other";
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(s);
-                    return groups;
-                  }, {})
-                ).map(([company, schemes]) => (
-                  <optgroup key={company} label={company}>
-                    {schemes.map(s => (
-                      <option key={s.id} value={s.id}>{s.fullName} ({s.id})</option>
+              {TP_TABS.find(t => t.key === tpSubTab)?.byCompany ? (
+                <>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                  <select
+                    value={tpFormData.company}
+                    onChange={(e) => setTpFormData(prev => ({ ...prev, company: e.target.value }))}
+                    className="select select-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                    required
+                  >
+                    <option value="">Select a company</option>
+                    {[...new Set(THIRD_PARTY_SCHEMES.map(s => s.company))].map(company => (
+                      <option key={company} value={company}>{company}</option>
                     ))}
-                  </optgroup>
-                ))}
-              </select>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    This user will automatically see all schemes belonging to this company.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Scheme</label>
+                  <select
+                    value={tpFormData.schemeId}
+                    onChange={(e) => {
+                      const selected = THIRD_PARTY_SCHEMES.find(s => s.id === e.target.value);
+                      setTpFormData(prev => ({
+                        ...prev,
+                        schemeId: selected ? selected.id : "",
+                        schemeName: selected ? selected.fullName : "",
+                      }));
+                    }}
+                    className="select select-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                    required
+                  >
+                    <option value="">Select a scheme</option>
+                    {Object.entries(
+                      THIRD_PARTY_SCHEMES.reduce((groups, s) => {
+                        const key = s.company || "Other";
+                        if (!groups[key]) groups[key] = [];
+                        groups[key].push(s);
+                        return groups;
+                      }, {})
+                    ).map(([company, schemes]) => (
+                      <optgroup key={company} label={company}>
+                        {schemes.map(s => (
+                          <option key={s.id} value={s.id}>{s.fullName} ({s.id})</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Admin will assign additional schemes after signup via Scheme Assignment.
+                  </p>
+                </>
+              )}
             </div>
             <button
               type="submit"

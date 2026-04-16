@@ -328,9 +328,8 @@ class AuthService {
       await firestoreService.createUserDocument(user.uid, {
         ...userData,
         email,
-        role: USER_ROLES.THIRDPARTYOPERATOR,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
+        role: USER_ROLES.THIRDPARTYSTAFF,
+        company: otpValidation.company,
         emailVerified: false,
         metadata: {
           signInMethod: 'email',
@@ -399,8 +398,7 @@ class AuthService {
         ...userData,
         email,
         role: USER_ROLES.THIRDPARTYLIVEOPERATOR,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
+        company: otpValidation.company,
         emailVerified: false,
         metadata: {
           signInMethod: 'email',
@@ -434,8 +432,7 @@ class AuthService {
         ...userData,
         email,
         role: USER_ROLES.THIRDPARTYCCTVOPERATOR,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
+        company: otpValidation.company,
         emailVerified: false,
         metadata: {
           signInMethod: 'email',

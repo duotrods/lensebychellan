@@ -19,13 +19,24 @@ import { db } from '../config/firebase';
 class ReferenceIdService {
   /**
    * Generate next reference ID for a given type
-   * @param {string} type - The form type (incident, assetDamage, dailyOccurrence, cctvCheck)
+   * @param {string} type - The form type (incident, assetDamage, dailyOccurrence, cctvCheck, cctvFaults)
    * @param {boolean} isDemo - Whether this is a demo account submission
+   * @param {string|null} thirdPartySchemeId - Scheme ID for third party submissions (e.g. "NEWCO1")
+   *   When provided, uses an isolated counter so third party numbering never overlaps with
+   *   real staff or demo counters. Format: CF01-TP-NEWCO1
    * @returns {Promise<string>} The generated reference ID
    */
-  async generateReferenceId(type, isDemo = false) {
+  async generateReferenceId(type, isDemo = false, thirdPartySchemeId = null) {
     const config = this.getTypeConfig(type);
-    const counterName = isDemo ? `${config.counterName}_demo` : config.counterName;
+
+    let counterName;
+    if (thirdPartySchemeId) {
+      counterName = `${config.counterName}_tp_${thirdPartySchemeId}`;
+    } else if (isDemo) {
+      counterName = `${config.counterName}_demo`;
+    } else {
+      counterName = config.counterName;
+    }
 
     try {
       // Use a transaction to ensure atomicity
@@ -39,13 +50,16 @@ class ReferenceIdService {
           nextNumber = (counterDoc.data().current || 0) + 1;
           transaction.update(counterRef, { current: nextNumber });
         } else {
-          // Initialize counter if it doesn't exist
+          // Initialize counter at 1 (starts fresh at 0 effectively — first ID is 01)
           transaction.set(counterRef, { current: nextNumber });
         }
 
         // Format the number with leading zeros
         const formattedNumber = String(nextNumber).padStart(config.digits, '0');
-        // Add -DEMO suffix for demo accounts
+
+        if (thirdPartySchemeId) {
+          return `${config.prefix}${formattedNumber}-TP-${thirdPartySchemeId}`;
+        }
         return isDemo
           ? `${config.prefix}${formattedNumber}-DEMO`
           : `${config.prefix}${formattedNumber}`;

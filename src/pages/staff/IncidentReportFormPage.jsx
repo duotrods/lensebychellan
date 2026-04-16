@@ -4,6 +4,7 @@ import { toast } from "react-hot-toast";
 import { ArrowLeft, Upload, X, ChevronRight } from "lucide-react";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { useAuth } from "../../hooks/useAuth";
+import { getStaffBasePath } from "../../utils/constants";
 import { staffService } from "../../services/staffService";
 import { sendIncidentAlertNotification } from "../../services/emailService";
 
@@ -23,7 +24,8 @@ import chellanlogo from "../../assets/chellanpng.png";
 
 const IncidentReportFormPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
@@ -135,7 +137,7 @@ const IncidentReportFormPage = () => {
         }
       } else {
         toast.error("Form not found");
-        navigate("/dashboard/staff");
+        navigate(basePath);
       }
     } catch (error) {
       console.error("Failed to load form:", error);
@@ -417,7 +419,7 @@ const IncidentReportFormPage = () => {
       );
 
       toast.success("Progress saved! Incident is still live.");
-      navigate("/dashboard/staff");
+      navigate(basePath);
     } catch (error) {
       console.error("Error saving progress:", error);
       toast.error("Failed to save progress. Please try again.");
@@ -490,7 +492,7 @@ const IncidentReportFormPage = () => {
         } else {
           toast.success("Incident Report updated successfully!");
         }
-        navigate("/dashboard/staff");
+        navigate(basePath);
       } else {
         // Submit new form (regular flow - not using 2-step)
         const { referenceId: newReferenceId } =
@@ -1645,7 +1647,7 @@ const IncidentReportFormPage = () => {
   );
 
   return (
-    <StaffSidebarLayout>
+    <StaffSidebarLayout basePath={basePath}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">

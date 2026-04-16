@@ -6,12 +6,15 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { getSchemesForUser } from "../../utils/schemes";
+import { isAnyThirdParty } from "../../utils/roleHelpers";
+import { getStaffBasePath } from "../../utils/constants";
 
 import chellanlogo from "../../assets/chellanpng.png";
 
 const CCTVFaultsFormPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
   const [searchParams] = useSearchParams();
   const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
@@ -26,11 +29,15 @@ const CCTVFaultsFormPage = () => {
     return `${day}/${month}/${year}`;
   };
 
+  const isThirdParty = isAnyThirdParty(userProfile?.role);
+  const availableSchemes = getSchemesForUser(userProfile);
+  const singleScheme = isThirdParty && availableSchemes.length === 1 ? availableSchemes[0] : null;
+
   const [formData, setFormData] = useState({
     fullName: userProfile?.displayName || "",
     date: formatDateToBritish(new Date()),
     time: new Date().toTimeString().slice(0, 5),
-    scheme: "",
+    scheme: singleScheme ? singleScheme.fullName : "",
     camera: "",
   });
 
@@ -67,7 +74,7 @@ const CCTVFaultsFormPage = () => {
         });
       } else {
         toast.error("Form not found");
-        navigate("/dashboard/staff");
+        navigate(basePath);
       }
     } catch (error) {
       console.error("Failed to load form:", error);
@@ -120,7 +127,7 @@ const CCTVFaultsFormPage = () => {
           userProfile.displayName
         );
         toast.success("CCTV Fault report updated successfully!");
-        navigate("/dashboard/staff");
+        navigate(basePath);
       } else {
         await staffService.submitCCTVFaultsReport(
           trimmedData,
@@ -132,7 +139,7 @@ const CCTVFaultsFormPage = () => {
           fullName: userProfile?.displayName || "",
           date: formatDateToBritish(new Date()),
           time: new Date().toTimeString().slice(0, 5),
-          scheme: "",
+          scheme: singleScheme ? singleScheme.fullName : "",
           camera: "",
         });
       }
@@ -145,7 +152,7 @@ const CCTVFaultsFormPage = () => {
   };
 
   return (
-    <StaffSidebarLayout>
+    <StaffSidebarLayout basePath={basePath}>
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
           <button
@@ -277,20 +284,29 @@ const CCTVFaultsFormPage = () => {
                   Scheme <span className="text-red-500">*</span>
                 </span>
               </label>
-              <select
-                name="scheme"
-                value={formData.scheme}
-                onChange={handleChange}
-                className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                required
-              >
-                <option value="">Please Select</option>
-                {getSchemesForUser(userProfile).map((scheme) => (
-                  <option key={scheme.id} value={scheme.fullName}>
-                    {scheme.fullName}
-                  </option>
-                ))}
-              </select>
+              {singleScheme ? (
+                <input
+                  type="text"
+                  value={singleScheme.fullName}
+                  readOnly
+                  className="input bg-gray-100 border-gray-300 rounded-lg w-full cursor-not-allowed text-gray-500"
+                />
+              ) : (
+                <select
+                  name="scheme"
+                  value={formData.scheme}
+                  onChange={handleChange}
+                  className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                  required
+                >
+                  <option value="">Please Select</option>
+                  {availableSchemes.map((scheme) => (
+                    <option key={scheme.id} value={scheme.fullName}>
+                      {scheme.fullName}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>

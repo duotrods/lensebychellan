@@ -2,10 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { FileText, Camera, Calendar } from 'lucide-react';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
+import { getStaffBasePath } from '../../utils/constants';
 
 const FormsSelectionPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = getStaffBasePath(role);
 
   const formCards = [
     {
@@ -14,7 +16,7 @@ const FormsSelectionPage = () => {
       icon: FileText,
       color: 'from-teal-400 to-teal-500',
       bgColor: 'bg-teal-50',
-      path: '/dashboard/staff/forms/incident-report'
+      path: `${basePath}/forms/incident-report`
     },
     {
       title: 'Daily Occurrence Sheet',
@@ -22,7 +24,7 @@ const FormsSelectionPage = () => {
       icon: Calendar,
       color: 'from-blue-400 to-blue-500',
       bgColor: 'bg-blue-50',
-      path: '/dashboard/staff/forms/daily-logs'
+      path: `${basePath}/forms/daily-occurence`
     },
     {
       title: 'Camera Check Sheet',
@@ -30,12 +32,12 @@ const FormsSelectionPage = () => {
       icon: Camera,
       color: 'from-purple-400 to-purple-500',
       bgColor: 'bg-purple-50',
-      path: '/dashboard/staff/forms/cctv-check'
+      path: `${basePath}/forms/cctv-check`
     },
   ];
 
   return (
-    <StaffSidebarLayout>
+    <StaffSidebarLayout basePath={basePath}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">

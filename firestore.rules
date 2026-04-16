@@ -127,14 +127,14 @@ service cloud.firestore {
     // Incident Reports
     match /incidentReports/{reportId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
 
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'liveoperator' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'thirdpartyliveoperator' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') && (
           hasSchemeAccess(resource.data.schemeIds) ||
@@ -147,26 +147,26 @@ service cloud.firestore {
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
         getUserRole() == 'liveoperator' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'thirdpartyclient' ||
         getUserRole() == 'thirdpartyliveoperator'
       );
 
       allow update, delete: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }
 
     // CCTV Check Forms
     match /cctvCheckForms/{formId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
 
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') && (
           hasSchemeAccess(resource.data.schemeIds) ||
           hasOldSchemeAccess(resource.data.schemeId)
@@ -177,25 +177,25 @@ service cloud.firestore {
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'thirdpartyclient'
       );
 
       allow update, delete: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }
 
     // Asset Damage Reports
     match /assetDamageReports/{reportId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
 
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') && (
           hasSchemeAccess(resource.data.schemeIds) ||
           hasOldSchemeAccess(resource.data.schemeId)
@@ -206,25 +206,25 @@ service cloud.firestore {
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'thirdpartyclient'
       );
 
       allow update, delete: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }
 
     // Daily Occurrence Reports
     match /dailyOccurrenceReports/{reportId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
 
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') && (
           (resource.data.schemeIds != null && getUserSchemes() != null &&
            resource.data.schemeIds.hasAny(getUserSchemes())) ||
@@ -236,19 +236,19 @@ service cloud.firestore {
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'thirdpartyclient'
       );
 
       allow update, delete: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }
 
     // CCTV Faults Reports
     match /cctvFaultsReports/{reportId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
 
       allow get: if isVerified() && (
@@ -267,14 +267,14 @@ service cloud.firestore {
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
         getUserRole() == 'cctvfaultoperator' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'thirdpartyclient' ||
         getUserRole() == 'thirdpartycctvoperator'
       );
 
       allow update: if isVerified() && (
         getUserRole() == 'staff' || getUserRole() == 'admin' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') &&
           hasSchemeAccess(resource.data.schemeIds) &&
           request.resource.data.diff(resource.data).affectedKeys()
@@ -290,20 +290,20 @@ service cloud.firestore {
       );
 
       allow delete: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }
 
     // CCTV Uploads
     match /cctvUploads/{uploadId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
 
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') && (
           hasSchemeAccess(resource.data.schemeIds) ||
           hasOldSchemeAccess(resource.data.scheme)
@@ -314,34 +314,34 @@ service cloud.firestore {
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'thirdpartyclient'
       );
 
       allow update, delete: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }
 
     // Activities (for notice board)
     match /activities/{activityId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
       allow read: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'thirdpartystaff'
       );
       allow update, delete: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
     }
 
     // Counters (for reference ID generation)
     match /counters/{counterId} {
       allow read, write: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
       );
     }
 
@@ -366,12 +366,12 @@ service cloud.firestore {
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
-        getUserRole() == 'thirdpartyoperator' ||
+        getUserRole() == 'thirdpartystaff' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') &&
           getUserSchemes() != null && schemeId in getUserSchemes())
       );
       allow write: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartyoperator'
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }
 

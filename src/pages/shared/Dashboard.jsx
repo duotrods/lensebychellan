@@ -55,9 +55,9 @@ const Dashboard = () => {
             />
           </CCTVOperatorSidebarLayout>
         );
-      case USER_ROLES.THIRDPARTYOPERATOR:
+      case USER_ROLES.THIRDPARTYSTAFF:
         return (
-          <StaffSidebarLayout basePath="/dashboard/thirdparty/operator">
+          <StaffSidebarLayout basePath="/dashboard/thirdparty/staff">
             <NewStaffDashboard />
           </StaffSidebarLayout>
         );

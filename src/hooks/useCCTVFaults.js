@@ -162,13 +162,17 @@ export function usePaginatedCCTVFaults(schemeId, pageSize = 10) {
 }
 
 /**
- * Staff-side hook for ALL live CCTV faults across every scheme.
+ * Staff-side hook for live CCTV faults.
+ * Pass tpSchemeIds array to scope the feed to a company's schemes.
  * Uses onSnapshot — free real-time updates, no polling.
  */
-export function useStaffLiveCCTVFaults() {
+export function useStaffLiveCCTVFaults(tpSchemeIds = null) {
   const [faults, setFaults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Stable key so useEffect only re-runs when the actual IDs change
+  const schemeKey = tpSchemeIds ? tpSchemeIds.slice().sort().join(',') : null;
 
   useEffect(() => {
     setLoading(true);
@@ -183,13 +187,14 @@ export function useStaffLiveCCTVFaults() {
         console.error("Error in staff live CCTV faults subscription:", err);
         setError(err);
         setLoading(false);
-      }
+      },
+      tpSchemeIds,
     );
 
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [schemeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { faults, loading, error };
 }
