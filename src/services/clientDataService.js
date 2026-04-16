@@ -1396,7 +1396,7 @@ class ClientDataService {
 
   // Get all reports with server-side pagination (COST-OPTIMIZED!)
   // Fetches reports from all collections and merges them with cursor-based pagination
-  async getAllReportsPaginated(schemeId, pageSize = 10, cursors = {}) {
+  async getAllReportsPaginated(schemeId, pageSize = 10, cursors = {}, dateRange = null) {
     try {
       // Fetch pageSize from each type so the merged result is truly chronological
       const perTypeLimit = pageSize;
@@ -1409,30 +1409,40 @@ class ClientDataService {
             schemeId,
             perTypeLimit,
             cursors.incidents,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "assetDamageReports",
             schemeId,
             perTypeLimit,
             cursors.assetDamage,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "dailyOccurrenceReports",
             schemeId,
             perTypeLimit,
             cursors.dailyLogs,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "cctvCheckForms",
             schemeId,
             perTypeLimit,
             cursors.cctvChecks,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "cctvFaultsReports",
             schemeId,
             perTypeLimit,
             cursors.cctvFaults,
+            null,
+            dateRange,
           ),
         ]);
 
@@ -1525,6 +1535,7 @@ class ClientDataService {
     limitCount,
     lastDoc,
     extraWhere = null,
+    dateRange = null, // { startDate: Date, endDate: Date }
   ) {
     try {
       const collectionRef = collection(db, collectionName);
@@ -1534,6 +1545,12 @@ class ClientDataService {
         where("schemeIds", "array-contains", schemeId),
         ...(extraWhere
           ? [where(extraWhere.field, extraWhere.op, extraWhere.value)]
+          : []),
+        ...(dateRange
+          ? [
+              where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+              where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+            ]
           : []),
         orderBy("createdAt", "desc"),
       ];
@@ -1709,6 +1726,7 @@ class ClientDataService {
     pageSize = 10,
     lastDoc = null,
     extraWhere = null, // { field, op, value } for server-side sub-filters
+    dateRange = null, // { startDate: Date, endDate: Date }
   ) {
     // CCTV uses a dual-query approach to include both scheme-specific and "all-schemes" forms
     if (reportType === "cctv-check") {
@@ -1731,6 +1749,7 @@ class ClientDataService {
         pageSize,
         lastDoc,
         extraWhere,
+        dateRange,
       );
       const reports = result.docs.map((report) => {
         if (reportType === "incident")
@@ -1769,7 +1788,7 @@ class ClientDataService {
   }
 
   // Get count per report type for a scheme (for stat cards - 4 reads total)
-  async getAllReportsCountByType(schemeId) {
+  async getAllReportsCountByType(schemeId, dateRange = null) {
     try {
       const [
         incidentCount,
@@ -1783,28 +1802,31 @@ class ClientDataService {
         vehiclesDispatchedCount,
         incidentAssetDamageCount,
       ] = await Promise.all([
-        this.getCollectionCount("incidentReports", schemeId),
-        this.getCollectionCount("assetDamageReports", schemeId),
-        this.getCollectionCount("dailyOccurrenceReports", schemeId),
-        this.getCollectionCount("cctvCheckForms", schemeId),
-        this.getCollectionCount("cctvFaultsReports", schemeId),
+        this.getCollectionCount("incidentReports", schemeId, dateRange),
+        this.getCollectionCount("assetDamageReports", schemeId, dateRange),
+        this.getCollectionCount("dailyOccurrenceReports", schemeId, dateRange),
+        this.getCollectionCount("cctvCheckForms", schemeId, dateRange),
+        this.getCollectionCount("cctvFaultsReports", schemeId, dateRange),
         this.getCollectionCountWithFilter(
           "incidentReports",
           schemeId,
           "incidentType",
           "Free Recovery",
+          dateRange,
         ),
         this.getCollectionCountWithFilter(
           "incidentReports",
           schemeId,
           "incidentType",
           "Drive Off",
+          dateRange,
         ),
         this.getCollectionCountWithFilter(
           "incidentReports",
           schemeId,
           "incursion",
           "YES",
+          dateRange,
         ),
         this.getVehiclesDispatchedCount(schemeId),
         this.getCollectionCountWithFilter(
@@ -1812,6 +1834,7 @@ class ClientDataService {
           schemeId,
           "propertyDamage",
           true,
+          dateRange,
         ),
       ]);
 
@@ -1861,14 +1884,20 @@ class ClientDataService {
     }
   }
 
-  async getCollectionCountWithFilter(collectionName, schemeId, field, value) {
+  async getCollectionCountWithFilter(collectionName, schemeId, field, value, dateRange = null) {
     try {
       const collectionRef = collection(db, collectionName);
-      const q = query(
-        collectionRef,
+      const constraints = [
         where("schemeIds", "array-contains", schemeId),
         where(field, "==", value),
-      );
+        ...(dateRange
+          ? [
+              where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+              where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+            ]
+          : []),
+      ];
+      const q = query(collectionRef, ...constraints);
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
     } catch (error) {
@@ -1881,7 +1910,7 @@ class ClientDataService {
   }
 
   // Helper to get count from a collection
-  async getCollectionCount(collectionName, schemeId) {
+  async getCollectionCount(collectionName, schemeId, dateRange = null) {
     try {
       const collectionRef = collection(db, collectionName);
       // For cctvCheckForms, also count "all-schemes" docs (backward compatibility)
@@ -1889,7 +1918,13 @@ class ClientDataService {
         collectionName === "cctvCheckForms"
           ? where("schemeIds", "array-contains-any", [schemeId, "all-schemes"])
           : where("schemeIds", "array-contains", schemeId);
-      const q = query(collectionRef, schemeFilter);
+      const dateConstraints = dateRange
+        ? [
+            where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+            where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+          ]
+        : [];
+      const q = query(collectionRef, schemeFilter, ...dateConstraints);
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
     } catch (error) {
