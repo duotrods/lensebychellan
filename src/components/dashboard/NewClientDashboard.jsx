@@ -41,30 +41,42 @@ const commonChartProps = {
   xAxis: { tick: { fontSize: 13 } },
   yAxis: { tick: { fontSize: 13 } },
   tooltip: {
-    contentStyle: { backgroundColor: "#fff", border: "1px solid #17af93", borderRadius: "8px" },
+    contentStyle: {
+      backgroundColor: "#fff",
+      border: "1px solid #17af93",
+      borderRadius: "8px",
+    },
     labelStyle: { fontWeight: "bold" },
   },
   legend: { wrapperStyle: { paddingTop: "20px" } },
   bar: { fill: "#17af93", radius: [8, 8, 0, 0] },
 };
 
-const ChartCard = memo(({ title, children, fullWidth = false, height = 380 }) => (
-  <div
-    className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? "col-span-full" : ""}`}
-    onMouseDown={(e) => e.preventDefault()}
-  >
-    <h5 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">{title}</h5>
-    <ResponsiveContainer width="100%" height={height}>
-      {children}
-    </ResponsiveContainer>
-  </div>
-));
+const ChartCard = memo(
+  ({ title, children, fullWidth = false, height = 380 }) => (
+    <div
+      className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? "col-span-full" : ""}`}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <h5 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">
+        {title}
+      </h5>
+      <ResponsiveContainer width="100%" height={height}>
+        {children}
+      </ResponsiveContainer>
+    </div>
+  ),
+);
 
 const transformDataForChart = (dataObj, filterUnknown = true) => {
   if (!dataObj) return [];
   return Object.entries(dataObj)
     .filter(([name, count]) => {
-      if (filterUnknown && (name === "Unknown" || name === "" || name === "undefined")) return false;
+      if (
+        filterUnknown &&
+        (name === "Unknown" || name === "" || name === "undefined")
+      )
+        return false;
       return count > 0;
     })
     .map(([name, count]) => ({ name, Number: count }))
@@ -83,12 +95,18 @@ const NewClientDashboard = () => {
   const openDrillDown = useCallback((data) => setDrillDown(data), []);
   const closeDrillDown = useCallback(() => setDrillDown(null), []);
 
-  const getScroller = () => document.getElementById('client-main-scroll');
+  const getScroller = () => document.getElementById("client-main-scroll");
 
   const navigateToReport = (id) => {
     const scroller = getScroller();
-    sessionStorage.setItem('clientDashboardDrillDown', JSON.stringify(drillDown));
-    sessionStorage.setItem('clientDashboardScroll', String(scroller ? scroller.scrollTop : 0));
+    sessionStorage.setItem(
+      "clientDashboardDrillDown",
+      JSON.stringify(drillDown),
+    );
+    sessionStorage.setItem(
+      "clientDashboardScroll",
+      String(scroller ? scroller.scrollTop : 0),
+    );
     setDrillDown(null);
     navigate(`/dashboard/client/reports/incident/${id}`);
   };
@@ -187,25 +205,30 @@ const NewClientDashboard = () => {
 
   // Reopen sidebar and restore scroll when coming back from a report view
   useEffect(() => {
-    const savedDrillDown = sessionStorage.getItem('clientDashboardDrillDown');
-    const savedScroll = sessionStorage.getItem('clientDashboardScroll');
+    const savedDrillDown = sessionStorage.getItem("clientDashboardDrillDown");
+    const savedScroll = sessionStorage.getItem("clientDashboardScroll");
     if (!savedDrillDown) return;
-    sessionStorage.removeItem('clientDashboardDrillDown');
-    sessionStorage.removeItem('clientDashboardScroll');
+    sessionStorage.removeItem("clientDashboardDrillDown");
+    sessionStorage.removeItem("clientDashboardScroll");
     setDrillDown(JSON.parse(savedDrillDown));
     if (savedScroll) {
       const pos = parseInt(savedScroll, 10);
       const scroller = getScroller();
       if (!scroller) return;
       // Keep setting scrollTop on every scroll event until user scrolls manually
-      const enforce = () => { scroller.scrollTop = pos; };
-      scroller.addEventListener('scroll', enforce);
+      const enforce = () => {
+        scroller.scrollTop = pos;
+      };
+      scroller.addEventListener("scroll", enforce);
       scroller.scrollTop = pos;
       // Stop enforcing after 1s (enough for all re-renders to settle)
-      const timer = setTimeout(() => scroller.removeEventListener('scroll', enforce), 1000);
+      const timer = setTimeout(
+        () => scroller.removeEventListener("scroll", enforce),
+        1000,
+      );
       return () => {
         clearTimeout(timer);
-        scroller.removeEventListener('scroll', enforce);
+        scroller.removeEventListener("scroll", enforce);
       };
     }
   }, []);
@@ -213,73 +236,109 @@ const NewClientDashboard = () => {
   const incidents = useMemo(() => stats?.incidents || [], [stats]);
 
   const {
-    faultData, incidentTypeData, vehiclesDispatchedData, spottedByData,
-    laneAffectedData, timeToRecoverData, trafficConditionsData, timeToSiteData,
-    trackData, emergencyServicesData, vehicleTypeData, incursionsData,
-  } = useMemo(() => ({
-    faultData:             transformDataForChart(stats?.faultTypes),
-    incidentTypeData:      transformDataForChart(stats?.incidentsByType),
-    vehiclesDispatchedData:transformDataForChart(stats?.vehicleTypesDispatched),
-    spottedByData:         transformDataForChart(stats?.spottedBy),
-    laneAffectedData:      transformDataForChart(stats?.incidentsByLane),
-    timeToRecoverData:     transformDataForChart(stats?.timeToRecover, false),
-    trafficConditionsData: transformDataForChart(stats?.trafficConditions),
-    timeToSiteData:        transformDataForChart(stats?.timeToSite, false),
-    trackData:             transformDataForChart(stats?.trackOfIncident),
-    emergencyServicesData: transformDataForChart(stats?.emergencyServices),
-    vehicleTypeData:       transformDataForChart(stats?.vehicleTypes),
-    incursionsData:        [{ name: "Incursions", Number: stats?.incursions || 0 }],
-  }), [stats]);
+    faultData,
+    incidentTypeData,
+    vehiclesDispatchedData,
+    spottedByData,
+    laneAffectedData,
+    timeToRecoverData,
+    trafficConditionsData,
+    timeToSiteData,
+    trackData,
+    emergencyServicesData,
+    vehicleTypeData,
+    incursionsData,
+  } = useMemo(
+    () => ({
+      faultData: transformDataForChart(stats?.faultTypes),
+      incidentTypeData: transformDataForChart(stats?.incidentsByType),
+      vehiclesDispatchedData: transformDataForChart(
+        stats?.vehicleTypesDispatched,
+      ),
+      spottedByData: transformDataForChart(stats?.spottedBy),
+      laneAffectedData: transformDataForChart(stats?.incidentsByLane),
+      timeToRecoverData: transformDataForChart(stats?.timeToRecover, false),
+      trafficConditionsData: transformDataForChart(stats?.trafficConditions),
+      timeToSiteData: transformDataForChart(stats?.timeToSite, false),
+      trackData: transformDataForChart(stats?.trackOfIncident),
+      emergencyServicesData: transformDataForChart(stats?.emergencyServices),
+      vehicleTypeData: transformDataForChart(stats?.vehicleTypes),
+      incursionsData: [{ name: "Incursions", Number: stats?.incursions || 0 }],
+    }),
+    [stats],
+  );
 
-  const handleBarClick = useCallback((chartType, label) => {
-    if (!label || !incidents.length) return;
-    let filtered = [];
-    if (chartType === 'incidentType') filtered = incidents.filter(i => i.incidentType === label);
-    else if (chartType === 'fault') filtered = incidents.filter(i => i.fault === label);
-    else if (chartType === 'reportedBy') filtered = incidents.filter(i => i.reportedBy === label);
-    else if (chartType === 'affectedLanes') filtered = incidents.filter(i => i.affectedLanes?.includes(label));
-    else if (chartType === 'trafficConditions') filtered = incidents.filter(i => i.trafficConditions === label);
-    else if (chartType === 'track') filtered = incidents.filter(i => i.track === label);
-    else if (chartType === 'emergencyServices') filtered = incidents.filter(i => i.emergencyServices?.includes(label));
-    else if (chartType === 'vehicleTypes') filtered = incidents.filter(i => i.vehicles?.some(v => v.type === label));
-    else if (chartType === 'vehicleTypesDispatched') {
-      const key = label.toLowerCase();
-      filtered = incidents.filter(i => i.recoveryRequested?.[key] > 0);
-    } else if (chartType === 'timeToRecover') {
-      filtered = incidents.filter(i => {
-        const m = parseInt(i.timeOnsiteToCleared?.match(/(\d+)/)?.[1]);
-        if (isNaN(m)) return false;
-        if (label === '0-15') return m <= 15;
-        if (label === '16-30') return m >= 16 && m <= 30;
-        if (label === '31-45') return m >= 31 && m <= 45;
-        if (label === '46-60') return m >= 46 && m <= 60;
-        if (label === '60+') return m > 60;
-        return false;
-      });
-    } else if (chartType === 'timeToSite') {
-      filtered = incidents.filter(i => {
-        const m = parseInt(i.timeSpottedToOn?.match(/(\d+)/)?.[1]);
-        if (isNaN(m)) return false;
-        if (label === '0-5') return m <= 5;
-        if (label === '6-10') return m >= 6 && m <= 10;
-        if (label === '11-15') return m >= 11 && m <= 15;
-        if (label === '16-20') return m >= 16 && m <= 20;
-        if (label === '20+') return m > 20;
-        return false;
-      });
-    } else if (chartType === 'incursions') filtered = incidents.filter(i => i.incursion === 'YES');
-    if (filtered.length) openDrillDown({ title: label, incidents: filtered });
-  }, [incidents, openDrillDown]);
+  const handleBarClick = useCallback(
+    (chartType, label) => {
+      if (!label || !incidents.length) return;
+      let filtered = [];
+      if (chartType === "incidentType")
+        filtered = incidents.filter((i) => i.incidentType === label);
+      else if (chartType === "fault")
+        filtered = incidents.filter((i) => i.fault === label);
+      else if (chartType === "reportedBy")
+        filtered = incidents.filter((i) => i.reportedBy === label);
+      else if (chartType === "affectedLanes")
+        filtered = incidents.filter((i) => i.affectedLanes?.includes(label));
+      else if (chartType === "trafficConditions")
+        filtered = incidents.filter((i) => i.trafficConditions === label);
+      else if (chartType === "track")
+        filtered = incidents.filter((i) => i.track === label);
+      else if (chartType === "emergencyServices")
+        filtered = incidents.filter((i) =>
+          i.emergencyServices?.includes(label),
+        );
+      else if (chartType === "vehicleTypes")
+        filtered = incidents.filter((i) =>
+          i.vehicles?.some((v) => v.type === label),
+        );
+      else if (chartType === "vehicleTypesDispatched") {
+        const key = label.toLowerCase();
+        filtered = incidents.filter((i) => i.recoveryRequested?.[key] > 0);
+      } else if (chartType === "timeToRecover") {
+        filtered = incidents.filter((i) => {
+          const m = parseInt(i.timeOnsiteToCleared?.match(/(\d+)/)?.[1]);
+          if (isNaN(m)) return false;
+          if (label === "0-15") return m <= 15;
+          if (label === "16-30") return m >= 16 && m <= 30;
+          if (label === "31-45") return m >= 31 && m <= 45;
+          if (label === "46-60") return m >= 46 && m <= 60;
+          if (label === "60+") return m > 60;
+          return false;
+        });
+      } else if (chartType === "timeToSite") {
+        filtered = incidents.filter((i) => {
+          const m = parseInt(i.timeSpottedToOn?.match(/(\d+)/)?.[1]);
+          if (isNaN(m)) return false;
+          if (label === "0-5") return m <= 5;
+          if (label === "6-10") return m >= 6 && m <= 10;
+          if (label === "11-15") return m >= 11 && m <= 15;
+          if (label === "16-20") return m >= 16 && m <= 20;
+          if (label === "20+") return m > 20;
+          return false;
+        });
+      } else if (chartType === "incursions")
+        filtered = incidents.filter((i) => i.incursion === "YES");
+      if (filtered.length) openDrillDown({ title: label, incidents: filtered });
+    },
+    [incidents, openDrillDown],
+  );
 
   const statsCards = [
     {
       title: "Total Incidents",
       value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
-      text: "Total incidents excluding Free Recovery and Incursions.",
+      text: "Total incidents excluding Free Recovery, Drive off and Incursions.",
       icon: AlertTriangle,
       color: "text-orange-500",
       bgColor: "bg-orange-50",
-      filter: () => incidents.filter(i => i.incidentType !== "Free Recovery" && i.incursion !== "YES"),
+      filter: () =>
+        incidents.filter(
+          (i) =>
+            i.incidentType !== "Free Recovery" &&
+            i.incidentType !== "Drive Off" &&
+            i.incursion !== "YES",
+        ),
     },
     {
       title: "Asset Damage",
@@ -288,30 +347,51 @@ const NewClientDashboard = () => {
       icon: TriangleAlert,
       color: "text-yellow-500",
       bgColor: "bg-yellow-50",
-      filter: () => incidents.filter(i => i.propertyDamage === true || i.propertyDamage === "yes" || i.propertyDamage === "Yes"),
+      filter: () =>
+        incidents.filter(
+          (i) =>
+            i.propertyDamage === true ||
+            i.propertyDamage === "yes" ||
+            i.propertyDamage === "Yes",
+        ),
     },
     {
       title: "Free Recovery",
       value: loading
         ? "..."
-        : (stats?.incidentsByType?.["Free Recovery"] || 0).toString(),
+        : (
+            (Number(stats?.incidentsByType?.["Free Recovery"]) || 0) +
+            (Number(stats?.incidentsByType?.["Drive Off"]) || 0)
+          ).toString(),
       text: "Total number of free recovery incidents within the scheme.",
       icon: Wrench,
       color: "text-green-500",
       bgColor: "bg-green-50",
-      filter: () => incidents.filter(i => i.incidentType === "Free Recovery"),
+      filter: () =>
+        incidents.filter(
+          (i) =>
+            i.incidentType === "Free Recovery" ||
+            i.incidentType === "Drive Off",
+        ),
     },
     {
       title: "Incursions",
-      value: loading ? "..." : (stats?.incursions || 0).toString(),
+      value: loading
+        ? "..."
+        : (
+            (stats?.incursions || 0) +
+            (stats?.incidentsByType?.["Incursion"] || 0)
+          ).toString(),
       text: "Total number of incursions recorded within the scheme.",
       icon: ShieldAlert,
       color: "text-red-500",
       bgColor: "bg-red-50",
-      filter: () => incidents.filter(i => i.incursion === "YES"),
+      filter: () =>
+        incidents.filter(
+          (i) => i.incursion === "YES" || i.incidentType === "Incursion",
+        ),
     },
   ];
-
 
   // Helper function to draw a bar chart in PDF
   const drawBarChart = (pdf, data, title, x, y, width, height) => {
@@ -577,7 +657,8 @@ const NewClientDashboard = () => {
             className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
             onClick={() => {
               const filtered = stat.filter();
-              if (filtered.length) openDrillDown({ title: stat.title, incidents: filtered });
+              if (filtered.length)
+                openDrillDown({ title: stat.title, incidents: filtered });
             }}
           >
             <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
@@ -658,7 +739,13 @@ const NewClientDashboard = () => {
           {/* All Charts in 2 Column Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <ChartCard title="Time to Site (mins)">
-              <BarChart data={timeToSiteData} onClick={(d) => d?.activeLabel && handleBarClick('timeToSite', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={timeToSiteData}
+                onClick={(d) =>
+                  d?.activeLabel && handleBarClick("timeToSite", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -669,7 +756,14 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Time to recover (mins)">
-              <BarChart data={timeToRecoverData} onClick={(d) => d?.activeLabel && handleBarClick('timeToRecover', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={timeToRecoverData}
+                onClick={(d) =>
+                  d?.activeLabel &&
+                  handleBarClick("timeToRecover", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -680,9 +774,25 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Fault">
-              <BarChart data={faultData} margin={{ top: 0, right: 0, left: -20, bottom: 10 }} onClick={(d) => d?.activeLabel && handleBarClick('fault', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={faultData}
+                margin={{ top: 0, right: 0, left: -20, bottom: 10 }}
+                onClick={(d) =>
+                  d?.activeLabel && handleBarClick("fault", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} {...(faultData.length >= 7 && { angle: -45, textAnchor: "end", interval: 0, height: 60 })} />
+                <XAxis
+                  dataKey="name"
+                  {...commonChartProps.xAxis}
+                  {...(faultData.length >= 7 && {
+                    angle: -45,
+                    textAnchor: "end",
+                    interval: 0,
+                    height: 60,
+                  })}
+                />
                 <YAxis {...commonChartProps.yAxis} />
                 <Tooltip {...commonChartProps.tooltip} />
                 <Legend {...commonChartProps.legend} />
@@ -691,7 +801,15 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Incident Type">
-              <BarChart data={incidentTypeData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} onClick={(d) => d?.activeLabel && handleBarClick('incidentType', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={incidentTypeData}
+                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                onClick={(d) =>
+                  d?.activeLabel &&
+                  handleBarClick("incidentType", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -702,7 +820,14 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Vehicles Dispatched">
-              <BarChart data={vehiclesDispatchedData} onClick={(d) => d?.activeLabel && handleBarClick('vehicleTypesDispatched', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={vehiclesDispatchedData}
+                onClick={(d) =>
+                  d?.activeLabel &&
+                  handleBarClick("vehicleTypesDispatched", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -713,7 +838,13 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Spotted By">
-              <BarChart data={spottedByData} onClick={(d) => d?.activeLabel && handleBarClick('reportedBy', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={spottedByData}
+                onClick={(d) =>
+                  d?.activeLabel && handleBarClick("reportedBy", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -724,7 +855,14 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Lane Affected">
-              <BarChart data={laneAffectedData} onClick={(d) => d?.activeLabel && handleBarClick('affectedLanes', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={laneAffectedData}
+                onClick={(d) =>
+                  d?.activeLabel &&
+                  handleBarClick("affectedLanes", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -735,7 +873,14 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Traffic Conditions">
-              <BarChart data={trafficConditionsData} onClick={(d) => d?.activeLabel && handleBarClick('trafficConditions', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={trafficConditionsData}
+                onClick={(d) =>
+                  d?.activeLabel &&
+                  handleBarClick("trafficConditions", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -746,7 +891,14 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Emergency Services Attended">
-              <BarChart data={emergencyServicesData} onClick={(d) => d?.activeLabel && handleBarClick('emergencyServices', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={emergencyServicesData}
+                onClick={(d) =>
+                  d?.activeLabel &&
+                  handleBarClick("emergencyServices", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -757,7 +909,13 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Track of Incident">
-              <BarChart data={trackData} onClick={(d) => d?.activeLabel && handleBarClick('track', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={trackData}
+                onClick={(d) =>
+                  d?.activeLabel && handleBarClick("track", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -768,7 +926,14 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Vehicle Type">
-              <BarChart data={vehicleTypeData} onClick={(d) => d?.activeLabel && handleBarClick('vehicleTypes', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={vehicleTypeData}
+                onClick={(d) =>
+                  d?.activeLabel &&
+                  handleBarClick("vehicleTypes", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" {...commonChartProps.xAxis} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -779,7 +944,13 @@ const NewClientDashboard = () => {
             </ChartCard>
 
             <ChartCard title="Incursions">
-              <BarChart data={incursionsData} onClick={(d) => d?.activeLabel && handleBarClick('incursions', d.activeLabel)} style={{ cursor: 'pointer' }}>
+              <BarChart
+                data={incursionsData}
+                onClick={(d) =>
+                  d?.activeLabel && handleBarClick("incursions", d.activeLabel)
+                }
+                style={{ cursor: "pointer" }}
+              >
                 <CartesianGrid {...commonChartProps.cartesianGrid} />
                 <XAxis dataKey="name" tick={{ fontSize: 13 }} />
                 <YAxis {...commonChartProps.yAxis} />
@@ -793,11 +964,24 @@ const NewClientDashboard = () => {
           {/* Full Width: Incidents Over Time */}
           <div className="mb-8">
             <ChartCard title="Incidents Over Time" fullWidth height={350}>
-              <BarChart data={timeSeriesData.length > 0 ? timeSeriesData.map((d) => ({ ...d, Number: d.count })) : [{ name: "No Data", Number: 0 }]}>
+              <BarChart
+                data={
+                  timeSeriesData.length > 0
+                    ? timeSeriesData.map((d) => ({ ...d, Number: d.count }))
+                    : [{ name: "No Data", Number: 0 }]
+                }
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#17af93" />
                 <XAxis dataKey="name" tick={{ fontSize: 13 }} />
                 <YAxis tick={{ fontSize: 13 }} />
-                <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #17af93", borderRadius: "8px" }} labelStyle={{ fontWeight: "bold" }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#fff",
+                    border: "1px solid #17af93",
+                    borderRadius: "8px",
+                  }}
+                  labelStyle={{ fontWeight: "bold" }}
+                />
                 <Legend wrapperStyle={{ paddingTop: "20px" }} />
                 <Bar dataKey="Number" fill="#17af93" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -807,134 +991,180 @@ const NewClientDashboard = () => {
       )}
 
       {/* Drill-down sidebar — rendered in a portal so it never affects page scroll */}
-      {drillDown && createPortal(
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40"
-            style={{ backgroundColor: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(3px)', animation: 'fadeInBackdrop 0.25s ease' }}
-            onClick={() => closeDrillDown()}
-          />
-
-          {/* Sidebar panel */}
-          <div
-            className="fixed top-0 right-0 h-full z-50 flex flex-col bg-white"
-            style={{
-              width: '480px',
-              boxShadow: '-8px 0 40px rgba(0,0,0,0.18), -1px 0 0 rgba(0,0,0,0.06)',
-              animation: 'slideInRight 0.3s cubic-bezier(0.25,1,0.5,1)',
-            }}
-          >
-            {/* Header */}
+      {drillDown &&
+        createPortal(
+          <>
+            {/* Backdrop */}
             <div
-              className="flex items-center justify-between px-6 py-5 shrink-0"
-              style={{ background: 'linear-gradient(135deg, #0f766e 0%, #17af93 100%)' }}
+              className="fixed inset-0 z-40"
+              style={{
+                backgroundColor: "rgba(0,0,0,0.35)",
+                backdropFilter: "blur(3px)",
+                animation: "fadeInBackdrop 0.25s ease",
+              }}
+              onClick={() => closeDrillDown()}
+            />
+
+            {/* Sidebar panel */}
+            <div
+              className="fixed top-0 right-0 h-full z-50 flex flex-col bg-white"
+              style={{
+                width: "480px",
+                boxShadow:
+                  "-8px 0 40px rgba(0,0,0,0.18), -1px 0 0 rgba(0,0,0,0.06)",
+                animation: "slideInRight 0.3s cubic-bezier(0.25,1,0.5,1)",
+              }}
             >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(255,255,255,0.2)' }}
-                >
-                  <AlertTriangle className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-white leading-tight">{drillDown.title}</h4>
-                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                    {drillDown.incidents.length} incident{drillDown.incidents.length !== 1 ? 's' : ''} matched
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => closeDrillDown()}
-                className="drilldown-close-btn flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+              {/* Header */}
+              <div
+                className="flex items-center justify-between px-6 py-5 shrink-0"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #0f766e 0%, #17af93 100%)",
+                }}
               >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-
-            {/* Sub-header */}
-            <div
-              className="flex items-center justify-between px-6 py-2.5 shrink-0"
-              style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}
-            >
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#9ca3af' }}>
-                Incident Records
-              </span>
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: '#ecfdf5', color: '#065f46' }}>
-                Tap row to open
-              </span>
-            </div>
-
-            {/* List */}
-            <div className="overflow-y-auto flex-1 py-2">
-              {drillDown.incidents.map((inc, idx) => (
-                <div
-                  key={inc.id}
-                  className="drilldown-row flex items-center gap-4 px-6 py-4 cursor-pointer"
-                  onClick={() => navigateToReport(inc.id)}
-                >
-                  {/* Index badge */}
+                <div className="flex items-center gap-3">
                   <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
-                    style={{ background: '#f0fdfa', color: '#0f766e' }}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: "rgba(255,255,255,0.2)" }}
                   >
-                    {idx + 1}
+                    <AlertTriangle className="w-4 h-4 text-white" />
                   </div>
+                  <div>
+                    <h4 className="text-base font-bold text-white leading-tight">
+                      {drillDown.title}
+                    </h4>
+                    <p
+                      className="text-xs mt-0.5"
+                      style={{ color: "rgba(255,255,255,0.7)" }}
+                    >
+                      {drillDown.incidents.length} incident
+                      {drillDown.incidents.length !== 1 ? "s" : ""} matched
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => closeDrillDown()}
+                  className="drilldown-close-btn flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className="font-mono text-xs font-bold px-2 py-0.5 rounded"
-                        style={{ background: '#ecfdf5', color: '#065f46' }}
-                      >
-                        {inc.referenceId || inc.id?.slice(0, 10)}
-                      </span>
-                      {inc.incidentType && (
+              {/* Sub-header */}
+              <div
+                className="flex items-center justify-between px-6 py-2.5 shrink-0"
+                style={{
+                  background: "#f8fafc",
+                  borderBottom: "1px solid #e5e7eb",
+                }}
+              >
+                <span
+                  className="text-xs font-semibold uppercase tracking-widest"
+                  style={{ color: "#9ca3af" }}
+                >
+                  Incident Records
+                </span>
+                <span
+                  className="text-xs font-medium px-2.5 py-1 rounded-full"
+                  style={{ background: "#ecfdf5", color: "#065f46" }}
+                >
+                  Tap row to open
+                </span>
+              </div>
+
+              {/* List */}
+              <div className="overflow-y-auto flex-1 py-2">
+                {drillDown.incidents.map((inc, idx) => (
+                  <div
+                    key={inc.id}
+                    className="drilldown-row flex items-center gap-4 px-6 py-4 cursor-pointer"
+                    onClick={() => navigateToReport(inc.id)}
+                  >
+                    {/* Index badge */}
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
+                      style={{ background: "#f0fdfa", color: "#0f766e" }}
+                    >
+                      {idx + 1}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
                         <span
-                          className="text-xs font-semibold px-2 py-0.5 rounded-full truncate max-w-[120px]"
-                          style={{ background: '#f0f9ff', color: '#0369a1' }}
+                          className="font-mono text-xs font-bold px-2 py-0.5 rounded"
+                          style={{ background: "#ecfdf5", color: "#065f46" }}
                         >
-                          {inc.incidentType}
+                          {inc.referenceId || inc.id?.slice(0, 10)}
                         </span>
+                        {inc.incidentType && (
+                          <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full truncate max-w-[120px]"
+                            style={{ background: "#f0f9ff", color: "#0369a1" }}
+                          >
+                            {inc.incidentType}
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className="text-xs truncate"
+                        style={{ color: "#6b7280" }}
+                      >
+                        {[inc.markerPost || inc.section, inc.date]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </p>
+                      {inc.submittedBy?.name && (
+                        <p
+                          className="text-xs mt-0.5 truncate"
+                          style={{ color: "#9ca3af" }}
+                        >
+                          {inc.submittedBy.name}
+                        </p>
                       )}
                     </div>
-                    <p className="text-xs truncate" style={{ color: '#6b7280' }}>
-                      {[inc.markerPost || inc.section, inc.date].filter(Boolean).join(' · ') || '—'}
-                    </p>
-                    {inc.submittedBy?.name && (
-                      <p className="text-xs mt-0.5 truncate" style={{ color: '#9ca3af' }}>
-                        {inc.submittedBy.name}
-                      </p>
-                    )}
+
+                    {/* Arrow */}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-4 h-4 shrink-0"
+                      style={{ color: "#d1d5db" }}
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
                   </div>
+                ))}
+              </div>
 
-                  {/* Arrow */}
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0" style={{ color: '#d1d5db' }}>
-                    <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              ))}
-            </div>
-
-            {/* Footer */}
-            <div
-              className="flex items-center justify-between px-6 py-4 shrink-0"
-              style={{ borderTop: '1px solid #e5e7eb', background: '#f8fafc' }}
-            >
-              <p className="text-xs" style={{ color: '#9ca3af' }}>
-                {drillDown.incidents.length} result{drillDown.incidents.length !== 1 ? 's' : ''}
-              </p>
-              <button
-                onClick={() => closeDrillDown()}
-                className="drilldown-footer-btn text-xs font-semibold px-4 py-2 rounded-lg"
+              {/* Footer */}
+              <div
+                className="flex items-center justify-between px-6 py-4 shrink-0"
+                style={{
+                  borderTop: "1px solid #e5e7eb",
+                  background: "#f8fafc",
+                }}
               >
-                Close
-              </button>
+                <p className="text-xs" style={{ color: "#9ca3af" }}>
+                  {drillDown.incidents.length} result
+                  {drillDown.incidents.length !== 1 ? "s" : ""}
+                </p>
+                <button
+                  onClick={() => closeDrillDown()}
+                  className="drilldown-footer-btn text-xs font-semibold px-4 py-2 rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          </div>
 
-          <style>{`
+            <style>{`
             @keyframes slideInRight {
               from { transform: translateX(100%); }
               to   { transform: translateX(0); }
@@ -961,9 +1191,9 @@ const NewClientDashboard = () => {
             }
             .drilldown-footer-btn:hover { background: #d1d5db; }
           `}</style>
-        </>,
-        document.body
-      )}
+          </>,
+          document.body,
+        )}
     </div>
   );
 };

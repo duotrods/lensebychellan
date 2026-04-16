@@ -87,6 +87,7 @@ const ReportsPage = () => {
     cctvCheck: 0,
     cctvFaults: 0,
     freeRecovery: 0,
+    driveOff: 0,
     incursions: 0,
     vehiclesDispatched: 0,
     incidentAssetDamage: 0,
@@ -210,7 +211,7 @@ const ReportsPage = () => {
           activeSub === "incursion"
             ? { field: "incursion", op: "==", value: "YES" }
             : activeSub === "free-recovery"
-              ? { field: "incidentType", op: "==", value: "Free Recovery" }
+              ? { field: "incidentType", op: "in", value: ["Free Recovery", "Drive Off"] }
               : activeSub === "asset-damage"
                 ? { field: "propertyDamage", op: "==", value: true }
                 : null;
@@ -284,7 +285,7 @@ const ReportsPage = () => {
 
     // Sub-filter for free recovery, incursions, asset damage (client-side safety net)
     if (subFilter === "free-recovery" && report.reportType === "incident") {
-      return matchesSearch && report.incidentType === "Free Recovery";
+      return matchesSearch && (report.incidentType === "Free Recovery" || report.incidentType === "Drive Off");
     }
     if (subFilter === "incursion" && report.reportType === "incident") {
       return matchesSearch && report.incursion === "YES";
@@ -320,7 +321,7 @@ const ReportsPage = () => {
     if (filterType === "incident" && subFilter === "incursion")
       return reportTypeCounts.incursions;
     if (filterType === "incident" && subFilter === "free-recovery")
-      return reportTypeCounts.freeRecovery;
+      return (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0);
     if (filterType === "incident" && subFilter === "asset-damage")
       return reportTypeCounts.incidentAssetDamage;
     if (filterType === "incident") return reportTypeCounts.incident;
@@ -515,7 +516,7 @@ const ReportsPage = () => {
     dailyOccurrence: reportTypeCounts.dailyOccurrence,
     cctvCheck: reportTypeCounts.cctvCheck,
     cctvFaults: reportTypeCounts.cctvFaults,
-    freeRecovery: reportTypeCounts.freeRecovery,
+    freeRecovery: (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0),
     incursions: reportTypeCounts.incursions,
     vehiclesDispatched: reportTypeCounts.vehiclesDispatched,
     incidentAssetDamage: reportTypeCounts.incidentAssetDamage,
