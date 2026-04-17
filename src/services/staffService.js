@@ -347,6 +347,11 @@ class StaffService {
           name: userName,
         },
         status, // Use the provided status (defaults to "submitted", can be "live")
+        isPureIncident:
+          formData.incidentType !== "Free Recovery" &&
+          formData.incidentType !== "Drive Off" &&
+          formData.incursion !== "YES" &&
+          !formData.propertyDamage,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -453,6 +458,11 @@ class StaffService {
         ...formData,
         schemeId, // Keep for backward compatibility
         schemeIds: [schemeId], // Update array for client filtering
+        isPureIncident:
+          formData.incidentType !== "Free Recovery" &&
+          formData.incidentType !== "Drive Off" &&
+          formData.incursion !== "YES" &&
+          !formData.propertyDamage,
         editHistory,
         lastEditedBy: {
           userId,

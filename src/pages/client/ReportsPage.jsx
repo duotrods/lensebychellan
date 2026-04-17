@@ -42,6 +42,8 @@ const ReportsPage = () => {
   const searchDebounceRef = useRef(null);
   const searchCounterRef = useRef(0);
   const searchRateLimitRef = useRef([]);
+  const countCacheRef = useRef({}); // { cacheKey: { counts, fetchedAt } }
+  const allViewCacheRef = useRef({}); // { pageNum: { data, cursors, hasMore, cachedAt } }
   const [hasMore, setHasMore] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -69,9 +71,11 @@ const ReportsPage = () => {
     setSearchLoading(true);
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
+      // Pass the active filter so search only queries the relevant collection(s)
       const results = await clientDataService.searchReportsByReferenceId(
         activeScheme,
         term.trim(),
+        filterType === "all" ? null : filterType,
       );
       if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
       setSearchResults(results);
@@ -84,6 +88,7 @@ const ReportsPage = () => {
   };
   const [reportTypeCounts, setReportTypeCounts] = useState({
     incident: 0,
+    pureIncident: 0,
     assetDamage: 0,
     dailyOccurrence: 0,
     cctvCheck: 0,
@@ -133,10 +138,11 @@ const ReportsPage = () => {
             };
         setLoading(false);
         wasRestoredRef.current = true;
+        // counts already restored from _reportsRestore — skip the 10 extra queries
       } else {
         loadReports(true);
+        loadTotalCount();
       }
-      loadTotalCount();
     }
   }, [
     userProfile?.activeSchemeId,
@@ -203,6 +209,18 @@ const ReportsPage = () => {
           : resetPage
             ? {}
             : cursors;
+        const pageNum = targetPage || (resetPage ? 1 : currentPage);
+        const allCacheKey = `${activeScheme}|${dateRange?.startDate?.getTime() ?? ""}|${pageNum}`;
+        const allCached = allViewCacheRef.current[allCacheKey];
+        const ALL_TTL = 2 * 60 * 1000; // 2 minutes
+        if (allCached && Date.now() - allCached.cachedAt < ALL_TTL && !resetPage) {
+          setReports(allCached.data);
+          setCursors(allCached.cursors);
+          setHasMore(allCached.hasMore);
+          setCurrentPage(pageNum);
+          setLoading(false);
+          return;
+        }
         const result = await clientDataService.getAllReportsPaginated(
           activeScheme,
           reportsPerPage,
@@ -214,6 +232,12 @@ const ReportsPage = () => {
         newHasMore = result.hasMore;
         setCursors(newCursors);
         setHasMore(newHasMore);
+        allViewCacheRef.current[allCacheKey] = {
+          data: newReports,
+          cursors: newCursors,
+          hasMore: newHasMore,
+          cachedAt: Date.now(),
+        };
       } else {
         const effectiveTypeCursor = cursorOverride
           ? cursorOverride.typeCursor
@@ -233,7 +257,9 @@ const ReportsPage = () => {
                 }
               : activeSub === "asset-damage"
                 ? { field: "propertyDamage", op: "==", value: true }
-                : null;
+                : activeSub === "pure"
+                  ? { field: "isPureIncident", op: "==", value: true }
+                  : null;
         const result = await clientDataService.getReportsByTypePaginated(
           activeScheme,
           activeFilter,
@@ -283,10 +309,18 @@ const ReportsPage = () => {
   const loadTotalCount = async (dateRange = null) => {
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
+      const cacheKey = `${activeScheme}|${dateRange?.startDate?.getTime() ?? ""}|${dateRange?.endDate?.getTime() ?? ""}`;
+      const cached = countCacheRef.current[cacheKey];
+      const TTL = 5 * 60 * 1000; // 5 minutes
+      if (cached && Date.now() - cached.fetchedAt < TTL) {
+        setReportTypeCounts(cached.counts);
+        return;
+      }
       const counts = await clientDataService.getAllReportsCountByType(
         activeScheme,
         dateRange,
       );
+      countCacheRef.current[cacheKey] = { counts, fetchedAt: Date.now() };
       setReportTypeCounts(counts);
     } catch (error) {
       console.warn("Could not load total count:", error);
@@ -318,6 +352,9 @@ const ReportsPage = () => {
     }
     if (subFilter === "asset-damage" && report.reportType === "incident") {
       return matchesSearch && report.propertyDamage === true;
+    }
+    if (subFilter === "pure" && report.reportType === "incident") {
+      return matchesSearch; // server filters by isPureIncident==true — no client work needed
     }
     if (subFilter) return false; // hide non-incident rows when a sub-filter is active
 
@@ -352,6 +389,8 @@ const ReportsPage = () => {
       );
     if (filterType === "incident" && subFilter === "asset-damage")
       return reportTypeCounts.incidentAssetDamage;
+    if (filterType === "incident" && subFilter === "pure")
+      return reportTypeCounts.pureIncident;
     if (filterType === "incident") return reportTypeCounts.incident;
     if (filterType === "asset-damage") return reportTypeCounts.assetDamage;
     if (filterType === "daily-occurrence")
@@ -558,6 +597,7 @@ const ReportsPage = () => {
   const reportStats = {
     total: reportTypeCounts.total,
     incident: reportTypeCounts.incident,
+    pureIncident: reportTypeCounts.pureIncident,
     dailyOccurrence: reportTypeCounts.dailyOccurrence,
     cctvCheck: reportTypeCounts.cctvCheck,
     cctvFaults: reportTypeCounts.cctvFaults,
@@ -602,6 +642,7 @@ const ReportsPage = () => {
     setAppliedDateFilter(range);
     clearRestoreState();
     pageCacheRef.current = {};
+    allViewCacheRef.current = {};
     setTypeCursor(null);
     setCursors({});
     loadReports(true, null, null, null, false, undefined, range);
@@ -613,6 +654,7 @@ const ReportsPage = () => {
     setAppliedDateFilter(null);
     clearRestoreState();
     pageCacheRef.current = {};
+    allViewCacheRef.current = {};
     setTypeCursor(null);
     setCursors({});
     loadReports(true, null, null, null, false, undefined, null);
@@ -658,14 +700,14 @@ const ReportsPage = () => {
           </div>
           <div
             className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-orange-500 transition-all"
-            onClick={() => handleCardClick("incident")}
+            onClick={() => handleCardClick("incident", "pure")}
           >
             <div className="flex items-center gap-1.5 mb-1">
               <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
               <p className="text-gray-500 text-sm">Incidents</p>
             </div>
             <p className="text-2xl font-bold text-brand-500">
-              {reportStats.incident}
+              {reportStats.pureIncident}
             </p>
           </div>
           <div
@@ -759,11 +801,11 @@ const ReportsPage = () => {
                     }
                     pageCacheRef.current = {};
                     loadReports(true, null, null, null, true);
-                  } else {
-                    // Debounce the Firestore prefix search
+                  } else if (value.trim().length >= 3) {
+                    // Only search after 3 chars — skips "I", "IN" etc.
                     searchDebounceRef.current = setTimeout(() => {
                       runSearch(value);
-                    }, 150);
+                    }, 400);
                   }
                 }}
                 className="input input-bordered w-full pl-4 bg-white border-gray-300"
