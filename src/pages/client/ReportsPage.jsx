@@ -46,6 +46,8 @@ const ReportsPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [subFilter, setSubFilter] = useState(null); // 'free-recovery' | 'incursion' | null
+  const [dateFilter, setDateFilter] = useState({ startDate: "", endDate: "" });
+  const [appliedDateFilter, setAppliedDateFilter] = useState(null); // null = no filter
 
   const isSearchMode = searchTerm.trim() !== "";
 
@@ -87,6 +89,7 @@ const ReportsPage = () => {
     cctvCheck: 0,
     cctvFaults: 0,
     freeRecovery: 0,
+    driveOff: 0,
     incursions: 0,
     vehiclesDispatched: 0,
     incidentAssetDamage: 0,
@@ -106,6 +109,17 @@ const ReportsPage = () => {
         setTypeCursor(_reportsRestore.typeCursor || null);
         if (_reportsRestore.reportTypeCounts)
           setReportTypeCounts(_reportsRestore.reportTypeCounts);
+        if (_reportsRestore.appliedDateFilter) {
+          setAppliedDateFilter(_reportsRestore.appliedDateFilter);
+          setDateFilter({
+            startDate: _reportsRestore.appliedDateFilter.startDate
+              .toISOString()
+              .split("T")[0],
+            endDate: _reportsRestore.appliedDateFilter.endDate
+              .toISOString()
+              .split("T")[0],
+          });
+        }
         // Restore the full page cache so Prev/Next navigation works on all cached pages
         pageCacheRef.current = _reportsRestore.pageCache
           ? { ..._reportsRestore.pageCache }
@@ -143,7 +157,7 @@ const ReportsPage = () => {
     setTypeCursor(null);
     setCursors({});
     setFilterType(type);
-    loadReports(true, type, null, null, false, sub);
+    loadReports(true, type, null, null, false, sub, appliedDateFilter);
     // Scroll table into view
     setTimeout(() => {
       document
@@ -159,6 +173,7 @@ const ReportsPage = () => {
     targetPage = null,
     silent = false,
     subFilterOverride = undefined,
+    dateRange = null,
   ) => {
     // Check page cache first
     if (targetPage && pageCacheRef.current[targetPage]) {
@@ -192,6 +207,7 @@ const ReportsPage = () => {
           activeScheme,
           reportsPerPage,
           effectiveCursors,
+          dateRange,
         );
         newReports = result.reports;
         newCursors = result.cursors;
@@ -210,7 +226,11 @@ const ReportsPage = () => {
           activeSub === "incursion"
             ? { field: "incursion", op: "==", value: "YES" }
             : activeSub === "free-recovery"
-              ? { field: "incidentType", op: "==", value: "Free Recovery" }
+              ? {
+                  field: "incidentType",
+                  op: "in",
+                  value: ["Free Recovery", "Drive Off"],
+                }
               : activeSub === "asset-damage"
                 ? { field: "propertyDamage", op: "==", value: true }
                 : null;
@@ -220,6 +240,7 @@ const ReportsPage = () => {
           reportsPerPage,
           effectiveTypeCursor,
           extraWhere,
+          dateRange,
         );
         newReports = result.reports;
         newTypeCursor = result.lastDoc;
@@ -259,11 +280,13 @@ const ReportsPage = () => {
     }
   };
 
-  const loadTotalCount = async () => {
+  const loadTotalCount = async (dateRange = null) => {
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const counts =
-        await clientDataService.getAllReportsCountByType(activeScheme);
+      const counts = await clientDataService.getAllReportsCountByType(
+        activeScheme,
+        dateRange,
+      );
       setReportTypeCounts(counts);
     } catch (error) {
       console.warn("Could not load total count:", error);
@@ -284,7 +307,11 @@ const ReportsPage = () => {
 
     // Sub-filter for free recovery, incursions, asset damage (client-side safety net)
     if (subFilter === "free-recovery" && report.reportType === "incident") {
-      return matchesSearch && report.incidentType === "Free Recovery";
+      return (
+        matchesSearch &&
+        (report.incidentType === "Free Recovery" ||
+          report.incidentType === "Drive Off")
+      );
     }
     if (subFilter === "incursion" && report.reportType === "incident") {
       return matchesSearch && report.incursion === "YES";
@@ -320,7 +347,9 @@ const ReportsPage = () => {
     if (filterType === "incident" && subFilter === "incursion")
       return reportTypeCounts.incursions;
     if (filterType === "incident" && subFilter === "free-recovery")
-      return reportTypeCounts.freeRecovery;
+      return (
+        (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0)
+      );
     if (filterType === "incident" && subFilter === "asset-damage")
       return reportTypeCounts.incidentAssetDamage;
     if (filterType === "incident") return reportTypeCounts.incident;
@@ -351,7 +380,15 @@ const ReportsPage = () => {
     if (hasMore && !atLastPage) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
-      loadReports(false, null, null, nextPage);
+      loadReports(
+        false,
+        null,
+        null,
+        nextPage,
+        false,
+        undefined,
+        appliedDateFilter,
+      );
     }
   };
 
@@ -359,7 +396,15 @@ const ReportsPage = () => {
     if (currentPage > 1) {
       const prevPage = currentPage - 1;
       setCurrentPage(prevPage);
-      loadReports(false, null, null, prevPage);
+      loadReports(
+        false,
+        null,
+        null,
+        prevPage,
+        false,
+        undefined,
+        appliedDateFilter,
+      );
     }
   };
 
@@ -401,6 +446,7 @@ const ReportsPage = () => {
       typeCursor,
       reportTypeCounts,
       pageCache: { ...pageCacheRef.current },
+      appliedDateFilter,
     };
     // Navigate to appropriate view page based on report type
     const reportTypeRoutes = {
@@ -515,7 +561,8 @@ const ReportsPage = () => {
     dailyOccurrence: reportTypeCounts.dailyOccurrence,
     cctvCheck: reportTypeCounts.cctvCheck,
     cctvFaults: reportTypeCounts.cctvFaults,
-    freeRecovery: reportTypeCounts.freeRecovery,
+    freeRecovery:
+      (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0),
     incursions: reportTypeCounts.incursions,
     vehiclesDispatched: reportTypeCounts.vehiclesDispatched,
     incidentAssetDamage: reportTypeCounts.incidentAssetDamage,
@@ -540,6 +587,36 @@ const ReportsPage = () => {
 
     // Fall back to the default scheme name
     return userProfile?.schemeName;
+  };
+
+  const handleApplyDateFilter = () => {
+    if (!dateFilter.startDate || !dateFilter.endDate) {
+      toast.error("Please select both a start and end date.");
+      return;
+    }
+    const start = new Date(dateFilter.startDate);
+    // Set end date to end of day so the full day is included
+    const end = new Date(dateFilter.endDate);
+    end.setHours(23, 59, 59, 999);
+    const range = { startDate: start, endDate: end };
+    setAppliedDateFilter(range);
+    clearRestoreState();
+    pageCacheRef.current = {};
+    setTypeCursor(null);
+    setCursors({});
+    loadReports(true, null, null, null, false, undefined, range);
+    loadTotalCount(range);
+  };
+
+  const handleClearDateFilter = () => {
+    setDateFilter({ startDate: "", endDate: "" });
+    setAppliedDateFilter(null);
+    clearRestoreState();
+    pageCacheRef.current = {};
+    setTypeCursor(null);
+    setCursors({});
+    loadReports(true, null, null, null, false, undefined, null);
+    loadTotalCount(null);
   };
 
   return (
@@ -659,9 +736,9 @@ const ReportsPage = () => {
 
         {/* Search and Filter */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
             {/* Search */}
-            <div className="flex-1 relative">
+            <div className="w-full md:w-72 relative shrink-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
@@ -693,6 +770,48 @@ const ReportsPage = () => {
               />
             </div>
 
+            {/* Date Range Filter */}
+            <div className="flex flex-wrap items-center gap-2 flex-1">
+              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+              <input
+                type="date"
+                value={dateFilter.startDate}
+                onChange={(e) =>
+                  setDateFilter((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }))
+                }
+                className="input input-bordered bg-white border-gray-300 text-sm h-10 flex-1 min-w-0"
+              />
+              <span className="text-gray-400 text-sm shrink-0">to</span>
+              <input
+                type="date"
+                value={dateFilter.endDate}
+                onChange={(e) =>
+                  setDateFilter((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }))
+                }
+                className="input input-bordered bg-white border-gray-300 text-sm h-10 flex-1 min-w-0"
+              />
+              <button
+                onClick={handleApplyDateFilter}
+                className="btn btn-sm bg-brand-500 hover:bg-brand-600 text-white border-none shrink-0"
+              >
+                Apply
+              </button>
+              {appliedDateFilter && (
+                <button
+                  onClick={handleClearDateFilter}
+                  className="btn btn-sm btn-ghost text-gray-500 shrink-0"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
             {/* Filter */}
             <div className="flex items-center gap-2">
               <Filter className="w-5 h-5 text-gray-500" />
@@ -706,7 +825,15 @@ const ReportsPage = () => {
                   setTypeCursor(null);
                   setCursors({});
                   pageCacheRef.current = {};
-                  loadReports(true, newType);
+                  loadReports(
+                    true,
+                    newType,
+                    null,
+                    null,
+                    false,
+                    null,
+                    appliedDateFilter,
+                  );
                 }}
                 className="select  select-bordered bg-white border-gray-300"
               >

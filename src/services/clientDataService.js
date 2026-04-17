@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import {
   collection,
   query,
@@ -285,9 +286,15 @@ class ClientDataService {
   }
 
   // Acknowledge a CCTV fault from the client side (checkbox + optional note)
-  async acknowledgeCCTVFault(faultId, clientNote = "", authorRole = 'cctvfaultoperator', authorName = '') {
+  async acknowledgeCCTVFault(
+    faultId,
+    clientNote = "",
+    authorRole = "cctvfaultoperator",
+    authorName = "",
+  ) {
     try {
-      const { doc, updateDoc, serverTimestamp, arrayUnion } = await import("firebase/firestore");
+      const { doc, updateDoc, serverTimestamp, arrayUnion } =
+        await import("firebase/firestore");
       const faultRef = doc(db, "cctvFaultsReports", faultId);
       const updateData = {
         clientAcknowledged: true,
@@ -296,7 +303,12 @@ class ClientDataService {
         updatedAt: serverTimestamp(),
       };
       if (clientNote.trim()) {
-        updateData.clientNotes = arrayUnion({ text: clientNote.trim(), addedAt: new Date().toISOString(), authorRole, authorName });
+        updateData.clientNotes = arrayUnion({
+          text: clientNote.trim(),
+          addedAt: new Date().toISOString(),
+          authorRole,
+          authorName,
+        });
       }
       await updateDoc(faultRef, updateData);
     } catch (error) {
@@ -306,12 +318,23 @@ class ClientDataService {
   }
 
   // Add a stacked note to an already-acknowledged CCTV fault
-  async addClientNote(faultId, noteText, authorRole = 'cctvfaultoperator', authorName = '') {
+  async addClientNote(
+    faultId,
+    noteText,
+    authorRole = "cctvfaultoperator",
+    authorName = "",
+  ) {
     try {
-      const { doc, updateDoc, serverTimestamp, arrayUnion } = await import("firebase/firestore");
+      const { doc, updateDoc, serverTimestamp, arrayUnion } =
+        await import("firebase/firestore");
       const faultRef = doc(db, "cctvFaultsReports", faultId);
       await updateDoc(faultRef, {
-        clientNotes: arrayUnion({ text: noteText.trim(), addedAt: new Date().toISOString(), authorRole, authorName }),
+        clientNotes: arrayUnion({
+          text: noteText.trim(),
+          addedAt: new Date().toISOString(),
+          authorRole,
+          authorName,
+        }),
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
@@ -322,7 +345,8 @@ class ClientDataService {
 
   async updateCCTVFaultNotes(faultId, updatedNotes) {
     try {
-      const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+      const { doc, updateDoc, serverTimestamp } =
+        await import("firebase/firestore");
       const faultRef = doc(db, "cctvFaultsReports", faultId);
       await updateDoc(faultRef, {
         clientNotes: updatedNotes,
@@ -338,7 +362,9 @@ class ClientDataService {
   async getCCTVFaultsPaginated(schemeId, pageSize = 10, lastDoc = null) {
     try {
       const faultsRef = collection(db, "cctvFaultsReports");
-      const schemeFilter = schemeId ? [where("schemeIds", "array-contains", schemeId)] : [];
+      const schemeFilter = schemeId
+        ? [where("schemeIds", "array-contains", schemeId)]
+        : [];
 
       let q;
       if (lastDoc) {
@@ -376,8 +402,12 @@ class ClientDataService {
         error.code === "failed-precondition" ||
         error.message?.includes("index")
       ) {
-        console.warn("Index not available for CCTV faults paginated, using fallback");
-        const fallbackFilters = schemeId ? [where("schemeIds", "array-contains", schemeId)] : [];
+        console.warn(
+          "Index not available for CCTV faults paginated, using fallback",
+        );
+        const fallbackFilters = schemeId
+          ? [where("schemeIds", "array-contains", schemeId)]
+          : [];
         const simpleQuery = query(
           collection(db, "cctvFaultsReports"),
           ...fallbackFilters,
@@ -410,7 +440,9 @@ class ClientDataService {
   // Get total count of COMPLETED CCTV fault reports for a scheme (1 aggregate read)
   async getCCTVFaultsCount(schemeId) {
     try {
-      const schemeFilter = schemeId ? [where("schemeIds", "array-contains", schemeId)] : [];
+      const schemeFilter = schemeId
+        ? [where("schemeIds", "array-contains", schemeId)]
+        : [];
       const q = query(
         collection(db, "cctvFaultsReports"),
         ...schemeFilter,
@@ -723,7 +755,9 @@ class ClientDataService {
 
       // Calculate statistics
       const stats = {
-        totalIncidents: incidents.filter((i) => i.incidentType !== "Free Recovery" && i.incursion !== "YES").length,
+        totalIncidents: incidents.filter(
+          (i) => i.incidentType !== "Free Recovery" && i.incursion !== "YES",
+        ).length,
         incidentsByType: this.groupByField(incidents, "incidentType"),
         incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"), // Array field
         vehiclesDispatched: this.calculateVehiclesDispatched(incidents),
@@ -743,7 +777,12 @@ class ClientDataService {
         ), // Time from on site to cleared (pre-calculated)
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"), // Time from spotted to on site (pre-calculated)
         incursions: incidents.filter((i) => i.incursion === "YES").length, // Check for 'YES' string
-        assetDamage: incidents.filter((i) => i.propertyDamage === true || i.propertyDamage === "yes" || i.propertyDamage === "Yes").length,
+        assetDamage: incidents.filter(
+          (i) =>
+            i.propertyDamage === true ||
+            i.propertyDamage === "yes" ||
+            i.propertyDamage === "Yes",
+        ).length,
         recentIncidents: incidents.slice(0, 10).map((incident) => ({
           type: incident.incidentType || "Unknown",
           location: incident.markerPost || incident.section || "Unknown",
@@ -1103,7 +1142,10 @@ class ClientDataService {
           where("createdAt", "<=", Timestamp.fromDate(endDate)),
         );
         const incidentsSnapshot = await getDocs(incidentsQuery);
-        incidents = incidentsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        incidents = incidentsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         console.log(
           `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
         );
@@ -1121,7 +1163,10 @@ class ClientDataService {
             where("schemeIds", "array-contains", schemeId),
           );
           const snapshot = await getDocs(simpleQuery);
-          const allIncidents = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          const allIncidents = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
 
           // Filter by date range in memory
           incidents = allIncidents.filter((incident) => {
@@ -1139,7 +1184,12 @@ class ClientDataService {
 
       // Calculate statistics (same as getSchemeStats)
       const stats = {
-        totalIncidents: incidents.filter((i) => i.incidentType !== "Free Recovery" && i.incursion !== "YES").length,
+        totalIncidents: incidents.filter(
+          (i) =>
+            i.incidentType !== "Free Recovery" &&
+            i.incidentType !== "Drive Off" &&
+            i.incursion !== "YES",
+        ).length,
         incidentsByType: this.groupByField(incidents, "incidentType"),
         incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"),
         vehiclesDispatched: this.calculateVehiclesDispatched(incidents),
@@ -1159,7 +1209,12 @@ class ClientDataService {
         ),
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"),
         incursions: incidents.filter((i) => i.incursion === "YES").length,
-        assetDamage: incidents.filter((i) => i.propertyDamage === true || i.propertyDamage === "yes" || i.propertyDamage === "Yes").length,
+        assetDamage: incidents.filter(
+          (i) =>
+            i.propertyDamage === true ||
+            i.propertyDamage === "yes" ||
+            i.propertyDamage === "Yes",
+        ).length,
         recentIncidents: incidents.slice(0, 10).map((incident) => ({
           type: incident.incidentType || "Unknown",
           location: incident.markerPost || incident.section || "Unknown",
@@ -1341,46 +1396,55 @@ class ClientDataService {
 
   // Get all reports with server-side pagination (COST-OPTIMIZED!)
   // Fetches reports from all collections and merges them with cursor-based pagination
-  async getAllReportsPaginated(schemeId, pageSize = 10, cursors = {}) {
+  async getAllReportsPaginated(schemeId, pageSize = 10, cursors = {}, dateRange = null) {
     try {
       // Fetch pageSize from each type so the merged result is truly chronological
       const perTypeLimit = pageSize;
 
       // Fetch with cursors
-      const [incidents, assetDamage, dailyLogs, cctvChecks, cctvFaults] = await Promise.all(
-        [
+      const [incidents, assetDamage, dailyLogs, cctvChecks, cctvFaults] =
+        await Promise.all([
           this.fetchPaginatedCollection(
             "incidentReports",
             schemeId,
             perTypeLimit,
             cursors.incidents,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "assetDamageReports",
             schemeId,
             perTypeLimit,
             cursors.assetDamage,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "dailyOccurrenceReports",
             schemeId,
             perTypeLimit,
             cursors.dailyLogs,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "cctvCheckForms",
             schemeId,
             perTypeLimit,
             cursors.cctvChecks,
+            null,
+            dateRange,
           ),
           this.fetchPaginatedCollection(
             "cctvFaultsReports",
             schemeId,
             perTypeLimit,
             cursors.cctvFaults,
+            null,
+            dateRange,
           ),
-        ],
-      );
+        ]);
 
       // Transform and combine all reports — tag each with source for cursor tracking
       const allReports = [
@@ -1471,6 +1535,7 @@ class ClientDataService {
     limitCount,
     lastDoc,
     extraWhere = null,
+    dateRange = null, // { startDate: Date, endDate: Date }
   ) {
     try {
       const collectionRef = collection(db, collectionName);
@@ -1478,12 +1543,25 @@ class ClientDataService {
 
       const baseConstraints = [
         where("schemeIds", "array-contains", schemeId),
-        ...(extraWhere ? [where(extraWhere.field, extraWhere.op, extraWhere.value)] : []),
+        ...(extraWhere
+          ? [where(extraWhere.field, extraWhere.op, extraWhere.value)]
+          : []),
+        ...(dateRange
+          ? [
+              where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+              where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+            ]
+          : []),
         orderBy("createdAt", "desc"),
       ];
 
       if (lastDoc) {
-        q = query(collectionRef, ...baseConstraints, startAfter(lastDoc), limit(limitCount));
+        q = query(
+          collectionRef,
+          ...baseConstraints,
+          startAfter(lastDoc),
+          limit(limitCount),
+        );
       } else {
         q = query(collectionRef, ...baseConstraints, limit(limitCount));
       }
@@ -1547,16 +1625,23 @@ class ClientDataService {
   // Get total count of all reports for a scheme (for pagination display)
   async getAllReportsCount(schemeId) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount] =
-        await Promise.all([
-          this.getCollectionCount("incidentReports", schemeId),
-          this.getCollectionCount("assetDamageReports", schemeId),
-          this.getCollectionCount("dailyOccurrenceReports", schemeId),
-          this.getCollectionCount("cctvCheckForms", schemeId),
-          this.getCollectionCount("cctvFaultsReports", schemeId),
-        ]);
+      const [
+        incidentCount,
+        assetCount,
+        dailyCount,
+        cctvCount,
+        cctvFaultsCount,
+      ] = await Promise.all([
+        this.getCollectionCount("incidentReports", schemeId),
+        this.getCollectionCount("assetDamageReports", schemeId),
+        this.getCollectionCount("dailyOccurrenceReports", schemeId),
+        this.getCollectionCount("cctvCheckForms", schemeId),
+        this.getCollectionCount("cctvFaultsReports", schemeId),
+      ]);
 
-      return incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount;
+      return (
+        incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount
+      );
     } catch (error) {
       console.warn("Could not get total reports count:", error);
       return 0;
@@ -1641,6 +1726,7 @@ class ClientDataService {
     pageSize = 10,
     lastDoc = null,
     extraWhere = null, // { field, op, value } for server-side sub-filters
+    dateRange = null, // { startDate: Date, endDate: Date }
   ) {
     // CCTV uses a dual-query approach to include both scheme-specific and "all-schemes" forms
     if (reportType === "cctv-check") {
@@ -1663,6 +1749,7 @@ class ClientDataService {
         pageSize,
         lastDoc,
         extraWhere,
+        dateRange,
       );
       const reports = result.docs.map((report) => {
         if (reportType === "incident")
@@ -1701,32 +1788,69 @@ class ClientDataService {
   }
 
   // Get count per report type for a scheme (for stat cards - 4 reads total)
-  async getAllReportsCountByType(schemeId) {
+  async getAllReportsCountByType(schemeId, dateRange = null) {
     try {
-      const [incidentCount, assetCount, dailyCount, cctvCount, cctvFaultsCount, freeRecoveryCount, incursionsCount, vehiclesDispatchedCount, incidentAssetDamageCount] =
-        await Promise.all([
-          this.getCollectionCount("incidentReports", schemeId),
-          this.getCollectionCount("assetDamageReports", schemeId),
-          this.getCollectionCount("dailyOccurrenceReports", schemeId),
-          this.getCollectionCount("cctvCheckForms", schemeId),
-          this.getCollectionCount("cctvFaultsReports", schemeId),
-          this.getCollectionCountWithFilter("incidentReports", schemeId, "incidentType", "Free Recovery"),
-          this.getCollectionCountWithFilter("incidentReports", schemeId, "incursion", "YES"),
-          this.getVehiclesDispatchedCount(schemeId),
-          this.getCollectionCountWithFilter("incidentReports", schemeId, "propertyDamage", true),
-        ]);
+      const [
+        incidentCount,
+        assetCount,
+        dailyCount,
+        cctvCount,
+        cctvFaultsCount,
+        freeRecoveryCount,
+        driveOffCount,
+        incursionsCount,
+        vehiclesDispatchedCount,
+        incidentAssetDamageCount,
+      ] = await Promise.all([
+        this.getCollectionCount("incidentReports", schemeId, dateRange),
+        this.getCollectionCount("assetDamageReports", schemeId, dateRange),
+        this.getCollectionCount("dailyOccurrenceReports", schemeId, dateRange),
+        this.getCollectionCount("cctvCheckForms", schemeId, dateRange),
+        this.getCollectionCount("cctvFaultsReports", schemeId, dateRange),
+        this.getCollectionCountWithFilter(
+          "incidentReports",
+          schemeId,
+          "incidentType",
+          "Free Recovery",
+          dateRange,
+        ),
+        this.getCollectionCountWithFilter(
+          "incidentReports",
+          schemeId,
+          "incidentType",
+          "Drive Off",
+          dateRange,
+        ),
+        this.getCollectionCountWithFilter(
+          "incidentReports",
+          schemeId,
+          "incursion",
+          "YES",
+          dateRange,
+        ),
+        this.getVehiclesDispatchedCount(schemeId),
+        this.getCollectionCountWithFilter(
+          "incidentReports",
+          schemeId,
+          "propertyDamage",
+          true,
+          dateRange,
+        ),
+      ]);
 
       return {
-        incident: incidentCount - freeRecoveryCount - incursionsCount,
+        incident: incidentCount - freeRecoveryCount - driveOffCount - incursionsCount,
         assetDamage: assetCount,
         dailyOccurrence: dailyCount,
         cctvCheck: cctvCount,
         cctvFaults: cctvFaultsCount,
         freeRecovery: freeRecoveryCount,
+        driveOff: driveOffCount,
         incursions: incursionsCount,
         vehiclesDispatched: vehiclesDispatchedCount,
         incidentAssetDamage: incidentAssetDamageCount,
-        total: incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount,
+        total:
+          incidentCount + assetCount + dailyCount + cctvCount + cctvFaultsCount,
       };
     } catch (error) {
       console.warn("Could not get reports count by type:", error);
@@ -1737,6 +1861,7 @@ class ClientDataService {
         cctvCheck: 0,
         cctvFaults: 0,
         freeRecovery: 0,
+        driveOff: 0,
         incursions: 0,
         vehiclesDispatched: 0,
         incidentAssetDamage: 0,
@@ -1750,31 +1875,42 @@ class ClientDataService {
       const { doc, getDoc } = await import("firebase/firestore");
       const statsRef = doc(db, "schemeStats", schemeId);
       const snapshot = await getDoc(statsRef);
-      return snapshot.exists() ? (snapshot.data().totalVehiclesDispatched || 0) : 0;
+      return snapshot.exists()
+        ? snapshot.data().totalVehiclesDispatched || 0
+        : 0;
     } catch (error) {
       console.warn("Could not get vehicles dispatched count:", error);
       return 0;
     }
   }
 
-  async getCollectionCountWithFilter(collectionName, schemeId, field, value) {
+  async getCollectionCountWithFilter(collectionName, schemeId, field, value, dateRange = null) {
     try {
       const collectionRef = collection(db, collectionName);
-      const q = query(
-        collectionRef,
+      const constraints = [
         where("schemeIds", "array-contains", schemeId),
-        where(field, "==", value)
-      );
+        where(field, "==", value),
+        ...(dateRange
+          ? [
+              where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+              where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+            ]
+          : []),
+      ];
+      const q = query(collectionRef, ...constraints);
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
     } catch (error) {
-      console.warn(`Could not get filtered count for ${collectionName}:`, error);
+      console.warn(
+        `Could not get filtered count for ${collectionName}:`,
+        error,
+      );
       return 0;
     }
   }
 
   // Helper to get count from a collection
-  async getCollectionCount(collectionName, schemeId) {
+  async getCollectionCount(collectionName, schemeId, dateRange = null) {
     try {
       const collectionRef = collection(db, collectionName);
       // For cctvCheckForms, also count "all-schemes" docs (backward compatibility)
@@ -1782,7 +1918,13 @@ class ClientDataService {
         collectionName === "cctvCheckForms"
           ? where("schemeIds", "array-contains-any", [schemeId, "all-schemes"])
           : where("schemeIds", "array-contains", schemeId);
-      const q = query(collectionRef, schemeFilter);
+      const dateConstraints = dateRange
+        ? [
+            where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+            where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+          ]
+        : [];
+      const q = query(collectionRef, schemeFilter, ...dateConstraints);
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
     } catch (error) {
@@ -1865,14 +2007,21 @@ class ClientDataService {
         }));
         // Only return reports that have video files, strip out non-video files
         return docs
-          .map((doc) => ({ ...doc, files: (doc.files || []).filter((f) => f.fileType?.startsWith("video/")) }))
+          .map((doc) => ({
+            ...doc,
+            files: (doc.files || []).filter((f) =>
+              f.fileType?.startsWith("video/"),
+            ),
+          }))
           .filter((doc) => doc.files.length > 0);
       } catch (indexError) {
         if (
           indexError.code === "failed-precondition" ||
           indexError.message?.includes("index")
         ) {
-          console.warn("Index not available for incidentReports, trying simplified query");
+          console.warn(
+            "Index not available for incidentReports, trying simplified query",
+          );
           const simpleQuery = query(
             reportsRef,
             where("schemeIds", "array-contains", schemeId),
@@ -1885,9 +2034,17 @@ class ClientDataService {
             dateTime: doc.data().createdAt,
           }));
           return docs
-            .map((doc) => ({ ...doc, files: (doc.files || []).filter((f) => f.fileType?.startsWith("video/")) }))
+            .map((doc) => ({
+              ...doc,
+              files: (doc.files || []).filter((f) =>
+                f.fileType?.startsWith("video/"),
+              ),
+            }))
             .filter((doc) => doc.files.length > 0)
-            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            .sort(
+              (a, b) =>
+                (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+            );
         }
         throw indexError;
       }
@@ -1910,25 +2067,51 @@ class ClientDataService {
     if (!raw) return [];
     const termRef = raw.toUpperCase();
     const termName = raw;
-    const termRefEnd = termRef + '\uf8ff';
-    const termNameEnd = termName + '\uf8ff';
+    const termRefEnd = termRef + "\uf8ff";
+    const termNameEnd = termName + "\uf8ff";
 
     const COLLECTIONS = [
-      { name: 'incidentReports',       type: 'incident',          typeField: 'incidentType' },
-      { name: 'assetDamageReports',    type: 'asset-damage',      typeField: 'damageType'   },
-      { name: 'dailyOccurrenceReports',type: 'daily-occurrence',  typeField: null           },
-      { name: 'cctvCheckForms',        type: 'cctv-check',        typeField: null           },
-      { name: 'cctvFaultsReports',     type: 'cctv-faults',       typeField: null           },
+      { name: "incidentReports", type: "incident", typeField: "incidentType" },
+      {
+        name: "assetDamageReports",
+        type: "asset-damage",
+        typeField: "damageType",
+      },
+      {
+        name: "dailyOccurrenceReports",
+        type: "daily-occurrence",
+        typeField: null,
+      },
+      { name: "cctvCheckForms", type: "cctv-check", typeField: null },
+      { name: "cctvFaultsReports", type: "cctv-faults", typeField: null },
     ];
 
     // Run referenceId and submittedBy.name queries in parallel
     const [refSnapshots, nameSnapshots] = await Promise.all([
-      Promise.all(COLLECTIONS.map(({ name }) =>
-        getDocs(query(collection(db, name), where('referenceId', '>=', termRef), where('referenceId', '<=', termRefEnd), limit(10)))
-      )),
-      Promise.all(COLLECTIONS.map(({ name }) =>
-        getDocs(query(collection(db, name), where('submittedBy.name', '>=', termName), where('submittedBy.name', '<=', termNameEnd), limit(10)))
-      )),
+      Promise.all(
+        COLLECTIONS.map(({ name }) =>
+          getDocs(
+            query(
+              collection(db, name),
+              where("referenceId", ">=", termRef),
+              where("referenceId", "<=", termRefEnd),
+              limit(10),
+            ),
+          ),
+        ),
+      ),
+      Promise.all(
+        COLLECTIONS.map(({ name }) =>
+          getDocs(
+            query(
+              collection(db, name),
+              where("submittedBy.name", ">=", termName),
+              where("submittedBy.name", "<=", termNameEnd),
+              limit(10),
+            ),
+          ),
+        ),
+      ),
     ]);
 
     const seen = new Set();
@@ -1937,12 +2120,13 @@ class ClientDataService {
     const addDocs = (snapshots) => {
       snapshots.forEach((snap, i) => {
         const { type, typeField } = COLLECTIONS[i];
-        snap.docs.forEach(d => {
+        snap.docs.forEach((d) => {
           if (seen.has(d.id)) return;
           const data = d.data();
           // Filter by scheme client-side
           const inScheme =
-            (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
+            (Array.isArray(data.schemeIds) &&
+              data.schemeIds.includes(schemeId)) ||
             data.schemeId === schemeId;
           if (!inScheme) return;
           seen.add(d.id);
@@ -1961,7 +2145,9 @@ class ClientDataService {
     addDocs(nameSnapshots);
 
     // Sort newest first, cap to 10
-    results.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+    results.sort(
+      (a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0),
+    );
     return results.slice(0, 10);
   }
 }

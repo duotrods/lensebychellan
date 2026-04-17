@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import {
   collection,
   addDoc,
@@ -151,7 +152,6 @@ class StaffService {
       const referenceId = await referenceIdService.generateReferenceId(
         "cctvCheck",
         isDemo,
-        tpSchemeId,
       );
 
       const formsRef = collection(db, "cctvCheckForms");
@@ -370,7 +370,6 @@ class StaffService {
       const referenceId = await referenceIdService.generateReferenceId(
         "incident",
         isDemo,
-        tpSchemeId,
       );
 
       const reportsRef = collection(db, "incidentReports");
@@ -901,7 +900,6 @@ class StaffService {
       const referenceId = await referenceIdService.generateReferenceId(
         "assetDamage",
         isDemo,
-        tpSchemeId,
       );
 
       const reportsRef = collection(db, "assetDamageReports");
@@ -1026,11 +1024,9 @@ class StaffService {
         ? extractSchemeId(formData.scheme)
         : null;
       const isDemo = schemeId === DEMO_SCHEME_ID;
-      const tpSchemeId = getThirdPartySchemeById(schemeId) ? schemeId : null;
       const referenceId = await referenceIdService.generateReferenceId(
         "cctvFaults",
         isDemo,
-        tpSchemeId,
       );
 
       const docRef = await addDoc(collection(db, "cctvFaultsReports"), {
@@ -1407,7 +1403,6 @@ class StaffService {
       const referenceId = await referenceIdService.generateReferenceId(
         "dailyOccurrence",
         isNewSubmissionDemo,
-        tpSchemeId,
       );
 
       // Extract unique schemeIds from all occurrences
@@ -1734,31 +1729,31 @@ class StaffService {
           "cctvCheckForms",
           perTypeLimit,
           cursors.cctv,
-          schemeIds,
+          schemeId,
         ),
         this.fetchPaginatedForms(
           "incidentReports",
           perTypeLimit,
           cursors.incident,
-          schemeIds,
+          schemeId,
         ),
         this.fetchPaginatedForms(
           "assetDamageReports",
           perTypeLimit,
           cursors.assetDamage,
-          schemeIds,
+          schemeId,
         ),
         this.fetchPaginatedForms(
           "dailyOccurrenceReports",
           perTypeLimit,
           cursors.dailyOccurrence,
-          schemeIds,
+          schemeId,
         ),
         this.fetchPaginatedForms(
           "cctvFaultsReports",
           perTypeLimit,
           cursors.cctvFaults,
-          schemeIds,
+          schemeId,
         ),
       ]);
 
@@ -1838,7 +1833,7 @@ class StaffService {
     formType,
     pageSize = 10,
     lastDoc = null,
-    schemeIds = null,
+    schemeId = null,
   ) {
     const configMap = {
       "cctv-check": { collection: "cctvCheckForms", label: "CCTV Check Sheet" },
@@ -1861,7 +1856,7 @@ class StaffService {
         config.collection,
         pageSize,
         lastDoc,
-        schemeIds,
+        schemeId,
       );
       const forms = result.docs.map(({ _firestoreDoc, ...f }) => ({
         ...f,
@@ -1881,7 +1876,7 @@ class StaffService {
     collectionName,
     limitCount,
     lastDoc,
-    schemeIds = null,
+    schemeId = null,
   ) {
     try {
       const collectionRef = collection(db, collectionName);
@@ -1923,7 +1918,6 @@ class StaffService {
    */
   async getAllFormsCount(tpSchemeIds = null) {
     try {
-      const hasFilter = tpSchemeIds && tpSchemeIds.length > 0;
       const [
         cctvCount,
         incidentCount,
@@ -1931,37 +1925,14 @@ class StaffService {
         dailyCount,
         cctvFaultsCount,
       ] = await Promise.all([
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "cctvCheckForms",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "incidentReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("incidentReports"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "assetDamageReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "dailyOccurrenceReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServer("dailyOccurrenceReports"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "cctvFaultsReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
+        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
+        this.getCollectionCountServerExcludeDemo("incidentReports"),
+        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
+        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
+        this.getCollectionCountServer("dailyOccurrenceReports"),
+        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
       ]);
+
       return (
         cctvCount + incidentCount + assetCount + dailyCount + cctvFaultsCount
       );
@@ -1978,7 +1949,6 @@ class StaffService {
    */
   async getAllFormsCountByType(tpSchemeIds = null) {
     try {
-      const hasFilter = tpSchemeIds && tpSchemeIds.length > 0;
       const [
         cctvCount,
         incidentCount,
@@ -1986,36 +1956,12 @@ class StaffService {
         dailyCount,
         cctvFaultsCount,
       ] = await Promise.all([
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "cctvCheckForms",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "incidentReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("incidentReports"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "assetDamageReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "dailyOccurrenceReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServer("dailyOccurrenceReports"),
-        hasFilter
-          ? this.getCollectionCountServerForSchemes(
-              "cctvFaultsReports",
-              tpSchemeIds,
-            )
-          : this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
+        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
+        this.getCollectionCountServerExcludeDemo("incidentReports"),
+        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
+        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
+        this.getCollectionCountServer("dailyOccurrenceReports"),
+        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
       ]);
       return {
         cctvCheckTotal: cctvCount,
@@ -2051,12 +1997,7 @@ class StaffService {
     };
     const collectionName = collectionMap[formType];
     if (!collectionName) return 0;
-    if (tpSchemeIds && tpSchemeIds.length > 0) {
-      return await this.getCollectionCountServerForSchemes(
-        collectionName,
-        tpSchemeIds,
-      );
-    }
+    // Daily occurrence forms don't have a top-level schemeId, use regular count
     if (formType === "daily-occurrence") {
       return await this.getCollectionCountServer(collectionName);
     }
@@ -2077,22 +2018,6 @@ class StaffService {
         `Could not get non-demo count for ${collectionName}:`,
         error,
       );
-      return 0;
-    }
-  }
-
-  /**
-   * Helper: count documents scoped to a set of scheme IDs (for TP company filtering).
-   * Uses "in" query — supports up to 30 values (Firestore limit).
-   */
-  async getCollectionCountServerForSchemes(collectionName, schemeIds) {
-    try {
-      const collectionRef = collection(db, collectionName);
-      const q = query(collectionRef, where("schemeId", "in", schemeIds));
-      const snapshot = await getCountFromServer(q);
-      return snapshot.data().count;
-    } catch (error) {
-      console.warn(`Could not get scheme count for ${collectionName}:`, error);
       return 0;
     }
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
 import { authService } from "../../services/authService";
@@ -24,6 +24,9 @@ const SignInForm = () => {
   const [countdown, setCountdown] = useState(0);
   const timerRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectParam = new URLSearchParams(location.search).get("redirect");
+  const safeRedirect = redirectParam?.startsWith("/") ? redirectParam : null;
 
   useEffect(() => {
     const { lockedUntil } = getLockoutState();
@@ -63,7 +66,7 @@ const SignInForm = () => {
       firestoreService.logUserLogin(user.uid, profile?.displayName, user.email, profile?.role).catch(console.error);
       toast.success("Welcome back!");
       const dashboardRoute = DASHBOARD_ROUTES[profile?.role] || "/dashboard";
-      navigate(dashboardRoute);
+      navigate(safeRedirect || dashboardRoute);
     } catch (error) {
       const newAttempts = (getLockoutState().attempts || 0) + 1;
       localStorage.setItem("signin_attempts", newAttempts);

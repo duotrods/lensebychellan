@@ -1,18 +1,20 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmailVerification from './EmailVerification';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { currentUser, userProfile, loading, isEmailVerified, role } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <LoadingSpinner />;
   }
 
-  // Not authenticated
+  // Not authenticated — preserve the original URL so we can redirect back after login
   if (!currentUser) {
-    return <Navigate to="/signin" replace />;
+    const redirectTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/signin?redirect=${redirectTo}`} replace />;
   }
 
   // Email not verified
