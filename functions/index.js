@@ -19,7 +19,7 @@ const fs = require("fs");
 const path = require("path");
 const LOGO_B64 = fs.readFileSync(path.join(__dirname, "chellanpng.png")).toString("base64");
 
-const BASE_URL = process.env.INCIDENT_BASE_URL || "http://localhost:5173";
+const BASE_URL = (process.env.INCIDENT_BASE_URL || "http://localhost:5173").replace(/\/+$/, "");
 
 /**
  * Generates a PDF buffer for an incident report using pdfkit.
