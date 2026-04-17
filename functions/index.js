@@ -599,56 +599,56 @@ exports.deleteUserAccount = onCall(async (request) => {
 // Trigger once via: https://<region>-<project>.cloudfunctions.net/backfillPureIncident
 // Protected by a secret key — pass ?key=YOUR_SECRET in the URL.
 // DELETE or disable this function after running it successfully.
-exports.backfillPureIncident = onRequest(async (req, res) => {
-  const SECRET = "backfill-pure-2024"; // change this to anything you want
-  if (req.query.key !== SECRET) {
-    res.status(401).send("Unauthorized — pass ?key=YOUR_SECRET in the URL");
-    return;
-  }
+// exports.backfillPureIncident = onRequest(async (req, res) => {
+//   const SECRET = "backfill-pure-2024"; // change this to anything you want
+//   if (req.query.key !== SECRET) {
+//     res.status(401).send("Unauthorized — pass ?key=YOUR_SECRET in the URL");
+//     return;
+//   }
 
-  const db = admin.firestore();
-  const snapshot = await db.collection("incidentReports").get();
+//   const db = admin.firestore();
+//   const snapshot = await db.collection("incidentReports").get();
 
-  if (snapshot.empty) {
-    res.status(200).json({ message: "No incidents found.", updated: 0 });
-    return;
-  }
+//   if (snapshot.empty) {
+//     res.status(200).json({ message: "No incidents found.", updated: 0 });
+//     return;
+//   }
 
-  let updated = 0;
-  let skipped = 0;
-  const BATCH_SIZE = 500; // Firestore max per batch
+//   let updated = 0;
+//   let skipped = 0;
+//   const BATCH_SIZE = 500; // Firestore max per batch
 
-  // Split all docs into chunks of 500
-  const docs = snapshot.docs;
-  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-    const chunk = docs.slice(i, i + BATCH_SIZE);
-    const batch = db.batch();
+//   // Split all docs into chunks of 500
+//   const docs = snapshot.docs;
+//   for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+//     const chunk = docs.slice(i, i + BATCH_SIZE);
+//     const batch = db.batch();
 
-    chunk.forEach((doc) => {
-      const d = doc.data();
-      const isPureIncident =
-        d.incidentType !== "Free Recovery" &&
-        d.incidentType !== "Drive Off" &&
-        d.incursion !== "YES" &&
-        !d.propertyDamage;
+//     chunk.forEach((doc) => {
+//       const d = doc.data();
+//       const isPureIncident =
+//         d.incidentType !== "Free Recovery" &&
+//         d.incidentType !== "Drive Off" &&
+//         d.incursion !== "YES" &&
+//         !d.propertyDamage;
 
-      // Only write if the field is missing or wrong — avoids unnecessary writes
-      if (d.isPureIncident !== isPureIncident) {
-        batch.update(doc.ref, { isPureIncident });
-        updated++;
-      } else {
-        skipped++;
-      }
-    });
+//       // Only write if the field is missing or wrong — avoids unnecessary writes
+//       if (d.isPureIncident !== isPureIncident) {
+//         batch.update(doc.ref, { isPureIncident });
+//         updated++;
+//       } else {
+//         skipped++;
+//       }
+//     });
 
-    await batch.commit();
-    console.log(`Committed batch ${Math.floor(i / BATCH_SIZE) + 1} — ${updated} updated so far`);
-  }
+//     await batch.commit();
+//     console.log(`Committed batch ${Math.floor(i / BATCH_SIZE) + 1} — ${updated} updated so far`);
+//   }
 
-  res.status(200).json({
-    message: "Backfill complete.",
-    total: docs.length,
-    updated,
-    skipped,
-  });
-});
+//   res.status(200).json({
+//     message: "Backfill complete.",
+//     total: docs.length,
+//     updated,
+//     skipped,
+//   });
+// });
