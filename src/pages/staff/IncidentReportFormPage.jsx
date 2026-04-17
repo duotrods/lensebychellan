@@ -410,6 +410,7 @@ const IncidentReportFormPage = () => {
       await sendIncidentAlertNotification(
         {
           ...updateData,
+          id: incidentId,
           referenceId: existingReferenceId,
           submittedBy: userProfile.displayName,
         },
@@ -479,6 +480,7 @@ const IncidentReportFormPage = () => {
         await sendIncidentAlertNotification(
           {
             ...updateData,
+            id: incidentId,
             referenceId: existingReferenceId,
             submittedBy: userProfile.displayName,
           },
@@ -493,7 +495,7 @@ const IncidentReportFormPage = () => {
         navigate("/dashboard/staff");
       } else {
         // Submit new form (regular flow - not using 2-step)
-        const { referenceId: newReferenceId } =
+        const { id: newIncidentId, referenceId: newReferenceId } =
           await staffService.submitIncidentReport(
             {
               ...dataWithTimings,
@@ -507,6 +509,7 @@ const IncidentReportFormPage = () => {
         await sendIncidentAlertNotification(
           {
             ...dataWithTimings,
+            id: newIncidentId,
             referenceId: newReferenceId,
             submittedBy: userProfile.displayName,
           },

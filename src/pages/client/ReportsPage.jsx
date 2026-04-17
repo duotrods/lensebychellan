@@ -226,7 +226,11 @@ const ReportsPage = () => {
           activeSub === "incursion"
             ? { field: "incursion", op: "==", value: "YES" }
             : activeSub === "free-recovery"
-              ? { field: "incidentType", op: "in", value: ["Free Recovery", "Drive Off"] }
+              ? {
+                  field: "incidentType",
+                  op: "in",
+                  value: ["Free Recovery", "Drive Off"],
+                }
               : activeSub === "asset-damage"
                 ? { field: "propertyDamage", op: "==", value: true }
                 : null;
@@ -303,7 +307,11 @@ const ReportsPage = () => {
 
     // Sub-filter for free recovery, incursions, asset damage (client-side safety net)
     if (subFilter === "free-recovery" && report.reportType === "incident") {
-      return matchesSearch && (report.incidentType === "Free Recovery" || report.incidentType === "Drive Off");
+      return (
+        matchesSearch &&
+        (report.incidentType === "Free Recovery" ||
+          report.incidentType === "Drive Off")
+      );
     }
     if (subFilter === "incursion" && report.reportType === "incident") {
       return matchesSearch && report.incursion === "YES";
@@ -339,7 +347,9 @@ const ReportsPage = () => {
     if (filterType === "incident" && subFilter === "incursion")
       return reportTypeCounts.incursions;
     if (filterType === "incident" && subFilter === "free-recovery")
-      return (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0);
+      return (
+        (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0)
+      );
     if (filterType === "incident" && subFilter === "asset-damage")
       return reportTypeCounts.incidentAssetDamage;
     if (filterType === "incident") return reportTypeCounts.incident;
@@ -370,7 +380,15 @@ const ReportsPage = () => {
     if (hasMore && !atLastPage) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
-      loadReports(false, null, null, nextPage, false, undefined, appliedDateFilter);
+      loadReports(
+        false,
+        null,
+        null,
+        nextPage,
+        false,
+        undefined,
+        appliedDateFilter,
+      );
     }
   };
 
@@ -378,7 +396,15 @@ const ReportsPage = () => {
     if (currentPage > 1) {
       const prevPage = currentPage - 1;
       setCurrentPage(prevPage);
-      loadReports(false, null, null, prevPage, false, undefined, appliedDateFilter);
+      loadReports(
+        false,
+        null,
+        null,
+        prevPage,
+        false,
+        undefined,
+        appliedDateFilter,
+      );
     }
   };
 
@@ -535,7 +561,8 @@ const ReportsPage = () => {
     dailyOccurrence: reportTypeCounts.dailyOccurrence,
     cctvCheck: reportTypeCounts.cctvCheck,
     cctvFaults: reportTypeCounts.cctvFaults,
-    freeRecovery: (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0),
+    freeRecovery:
+      (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0),
     incursions: reportTypeCounts.incursions,
     vehiclesDispatched: reportTypeCounts.vehiclesDispatched,
     incidentAssetDamage: reportTypeCounts.incidentAssetDamage,
@@ -709,9 +736,9 @@ const ReportsPage = () => {
 
         {/* Search and Filter */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
             {/* Search */}
-            <div className="flex-1 relative">
+            <div className="w-full md:w-72 relative shrink-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
@@ -744,35 +771,41 @@ const ReportsPage = () => {
             </div>
 
             {/* Date Range Filter */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <Calendar className="w-5 h-5 text-gray-500 shrink-0" />
+            <div className="flex flex-wrap items-center gap-2 flex-1">
+              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
               <input
                 type="date"
                 value={dateFilter.startDate}
                 onChange={(e) =>
-                  setDateFilter((prev) => ({ ...prev, startDate: e.target.value }))
+                  setDateFilter((prev) => ({
+                    ...prev,
+                    startDate: e.target.value,
+                  }))
                 }
-                className="input input-bordered bg-white border-gray-300 text-sm"
+                className="input input-bordered bg-white border-gray-300 text-sm h-10 flex-1 min-w-0"
               />
-              <span className="text-gray-400 text-sm">to</span>
+              <span className="text-gray-400 text-sm shrink-0">to</span>
               <input
                 type="date"
                 value={dateFilter.endDate}
                 onChange={(e) =>
-                  setDateFilter((prev) => ({ ...prev, endDate: e.target.value }))
+                  setDateFilter((prev) => ({
+                    ...prev,
+                    endDate: e.target.value,
+                  }))
                 }
-                className="input input-bordered bg-white border-gray-300 text-sm"
+                className="input input-bordered bg-white border-gray-300 text-sm h-10 flex-1 min-w-0"
               />
               <button
                 onClick={handleApplyDateFilter}
-                className="btn btn-sm bg-brand-500 hover:bg-brand-600 text-white border-none"
+                className="btn btn-sm bg-brand-500 hover:bg-brand-600 text-white border-none shrink-0"
               >
                 Apply
               </button>
               {appliedDateFilter && (
                 <button
                   onClick={handleClearDateFilter}
-                  className="btn btn-sm btn-ghost text-gray-500"
+                  className="btn btn-sm btn-ghost text-gray-500 shrink-0"
                 >
                   Clear
                 </button>
@@ -792,7 +825,15 @@ const ReportsPage = () => {
                   setTypeCursor(null);
                   setCursors({});
                   pageCacheRef.current = {};
-                  loadReports(true, newType, null, null, false, null, appliedDateFilter);
+                  loadReports(
+                    true,
+                    newType,
+                    null,
+                    null,
+                    false,
+                    null,
+                    appliedDateFilter,
+                  );
                 }}
                 className="select  select-bordered bg-white border-gray-300"
               >

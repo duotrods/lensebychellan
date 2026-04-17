@@ -19,6 +19,8 @@ const fs = require("fs");
 const path = require("path");
 const LOGO_B64 = fs.readFileSync(path.join(__dirname, "chellanpng.png")).toString("base64");
 
+const BASE_URL = process.env.INCIDENT_BASE_URL || "http://localhost:5173";
+
 /**
  * Generates a PDF buffer for an incident report using pdfkit.
  * Layout mirrors the frontend jsPDF version in pdfGenerator.js.
@@ -362,6 +364,10 @@ exports.sendIncidentAlertNotification = onCall(
       },
     });
 
+    const reportLink = reportData.id
+      ? `${BASE_URL}/dashboard/client/reports/incident/${reportData.id}`
+      : null;
+
     const subject = `${isUpdate ? "[UPDATED] " : ""}ALERT: ${triggerLabel} — ${scheme} — ${reportData.referenceId || "New Report"}`;
 
     const htmlContent = `
@@ -428,6 +434,19 @@ exports.sendIncidentAlertNotification = onCall(
           </p>`
               : ""
           }
+
+          ${reportLink ? `
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${reportLink}"
+               style="background-color: #00BAA8; color: white; padding: 12px 28px;
+                      text-decoration: none; border-radius: 6px; font-weight: bold;
+                      font-size: 14px; display: inline-block;">
+              View Full Report
+            </a>
+            <p style="margin-top: 8px; color: #6b7280; font-size: 12px;">
+              You may need to log in to view the report.
+            </p>
+          </div>` : ""}
 
           <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">
             The full incident report is attached as a PDF.
