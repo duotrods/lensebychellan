@@ -1801,6 +1801,7 @@ class ClientDataService {
         incursionsCount,
         vehiclesDispatchedCount,
         incidentAssetDamageCount,
+        pureIncidentCount,
       ] = await Promise.all([
         this.getCollectionCount("incidentReports", schemeId, dateRange),
         this.getCollectionCount("assetDamageReports", schemeId, dateRange),
@@ -1836,10 +1837,12 @@ class ClientDataService {
           true,
           dateRange,
         ),
+        this.getPureIncidentCount(schemeId, dateRange),
       ]);
 
       return {
-        incident: incidentCount - freeRecoveryCount - driveOffCount - incursionsCount,
+        incident: incidentCount, // raw total — used by filter dropdown
+        pureIncident: pureIncidentCount, // exact pure count — used by Incidents card
         assetDamage: assetCount,
         dailyOccurrence: dailyCount,
         cctvCheck: cctvCount,
@@ -1856,6 +1859,7 @@ class ClientDataService {
       console.warn("Could not get reports count by type:", error);
       return {
         incident: 0,
+        pureIncident: 0,
         assetDamage: 0,
         dailyOccurrence: 0,
         cctvCheck: 0,
@@ -1867,6 +1871,34 @@ class ClientDataService {
         incidentAssetDamage: 0,
         total: 0,
       };
+    }
+  }
+
+  // Count pure incidents using the isPureIncident field written at submit/edit time.
+  // Simple equality query — 1 read, no complex filtering needed.
+  async getPureIncidentCount(schemeId, dateRange = null) {
+    try {
+      const constraints = [
+        where("schemeIds", "array-contains", schemeId),
+        where("isPureIncident", "==", true),
+        ...(dateRange
+          ? [
+              where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+              where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+            ]
+          : []),
+      ];
+      const q = query(collection(db, "incidentReports"), ...constraints);
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      const indexLink = error.message?.match(/https:\/\/console\.firebase\.google\.com\S+/)?.[0];
+      if (indexLink) {
+        console.log("Create missing Firestore index for Incidents card:", indexLink);
+      } else {
+        console.warn("Pure incident count unavailable:", error.message);
+      }
+      return 0;
     }
   }
 
@@ -2062,7 +2094,7 @@ class ClientDataService {
   // Uses a Firestore range query (>= / <= \uf8ff) on the auto-indexed referenceId
   // field — no composite indexes needed. Scheme filtering is done client-side on
   // the small result set returned by the prefix match.
-  async searchReportsByReferenceId(schemeId, searchTerm) {
+  async searchReportsByReferenceId(schemeId, searchTerm, filterType = null) {
     const raw = searchTerm.trim();
     if (!raw) return [];
     const termRef = raw.toUpperCase();
@@ -2070,7 +2102,7 @@ class ClientDataService {
     const termRefEnd = termRef + "\uf8ff";
     const termNameEnd = termName + "\uf8ff";
 
-    const COLLECTIONS = [
+    const ALL_COLLECTIONS = [
       { name: "incidentReports", type: "incident", typeField: "incidentType" },
       {
         name: "assetDamageReports",
@@ -2086,16 +2118,40 @@ class ClientDataService {
       { name: "cctvFaultsReports", type: "cctv-faults", typeField: null },
     ];
 
-    // Run referenceId and submittedBy.name queries in parallel
+    // Scope to the active filter type — avoids querying all 5 collections when unnecessary
+    const typeToCollection = {
+      incident: "incidentReports",
+      "asset-damage": "assetDamageReports",
+      "daily-occurrence": "dailyOccurrenceReports",
+      "cctv-check": "cctvCheckForms",
+      "cctv-faults": "cctvFaultsReports",
+    };
+    const COLLECTIONS = filterType && typeToCollection[filterType]
+      ? ALL_COLLECTIONS.filter((c) => c.name === typeToCollection[filterType])
+      : ALL_COLLECTIONS;
+
+    // Run referenceId and submittedBy.name queries in parallel.
+    // schemeIds filter is included so Firestore only scans this scheme's docs.
+    // Requires composite indexes: schemeIds (array-contains) + referenceId / submittedBy.name
     const [refSnapshots, nameSnapshots] = await Promise.all([
       Promise.all(
         COLLECTIONS.map(({ name }) =>
           getDocs(
             query(
               collection(db, name),
+              where("schemeIds", "array-contains", schemeId),
               where("referenceId", ">=", termRef),
               where("referenceId", "<=", termRefEnd),
               limit(10),
+            ),
+          ).catch(() =>
+            getDocs(
+              query(
+                collection(db, name),
+                where("referenceId", ">=", termRef),
+                where("referenceId", "<=", termRefEnd),
+                limit(10),
+              ),
             ),
           ),
         ),
@@ -2105,9 +2161,19 @@ class ClientDataService {
           getDocs(
             query(
               collection(db, name),
+              where("schemeIds", "array-contains", schemeId),
               where("submittedBy.name", ">=", termName),
               where("submittedBy.name", "<=", termNameEnd),
               limit(10),
+            ),
+          ).catch(() =>
+            getDocs(
+              query(
+                collection(db, name),
+                where("submittedBy.name", ">=", termName),
+                where("submittedBy.name", "<=", termNameEnd),
+                limit(10),
+              ),
             ),
           ),
         ),

@@ -377,6 +377,15 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "incidentReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schemeIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "isPureIncident", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
