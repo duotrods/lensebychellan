@@ -201,17 +201,11 @@ const OTPManagement = () => {
   const handleCreateCCTVCode = async (e) => {
     e.preventDefault();
 
-    if (!formData.schemeId || !formData.schemeName) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-
     setLoading(true);
     try {
       const code = await otpService.createCCTVOperatorCode(
-        formData.schemeId.toUpperCase(),
-        formData.schemeName,
         userProfile.uid,
+        formData.expiresInDays,
       );
 
       toast.success(`CCTV Operator Access Code created: ${code}`);
@@ -453,11 +447,11 @@ const OTPManagement = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Code
                 </th>
-                {activeTab === "client" || activeTab === "cctv" ? (
+                {activeTab === "client" ? (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Scheme
                   </th>
-                ) : (
+                ) : activeTab === "staff" ? (
                   <>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created By
@@ -469,7 +463,7 @@ const OTPManagement = () => {
                       Uses
                     </th>
                   </>
-                )}
+                ) : null}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
@@ -534,16 +528,6 @@ const OTPManagement = () => {
                           <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
                             {c.code}
                           </code>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">
-                              {c.schemeId}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {c.schemeName}
-                            </p>
-                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {c.isUsed ? (
@@ -742,7 +726,7 @@ const OTPManagement = () => {
               }
               className="space-y-4"
             >
-              {activeTab === "client" || activeTab === "cctv" ? (
+              {activeTab === "client" ? (
                 <div className="form-control">
                   <label className="label">
                     <span className="label-text font-semibold">

@@ -363,7 +363,7 @@ class OTPService {
     return `CCTV-${year}-${randomPart}`;
   }
 
-  // Admin: Create a new CCTV Operator access code (not tied to any scheme)
+  // Admin: Create a new CCTV Operator access code (cross-scheme, no scheme restriction)
   async createCCTVOperatorCode(adminUid, expiresInDays = 30) {
     try {
       const code = this.generateCCTVOperatorCode();
