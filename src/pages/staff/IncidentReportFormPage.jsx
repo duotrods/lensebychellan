@@ -406,17 +406,6 @@ const IncidentReportFormPage = () => {
         userProfile.displayName,
       );
 
-      // Send alert if incursion or asset damage
-      await sendIncidentAlertNotification(
-        {
-          ...updateData,
-          id: incidentId,
-          referenceId: existingReferenceId,
-          submittedBy: userProfile.displayName,
-        },
-        true,
-      );
-
       toast.success("Progress saved! Incident is still live.");
       navigate("/dashboard/staff");
     } catch (error) {
@@ -474,20 +463,19 @@ const IncidentReportFormPage = () => {
           updateData,
           userProfile.uid,
           userProfile.displayName,
-        );
-
-        // Send alert if incursion or asset damage
-        await sendIncidentAlertNotification(
-          {
-            ...updateData,
-            id: incidentId,
-            referenceId: existingReferenceId,
-            submittedBy: userProfile.displayName,
-          },
-          !isEditingLiveIncident,
+          isEditingLiveIncident,
         );
 
         if (isEditingLiveIncident) {
+          await sendIncidentAlertNotification(
+            {
+              ...updateData,
+              id: incidentId,
+              referenceId: existingReferenceId,
+              submittedBy: userProfile.displayName,
+            },
+            false,
+          );
           toast.success("Incident Report completed successfully!");
         } else {
           toast.success("Incident Report updated successfully!");
