@@ -14,6 +14,7 @@ import { getStaffBasePath } from "../../utils/constants";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { generateReportPDF } from "../../utils/pdfGenerator";
+import { THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 
 const CCTVCheckView = () => {
   const { id } = useParams();
@@ -77,7 +78,8 @@ const CCTVCheckView = () => {
 
   const handleDownloadPDF = async () => {
     try {
-      await generateReportPDF(form, "cctv-check");
+      const schemeFilter = form?.schemeIds?.[0] || form?.schemeId || null;
+      await generateReportPDF(form, "cctv-check", schemeFilter);
       toast.success("Downloaded CCTV check report as PDF");
     } catch (error) {
       console.error("Failed to generate PDF:", error);
@@ -349,6 +351,20 @@ const CCTVCheckView = () => {
 
           {/* Camera Sections */}
           <div className="space-y-6">
+            {/* Third-party scheme sections */}
+            {THIRD_PARTY_SCHEMES.map((scheme) => {
+              const camKey = `tp_${scheme.id}_cameras`;
+              const commentKey = `tp_${scheme.id}_comments`;
+              if (!form[camKey] && !form[commentKey]) return null;
+              return renderCameraSection(
+                scheme.shortName || scheme.fullName,
+                form[camKey],
+                form[commentKey],
+                null,
+                null,
+              );
+            })}
+            {/* Internal scheme sections */}
             {renderCameraSection(
               "A417",
               form.a417Cameras,

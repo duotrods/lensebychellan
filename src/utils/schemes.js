@@ -136,7 +136,11 @@ export const getSchemeById = (id) => {
 
 // Helper function to get scheme by full name
 export const getSchemeByFullName = (fullName) => {
-  return SCHEMES.find((scheme) => scheme.fullName === fullName);
+  return (
+    SCHEMES.find((scheme) => scheme.fullName === fullName) ||
+    THIRD_PARTY_SCHEMES.find((scheme) => scheme.fullName === fullName) ||
+    null
+  );
 };
 
 // Helper function to extract scheme ID from full name

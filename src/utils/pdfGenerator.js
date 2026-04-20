@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import lenselogo from "../assets/chellanpng.png";
-import { SCHEMES } from "./schemes";
+import { SCHEMES, THIRD_PARTY_SCHEMES } from "./schemes";
 
 // Cache for compressed logo to avoid re-processing
 let cachedCompressedLogo = null;
@@ -250,7 +250,9 @@ export const generateReportPDF = async (
   // For CCTV check reports: show filtered scheme if client view, otherwise "All Schemes"
   if (reportType === "cctv-check") {
     if (filterSchemeId) {
-      const schemeObj = SCHEMES.find((s) => s.id === filterSchemeId);
+      const schemeObj =
+        SCHEMES.find((s) => s.id === filterSchemeId) ||
+        THIRD_PARTY_SCHEMES.find((s) => s.id === filterSchemeId);
       const schemeName = schemeObj ? schemeObj.fullName : filterSchemeId;
       addField("Scheme/Location", schemeName);
     } else {
@@ -605,6 +607,40 @@ export const generateReportPDF = async (
         }
         yPosition += 3;
       }
+
+      // Third-party scheme sections (tp_<schemeId>_cameras / tp_<schemeId>_comments)
+      THIRD_PARTY_SCHEMES.forEach((tpScheme) => {
+        const camKey = `tp_${tpScheme.id}_cameras`;
+        const commentKey = `tp_${tpScheme.id}_comments`;
+        if (
+          (!filterSchemeId || filterSchemeId === tpScheme.id) &&
+          (report[camKey] || report[commentKey])
+        ) {
+          yPosition += 3;
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+          doc.setTextColor(0, 0, 0);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text(tpScheme.shortName || tpScheme.fullName, margin + 3, yPosition + 3);
+          yPosition += 12;
+
+          if (report[camKey] && report[camKey].length > 0) {
+            const isNone =
+              report[camKey].includes("NONE") ||
+              report[camKey].includes("All Working Correctly");
+            if (isNone) {
+              addField("CCTV Status", "All cameras working correctly", true);
+            } else {
+              addField("CCTV Issues Reported", report[camKey].join(", "), true);
+            }
+          }
+          if (report[commentKey] && report[commentKey].trim() !== "") {
+            addField("Comments", report[commentKey]);
+          }
+          yPosition += 3;
+        }
+      });
 
       // Demo Section - only show if explicitly filtered to DMO1 (never in staff full download)
       if (

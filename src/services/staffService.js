@@ -1737,31 +1737,31 @@ class StaffService {
           "cctvCheckForms",
           perTypeLimit,
           cursors.cctv,
-          schemeId,
+          schemeIds,
         ),
         this.fetchPaginatedForms(
           "incidentReports",
           perTypeLimit,
           cursors.incident,
-          schemeId,
+          schemeIds,
         ),
         this.fetchPaginatedForms(
           "assetDamageReports",
           perTypeLimit,
           cursors.assetDamage,
-          schemeId,
+          schemeIds,
         ),
         this.fetchPaginatedForms(
           "dailyOccurrenceReports",
           perTypeLimit,
           cursors.dailyOccurrence,
-          schemeId,
+          schemeIds,
         ),
         this.fetchPaginatedForms(
           "cctvFaultsReports",
           perTypeLimit,
           cursors.cctvFaults,
-          schemeId,
+          schemeIds,
         ),
       ]);
 
@@ -1884,7 +1884,7 @@ class StaffService {
     collectionName,
     limitCount,
     lastDoc,
-    schemeId = null,
+    schemeIds = null,
   ) {
     try {
       const collectionRef = collection(db, collectionName);
@@ -1926,6 +1926,11 @@ class StaffService {
    */
   async getAllFormsCount(tpSchemeIds = null) {
     try {
+      const countFn = (col) =>
+        tpSchemeIds && tpSchemeIds.length > 0
+          ? this.getCollectionCountServerBySchemeIds(col, tpSchemeIds)
+          : this.getCollectionCountServerExcludeDemo(col);
+
       const [
         cctvCount,
         incidentCount,
@@ -1933,12 +1938,13 @@ class StaffService {
         dailyCount,
         cctvFaultsCount,
       ] = await Promise.all([
-        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
-        this.getCollectionCountServerExcludeDemo("incidentReports"),
-        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
-        this.getCollectionCountServer("dailyOccurrenceReports"),
-        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
+        countFn("cctvCheckForms"),
+        countFn("incidentReports"),
+        countFn("assetDamageReports"),
+        tpSchemeIds && tpSchemeIds.length > 0
+          ? this.getCollectionCountServerBySchemeIds("dailyOccurrenceReports", tpSchemeIds)
+          : this.getCollectionCountServer("dailyOccurrenceReports"),
+        countFn("cctvFaultsReports"),
       ]);
 
       return (
@@ -1957,6 +1963,11 @@ class StaffService {
    */
   async getAllFormsCountByType(tpSchemeIds = null) {
     try {
+      const countFn = (col) =>
+        tpSchemeIds && tpSchemeIds.length > 0
+          ? this.getCollectionCountServerBySchemeIds(col, tpSchemeIds)
+          : this.getCollectionCountServerExcludeDemo(col);
+
       const [
         cctvCount,
         incidentCount,
@@ -1964,12 +1975,13 @@ class StaffService {
         dailyCount,
         cctvFaultsCount,
       ] = await Promise.all([
-        this.getCollectionCountServerExcludeDemo("cctvCheckForms"),
-        this.getCollectionCountServerExcludeDemo("incidentReports"),
-        this.getCollectionCountServerExcludeDemo("assetDamageReports"),
-        // Daily occurrence forms don't have a top-level schemeId field, so != query excludes them all
-        this.getCollectionCountServer("dailyOccurrenceReports"),
-        this.getCollectionCountServerExcludeDemo("cctvFaultsReports"),
+        countFn("cctvCheckForms"),
+        countFn("incidentReports"),
+        countFn("assetDamageReports"),
+        tpSchemeIds && tpSchemeIds.length > 0
+          ? this.getCollectionCountServerBySchemeIds("dailyOccurrenceReports", tpSchemeIds)
+          : this.getCollectionCountServer("dailyOccurrenceReports"),
+        countFn("cctvFaultsReports"),
       ]);
       return {
         cctvCheckTotal: cctvCount,
@@ -2026,6 +2038,18 @@ class StaffService {
         `Could not get non-demo count for ${collectionName}:`,
         error,
       );
+      return 0;
+    }
+  }
+
+  async getCollectionCountServerBySchemeIds(collectionName, schemeIds) {
+    try {
+      const collectionRef = collection(db, collectionName);
+      const q = query(collectionRef, where("schemeIds", "array-contains-any", schemeIds));
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn(`Could not get scheme-scoped count for ${collectionName}:`, error);
       return 0;
     }
   }
