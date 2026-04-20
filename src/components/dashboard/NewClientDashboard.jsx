@@ -92,7 +92,14 @@ const NewClientDashboard = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [drillDown, setDrillDown] = useState(null); // { title, incidents }
 
-  const openDrillDown = useCallback((data) => setDrillDown(data), []);
+  const openDrillDown = useCallback((data) => {
+    const sorted = [...data.incidents].sort((a, b) => {
+      const aTime = a.createdAt?.seconds ?? a.createdAt?.toMillis?.() / 1000 ?? 0;
+      const bTime = b.createdAt?.seconds ?? b.createdAt?.toMillis?.() / 1000 ?? 0;
+      return bTime - aTime;
+    });
+    setDrillDown({ ...data, incidents: sorted });
+  }, []);
   const closeDrillDown = useCallback(() => setDrillDown(null), []);
 
   const getScroller = () => document.getElementById("client-main-scroll");

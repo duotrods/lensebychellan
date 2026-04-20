@@ -463,7 +463,7 @@ class StaffService {
     }
   }
 
-  async updateIncidentReport(reportId, formData, userId, userName) {
+  async updateIncidentReport(reportId, formData, userId, userName, isCompletion = false) {
     try {
       const reportRef = doc(db, "incidentReports", reportId);
       const reportDoc = await getDoc(reportRef);
@@ -474,16 +474,18 @@ class StaffService {
 
       const currentData = reportDoc.data();
 
-      // Create edit history entry
-      const editHistory = currentData.editHistory || [];
-      editHistory.push({
-        editedBy: {
-          userId,
-          name: userName,
-        },
-        editedAt: new Date(),
-        previousSubmittedBy: currentData.submittedBy,
-      });
+      const extraFields = {};
+
+      if (!isCompletion) {
+        const editHistory = currentData.editHistory || [];
+        editHistory.push({
+          editedBy: { userId, name: userName },
+          editedAt: new Date(),
+          previousSubmittedBy: currentData.submittedBy,
+        });
+        extraFields.editHistory = editHistory;
+        extraFields.lastEditedBy = { userId, name: userName };
+      }
 
       // Recalculate schemeIds when scheme is updated
       const schemeId = formData.scheme
@@ -499,11 +501,7 @@ class StaffService {
           formData.incidentType !== "Drive Off" &&
           formData.incursion !== "YES" &&
           !formData.propertyDamage,
-        editHistory,
-        lastEditedBy: {
-          userId,
-          name: userName,
-        },
+        ...extraFields,
         updatedAt: serverTimestamp(),
       });
 
