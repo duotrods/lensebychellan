@@ -64,7 +64,7 @@ const Dashboard = () => {
       case USER_ROLES.THIRDPARTYCLIENT:
         return (
           <ClientSidebarLayout basePath="/dashboard/thirdparty/client">
-            <NewClientDashboard />
+            <NewClientDashboard basePath="/dashboard/thirdparty/client" />
           </ClientSidebarLayout>
         );
       case USER_ROLES.THIRDPARTYLIVEOPERATOR:

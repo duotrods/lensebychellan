@@ -18,7 +18,8 @@ import { generateReportPDF } from "../../utils/pdfGenerator";
 const CCTVCheckView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +38,7 @@ const CCTVCheckView = () => {
         setForm({ id: formDoc.id, ...formDoc.data() });
       } else {
         toast.error("Form not found");
-        navigate("/dashboard/client/reports");
+        navigate(`${basePath}/reports`);
       }
     } catch (error) {
       console.error("Failed to load form:", error);

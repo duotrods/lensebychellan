@@ -18,6 +18,7 @@ import {
   CameraOff,
   Car,
   Hammer,
+  Package,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
@@ -28,7 +29,8 @@ let _reportsRestore = null;
 
 const ReportsPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -489,11 +491,11 @@ const ReportsPage = () => {
     };
     // Navigate to appropriate view page based on report type
     const reportTypeRoutes = {
-      incident: `/dashboard/client/reports/incident/${report.id}`,
-      "asset-damage": `/dashboard/client/reports/asset-damage/${report.id}`,
-      "daily-occurrence": `/dashboard/client/reports/daily-occurrence/${report.id}`,
-      "cctv-check": `/dashboard/client/reports/cctv-check/${report.id}`,
-      "cctv-faults": `/dashboard/client/reports/cctv-faults/${report.id}`,
+      incident: `${basePath}/reports/incident/${report.id}`,
+      "asset-damage": `${basePath}/reports/asset-damage/${report.id}`,
+      "daily-occurrence": `${basePath}/reports/daily-occurrence/${report.id}`,
+      "cctv-check": `${basePath}/reports/cctv-check/${report.id}`,
+      "cctv-faults": `${basePath}/reports/cctv-faults/${report.id}`,
     };
 
     const route = reportTypeRoutes[report.reportType];

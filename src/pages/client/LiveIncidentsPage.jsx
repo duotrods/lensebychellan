@@ -9,7 +9,8 @@ import { SCHEMES } from "../../utils/schemes";
 
 const LiveIncidentsPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
   const getActiveSchemeName = () => {
@@ -86,7 +87,7 @@ const LiveIncidentsPage = () => {
   };
 
   const handleViewIncident = (incident) => {
-    navigate(`/dashboard/client/incident/${incident.id}`);
+    navigate(`${basePath}/reports/incident/${incident.id}`);
   };
 
   const handleDownloadPDF = async (incident, e) => {
@@ -106,7 +107,7 @@ const LiveIncidentsPage = () => {
       <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
         <div className="flex items-center gap-4 mb-2">
           <button
-            onClick={() => navigate('/dashboard/client')}
+            onClick={() => navigate(basePath)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-6 h-6 text-gray-600" />

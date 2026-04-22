@@ -11,7 +11,8 @@ import { SCHEMES } from '../../utils/schemes';
 const DailyOccurrenceView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,7 +50,7 @@ const DailyOccurrenceView = () => {
         });
       } else {
         toast.error('Report not found');
-        navigate('/dashboard/client/reports');
+        navigate(`${basePath}/reports`);
       }
     } catch (error) {
       console.error('Failed to load report:', error);

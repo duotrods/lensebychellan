@@ -641,6 +641,14 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/dashboard/thirdparty/client/reports/cctv-faults/:id"
+                element={
+                  <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
+                    <ClientCCTVFaultView />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Third Party Live Operator Routes */}
               <Route

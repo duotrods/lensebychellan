@@ -1,3 +1,4 @@
+/* eslint-disable no-constant-binary-expression */
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -83,7 +84,7 @@ const transformDataForChart = (dataObj, filterUnknown = true) => {
     .sort((a, b) => b.Number - a.Number);
 };
 
-const NewClientDashboard = () => {
+const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const datePickerRef = useRef(null);
@@ -94,8 +95,10 @@ const NewClientDashboard = () => {
 
   const openDrillDown = useCallback((data) => {
     const sorted = [...data.incidents].sort((a, b) => {
-      const aTime = a.createdAt?.seconds ?? a.createdAt?.toMillis?.() / 1000 ?? 0;
-      const bTime = b.createdAt?.seconds ?? b.createdAt?.toMillis?.() / 1000 ?? 0;
+      const aTime =
+        a.createdAt?.seconds ?? a.createdAt?.toMillis?.() / 1000 ?? 0;
+      const bTime =
+        b.createdAt?.seconds ?? b.createdAt?.toMillis?.() / 1000 ?? 0;
       return bTime - aTime;
     });
     setDrillDown({ ...data, incidents: sorted });
@@ -115,7 +118,7 @@ const NewClientDashboard = () => {
       String(scroller ? scroller.scrollTop : 0),
     );
     setDrillDown(null);
-    navigate(`/dashboard/client/reports/incident/${id}`);
+    navigate(`${basePath}/reports/incident/${id}`);
   };
 
   // Set default date range to last 30 days
@@ -691,7 +694,7 @@ const NewClientDashboard = () => {
           {/* Live Incidents Link Card */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
             <div
-              onClick={() => navigate("/dashboard/client/live-incidents")}
+              onClick={() => navigate(`${basePath}/live-incidents`)}
               className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
             >
               <div className=" px-6 py-4 flex items-center gap-3">
@@ -716,7 +719,7 @@ const NewClientDashboard = () => {
             </div>
 
             <div
-              onClick={() => navigate("/dashboard/client/cctv-faults")}
+              onClick={() => navigate(`${basePath}/cctv-faults`)}
               className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
             >
               <div className=" px-6 py-4 flex items-center gap-3">

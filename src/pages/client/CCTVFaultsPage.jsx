@@ -19,7 +19,8 @@ import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 
 const CCTVFaultsPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
+  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
 
@@ -60,7 +61,7 @@ const CCTVFaultsPage = () => {
   }, [liveFaults.length, refresh]);
 
   const handleView = (fault) => {
-    navigate(`/dashboard/client/reports/cctv-faults/${fault.id}`);
+    navigate(`${basePath}/reports/cctv-faults/${fault.id}`);
   };
 
   return (
@@ -70,7 +71,7 @@ const CCTVFaultsPage = () => {
         <div className="mb-8 bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center gap-4 mb-2">
             <button
-              onClick={() => navigate("/dashboard/client")}
+              onClick={() => navigate(basePath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-6 h-6 text-gray-600" />

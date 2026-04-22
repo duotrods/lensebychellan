@@ -17,8 +17,9 @@ import SchemeSwitcher from "../client/SchemeSwitcher";
 import { isDemoUser } from "../../utils/schemes";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 
-const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
-  const { userProfile } = useAuth();
+const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
+  const { userProfile, role } = useAuth();
+  const basePath = basePathProp ?? (role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client");
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -104,12 +105,13 @@ const ClientSidebarLayout = ({ children, basePath = '/dashboard/client' }) => {
               {userProfile?.schemeIds?.length > 1 ? "Active Scheme" : "Your Scheme"}
             </p>
             <p className="text-lg font-bold text-teal-700">
-              {userProfile?.activeSchemeId || userProfile?.schemeId || "N/A"}
-            </p>
-            <p className="text-sm text-gray-600">
               {userProfile?.schemeNames?.[userProfile?.activeSchemeId] ||
+               userProfile?.activeSchemeName ||
                userProfile?.schemeName ||
                "Loading..."}
+            </p>
+            <p className="text-xs text-gray-400">
+              {userProfile?.activeSchemeId || userProfile?.schemeId || ""}
             </p>
           </div>
         )}
