@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { staffService } from '../../services/staffService';
 import { useAuth } from '../../hooks/useAuth';
+import { isAnyThirdParty } from '../../utils/roleHelpers';
 
 const NoticeBoard = ({ isOpen, onClose }) => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, role } = useAuth();
+  const staffGroup = isAnyThirdParty(role) ? "thirdparty" : "internal";
 
   useEffect(() => {
     if (isOpen && userProfile) {
@@ -17,9 +19,8 @@ const NoticeBoard = ({ isOpen, onClose }) => {
   const loadActivities = async () => {
     try {
       setLoading(true);
-      // Get activities since last logout
-      const lastLogout = userProfile?.lastLogoutAt?.toDate() || new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: last 24 hours
-      const recentActivities = await staffService.getRecentActivities(currentUser.uid, lastLogout);
+      const lastLogout = userProfile?.lastLogoutAt?.toDate() || new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recentActivities = await staffService.getRecentActivities(currentUser.uid, lastLogout, staffGroup);
       // Handover notes always appear at the top
       const sorted = [
         ...recentActivities.filter((a) => a.type === "logout_note"),

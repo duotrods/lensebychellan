@@ -78,8 +78,7 @@ const CCTVCheckView = () => {
 
   const handleDownloadPDF = async () => {
     try {
-      const schemeFilter = form?.schemeIds?.[0] || form?.schemeId || null;
-      await generateReportPDF(form, "cctv-check", schemeFilter);
+      await generateReportPDF(form, "cctv-check", null);
       toast.success("Downloaded CCTV check report as PDF");
     } catch (error) {
       console.error("Failed to generate PDF:", error);

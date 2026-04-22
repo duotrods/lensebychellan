@@ -530,10 +530,7 @@ const NewStaffDashboard = () => {
         reportType = "cctv-faults";
       }
 
-      const schemeFilter = reportType === "cctv-check"
-        ? (form?.schemeIds?.[0] || form?.schemeId || null)
-        : null;
-      await generateReportPDF(form, reportType, schemeFilter);
+      await generateReportPDF(form, reportType, null);
       toast.success(`Downloaded ${form.type} as PDF`);
     } catch (error) {
       console.error("Failed to download PDF:", error);

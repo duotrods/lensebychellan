@@ -431,7 +431,7 @@ export const generateReportPDF = async (
       // A417 Section - only show if no filter OR filter matches A417
       if (
         (!filterSchemeId || filterSchemeId === "A417") &&
-        (report.a417Cameras || report.a417Comments)
+        ((report.a417Cameras && report.a417Cameras.length > 0) || (report.a417Comments && report.a417Comments.trim() !== ""))
       ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
@@ -479,7 +479,7 @@ export const generateReportPDF = async (
       // A11/A47 Kier/Core Section - only show if no filter OR filter matches A47
       if (
         (!filterSchemeId || filterSchemeId === "A47") &&
-        (report.kierCore || report.kierCoreComments)
+        ((report.kierCore && report.kierCore.length > 0) || (report.kierCoreComments && report.kierCoreComments.trim() !== ""))
       ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
@@ -523,7 +523,7 @@ export const generateReportPDF = async (
       // M3 Jct 9 Section - only show if no filter OR filter matches M3
       if (
         (!filterSchemeId || filterSchemeId === "M3") &&
-        (report.m3Jct9 || report.m3Jct9Comments)
+        ((report.m3Jct9 && report.m3Jct9.length > 0) || (report.m3Jct9Comments && report.m3Jct9Comments.trim() !== ""))
       ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);
@@ -567,7 +567,7 @@ export const generateReportPDF = async (
       // A452 HS2 Section - only show if no filter OR filter matches A452
       if (
         (!filterSchemeId || filterSchemeId === "A452") &&
-        (report.A452 || report.A452Comments)
+        ((report.A452 && report.A452.length > 0) || (report.A452Comments && report.A452Comments.trim() !== ""))
       ) {
         yPosition += 3;
         doc.setFillColor(245, 245, 245);

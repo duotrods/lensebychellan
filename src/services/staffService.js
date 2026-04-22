@@ -45,22 +45,26 @@ class StaffService {
     }
   }
 
-  async getRecentActivities(userId, lastLogoutTime) {
+  async getRecentActivities(userId, lastLogoutTime, staffGroup = "internal") {
     try {
       const activitiesRef = collection(db, "activities");
-      // Avoid != operator (costs 2x reads internally) — filter own activities client-side
       const q = query(
         activitiesRef,
         where("createdAt", ">", lastLogoutTime),
         orderBy("createdAt", "desc"),
-        limit(25), // Fetch a few extra to account for client-side filtering
+        limit(25),
       );
 
       const snapshot = await getDocs(q);
       return snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((a) => a.staffId !== userId) // Filter own activities in browser (free)
-        .slice(0, 20); // Keep max 20
+        .filter((a) => a.staffId !== userId)
+        .filter((a) => {
+          // Activities without staffGroup are legacy internal activities
+          const group = a.staffGroup || "internal";
+          return group === staffGroup;
+        })
+        .slice(0, 20);
     } catch (error) {
       console.error("Failed to get activities:", error);
       return [];
@@ -169,13 +173,13 @@ class StaffService {
         updatedAt: serverTimestamp(),
       });
 
-      // Log activity
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted CCTV Check Form ${referenceId}`,
         relatedFormId: docRef.id,
+        staffGroup: tpSchemeId ? "thirdparty" : "internal",
       });
 
       return docRef.id;
@@ -397,13 +401,13 @@ class StaffService {
       if (vehicleDelta > 0)
         await this._updateSchemeVehicleStats(schemeId, vehicleDelta);
 
-      // Log activity
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted Incident Report ${referenceId}`,
         relatedFormId: docRef.id,
+        staffGroup: tpSchemeId ? "thirdparty" : "internal",
       });
 
       return { id: docRef.id, referenceId };
@@ -925,13 +929,13 @@ class StaffService {
         updatedAt: serverTimestamp(),
       });
 
-      // Log activity
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted Asset Damage Report ${referenceId}`,
         relatedFormId: docRef.id,
+        staffGroup: tpSchemeId ? "thirdparty" : "internal",
       });
 
       return docRef.id;
@@ -1446,13 +1450,13 @@ class StaffService {
         updatedAt: serverTimestamp(),
       });
 
-      // Log activity
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
         staffName: userName,
         description: `${userName} submitted Daily Occurrence Report ${referenceId}`,
         relatedFormId: docRef.id,
+        staffGroup: tpSchemeId ? "thirdparty" : "internal",
       });
 
       return { id: docRef.id, merged: false, referenceId };

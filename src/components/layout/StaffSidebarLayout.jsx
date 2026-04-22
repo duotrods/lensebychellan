@@ -20,10 +20,11 @@ import CCTVCheckReminder from "../staff/CCTVCheckReminder";
 import { useCCTVReminder } from "../../hooks/useCCTVReminder";
 import { isDemoUser, getSchemeIdsForCompany } from "../../utils/schemes";
 import { USER_ROLES } from "../../utils/constants";
+import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
 const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) => {
-  const { userProfile } = useAuth();
+  const { userProfile, role } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [formsOpen, setFormsOpen] = useState(() =>
@@ -46,6 +47,7 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
         staffId: userProfile?.uid,
         staffName: userProfile?.displayName || "Staff",
         type: "logout_note",
+        staffGroup: isAnyThirdParty(role) ? "thirdparty" : "internal",
       });
     }
     await authService.signOut();
