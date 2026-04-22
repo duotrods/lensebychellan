@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
-import { SCHEMES } from "../../utils/schemes";
+import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 import {
   Building2,
   Plus,
@@ -178,8 +178,14 @@ const SchemeAssignment = () => {
     }
   };
 
+  const isThirdPartyRole = (role) =>
+    ["thirdpartystaff", "thirdpartyclient", "thirdpartyliveoperator", "thirdpartycctvoperator"].includes(role);
+
   const handleSchemeSelect = (e) => {
-    const selectedScheme = SCHEMES.find((s) => s.id === e.target.value);
+    const allSchemes = isThirdPartyRole(selectedUser?.role)
+      ? THIRD_PARTY_SCHEMES
+      : SCHEMES;
+    const selectedScheme = allSchemes.find((s) => s.id === e.target.value);
     if (selectedScheme) {
       setFormData({ schemeId: selectedScheme.id, schemeName: selectedScheme.fullName });
     }
@@ -299,73 +305,78 @@ const SchemeAssignment = () => {
       {activeTab === "assignments" && (
         <>
           {/* Role filter toggle */}
-          <div className="flex gap-2 mb-5">
-            <button
-              onClick={() => handleRoleFilterChange("client")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "client"
-                  ? "bg-teal-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Clients
-            </button>
-            <button
-              onClick={() => handleRoleFilterChange("cctvfaultoperator")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "cctvfaultoperator"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <CameraOff className="w-4 h-4" />
-              CCTV Operators
-            </button>
-            <button
-              onClick={() => handleRoleFilterChange("thirdpartystaff")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "thirdpartystaff"
-                  ? "bg-teal-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              TP Operator
-            </button>
-            <button
-              onClick={() => handleRoleFilterChange("thirdpartyclient")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "thirdpartyclient"
-                  ? "bg-blue-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              TP Client
-            </button>
-            <button
-              onClick={() => handleRoleFilterChange("thirdpartyliveoperator")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "thirdpartyliveoperator"
-                  ? "bg-purple-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <Radio className="w-4 h-4" />
-              TP Live Op
-            </button>
-            <button
-              onClick={() => handleRoleFilterChange("thirdpartycctvoperator")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "thirdpartycctvoperator"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <CameraOff className="w-4 h-4" />
-              TP CCTV Op
-            </button>
+          <div className="flex flex-wrap gap-4 mb-5">
+            {/* Internal roles */}
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Internal</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleRoleFilterChange("client")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "client"
+                      ? "bg-teal-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Clients
+                </button>
+                <button
+                  onClick={() => handleRoleFilterChange("cctvfaultoperator")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "cctvfaultoperator"
+                      ? "bg-pink-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <CameraOff className="w-4 h-4" />
+                  CCTV Operators
+                </button>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px bg-gray-200 self-stretch mx-1" />
+
+            {/* Third-party roles */}
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Third Party</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleRoleFilterChange("thirdpartyclient")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "thirdpartyclient"
+                      ? "bg-blue-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Building2 className="w-4 h-4" />
+                  TP Client
+                </button>
+                <button
+                  onClick={() => handleRoleFilterChange("thirdpartyliveoperator")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "thirdpartyliveoperator"
+                      ? "bg-purple-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Radio className="w-4 h-4" />
+                  TP Live Op
+                </button>
+                <button
+                  onClick={() => handleRoleFilterChange("thirdpartycctvoperator")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "thirdpartycctvoperator"
+                      ? "bg-pink-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <CameraOff className="w-4 h-4" />
+                  TP CCTV Op
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Stats */}
@@ -656,16 +667,38 @@ const SchemeAssignment = () => {
                   required
                 >
                   <option value="">Choose a scheme...</option>
-                  {SCHEMES.map((scheme) => (
-                    <option
-                      key={scheme.id}
-                      value={scheme.id}
-                      disabled={selectedUser?.schemeIds?.includes(scheme.id)}
-                    >
-                      {scheme.fullName}{" "}
-                      {selectedUser?.schemeIds?.includes(scheme.id) ? "(Already assigned)" : ""}
-                    </option>
-                  ))}
+                  {isThirdPartyRole(selectedUser?.role) ? (
+                    Object.entries(
+                      THIRD_PARTY_SCHEMES.reduce((groups, s) => {
+                        const key = s.company || "Other";
+                        if (!groups[key]) groups[key] = [];
+                        groups[key].push(s);
+                        return groups;
+                      }, {})
+                    ).map(([company, schemes]) => (
+                      <optgroup key={company} label={company}>
+                        {schemes.map((scheme) => (
+                          <option
+                            key={scheme.id}
+                            value={scheme.id}
+                            disabled={selectedUser?.schemeIds?.includes(scheme.id)}
+                          >
+                            {scheme.fullName} ({scheme.id}){selectedUser?.schemeIds?.includes(scheme.id) ? " — Already assigned" : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))
+                  ) : (
+                    SCHEMES.map((scheme) => (
+                      <option
+                        key={scheme.id}
+                        value={scheme.id}
+                        disabled={selectedUser?.schemeIds?.includes(scheme.id)}
+                      >
+                        {scheme.fullName}{selectedUser?.schemeIds?.includes(scheme.id) ? " (Already assigned)" : ""}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
               <div className="flex gap-2 justify-end">
