@@ -789,6 +789,7 @@ class ClientDataService {
           time: incident.createdAt,
           status: incident.status || "Resolved",
         })),
+        ...this.calcAverageTimes(incidents),
       };
 
       return stats;
@@ -902,6 +903,27 @@ class ClientDataService {
     });
 
     return ranges;
+  }
+
+  calcAverageTimes(incidents) {
+    const parse = (val) => {
+      if (val == null || val === "") return null;
+      // already a number
+      if (typeof val === "number") return isFinite(val) ? Math.round(val) : null;
+      // string like "8 mins", "8", "08:30" — extract first integer
+      const m = String(val).match(/(\d+)/);
+      return m ? parseInt(m[1]) : null;
+    };
+    const avg = (values) =>
+      values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null;
+
+    const toSite = incidents.map((i) => parse(i.timeSpottedToOn)).filter((v) => v !== null);
+    const toRecover = incidents.map((i) => parse(i.timeOnsiteToCleared)).filter((v) => v !== null);
+
+    console.log("avgTimeToSite raw values:", toSite);
+    console.log("avgTimeToRecover raw values:", toRecover);
+
+    return { avgTimeToSite: avg(toSite), avgTimeToRecover: avg(toRecover) };
   }
 
   // Helper function to group time data by ranges (legacy - for backward compatibility)
@@ -1221,6 +1243,7 @@ class ClientDataService {
           time: incident.createdAt,
           status: incident.status || "Resolved",
         })),
+        ...this.calcAverageTimes(incidents),
       };
 
       return { ...stats, incidents };
