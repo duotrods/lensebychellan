@@ -1,3 +1,4 @@
+/* eslint-disable no-constant-binary-expression */
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -94,8 +95,10 @@ const NewClientDashboard = () => {
 
   const openDrillDown = useCallback((data) => {
     const sorted = [...data.incidents].sort((a, b) => {
-      const aTime = a.createdAt?.seconds ?? a.createdAt?.toMillis?.() / 1000 ?? 0;
-      const bTime = b.createdAt?.seconds ?? b.createdAt?.toMillis?.() / 1000 ?? 0;
+      const aTime =
+        a.createdAt?.seconds ?? a.createdAt?.toMillis?.() / 1000 ?? 0;
+      const bTime =
+        b.createdAt?.seconds ?? b.createdAt?.toMillis?.() / 1000 ?? 0;
       return bTime - aTime;
     });
     setDrillDown({ ...data, incidents: sorted });
@@ -777,6 +780,28 @@ const NewClientDashboard = () => {
                 <Tooltip {...commonChartProps.tooltip} />
                 <Legend {...commonChartProps.legend} />
                 <Bar dataKey="Number" {...commonChartProps.bar} />
+              </BarChart>
+            </ChartCard>
+
+            <ChartCard title="Avg Time to Site (mins)">
+              <BarChart data={[{ name: "Average", Minutes: stats?.avgTimeToSite ?? 0 }]}>
+                <CartesianGrid {...commonChartProps.cartesianGrid} />
+                <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                <YAxis {...commonChartProps.yAxis} />
+                <Tooltip {...commonChartProps.tooltip} />
+                <Legend {...commonChartProps.legend} />
+                <Bar dataKey="Minutes" {...commonChartProps.bar} label={{ position: "top", fontSize: 14, fontWeight: "bold", fill: "#17af93" }} />
+              </BarChart>
+            </ChartCard>
+
+            <ChartCard title="Avg Time to Recover (mins)">
+              <BarChart data={[{ name: "Average", Minutes: stats?.avgTimeToRecover ?? 0 }]}>
+                <CartesianGrid {...commonChartProps.cartesianGrid} />
+                <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                <YAxis {...commonChartProps.yAxis} />
+                <Tooltip {...commonChartProps.tooltip} />
+                <Legend {...commonChartProps.legend} />
+                <Bar dataKey="Minutes" {...commonChartProps.bar} label={{ position: "top", fontSize: 14, fontWeight: "bold", fill: "#17af93" }} />
               </BarChart>
             </ChartCard>
 
