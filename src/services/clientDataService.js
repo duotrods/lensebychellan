@@ -2239,6 +2239,109 @@ class ClientDataService {
     );
     return results.slice(0, 10);
   }
+
+  async searchReportsPaginated(schemeId, searchTerm, pageSize = 10, lastDocs = {}, filterType = null) {
+    const raw = searchTerm.trim();
+    if (!raw) return { results: [], lastDocs: {}, hasMore: false };
+    if (raw.length > 100) return { results: [], lastDocs: {}, hasMore: false };
+
+    const termRef = raw.toUpperCase();
+    const termName = raw;
+    const termRefEnd = termRef + "";
+    const termNameEnd = termName + "";
+
+    const ALL_COLLECTIONS = [
+      { name: "incidentReports",        key: "incident",        type: "incident",         typeField: "incidentType" },
+      { name: "assetDamageReports",     key: "assetDamage",     type: "asset-damage",     typeField: "damageType"   },
+      { name: "dailyOccurrenceReports", key: "dailyOccurrence", type: "daily-occurrence", typeField: null           },
+      { name: "cctvCheckForms",         key: "cctvCheck",       type: "cctv-check",       typeField: null           },
+      { name: "cctvFaultsReports",      key: "cctvFaults",      type: "cctv-faults",      typeField: null           },
+    ];
+
+    const typeToCollection = {
+      incident: "incidentReports",
+      "asset-damage": "assetDamageReports",
+      "daily-occurrence": "dailyOccurrenceReports",
+      "cctv-check": "cctvCheckForms",
+      "cctv-faults": "cctvFaultsReports",
+    };
+    const COLLECTIONS = filterType && typeToCollection[filterType]
+      ? ALL_COLLECTIONS.filter((c) => c.name === typeToCollection[filterType])
+      : ALL_COLLECTIONS;
+
+    const fetchLimit = pageSize + 1;
+
+    const buildQuery = (collName, field, start, end, cursor) => {
+      const tryWithScheme = async () => {
+        const constraints = [
+          where("schemeIds", "array-contains", schemeId),
+          where(field, ">=", start),
+          where(field, "<=", end),
+          orderBy(field, "asc"),
+        ];
+        if (cursor) constraints.push(startAfter(cursor));
+        constraints.push(limit(fetchLimit));
+        return getDocs(query(collection(db, collName), ...constraints));
+      };
+      const tryWithoutScheme = async () => {
+        const constraints = [
+          where(field, ">=", start),
+          where(field, "<=", end),
+          orderBy(field, "asc"),
+        ];
+        if (cursor) constraints.push(startAfter(cursor));
+        constraints.push(limit(fetchLimit));
+        return getDocs(query(collection(db, collName), ...constraints));
+      };
+      return tryWithScheme().catch(() => tryWithoutScheme());
+    };
+
+    const perCollectionResults = await Promise.all(
+      COLLECTIONS.map(async ({ name, key, type, typeField }) => {
+        const cursor = lastDocs[key] || null;
+        const [refSnap, nameSnap] = await Promise.all([
+          buildQuery(name, "referenceId",      termRef,  termRefEnd,  cursor),
+          buildQuery(name, "submittedBy.name", termName, termNameEnd, cursor),
+        ]);
+
+        const seen = new Set();
+        const docs = [];
+        for (const snap of [refSnap, nameSnap]) {
+          for (const d of snap.docs) {
+            if (seen.has(d.id)) continue;
+            const data = d.data();
+            const inScheme =
+              (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
+              data.schemeId === schemeId;
+            if (!inScheme) continue;
+            seen.add(d.id);
+            docs.push({
+              id: d.id,
+              ...data,
+              reportType: type,
+              type: typeField ? data[typeField] : data.type,
+              timestamp: data.createdAt,
+              _firestoreDoc: d,
+              _key: key,
+            });
+          }
+        }
+        return docs;
+      })
+    );
+
+    const allDocs = perCollectionResults.flat();
+    allDocs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+    const hasMore = allDocs.length > pageSize;
+    const page = allDocs.slice(0, pageSize);
+
+    const newLastDocs = { ...lastDocs };
+    page.forEach((doc) => { newLastDocs[doc._key] = doc._firestoreDoc; });
+
+    const results = page.map(({ _firestoreDoc, _key, ...rest }) => rest);
+    return { results, lastDocs: newLastDocs, hasMore };
+  }
 }
 
 export const clientDataService = new ClientDataService();

@@ -54,6 +54,10 @@ const NewStaffDashboard = () => {
   const [typeCount, setTypeCount] = useState(0);
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLastDocs, setSearchLastDocs] = useState({});
+  const searchPageCacheRef = useRef({});
   const formsPerPage = 10;
 
   useEffect(() => {
@@ -227,9 +231,13 @@ const NewStaffDashboard = () => {
     _dashRestore = null;
   };
 
-  const runSearch = async (term) => {
+  const runSearch = async (term, page = 1, lastDocs = {}) => {
     if (!term.trim()) {
       setSearchResults([]);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchLastDocs({});
+      searchPageCacheRef.current = {};
       return;
     }
     const now = Date.now();
@@ -244,14 +252,36 @@ const NewStaffDashboard = () => {
     const myCount = ++searchCounterRef.current;
     setSearchLoading(true);
     try {
-      const results = await staffService.searchFormsByReferenceId(term.trim());
-      if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
+      const { results, lastDocs: newLastDocs, hasMore } =
+        await staffService.searchFormsPaginated(term.trim(), 10, lastDocs);
+      if (myCount !== searchCounterRef.current) return; // stale
+      searchPageCacheRef.current[page] = { results, lastDocs: newLastDocs, hasMore };
       setSearchResults(results);
+      setSearchPage(page);
+      setSearchHasMore(hasMore);
+      setSearchLastDocs(newLastDocs);
     } catch (err) {
       console.error("Search failed:", err);
       toast.error("Search failed. Please try again.");
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const handleSearchNextPage = () => {
+    if (!searchHasMore) return;
+    runSearch(searchTerm, searchPage + 1, searchLastDocs);
+  };
+
+  const handleSearchPrevPage = () => {
+    if (searchPage <= 1) return;
+    const prevPage = searchPage - 1;
+    const cached = searchPageCacheRef.current[prevPage];
+    if (cached) {
+      setSearchResults(cached.results);
+      setSearchPage(prevPage);
+      setSearchHasMore(cached.hasMore);
+      setSearchLastDocs(cached.lastDocs);
     }
   };
 
@@ -598,6 +628,10 @@ const NewStaffDashboard = () => {
                         clearTimeout(searchDebounceRef.current);
                       if (!value.trim()) {
                         setSearchResults([]);
+                        setSearchPage(1);
+                        setSearchHasMore(false);
+                        setSearchLastDocs({});
+                        searchPageCacheRef.current = {};
                         setCurrentPage(1);
                         setCursors({});
                         setTypeCursor(null);
@@ -606,7 +640,8 @@ const NewStaffDashboard = () => {
                         return;
                       }
                       searchDebounceRef.current = setTimeout(() => {
-                        runSearch(value);
+                        searchPageCacheRef.current = {};
+                        runSearch(value, 1, {});
                       }, 150);
                     }}
                     className="input input-bordered w-full pl-10 bg-white border-gray-300"
@@ -789,12 +824,29 @@ const NewStaffDashboard = () => {
               </div>
 
               {/* Pagination */}
-              {isSearchMode && (
-                <div className="p-4 border-t">
+              {isSearchMode && (searchPage > 1 || searchHasMore) && (
+                <div className="flex items-center justify-between p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    Showing {searchResults.length} search result
-                    {searchResults.length !== 1 ? "s" : ""} (max 10)
+                    Page {searchPage} &mdash; {searchResults.length} result
+                    {searchResults.length !== 1 ? "s" : ""}
                   </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSearchPrevPage}
+                      disabled={searchPage === 1}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-medium">Page {searchPage}</span>
+                    <button
+                      onClick={handleSearchNextPage}
+                      disabled={!searchHasMore}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
               {!isSearchMode && (currentPage > 1 || hasMore) && (
