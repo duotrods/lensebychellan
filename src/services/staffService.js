@@ -1,4 +1,4 @@
-﻿/* eslint-disable no-unused-vars */
+/* eslint-disable no-unused-vars */
 import {
   collection,
   addDoc,
@@ -1945,7 +1945,7 @@ class StaffService {
     }
   }
 
-  async searchFormsPaginated(searchTerm, pageSize = 10, lastDocs = {}) {
+  async searchFormsPaginated(searchTerm, pageSize = 10, lastDocs = {}, collections = null) {
     const raw = searchTerm.trim();
     if (!raw) return { results: [], lastDocs: {}, hasMore: false };
     if (raw.length > 100) return { results: [], lastDocs: {}, hasMore: false };
