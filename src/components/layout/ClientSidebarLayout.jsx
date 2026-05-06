@@ -10,6 +10,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
+  MonitorCheck,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -56,6 +57,11 @@ const ClientSidebarLayout = ({ children }) => {
       name: "CCTV Recordings",
       path: "/dashboard/client/cctv-recordings",
       icon: Video,
+    },
+    {
+      name: "CCTV Uptime",
+      path: "/dashboard/client/cctv-uptime",
+      icon: MonitorCheck,
     },
   ];
 
