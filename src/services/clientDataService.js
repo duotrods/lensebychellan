@@ -10,9 +10,14 @@ import {
   onSnapshot,
   startAfter,
   getCountFromServer,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
+import { CAMERA_OPTIONS_BY_SCHEME } from "../utils/schemes";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -2240,7 +2245,24 @@ class ClientDataService {
     return results.slice(0, 10);
   }
 
-  async getCCTVUptimeData(schemeId, dateRange = 30) {
+  async getCCTVUptimeData(schemeId, dateRange = 30, force = false) {
+    const CACHE_TTL_MS = 15 * 60 * 1000;
+    const cacheRef = doc(db, "cctvUptimeCache", `${schemeId}_${dateRange}d`);
+
+    if (!force) {
+      try {
+        const cacheSnap = await getDoc(cacheRef);
+        if (cacheSnap.exists()) {
+          const cached = cacheSnap.data();
+          if (Date.now() - cached.cachedAt.toMillis() < CACHE_TTL_MS) {
+            return { cameras: cached.cameras, totals: cached.totals };
+          }
+        }
+      } catch {
+        // Cache read failed — fall through to full query
+      }
+    }
+
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - dateRange);
     const cutoffTs = Timestamp.fromDate(cutoff);
@@ -2250,6 +2272,7 @@ class ClientDataService {
       where("schemeIds", "array-contains", schemeId),
       where("createdAt", ">=", cutoffTs),
       orderBy("createdAt", "desc"),
+      limit(500),
     );
 
     const snap = await getDocs(q).catch(async () => {
@@ -2257,6 +2280,7 @@ class ClientDataService {
         collection(db, "cctvFaultsReports"),
         where("createdAt", ">=", cutoffTs),
         orderBy("createdAt", "desc"),
+        limit(500),
       );
       const s = await getDocs(q2);
       return {
@@ -2272,7 +2296,11 @@ class ClientDataService {
 
     const periodMs = dateRange * 24 * 60 * 60 * 1000;
     const now = Date.now();
+
     const cameraMap = {};
+    for (const cam of (CAMERA_OPTIONS_BY_SCHEME[schemeId] ?? [])) {
+      cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
+    }
 
     for (const d of snap.docs) {
       const data = d.data();
@@ -2329,6 +2357,9 @@ class ClientDataService {
           : null,
       liveFaults: cameras.filter((c) => c.liveFault).length,
     };
+
+    // Write result to shared Firestore cache (fire-and-forget, non-blocking)
+    setDoc(cacheRef, { cameras, totals, cachedAt: serverTimestamp(), schemeId, dateRange }).catch(() => {});
 
     return { cameras, totals };
   }

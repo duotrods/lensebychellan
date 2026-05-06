@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
@@ -45,56 +46,47 @@ const KPICard = ({ icon: Icon, label, value, sub, iconColor }) => (
 
 const CCTVUptimePage = () => {
   const { userProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [dateRange, setDateRange] = useState(30);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const cacheRef = useRef({});
+  const [cooldown, setCooldown] = useState(0);
+  const forceRef = useRef(false);
 
+  const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
+
+  const { data, isFetching, error: queryError, refetch } = useQuery({
+    queryKey: ["cctvUptime", activeScheme, dateRange],
+    queryFn: () => {
+      const force = forceRef.current;
+      forceRef.current = false;
+      return clientDataService.getCCTVUptimeData(activeScheme, dateRange, force);
+    },
+    staleTime: 14 * 60 * 1000,
+    enabled: !!activeScheme,
+  });
+
+  const loading = isFetching;
+  const error = queryError?.message ?? null;
+
+  // Count down the refresh cooldown each second
   useEffect(() => {
-    const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
-    if (!activeScheme) return;
-
-    if (cacheRef.current[dateRange]) {
-      setData(cacheRef.current[dateRange]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    clientDataService
-      .getCCTVUptimeData(activeScheme, dateRange)
-      .then((result) => {
-        cacheRef.current[dateRange] = result;
-        setData(result);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [dateRange, userProfile]);
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const handleRefresh = () => {
-    cacheRef.current = {};
-    setData(null);
-    const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
-    if (!activeScheme) return;
-    setLoading(true);
-    setError(null);
-    clientDataService
-      .getCCTVUptimeData(activeScheme, dateRange)
-      .then((result) => {
-        cacheRef.current[dateRange] = result;
-        setData(result);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    if (cooldown > 0 || isFetching) return;
+    setCooldown(60);
+    forceRef.current = true;
+    queryClient.invalidateQueries({ queryKey: ["cctvUptime", activeScheme] });
+    refetch();
   };
 
   const { cameras = [], totals = {} } = data || {};
 
   return (
     <ClientSidebarLayout>
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -117,11 +109,12 @@ const CCTVUptimePage = () => {
             ))}
             <button
               onClick={handleRefresh}
-              disabled={loading}
-              title="Refresh"
-              className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-40"
+              disabled={loading || cooldown > 0}
+              title={cooldown > 0 ? `Refresh available in ${cooldown}s` : "Refresh"}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-40"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              {cooldown > 0 && <span className="text-xs tabular-nums">{cooldown}s</span>}
             </button>
           </div>
         </div>
