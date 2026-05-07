@@ -28,6 +28,8 @@ import {
   ShieldAlert,
   X,
   TriangleAlert,
+  Clock,
+  TrendingUp,
 } from "lucide-react";
 import { SCHEMES } from "../../utils/schemes";
 import { DateRangePicker } from "react-date-range";
@@ -68,6 +70,14 @@ const ChartCard = memo(
     </div>
   ),
 );
+
+const fmtDowntime = (mins) => {
+  if (!mins) return "0m";
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+};
 
 const transformDataForChart = (dataObj, filterUnknown = true) => {
   if (!dataObj) return [];
@@ -185,9 +195,9 @@ const NewClientDashboard = () => {
   });
 
   // Cached query for uptime
-  const { isLoading: uptimeLoading } = useQuery({
+  const { data: uptimeData, isLoading: uptimeLoading } = useQuery({
     queryKey: ["cctvUptime", schemeId],
-    queryFn: () => clientDataService.getCCTVUptime(schemeId),
+    queryFn: () => clientDataService.getCCTVUptimeData(schemeId, 30),
     enabled: !!schemeId,
   });
 
@@ -685,6 +695,61 @@ const NewClientDashboard = () => {
         ))}
       </div>
 
+      {/* Metric Cards Row 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+            <div className="p-3 rounded-lg bg-teal-50">
+              <Clock className="w-8 h-8 text-teal-500" />
+            </div>
+            <h6 className="font-semibold text-gray-500 mb-1">Avg Time to Site</h6>
+          </div>
+          <span className="text-2xl font-bold text-gray-800 pl-2">
+            {loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`}
+          </span>
+          <p className="text-sm text-gray-500 mt-2">Average response time from incident spotted to unit on site.</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+            <div className="p-3 rounded-lg bg-blue-50">
+              <Wrench className="w-8 h-8 text-blue-500" />
+            </div>
+            <h6 className="font-semibold text-gray-500 mb-1">Avg Time to Recover</h6>
+          </div>
+          <span className="text-2xl font-bold text-gray-800 pl-2">
+            {loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`}
+          </span>
+          <p className="text-sm text-gray-500 mt-2">Average time from unit on site to incident cleared.</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+            <div className={`p-3 rounded-lg ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 95 ? "bg-red-50" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 99 ? "bg-amber-50" : "bg-green-50"}`}>
+              <TrendingUp className={`w-8 h-8 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 95 ? "text-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 99 ? "text-amber-500" : "text-green-500"}`} />
+            </div>
+            <h6 className="font-semibold text-gray-500 mb-1">Avg Camera Uptime</h6>
+          </div>
+          <span className="text-2xl font-bold text-gray-800 pl-2">
+            {uptimeLoading ? "..." : `${uptimeData?.totals?.avgUptimePct ?? "100.0"}%`}
+          </span>
+          <p className="text-sm text-gray-500 mt-2">Average camera uptime across the scheme (last 30 days).</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+            <div className="p-3 rounded-lg bg-red-50">
+              <CameraOff className="w-8 h-8 text-red-500" />
+            </div>
+            <h6 className="font-semibold text-gray-500 mb-1">Total Camera Downtime</h6>
+          </div>
+          <span className="text-2xl font-bold text-gray-800 pl-2">
+            {uptimeLoading ? "..." : fmtDowntime(uptimeData?.totals?.totalDownMins ?? 0)}
+          </span>
+          <p className="text-sm text-gray-500 mt-2">Total cumulative camera downtime across the scheme (last 30 days).</p>
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex justify-center items-center h-96">
           <span className="loading loading-spinner loading-lg text-teal-500"></span>
@@ -780,28 +845,6 @@ const NewClientDashboard = () => {
                 <Tooltip {...commonChartProps.tooltip} />
                 <Legend {...commonChartProps.legend} />
                 <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Avg Time to Site (mins)">
-              <BarChart data={[{ name: "Average", Minutes: stats?.avgTimeToSite ?? 0 }]}>
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Minutes" {...commonChartProps.bar} label={{ position: "top", fontSize: 14, fontWeight: "bold", fill: "#17af93" }} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Avg Time to Recover (mins)">
-              <BarChart data={[{ name: "Average", Minutes: stats?.avgTimeToRecover ?? 0 }]}>
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Minutes" {...commonChartProps.bar} label={{ position: "top", fontSize: 14, fontWeight: "bold", fill: "#17af93" }} />
               </BarChart>
             </ChartCard>
 
