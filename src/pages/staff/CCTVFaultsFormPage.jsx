@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
-import { SCHEMES, isDemoUser } from "../../utils/schemes";
+import { SCHEMES, isDemoUser, extractSchemeId, CAMERA_OPTIONS_BY_SCHEME } from "../../utils/schemes";
 
 import chellanlogo from "../../assets/chellanpng.png";
 
@@ -36,7 +36,11 @@ const CCTVFaultsFormPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "scheme") {
+      setFormData((prev) => ({ ...prev, scheme: value, camera: "" }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   useEffect(() => {
@@ -107,7 +111,6 @@ const CCTVFaultsFormPage = () => {
     const trimmedData = {
       ...formData,
       fullName: formData.fullName.trim(),
-      camera: formData.camera.trim(),
     };
 
     setLoading(true);
@@ -301,16 +304,21 @@ const CCTVFaultsFormPage = () => {
                   Camera <span className="text-red-500">*</span>
                 </span>
               </label>
-              <input
-                type="text"
+              <select
                 name="camera"
                 value={formData.camera}
                 onChange={handleChange}
-                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                placeholder="e.g., CCTV 12"
-                maxLength={100}
+                disabled={!formData.scheme}
+                className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 required
-              />
+              >
+                <option value="">
+                  {formData.scheme ? "Please Select" : "Select a scheme first"}
+                </option>
+                {(CAMERA_OPTIONS_BY_SCHEME[extractSchemeId(formData.scheme)] ?? []).map((cam) => (
+                  <option key={cam} value={cam}>{cam}</option>
+                ))}
+              </select>
             </div>
           </div>
 

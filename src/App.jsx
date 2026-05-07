@@ -61,6 +61,7 @@ import ClientLiveIncidentsPage from './pages/client/LiveIncidentsPage';
 import ClientLiveCameraFaultsPage from './components/dashboard/CCTVFaultOperatorDashboard';
 import ClientCCTVFaultView from './pages/client/CCTVFaultView';
 import ClientCCTVFaultsPage from './pages/client/CCTVFaultsPage';
+import CCTVUptimePage from './pages/client/CCTVUptimePage';
 
 import { USER_ROLES } from './utils/constants';
 import './index.css';
@@ -438,6 +439,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
                   <CCTVRecordingsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/client/cctv-uptime"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                  <CCTVUptimePage />
                 </ProtectedRoute>
               }
             />

@@ -157,68 +157,37 @@ const CCTVCheckView = () => {
             <p className="text-gray-500 text-sm">No cameras selected</p>
           )}
         </div>
-        {/* Blackspot Cameras */}
-        {blackspotCameras && blackspotCameras.length > 0 && (
-          <div className="mt-4 pt-4 mb-4 border-b border-t border-dashed border-gray-200">
-            <h6 className="text-sm font-bold text-gray-600 mb-2">
+        <div className="flex flex-wrap gap-6 mt-2">
+          {/* Blackspot Cameras */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-600">
               Blackspot Cameras:
-            </h6>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {(() => {
-                const bsAllWorking =
-                  blackspotCameras.length === 1 &&
-                  blackspotCameras[0] === "All Working Correctly";
-                const bsHasIssues =
-                  blackspotCameras.length > 0 && !bsAllWorking;
-
-                return (
-                  <div className="mb-3">
-                    {bsAllWorking ? (
-                      <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle className="w-5 h-5" />
-                        <span className="font-semibold">
-                          All Working Correctly
-                        </span>
-                      </div>
-                    ) : bsHasIssues ? (
-                      <div>
-                        <div className="flex items-center mt-2 gap-2 text-orange-600 mb-2">
-                          <XCircle className="w-5 h-5" />
-                          <span className="font-semibold">
-                            Blackspot issues:
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {blackspotCameras.map((camera, index) => (
-                            <span
-                              key={index}
-                              className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"
-                            >
-                              {camera}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })()}
-            </div>
+            </span>
+            {(blackspotCameras === true || (Array.isArray(blackspotCameras) && blackspotCameras.length > 0 && blackspotCameras[0] !== "All Working Correctly")) ? (
+              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-sm font-semibold">
+                Yes
+              </span>
+            ) : (
+              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm font-semibold">
+                No
+              </span>
+            )}
           </div>
-        )}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-600">
-            TSS Informed:
-          </span>
-          {tssInformed ? (
-            <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-semibold">
-              Yes
+          {/* TSS Informed */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-600">
+              TSS Informed:
             </span>
-          ) : (
-            <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm font-semibold">
-              No
-            </span>
-          )}
+            {tssInformed ? (
+              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-semibold">
+                Yes
+              </span>
+            ) : (
+              <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm font-semibold">
+                No
+              </span>
+            )}
+          </div>
         </div>
 
         {comments && comments.trim() !== "" && (

@@ -10,9 +10,14 @@ import {
   onSnapshot,
   startAfter,
   getCountFromServer,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
+import { CAMERA_OPTIONS_BY_SCHEME } from "../utils/schemes";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -2238,6 +2243,125 @@ class ClientDataService {
       (a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0),
     );
     return results.slice(0, 10);
+  }
+
+  async getCCTVUptimeData(schemeId, dateRange = 30, force = false) {
+    const CACHE_TTL_MS = 15 * 60 * 1000;
+    const cacheRef = doc(db, "cctvUptimeCache", `${schemeId}_${dateRange}d`);
+
+    if (!force) {
+      try {
+        const cacheSnap = await getDoc(cacheRef);
+        if (cacheSnap.exists()) {
+          const cached = cacheSnap.data();
+          if (Date.now() - cached.cachedAt.toMillis() < CACHE_TTL_MS) {
+            return { cameras: cached.cameras, totals: cached.totals };
+          }
+        }
+      } catch {
+        // Cache read failed — fall through to full query
+      }
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - dateRange);
+    const cutoffTs = Timestamp.fromDate(cutoff);
+
+    const q = query(
+      collection(db, "cctvFaultsReports"),
+      where("schemeIds", "array-contains", schemeId),
+      where("createdAt", ">=", cutoffTs),
+      orderBy("createdAt", "desc"),
+      limit(500),
+    );
+
+    const snap = await getDocs(q).catch(async () => {
+      const q2 = query(
+        collection(db, "cctvFaultsReports"),
+        where("createdAt", ">=", cutoffTs),
+        orderBy("createdAt", "desc"),
+        limit(500),
+      );
+      const s = await getDocs(q2);
+      return {
+        docs: s.docs.filter((d) => {
+          const data = d.data();
+          return (
+            (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
+            data.schemeId === schemeId
+          );
+        }),
+      };
+    });
+
+    const periodMs = dateRange * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const cameraMap = {};
+    for (const cam of (CAMERA_OPTIONS_BY_SCHEME[schemeId] ?? [])) {
+      cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
+    }
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const cam = data.camera || "Unknown";
+      if (!cameraMap[cam]) cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
+
+      if (data.status === "live") {
+        cameraMap[cam].liveFault = true;
+        const downMs = now - (data.createdAt?.toMillis?.() || now);
+        cameraMap[cam].totalDownMs += downMs;
+        cameraMap[cam].outages += 1;
+      } else if (data.status === "completed" && data.completedAt && data.createdAt) {
+        const downMs = data.completedAt.toMillis() - data.createdAt.toMillis();
+        if (downMs > 0) {
+          cameraMap[cam].totalDownMs += downMs;
+          cameraMap[cam].outages += 1;
+        }
+      }
+    }
+
+    const cameras = Object.entries(cameraMap).map(([name, stats]) => {
+      const downMins = Math.round(stats.totalDownMs / 60000);
+      const uptimePct = Math.max(
+        0,
+        Math.min(100, ((periodMs - stats.totalDownMs) / periodMs) * 100),
+      ).toFixed(1);
+      const mttr =
+        stats.outages > 0
+          ? Math.round(stats.totalDownMs / stats.outages / 60000)
+          : null;
+      return {
+        name,
+        uptimePct: parseFloat(uptimePct),
+        downMins,
+        outages: stats.outages,
+        mttrMins: mttr,
+        liveFault: stats.liveFault,
+      };
+    });
+
+    cameras.sort((a, b) => a.uptimePct - b.uptimePct);
+
+    const withMttr = cameras.filter((c) => c.mttrMins !== null);
+    const totals = {
+      avgUptimePct:
+        cameras.length
+          ? (cameras.reduce((s, c) => s + c.uptimePct, 0) / cameras.length).toFixed(1)
+          : "100.0",
+      totalDownMins: cameras.reduce((s, c) => s + c.downMins, 0),
+      totalOutages: cameras.reduce((s, c) => s + c.outages, 0),
+      avgMttrMins:
+        withMttr.length
+          ? Math.round(withMttr.reduce((s, c) => s + c.mttrMins, 0) / withMttr.length)
+          : null,
+      liveFaults: cameras.filter((c) => c.liveFault).length,
+    };
+
+    // Write result to shared Firestore cache (fire-and-forget, non-blocking)
+    setDoc(cacheRef, { cameras, totals, cachedAt: serverTimestamp(), schemeId, dateRange }).catch(() => {});
+
+    return { cameras, totals };
   }
 
   async searchReportsPaginated(schemeId, searchTerm, pageSize = 10, lastDocs = {}, filterType = null) {
