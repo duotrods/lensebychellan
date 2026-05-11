@@ -20,14 +20,14 @@ const fmtDowntime = (mins) => {
 };
 
 const uptimeColor = (pct) => {
-  if (pct >= 99) return "bg-green-500";
-  if (pct >= 95) return "bg-amber-400";
+  if (pct >= 90) return "bg-green-500";
+  if (pct >= 80) return "bg-amber-400";
   return "bg-red-500";
 };
 
 const uptimeTextColor = (pct) => {
-  if (pct >= 99) return "text-green-600";
-  if (pct >= 95) return "text-amber-600";
+  if (pct >= 90) return "text-green-600";
+  if (pct >= 80) return "text-amber-600";
   return "text-red-600";
 };
 
