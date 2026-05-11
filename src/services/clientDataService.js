@@ -2305,7 +2305,7 @@ class ClientDataService {
     for (const d of snap.docs) {
       const data = d.data();
       const cam = data.camera || "Unknown";
-      if (!cameraMap[cam]) cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
+      if (!cameraMap[cam]) continue;
 
       if (data.status === "live") {
         cameraMap[cam].liveFault = true;
