@@ -82,7 +82,8 @@ const CCTVUptimePage = () => {
     refetch();
   };
 
-  const { cameras = [], totals = {} } = data || {};
+  const { cameras: rawCameras = [], totals = {} } = data || {};
+  const cameras = [...rawCameras].sort((a, b) => b.uptimePct - a.uptimePct);
 
   return (
     <ClientSidebarLayout>
@@ -168,7 +169,7 @@ const CCTVUptimePage = () => {
           <div className="px-6 py-4 border-b flex items-center justify-between">
             <h2 className="text-base font-semibold text-gray-800">Per-Camera Breakdown</h2>
             {!loading && cameras.length > 0 && (
-              <span className="text-xs text-gray-500">{cameras.length} camera{cameras.length !== 1 ? "s" : ""} — worst uptime first</span>
+              <span className="text-xs text-gray-500">{cameras.length} camera{cameras.length !== 1 ? "s" : ""} — best uptime first</span>
             )}
           </div>
 

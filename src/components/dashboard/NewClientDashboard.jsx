@@ -725,8 +725,8 @@ const NewClientDashboard = () => {
 
         <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
           <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-            <div className={`p-3 rounded-lg ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 95 ? "bg-red-50" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 99 ? "bg-amber-50" : "bg-green-50"}`}>
-              <TrendingUp className={`w-8 h-8 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 95 ? "text-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 99 ? "text-amber-500" : "text-green-500"}`} />
+            <div className={`p-3 rounded-lg ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "bg-red-50" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "bg-amber-50" : "bg-green-50"}`}>
+              <TrendingUp className={`w-8 h-8 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "text-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "text-amber-500" : "text-green-500"}`} />
             </div>
             <h6 className="font-semibold text-gray-500 mb-1">Avg Camera Uptime</h6>
           </div>
@@ -741,12 +741,12 @@ const NewClientDashboard = () => {
             <div className="p-3 rounded-lg bg-red-50">
               <CameraOff className="w-8 h-8 text-red-500" />
             </div>
-            <h6 className="font-semibold text-gray-500 mb-1">Total Camera Downtime</h6>
+            <h6 className="font-semibold text-gray-500 mb-1">Avg Camera Downtime</h6>
           </div>
           <span className="text-2xl font-bold text-gray-800 pl-2">
-            {uptimeLoading ? "..." : fmtDowntime(uptimeData?.totals?.totalDownMins ?? 0)}
+            {uptimeLoading ? "..." : `${(100 - parseFloat(uptimeData?.totals?.avgUptimePct ?? 100)).toFixed(1)}%`}
           </span>
-          <p className="text-sm text-gray-500 mt-2">Total cumulative camera downtime across the scheme (last 30 days).</p>
+          <p className="text-sm text-gray-500 mt-2">Average camera downtime across the scheme (last 30 days).</p>
         </div>
       </div>
 
