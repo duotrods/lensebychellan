@@ -95,6 +95,22 @@ class StaffService {
         schemeIds.push("M3");
       }
 
+      // Check A452 HS2 section
+      const hasA452Data =
+        (formData.A452 && formData.A452.length > 0) ||
+        (formData.A452Comments && formData.A452Comments.trim() !== "");
+      if (hasA452Data) {
+        schemeIds.push("A452");
+      }
+
+      // Check Costain - GC section
+      const hasCostainData =
+        (formData.Costain && formData.Costain.length > 0) ||
+        (formData.CostainComments && formData.CostainComments.trim() !== "");
+      if (hasCostainData) {
+        schemeIds.push("Costain");
+      }
+
       // Check Demo section
       const hasDemoData =
         (formData.demoCameras && formData.demoCameras.length > 0) ||
@@ -106,7 +122,7 @@ class StaffService {
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3");
+        schemeIds.push("A417", "A47", "M3", "Costain");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility
@@ -233,6 +249,22 @@ class StaffService {
         schemeIds.push("M3");
       }
 
+      // Check A452 HS2 section
+      const hasA452Data =
+        (formData.A452 && formData.A452.length > 0) ||
+        (formData.A452Comments && formData.A452Comments.trim() !== "");
+      if (hasA452Data) {
+        schemeIds.push("A452");
+      }
+
+      // Check Costain - GC section
+      const hasCostainData =
+        (formData.Costain && formData.Costain.length > 0) ||
+        (formData.CostainComments && formData.CostainComments.trim() !== "");
+      if (hasCostainData) {
+        schemeIds.push("Costain");
+      }
+
       // Check Demo section
       const hasDemoData =
         (formData.demoCameras && formData.demoCameras.length > 0) ||
@@ -244,7 +276,7 @@ class StaffService {
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3");
+        schemeIds.push("A417", "A47", "M3", "Costain");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility

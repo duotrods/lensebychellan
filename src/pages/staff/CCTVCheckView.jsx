@@ -344,6 +344,13 @@ const CCTVCheckView = () => {
               form.A452Blackspot,
               form.A452TssInformed,
             )}
+            {renderCameraSection(
+              "Costain - Gallows Corner",
+              form.Costain,
+              form.CostainComments,
+              form.CostainBlackspot,
+              form.CostainTssInformed,
+            )}
           </div>
 
           {/* Metadata */}

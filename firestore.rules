@@ -215,9 +215,6 @@ service cloud.firestore {
             .hasOnly(['clientAcknowledged', 'acknowledgedAt', 'updatedAt'])
         ) ||
         (getUserRole() == 'cctvfaultoperator' &&
-          (hasSchemeAccess(resource.data.schemeIds) ||
-           getUserScheme() == resource.data.schemeId ||
-           (resource.data.schemeIds != null && getUserScheme() != null && getUserScheme() in resource.data.schemeIds)) &&
           request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['clientAcknowledged', 'clientNote', 'clientNotes', 'acknowledgedAt', 'updatedAt'])
         )
