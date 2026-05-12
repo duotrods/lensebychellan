@@ -348,6 +348,30 @@ const CCTVCheckView = () => {
                   form.m3Jct9TssInformed,
                 );
               }
+              else if (
+                currentSchemeId === "Costain" &&
+                form.schemeIds?.includes("Costain")
+              ) {
+                return renderCameraSection(
+                  "Costain - Gallows Corner",
+                  form.Costain,
+                  form.CostainComments,
+                  form.CostainBlackspot,
+                  form.CostainTssInformed,
+                );
+              }
+              else if (
+                currentSchemeId === "A452" &&
+                form.schemeIds?.includes("A452")
+              ) {
+                return renderCameraSection(
+                  "A452 HS2",
+                  form.A452,
+                  form.A452Comments,
+                  form.A452Blackspot,
+                  form.A452TssInformed,
+                );
+              }
 
               return null;
             })()}

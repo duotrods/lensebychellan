@@ -50,10 +50,17 @@ const CCTVCheckFormPage = () => {
     m3Jct9Blackspot: false,
     m3TssInformed: false,
 
+    // A452 HS2 Section
     A452: [],
     A452Comments: "",
     A452Blackspot: false,
     A452TssInformed: false,
+
+    // Costain - GC Section
+    Costain: [],
+    CostainComments: "",
+    CostainBlackspot: false,
+    CostainTssInformed: false,
 
     // Demo Section
     demoCameras: [],
@@ -188,6 +195,17 @@ const CCTVCheckFormPage = () => {
       "CAM 20",
       "CAM 21",
     ],
+    Costain: [
+      "All Working Correctly",
+      "Tower 1 - CAM 1",
+      "Tower 1 - CAM 2",
+      "Tower 1 - CAM 3",
+      "Tower 1 - CAM 4",
+      "Tower 2 - CAM 1",
+      "Tower 2 - CAM 2",
+      "Tower 2 - CAM 3",
+      "Tower 2 - CAM 4",
+    ],
     demo: [
       "All Working Correctly",
       "DEMO-CAM-1",
@@ -239,6 +257,10 @@ const CCTVCheckFormPage = () => {
           A452Comments: form.A452Comments || "",
           A452Blackspot: Array.isArray(form.A452Blackspot) ? form.A452Blackspot.length > 0 : (form.A452Blackspot || false),
           A452TssInformed: form.A452TssInformed || false,
+          Costain: form.Costain || [],
+          CostainComments: form.CostainComments || "",
+          CostainBlackspot: Array.isArray(form.CostainBlackspot) ? form.CostainBlackspot.length > 0 : (form.CostainBlackspot || false),
+          CostainTssInformed: form.CostainTssInformed || false,
           demoCameras: form.demoCameras || [],
           demoComments: form.demoComments || "",
           demoBlackspot: Array.isArray(form.demoBlackspot) ? form.demoBlackspot.length > 0 : (form.demoBlackspot || false),
@@ -349,6 +371,10 @@ const CCTVCheckFormPage = () => {
           A452Comments: "",
           A452Blackspot: false,
           A452TssInformed: false,
+          Costain: [],
+          CostainComments: "",
+          CostainBlackspot: false,
+          CostainTssInformed: false,
           demoCameras: [],
           demoComments: "",
           demoBlackspot: false,
@@ -611,6 +637,15 @@ const CCTVCheckFormPage = () => {
                 cameraOptions.A452,
                 "A452Blackspot",
                 "A452TssInformed",
+              )}
+
+              {renderCheckboxSection(
+                "Costain - GC (only tick cameras that are not working correctly)",
+                "Costain",
+                "CostainComments",
+                cameraOptions.Costain,
+                "CostainBlackspot",
+                "CostainTssInformed",
               )}
             </>
           )}

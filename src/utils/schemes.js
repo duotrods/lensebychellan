@@ -28,6 +28,12 @@ export const SCHEMES = [
     contractor: "Traffix",
   },
   {
+    id: "Costain",
+    fullName: "Costain - Gallows Corner",
+    shortName: "Costain - GC",
+    contractor: "Gallows Corner",
+  },
+  {
     id: "DMO1",
     fullName: "DMO1 Demo Scheme - Demo",
     shortName: "Demo Scheme",
@@ -101,6 +107,10 @@ export const CAMERA_OPTIONS_BY_SCHEME = {
     "3401","3402","3403","3404","3407","3408","3409","3410",
   ],
   A452: ["CAM 15","CAM 16","CAM 17","CAM 18","CAM 19","CAM 20","CAM 21"],
+  Costain: [
+    "Tower 1 - CAM 1","Tower 1 - CAM 2","Tower 1 - CAM 3","Tower 1 - CAM 4",
+    "Tower 2 - CAM 1","Tower 2 - CAM 2","Tower 2 - CAM 3","Tower 2 - CAM 4",
+  ],
   DMO1: [
     "DEMO-CAM-1","DEMO-CAM-2","DEMO-CAM-3","DEMO-CAM-4",
     "DEMO-CAM-5","DEMO-CAM-6","DEMO-CAM-7","DEMO-CAM-8",

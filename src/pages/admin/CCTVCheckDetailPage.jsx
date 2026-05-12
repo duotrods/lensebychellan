@@ -206,6 +206,20 @@ const CCTVCheckDetailPage = () => {
             report.m3Jct9Comments
           )}
 
+          {/* A452 HS2 Section */}
+          {renderCameraSection(
+            'A452 HS2 Cameras',
+            report.A452,
+            report.A452Comments
+          )}
+
+          {/* Costain - GC Section */}
+          {renderCameraSection(
+            'Costain - GC Cameras',
+            report.Costain,
+            report.CostainComments
+          )}
+
           {/* Overall Summary */}
           <div className="mb-8 pb-8 border-b">
             <h4 className="text-lg font-bold text-gray-800 mb-4">Summary</h4>
@@ -215,9 +229,13 @@ const CCTVCheckDetailPage = () => {
                 const a417AllWorking = report.a417Cameras?.some(c => allWorkingValues.includes(c));
                 const kierCoreAllWorking = report.kierCore?.some(c => allWorkingValues.includes(c));
                 const m3Jct9AllWorking = report.m3Jct9?.some(c => allWorkingValues.includes(c));
+                const a452AllWorking = report.A452?.some(c => allWorkingValues.includes(c));
+                const costainAllWorking = report.Costain?.some(c => allWorkingValues.includes(c));
                 const a417Issues = report.a417Cameras?.filter(c => !allWorkingValues.includes(c)).length || 0;
                 const kierCoreIssues = report.kierCore?.filter(c => !allWorkingValues.includes(c)).length || 0;
                 const m3Jct9Issues = report.m3Jct9?.filter(c => !allWorkingValues.includes(c)).length || 0;
+                const a452Issues = report.A452?.filter(c => !allWorkingValues.includes(c)).length || 0;
+                const costainIssues = report.Costain?.filter(c => !allWorkingValues.includes(c)).length || 0;
 
                 return (
                   <>
