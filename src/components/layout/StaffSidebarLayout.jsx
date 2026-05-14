@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   FileText,
   LogOut,
+  HelpCircle,
   ChevronDown,
   CameraOff,
   PanelLeftClose,
@@ -241,6 +242,14 @@ const StaffSidebarLayoutInner = ({ children }) => {
             </div>
           )}
 
+          <button
+            onClick={() => navigate('/help')}
+            title={collapsed ? 'Help' : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
+          >
+            <HelpCircle className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="font-medium">Help</span>}
+          </button>
           <button
             onClick={() => setShowLogoutModal(true)}
             title={collapsed ? 'Logout' : undefined}

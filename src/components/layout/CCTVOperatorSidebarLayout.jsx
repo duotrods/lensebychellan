@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
-import { LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Menu } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeftClose, PanelLeftOpen, Menu, HelpCircle } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import LogoutConfirmModal from "./LogoutConfirmModal";
@@ -115,6 +115,14 @@ const CCTVOperatorSidebarLayout = ({ children }) => {
             </div>
           )}
 
+          <button
+            onClick={() => navigate('/help')}
+            title={collapsed ? 'Help' : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
+          >
+            <HelpCircle className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="font-medium">Help</span>}
+          </button>
           <button
             onClick={() => setShowLogoutModal(true)}
             title={collapsed ? 'Logout' : undefined}
