@@ -14,6 +14,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
+  FolderOpen,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -81,6 +82,11 @@ const StaffSidebarLayoutInner = ({ children }) => {
       path: "/dashboard/staff/cctv-faults",
       icon: CameraOff,
       liveCount: liveFaults.length,
+    },
+    {
+      name: "Documents",
+      path: "/dashboard/staff/documents",
+      icon: FolderOpen,
     },
   ];
 

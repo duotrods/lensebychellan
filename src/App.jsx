@@ -63,6 +63,7 @@ import ClientCCTVFaultView from './pages/client/CCTVFaultView';
 import ClientCCTVFaultsPage from './pages/client/CCTVFaultsPage';
 import CCTVUptimePage from './pages/client/CCTVUptimePage';
 import DocumentsPage from './pages/client/DocumentsPage';
+import StaffDocumentsPage from './pages/staff/StaffDocumentsPage';
 import HelpPage from './pages/HelpPage';
 
 import { USER_ROLES } from './utils/constants';
@@ -249,6 +250,15 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                   <CCTVFaultsLivePage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/dashboard/staff/documents"
+              element={
+                <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                  <StaffDocumentsPage />
                 </ProtectedRoute>
               }
             />
