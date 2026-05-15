@@ -6,8 +6,7 @@
 
 // Per-scheme recipients for incident alert emails (incursion YES or asset damage).
 // Key matches the scheme's fullName as stored in Firestore reports.
-// Per-scheme recipients for incident alert emails (incursion YES or asset damage).
-// Key matches the scheme's fullName as stored in Firestore reports.
+
 // const INCIDENT_ALERT_RECIPIENTS = {
 //   "A417 Missing Link - Kier": ["david@chellan.co.uk, wayne@chellan.co.uk"],
 //   "M3 Jct 9 - Balfour Beatty": [

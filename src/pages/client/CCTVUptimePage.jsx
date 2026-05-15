@@ -143,8 +143,8 @@ const CCTVUptimePage = () => {
           />
           <KPICard
             icon={Clock}
-            label="Total Downtime"
-            value={loading ? "—" : fmtDowntime(totals.totalDownMins ?? 0)}
+            label="Avg Downtime"
+            value={loading ? "—" : `${(100 - parseFloat(totals.avgUptimePct ?? 100)).toFixed(1)}%`}
             sub={`${totals.totalOutages ?? 0} fault${totals.totalOutages !== 1 ? "s" : ""}`}
             iconColor="bg-blue-500"
           />
