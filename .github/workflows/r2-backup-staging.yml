@@ -1,0 +1,40 @@
+name: Staging R2 → B2 Backup
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf << 'RCLONE_EOF'
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${{ secrets.R2_STAGING_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.R2_STAGING_SECRET_KEY }}
+          endpoint = ${{ secrets.R2_STAGING_ENDPOINT }}
+          no_check_bucket = true
+
+          [b2]
+          type = b2
+          account = ${{ secrets.B2_STAGING_ACCOUNT_ID }}
+          key = ${{ secrets.B2_STAGING_APP_KEY }}
+          RCLONE_EOF
+
+      - name: Sync R2 → B2
+        run: |
+          rclone sync r2:${{ secrets.R2_STAGING_BUCKET }} b2:${{ secrets.B2_STAGING_BUCKET }} \
+            --transfers=4 \
+            --checkers=8 \
+            --log-level=INFO \
+            --stats=60s
