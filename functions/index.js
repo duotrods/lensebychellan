@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 const { onCall, HttpsError, onRequest } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
@@ -425,15 +426,14 @@ exports.sendIncidentAlertNotification = onCall(
             </tr>
           </table>
 
-          ${
-            reportData.description
-              ? `
+          ${reportData.description
+        ? `
           <h3 style="color: #374151; margin-top: 20px;">Description</h3>
           <p style="background-color: white; padding: 15px; border-radius: 8px; color: #374151;">
             ${reportData.description}
           </p>`
-              : ""
-          }
+        : ""
+      }
 
           ${reportLink ? `
           <div style="text-align: center; margin: 24px 0;">
@@ -595,6 +595,43 @@ exports.deleteUserAccount = onCall(async (request) => {
   }
 });
 
+//Back up schedule every 6 hours at minute 0
+exports.scheduledFirestoreBackup = onSchedule(
+  {
+    schedule: "0 */6 * * *",
+    timezone: "Europe/London",
+    region: "europe-west2"
+  },
+  async () => {
+    const projectId = process.env.GCLOUD_PROJECT;
+    const date = new Date().toISOString().split("T")[0];
+    const outputUri = `gs://${projectId}-firestore-backups/backup-${date}`;
+
+    const tokenRes = await fetch(
+      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+      { headers: { "Metadata-Flavor": "Google" } }
+    );
+    const { access_token } = await tokenRes.json();
+
+    const exportRes = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default):exportDocuments`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${access_token}`,
+        },
+        body: JSON.stringify({ outputUriPrefix: outputUri }),
+      }
+    );
+
+    if (!exportRes.ok) {
+      const err = await exportRes.text();
+      throw new Error(`Firestore export failed: ${exportRes.status} ${err}`);
+    }
+    console.log(`Firestore backup successful: ${outputUri}`);
+  }
+);
 // ─── One-time backfill: set isPureIncident on all existing incidentReports ───
 // Trigger once via: https://<region>-<project>.cloudfunctions.net/backfillPureIncident
 // Protected by a secret key — pass ?key=YOUR_SECRET in the URL.
