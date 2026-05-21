@@ -604,8 +604,9 @@ exports.scheduledFirestoreBackup = onSchedule(
   },
   async () => {
     const projectId = process.env.GCLOUD_PROJECT;
-    const date = new Date().toISOString().split("T")[0];
-    const outputUri = `gs://${projectId}-firestore-backups/backup-${date}`;
+    const now = new Date();
+    const timestamp = now.toISOString().slice(0, 13).replace("T", "/"); 
+    const outputUri = `gs://${projectId}-firestore-backups/backup-${timestamp}`;
 
     const tokenRes = await fetch(
       "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
