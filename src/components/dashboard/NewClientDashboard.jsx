@@ -519,7 +519,7 @@ const NewClientDashboard = () => {
       const dateRangeText = `${dateRange[0].startDate.toLocaleDateString("en-GB")} - ${dateRange[0].endDate.toLocaleDateString("en-GB")}`;
       pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
 
-      const statsText = `Total Incidents: ${stats?.totalIncidents || 0} | Vehicles Dispatched: ${stats?.vehiclesDispatched || 0}`;
+      const statsText = `Total Incidents: ${stats?.totalIncidents || 0} | Vehicles Dispatched: ${stats?.vehiclesDispatched || 0} | Free Recovery: ${(Number(stats?.incidentsByType?.["Free Recovery"]) || 0)}`;
       pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
 
       // Content area
