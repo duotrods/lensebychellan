@@ -62,6 +62,10 @@ import ClientLiveIncidentsPage from "./pages/client/LiveIncidentsPage";
 import ClientLiveCameraFaultsPage from "./components/dashboard/CCTVFaultOperatorDashboard";
 import ClientCCTVFaultView from "./pages/client/CCTVFaultView";
 import ClientCCTVFaultsPage from "./pages/client/CCTVFaultsPage";
+import CCTVUptimePage from "./pages/client/CCTVUptimePage";
+import DocumentsPage from "./pages/client/DocumentsPage";
+import StaffDocumentsPage from "./pages/staff/StaffDocumentsPage";
+import HelpPage from "./pages/HelpPage";
 
 import { USER_ROLES } from "./utils/constants";
 import "./index.css";
@@ -264,6 +268,15 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                     <IncidentReportView />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/dashboard/staff/documents"
+                element={
+                  <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                    <StaffDocumentsPage />
                   </ProtectedRoute>
                 }
               />
@@ -668,6 +681,35 @@ const App = () => {
                     allowedRoles={[USER_ROLES.THIRDPARTYLIVEOPERATOR]}
                   >
                     <LiveOperatorIncidentDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Client routes */}
+              <Route
+                path="/dashboard/client/cctv-uptime"
+                element={
+                  <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                    <CCTVUptimePage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/dashboard/client/documents"
+                element={
+                  <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                    <DocumentsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Help */}
+              <Route
+                path="/help"
+                element={
+                  <ProtectedRoute>
+                    <HelpPage />
                   </ProtectedRoute>
                 }
               />

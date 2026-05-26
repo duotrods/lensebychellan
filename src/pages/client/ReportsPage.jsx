@@ -49,15 +49,23 @@ const ReportsPage = () => {
   const [hasMore, setHasMore] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLastDocs, setSearchLastDocs] = useState({});
+  const searchPageCacheRef = useRef({});
   const [subFilter, setSubFilter] = useState(null); // 'free-recovery' | 'incursion' | null
   const [dateFilter, setDateFilter] = useState({ startDate: "", endDate: "" });
   const [appliedDateFilter, setAppliedDateFilter] = useState(null); // null = no filter
 
   const isSearchMode = searchTerm.trim() !== "";
 
-  const runSearch = async (term) => {
+  const runSearch = async (term, page = 1, lastDocs = {}, overrideFilterType = null) => {
     if (!term.trim()) {
       setSearchResults([]);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchLastDocs({});
+      searchPageCacheRef.current = {};
       return;
     }
     const now = Date.now();
@@ -73,19 +81,42 @@ const ReportsPage = () => {
     setSearchLoading(true);
     try {
       const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      // Pass the active filter so search only queries the relevant collection(s)
-      const results = await clientDataService.searchReportsByReferenceId(
-        activeScheme,
-        term.trim(),
-        filterType === "all" ? null : filterType,
-      );
-      if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
+      const activeFilter = overrideFilterType !== null ? overrideFilterType : filterType;
+      const { results, lastDocs: newLastDocs, hasMore } =
+        await clientDataService.searchReportsPaginated(
+          activeScheme,
+          term.trim(),
+          10,
+          lastDocs,
+          activeFilter === "all" ? null : activeFilter,
+        );
+      if (myCount !== searchCounterRef.current) return; // stale
+      searchPageCacheRef.current[page] = { results, lastDocs: newLastDocs, hasMore };
       setSearchResults(results);
+      setSearchPage(page);
+      setSearchHasMore(hasMore);
+      setSearchLastDocs(newLastDocs);
     } catch (err) {
       console.error("Search failed:", err);
       toast.error("Search failed. Please try again.");
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const handleSearchNextPage = () => {
+    if (!searchHasMore) return;
+    runSearch(searchTerm, searchPage + 1, searchLastDocs);
+  };
+
+  const handleSearchPrevPage = () => {
+    if (searchPage <= 1) return;
+    const cached = searchPageCacheRef.current[searchPage - 1];
+    if (cached) {
+      setSearchResults(cached.results);
+      setSearchPage(searchPage - 1);
+      setSearchHasMore(cached.hasMore);
+      setSearchLastDocs(cached.lastDocs);
     }
   };
   const [reportTypeCounts, setReportTypeCounts] = useState({
@@ -161,6 +192,10 @@ const ReportsPage = () => {
     setSubFilter(sub);
     setSearchTerm("");
     setSearchResults([]);
+    setSearchPage(1);
+    setSearchHasMore(false);
+    setSearchLastDocs({});
+    searchPageCacheRef.current = {};
     pageCacheRef.current = {};
     setTypeCursor(null);
     setCursors({});
@@ -797,6 +832,10 @@ const ReportsPage = () => {
                   if (value.trim() === "") {
                     // Search cleared — go back to normal pagination
                     setSearchResults([]);
+                    setSearchPage(1);
+                    setSearchHasMore(false);
+                    setSearchLastDocs({});
+                    searchPageCacheRef.current = {};
                     if (wasRestoredRef.current) {
                       wasRestoredRef.current = false;
                       clearRestoreState();
@@ -806,7 +845,8 @@ const ReportsPage = () => {
                   } else if (value.trim().length >= 3) {
                     // Only search after 3 chars — skips "I", "IN" etc.
                     searchDebounceRef.current = setTimeout(() => {
-                      runSearch(value);
+                      searchPageCacheRef.current = {};
+                      runSearch(value, 1, {});
                     }, 400);
                   }
                 }}
@@ -869,15 +909,20 @@ const ReportsPage = () => {
                   setTypeCursor(null);
                   setCursors({});
                   pageCacheRef.current = {};
-                  loadReports(
-                    true,
-                    newType,
-                    null,
-                    null,
-                    false,
-                    null,
-                    appliedDateFilter,
-                  );
+                  if (searchTerm.trim()) {
+                    searchPageCacheRef.current = {};
+                    runSearch(searchTerm, 1, {}, newType === "all" ? null : newType);
+                  } else {
+                    loadReports(
+                      true,
+                      newType,
+                      null,
+                      null,
+                      false,
+                      null,
+                      appliedDateFilter,
+                    );
+                  }
                 }}
                 className="select  select-bordered bg-white border-gray-300"
               >
@@ -989,6 +1034,33 @@ const ReportsPage = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Search pagination */}
+              {isSearchMode && (searchPage > 1 || searchHasMore) && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Page {searchPage} &mdash; {searchResults.length} result
+                    {searchResults.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSearchPrevPage}
+                      disabled={searchPage === 1}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-medium">Page {searchPage}</span>
+                    <button
+                      onClick={handleSearchNextPage}
+                      disabled={!searchHasMore}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Pagination — hidden while searching */}
               {!isSearchMode && (currentPage > 1 || hasMore) && (

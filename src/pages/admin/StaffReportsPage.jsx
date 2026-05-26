@@ -36,6 +36,10 @@ const StaffReportsPage = () => {
   const [deleting, setDeleting] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLastDocs, setSearchLastDocs] = useState({});
+  const searchPageCacheRef = useRef({});
   const [cursors, setCursors] = useState({});
   const [typeCursor, setTypeCursor] = useState(null);
   const pageCacheRef = useRef({});
@@ -93,9 +97,34 @@ const StaffReportsPage = () => {
 
   const clearRestoreState = () => { _staffReportsRestore = null; };
 
-  const runSearch = async (term) => {
-    if (!term.trim()) { setSearchResults([]); return; }
-    // Rate limit: max 10 searches per 30 seconds
+  const typeToCollectionKey = {
+    'Incident Report': ['incident'],
+    'Asset Damage':    ['assetDamage'],
+    'Daily Logs':      ['dailyOccurrence'],
+    'CCTV Check':      ['cctv'],
+    'CCTV Faults':     ['cctvFaults'],
+  };
+
+  const mapSearchResults = (results) => {
+    const typeMap = {
+      'Incident Report':  { type: 'Incident Report', icon: FileText,      color: 'bg-teal-100 text-teal-600'    },
+      'Asset Damage':     { type: 'Asset Damage',    icon: AlertTriangle, color: 'bg-orange-100 text-orange-600' },
+      'Daily Occurrence': { type: 'Daily Logs',      icon: Calendar,      color: 'bg-blue-100 text-blue-600'    },
+      'CCTV Check Sheet': { type: 'CCTV Check',      icon: Camera,        color: 'bg-purple-100 text-purple-600' },
+      'CCTV Faults':      { type: 'CCTV Faults',     icon: FileText,      color: 'bg-pink-100 text-pink-600'    },
+    };
+    return results.map(f => ({ ...f, ...(typeMap[f.type] || {}) }));
+  };
+
+  const runSearch = async (term, page = 1, lastDocs = {}, overrideType = null, overrideScheme = null) => {
+    if (!term.trim()) {
+      setSearchResults([]);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchLastDocs({});
+      searchPageCacheRef.current = {};
+      return;
+    }
     const now = Date.now();
     searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
     if (searchRateLimitRef.current.length >= 10) {
@@ -106,26 +135,49 @@ const StaffReportsPage = () => {
     const myCount = ++searchCounterRef.current;
     setSearchLoading(true);
     try {
-      const results = await staffService.searchFormsByReferenceId(term.trim());
-      if (myCount !== searchCounterRef.current) return; // stale — a newer search is in flight
-      // Map to display metadata same as loadAllReports
-      const mapped = results.map(f => {
-        const typeMap = {
-          'Incident Report':  { type: 'Incident Report',  icon: FileText,      color: 'bg-teal-100 text-teal-600'   },
-          'Asset Damage':     { type: 'Asset Damage',     icon: AlertTriangle, color: 'bg-orange-100 text-orange-600'},
-          'Daily Occurrence': { type: 'Daily Logs',       icon: Calendar,      color: 'bg-blue-100 text-blue-600'   },
-          'CCTV Check Sheet': { type: 'CCTV Check',       icon: Camera,        color: 'bg-purple-100 text-purple-600'},
-          'CCTV Faults':      { type: 'CCTV Faults',      icon: FileText,      color: 'bg-pink-100 text-pink-600'   },
-        };
-        const meta = typeMap[f.type] || {};
-        return { ...f, ...meta };
-      });
+      const activeType = overrideType !== null ? overrideType : filterType;
+      const activeScheme = overrideScheme !== null ? overrideScheme : filterScheme;
+      const collections = activeType !== 'all' ? typeToCollectionKey[activeType] : null;
+      const { results, lastDocs: newLastDocs, hasMore } =
+        await staffService.searchFormsPaginated(term.trim(), 10, lastDocs, collections);
+      if (myCount !== searchCounterRef.current) return; // stale
+
+      // Client-side scheme filter
+      const schemeId = activeScheme !== 'all' ? activeScheme : null;
+      const filtered = schemeId
+        ? results.filter(f => {
+            if (f.schemeIds?.length) return f.schemeIds.includes(schemeId);
+            return f.schemeId === schemeId || f.scheme?.split(' ')[0] === schemeId;
+          })
+        : results;
+
+      const mapped = mapSearchResults(filtered);
+      searchPageCacheRef.current[page] = { results: mapped, lastDocs: newLastDocs, hasMore };
       setSearchResults(mapped);
+      setSearchPage(page);
+      setSearchHasMore(hasMore);
+      setSearchLastDocs(newLastDocs);
     } catch (err) {
       console.error('Search failed:', err);
       toast.error('Search failed. Please try again.');
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const handleSearchNextPage = () => {
+    if (!searchHasMore) return;
+    runSearch(searchQuery, searchPage + 1, searchLastDocs);
+  };
+
+  const handleSearchPrevPage = () => {
+    if (searchPage <= 1) return;
+    const cached = searchPageCacheRef.current[searchPage - 1];
+    if (cached) {
+      setSearchResults(cached.results);
+      setSearchPage(searchPage - 1);
+      setSearchHasMore(cached.hasMore);
+      setSearchLastDocs(cached.lastDocs);
     }
   };
 
@@ -265,7 +317,12 @@ const StaffReportsPage = () => {
     setCursors({});
     pageCacheRef.current = {};
     setCurrentPage(1);
-    loadAllReports(true, newType);
+    if (searchQuery.trim()) {
+      searchPageCacheRef.current = {};
+      runSearch(searchQuery, 1, {}, newType, null);
+    } else {
+      loadAllReports(true, newType);
+    }
     if (newType !== 'all') {
       try {
         const serviceType = adminTypeToServiceType[newType] || newType;
@@ -284,7 +341,12 @@ const StaffReportsPage = () => {
     setCursors({});
     pageCacheRef.current = {};
     setCurrentPage(1);
-    loadAllReports(true, null, newScheme);
+    if (searchQuery.trim()) {
+      searchPageCacheRef.current = {};
+      runSearch(searchQuery, 1, {}, null, newScheme);
+    } else {
+      loadAllReports(true, null, newScheme);
+    }
   };
 
   const applyFilters = () => {
@@ -592,7 +654,10 @@ const StaffReportsPage = () => {
                   if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                   if (!value.trim()) {
                     setSearchResults([]);
-                    // Reset pagination so table resumes cleanly from page 1
+                    setSearchPage(1);
+                    setSearchHasMore(false);
+                    setSearchLastDocs({});
+                    searchPageCacheRef.current = {};
                     setCurrentPage(1);
                     setCursors({});
                     setTypeCursor(null);
@@ -601,7 +666,8 @@ const StaffReportsPage = () => {
                     return;
                   }
                   searchDebounceRef.current = setTimeout(() => {
-                    runSearch(value);
+                    searchPageCacheRef.current = {};
+                    runSearch(value, 1, {});
                   }, 150);
                 }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -640,7 +706,7 @@ const StaffReportsPage = () => {
             <Filter className="w-4 h-4" />
             <span>
               {isSearchMode
-                ? `Showing ${searchResults.length} search result${searchResults.length !== 1 ? 's' : ''} (max 10)`
+                ? `Page ${searchPage} — ${searchResults.length} search result${searchResults.length !== 1 ? 's' : ''}`
                 : `Showing ${filteredReports.length} of ${activeCount} reports`}
             </span>
           </div>
@@ -737,6 +803,32 @@ const StaffReportsPage = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Search pagination */}
+              {isSearchMode && (searchPage > 1 || searchHasMore) && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Page {searchPage} — {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSearchPrevPage}
+                      disabled={searchPage === 1}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-medium">Page {searchPage}</span>
+                    <button
+                      onClick={handleSearchNextPage}
+                      disabled={!searchHasMore}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Pagination */}
               {!isSearchMode && (currentPage > 1 || hasMore) && (

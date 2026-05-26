@@ -121,8 +121,20 @@ const LiveCameraFaultsPage = ({
   const [savingNote, setSavingNote] = useState({});
   // Per-fault notes thread open/closed
   const [notesOpen, setNotesOpen] = useState({});
-  const toggleNotes = (faultId) =>
-    setNotesOpen((prev) => ({ ...prev, [faultId]: !prev[faultId] }));
+  const seenNoteCountRef = useRef({});
+  const toggleNotes = (faultId, noteCount) =>
+    setNotesOpen((prev) => {
+      const opening = !prev[faultId];
+      if (opening) seenNoteCountRef.current[faultId] = noteCount;
+      return { ...prev, [faultId]: opening };
+    });
+
+  const hasNewNote = (fault) => {
+    const faultNotes = fault.clientNotes || [];
+    if (!faultNotes.some((n) => n.authorRole !== "cctvfaultoperator")) return false;
+    const seen = seenNoteCountRef.current[fault.id] ?? 0;
+    return faultNotes.length > seen;
+  };
 
   const handleAcknowledge = async (fault) => {
     if (fault.clientAcknowledged) return;
@@ -275,12 +287,18 @@ const LiveCameraFaultsPage = ({
                                 fault.clientNotes?.length ||
                                 (fault.clientNote ? 1 : 0);
                               const isOpen = notesOpen[fault.id];
+                              const newNote = hasNewNote(fault) && !isOpen;
                               return count > 0 ? (
                                 <button
-                                  onClick={() => toggleNotes(fault.id)}
-                                  className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 mb-2"
+                                  onClick={() => toggleNotes(fault.id, count)}
+                                  className={`flex items-center gap-2 text-xs mb-2 rounded px-1.5 py-0.5 transition-colors ${newNote ? "text-red-500 bg-red-50 hover:bg-red-100" : "text-gray-500 hover:text-gray-700"}`}
                                 >
-                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span className="relative">
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    {newNote && (
+                                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                                    )}
+                                  </span>
                                   <span>
                                     {count} {count === 1 ? "note" : "notes"}
                                   </span>

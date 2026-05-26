@@ -28,6 +28,12 @@ export const SCHEMES = [
     contractor: "Traffix",
   },
   {
+    id: "Costain",
+    fullName: "Costain - Gallows Corner",
+    shortName: "Costain - GC",
+    contractor: "Gallows Corner",
+  },
+  {
     id: "DMO1",
     fullName: "DMO1 Demo Scheme - Demo",
     shortName: "Demo Scheme",
@@ -173,4 +179,37 @@ export const isDemoUser = (userProfile) => {
 // Helper function to check if a scheme ID is the demo scheme
 export const isDemoScheme = (schemeId) => {
   return schemeId === DEMO_SCHEME_ID;
+};
+
+// Full camera list per scheme — single source of truth used by fault form and uptime page
+export const CAMERA_OPTIONS_BY_SCHEME = {
+  A417: [
+    "CCTV 1","CCTV 2","CCTV 3","CCTV 4","CCTV 5","CCTV 6","CCTV 7",
+    "CCTV 8","CCTV 9","CCTV 10","CCTV 11","CCTV 12","CCTV 13","CCTV 14",
+    "CCTV 21","CCTV 22","CCTV 23","CCTV 24","CCTV 25","CCTV 26","CCTV 27",
+    "CCTV 28","CCTV 29","CCTV 30","CCTV 31","CCTV 32","CCTV 33","CCTV 34","CCTV 35",
+  ],
+  A47: [
+    "1100","1101","1102","1103","1104","1105","1106","1107","1108","1109",
+    "1110","1111","1112","1114",
+    "4701","4702","4703","4704","4705","4706","4707","4708","4709",
+    "4711","4712","4713","4714","4715","4716","4717","4718","4719",
+  ],
+  M3: [
+    "CCTV 1","CCTV 2","CCTV 3","CCTV 4","CCTV 5","CCTV 6","CCTV 7","CCTV 8",
+    "CCTV 9","CCTV 10","CCTV 11","CCTV 12","CCTV 13","CCTV 14","CCTV 15",
+    "CCTV 16","CCTV 17","CCTV 18","CCTV 19","CCTV 20","CCTV 21","CCTV 22",
+    "CCTV 23","CCTV 24","CCTV 25","CCTV 26","CCTV 27","CCTV 28","CCTV 29","CCTV 30",
+    "3301","3302","3303","3304","3305","3306",
+    "3401","3402","3403","3404","3407","3408","3409","3410",
+  ],
+  A452: ["CAM 15","CAM 16","CAM 17","CAM 18","CAM 19","CAM 20","CAM 21"],
+  Costain: [
+    "Tower 1 - CAM 1","Tower 1 - CAM 2","Tower 1 - CAM 3","Tower 1 - CAM 4",
+    "Tower 2 - CAM 1","Tower 2 - CAM 2","Tower 2 - CAM 3","Tower 2 - CAM 4",
+  ],
+  DMO1: [
+    "DEMO-CAM-1","DEMO-CAM-2","DEMO-CAM-3","DEMO-CAM-4",
+    "DEMO-CAM-5","DEMO-CAM-6","DEMO-CAM-7","DEMO-CAM-8",
+  ],
 };

@@ -104,6 +104,22 @@ class StaffService {
         schemeIds.push("M3");
       }
 
+      // Check A452 HS2 section
+      const hasA452Data =
+        (formData.A452 && formData.A452.length > 0) ||
+        (formData.A452Comments && formData.A452Comments.trim() !== "");
+      if (hasA452Data) {
+        schemeIds.push("A452");
+      }
+
+      // Check Costain - GC section
+      const hasCostainData =
+        (formData.Costain && formData.Costain.length > 0) ||
+        (formData.CostainComments && formData.CostainComments.trim() !== "");
+      if (hasCostainData) {
+        schemeIds.push("Costain");
+      }
+
       // Check Demo section
       const hasDemoData =
         (formData.demoCameras && formData.demoCameras.length > 0) ||
@@ -136,7 +152,7 @@ class StaffService {
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3");
+        schemeIds.push("A417", "A47", "M3", "Costain");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility
@@ -270,6 +286,22 @@ class StaffService {
         schemeIds.push("M3");
       }
 
+      // Check A452 HS2 section
+      const hasA452Data =
+        (formData.A452 && formData.A452.length > 0) ||
+        (formData.A452Comments && formData.A452Comments.trim() !== "");
+      if (hasA452Data) {
+        schemeIds.push("A452");
+      }
+
+      // Check Costain - GC section
+      const hasCostainData =
+        (formData.Costain && formData.Costain.length > 0) ||
+        (formData.CostainComments && formData.CostainComments.trim() !== "");
+      if (hasCostainData) {
+        schemeIds.push("Costain");
+      }
+
       // Check Demo section
       const hasDemoData =
         (formData.demoCameras && formData.demoCameras.length > 0) ||
@@ -281,7 +313,7 @@ class StaffService {
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3");
+        schemeIds.push("A417", "A47", "M3", "Costain");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility
@@ -2056,6 +2088,80 @@ class StaffService {
       console.warn(`Could not get scheme-scoped count for ${collectionName}:`, error);
       return 0;
     }
+  }
+
+  async searchFormsPaginated(searchTerm, pageSize = 10, lastDocs = {}, collections = null) {
+  async searchFormsPaginated(searchTerm, pageSize = 10, lastDocs = {}, collections = null) {
+    const raw = searchTerm.trim();
+    if (!raw) return { results: [], lastDocs: {}, hasMore: false };
+    if (raw.length > 100) return { results: [], lastDocs: {}, hasMore: false };
+
+    const termRef = raw.toUpperCase();
+    const termName = raw;
+    const termRefEnd = termRef + "";
+    const termNameEnd = termName + "";
+
+    const COLLECTIONS = [
+      { name: "incidentReports",        key: "incident",        type: "Incident Report" },
+      { name: "assetDamageReports",     key: "assetDamage",     type: "Asset Damage" },
+      { name: "dailyOccurrenceReports", key: "dailyOccurrence", type: "Daily Occurrence" },
+      { name: "cctvCheckForms",         key: "cctv",            type: "CCTV Check Sheet" },
+      { name: "cctvFaultsReports",      key: "cctvFaults",      type: "CCTV Faults" },
+    ];
+
+    // Fetch pageSize+1 per collection so we can detect hasMore
+    const fetchLimit = pageSize + 1;
+
+    const buildQuery = (collName, field, start, end, cursor) => {
+      const constraints = [
+        where(field, ">=", start),
+        where(field, "<=", end),
+        orderBy(field, "asc"),
+      ];
+      if (cursor) constraints.push(startAfter(cursor));
+      constraints.push(limit(fetchLimit));
+      return query(collection(db, collName), ...constraints);
+    };
+
+    // Per collection: run refId query + name query in parallel, deduplicate
+    const perCollectionResults = await Promise.all(
+      COLLECTIONS.map(async ({ name, key, type }) => {
+        const cursor = lastDocs[key] || null;
+        const [refSnap, nameSnap] = await Promise.all([
+          getDocs(buildQuery(name, "referenceId",      termRef,  termRefEnd,  cursor)),
+          getDocs(buildQuery(name, "submittedBy.name", termName, termNameEnd, cursor)),
+        ]);
+
+        const seen = new Set();
+        const docs = [];
+        for (const snap of [refSnap, nameSnap]) {
+          for (const d of snap.docs) {
+            if (seen.has(d.id)) continue;
+            seen.add(d.id);
+            docs.push({ id: d.id, ...d.data(), type, _firestoreDoc: d, _key: key });
+          }
+        }
+        return docs;
+      })
+    );
+
+    const allDocs = perCollectionResults.flat();
+
+    // Sort by createdAt desc
+    allDocs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    const hasMore = allDocs.length > pageSize;
+    const page = allDocs.slice(0, pageSize);
+
+    // Build new cursor map from the last doc of each collection that appeared in this page
+    const newLastDocs = { ...lastDocs };
+    page.forEach((doc) => {
+      newLastDocs[doc._key] = doc._firestoreDoc;
+    });
+
+    const results = page.map(({ _firestoreDoc, _key, ...rest }) => rest);
+
+    return { results, lastDocs: newLastDocs, hasMore };
   }
 
   async searchFormsByReferenceId(searchTerm) {

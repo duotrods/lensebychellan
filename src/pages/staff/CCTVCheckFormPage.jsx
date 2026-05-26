@@ -49,30 +49,37 @@ const CCTVCheckFormPage = () => {
     // A417 Section
     a417Cameras: [],
     a417Comments: "",
-    a417Blackspot: [],
+    a417Blackspot: false,
     a417TssInformed: false,
 
     // A11/A47 Kier/Core Section
     kierCore: [],
     kierCoreComments: "",
-    kierCoreBlackspot: [],
+    kierCoreBlackspot: false,
     kierCoreTssInformed: false,
 
     // M3 Jct 9 Section
     m3Jct9: [],
     m3Jct9Comments: "",
-    m3Jct9Blackspot: [],
+    m3Jct9Blackspot: false,
     m3TssInformed: false,
 
+    // A452 HS2 Section
     A452: [],
     A452Comments: "",
-    A452Blackspot: [],
+    A452Blackspot: false,
     A452TssInformed: false,
+
+    // Costain - GC Section
+    Costain: [],
+    CostainComments: "",
+    CostainBlackspot: false,
+    CostainTssInformed: false,
 
     // Demo Section
     demoCameras: [],
     demoComments: "",
-    demoBlackspot: [],
+    demoBlackspot: false,
     demoTssInformed: false,
 
     // Third party scheme sections (dynamic)
@@ -205,6 +212,17 @@ const CCTVCheckFormPage = () => {
       "CAM 20",
       "CAM 21",
     ],
+    Costain: [
+      "All Working Correctly",
+      "Tower 1 - CAM 1",
+      "Tower 1 - CAM 2",
+      "Tower 1 - CAM 3",
+      "Tower 1 - CAM 4",
+      "Tower 2 - CAM 1",
+      "Tower 2 - CAM 2",
+      "Tower 2 - CAM 3",
+      "Tower 2 - CAM 4",
+    ],
     demo: [
       "All Working Correctly",
       "DEMO-CAM-1",
@@ -242,23 +260,27 @@ const CCTVCheckFormPage = () => {
           time: form.time || "",
           a417Cameras: form.a417Cameras || [],
           a417Comments: form.a417Comments || "",
-          a417Blackspot: form.a417Blackspot || [],
+          a417Blackspot: Array.isArray(form.a417Blackspot) ? form.a417Blackspot.length > 0 : (form.a417Blackspot || false),
           a417TssInformed: form.a417TssInformed || false,
           kierCore: form.kierCore || [],
           kierCoreComments: form.kierCoreComments || "",
-          kierCoreBlackspot: form.kierCoreBlackspot || [],
+          kierCoreBlackspot: Array.isArray(form.kierCoreBlackspot) ? form.kierCoreBlackspot.length > 0 : (form.kierCoreBlackspot || false),
           kierCoreTssInformed: form.kierCoreTssInformed || false,
           m3Jct9: form.m3Jct9 || [],
           m3Jct9Comments: form.m3Jct9Comments || "",
-          m3Jct9Blackspot: form.m3Jct9Blackspot || [],
+          m3Jct9Blackspot: Array.isArray(form.m3Jct9Blackspot) ? form.m3Jct9Blackspot.length > 0 : (form.m3Jct9Blackspot || false),
           m3TssInformed: form.m3TssInformed || false,
           A452: form.A452 || [],
           A452Comments: form.A452Comments || "",
-          A452Blackspot: form.A452Blackspot || [],
+          A452Blackspot: Array.isArray(form.A452Blackspot) ? form.A452Blackspot.length > 0 : (form.A452Blackspot || false),
           A452TssInformed: form.A452TssInformed || false,
+          Costain: form.Costain || [],
+          CostainComments: form.CostainComments || "",
+          CostainBlackspot: Array.isArray(form.CostainBlackspot) ? form.CostainBlackspot.length > 0 : (form.CostainBlackspot || false),
+          CostainTssInformed: form.CostainTssInformed || false,
           demoCameras: form.demoCameras || [],
           demoComments: form.demoComments || "",
-          demoBlackspot: form.demoBlackspot || [],
+          demoBlackspot: Array.isArray(form.demoBlackspot) ? form.demoBlackspot.length > 0 : (form.demoBlackspot || false),
           demoTssInformed: form.demoTssInformed || false,
         });
       } else {
@@ -352,23 +374,27 @@ const CCTVCheckFormPage = () => {
           time: new Date().toTimeString().slice(0, 5),
           a417Cameras: [],
           a417Comments: "",
-          a417Blackspot: [],
+          a417Blackspot: false,
           a417TssInformed: false,
           kierCore: [],
           kierCoreComments: "",
-          kierCoreBlackspot: [],
+          kierCoreBlackspot: false,
           kierCoreTssInformed: false,
           m3Jct9: [],
           m3Jct9Comments: "",
-          m3Jct9Blackspot: [],
+          m3Jct9Blackspot: false,
           m3TssInformed: false,
           A452: [],
           A452Comments: "",
-          A452Blackspot: [],
+          A452Blackspot: false,
           A452TssInformed: false,
+          Costain: [],
+          CostainComments: "",
+          CostainBlackspot: false,
+          CostainTssInformed: false,
           demoCameras: [],
           demoComments: "",
-          demoBlackspot: [],
+          demoBlackspot: false,
           demoTssInformed: false,
           ...thirdPartyInitialState,
         });
@@ -410,58 +436,71 @@ const CCTVCheckFormPage = () => {
         ))}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-dashed border-gray-300">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Blackspot Cameras
-        </label>
-        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-3">
-          {options.map((option) => (
-            <label
-              key={option}
-              className="flex items-center gap-2 cursor-pointer"
-            >
+      <div className="mt-6 pt-4 border-t border-dashed border-gray-300 flex flex-wrap gap-10">
+        {/* Blackspot Cameras */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Blackspot Cameras?
+          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
-                type="checkbox"
-                checked={formData[blackspotSection].includes(option)}
-                onChange={() => handleCheckboxChange(blackspotSection, option)}
-                className="checkbox checkbox-sm checkbox-neutral"
+                type="radio"
+                name={`${blackspotSection}_radio`}
+                checked={formData[blackspotSection] === true}
+                onChange={() =>
+                  setFormData((prev) => ({ ...prev, [blackspotSection]: true }))
+                }
+                className="radio radio-sm radio-neutral"
               />
-              <span className="text-sm text-gray-700">{option}</span>
+              <span className="text-sm text-gray-700 font-semibold">Yes</span>
             </label>
-          ))}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name={`${blackspotSection}_radio`}
+                checked={formData[blackspotSection] === false}
+                onChange={() =>
+                  setFormData((prev) => ({ ...prev, [blackspotSection]: false }))
+                }
+                className="radio radio-sm radio-neutral"
+              />
+              <span className="text-sm text-gray-700 font-semibold">No</span>
+            </label>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-6 pt-4 border-t border-dashed border-gray-300">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Tss Informed?
-        </label>
         {/* TSS Informed */}
-        <div className="mt-4 flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name={tssSection}
-              checked={formData[tssSection] === true}
-              onChange={() =>
-                setFormData((prev) => ({ ...prev, [tssSection]: true }))
-              }
-              className="radio radio-sm radio-neutral"
-            />
-            <span className="text-sm text-gray-700 font-semibold">Yes</span>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            TSS Informed?
           </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name={tssSection}
-              checked={formData[tssSection] === false}
-              onChange={() =>
-                setFormData((prev) => ({ ...prev, [tssSection]: false }))
-              }
-              className="radio radio-sm radio-neutral"
-            />
-            <span className="text-sm text-gray-700 font-semibold">No</span>
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name={tssSection}
+                checked={formData[tssSection] === true}
+                onChange={() =>
+                  setFormData((prev) => ({ ...prev, [tssSection]: true }))
+                }
+                className="radio radio-sm radio-neutral"
+              />
+              <span className="text-sm text-gray-700 font-semibold">Yes</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name={tssSection}
+                checked={formData[tssSection] === false}
+                onChange={() =>
+                  setFormData((prev) => ({ ...prev, [tssSection]: false }))
+                }
+                className="radio radio-sm radio-neutral"
+              />
+              <span className="text-sm text-gray-700 font-semibold">No</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -631,6 +670,15 @@ const CCTVCheckFormPage = () => {
                 cameraOptions.A452,
                 "A452Blackspot",
                 "A452TssInformed",
+              )}
+
+              {renderCheckboxSection(
+                "Costain - GC (only tick cameras that are not working correctly)",
+                "Costain",
+                "CostainComments",
+                cameraOptions.Costain,
+                "CostainBlackspot",
+                "CostainTssInformed",
               )}
             </>
           )}

@@ -458,16 +458,10 @@ export const generateReportPDF = async (
             );
           }
         }
-        if (report.a417Blackspot && report.a417Blackspot.length > 0) {
-          const bsAllWorking =
-            report.a417Blackspot[0] === "All Working Correctly";
-          addField(
-            "Blackspot Issues Reported",
-            bsAllWorking
-              ? "All Working Correctly"
-              : report.a417Blackspot.join(", "),
-            true,
-          );
+        {
+          const blackspot = report.a417Blackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
           addField("TSS Informed", report.a417TssInformed ? "Yes" : "No");
         }
         if (report.a417Comments && report.a417Comments.trim() !== "") {
@@ -502,16 +496,10 @@ export const generateReportPDF = async (
             addField("CCTV Issues Reported", report.kierCore.join(", "), true);
           }
         }
-        if (report.kierCoreBlackspot && report.kierCoreBlackspot.length > 0) {
-          const bsAllWorking =
-            report.kierCoreBlackspot[0] === "All Working Correctly";
-          addField(
-            "Blackspot Issues Reported",
-            bsAllWorking
-              ? "All Working Correctly"
-              : report.kierCoreBlackspot.join(", "),
-            true,
-          );
+        {
+          const blackspot = report.kierCoreBlackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
           addField("TSS Informed", report.kierCoreTssInformed ? "Yes" : "No");
         }
         if (report.kierCoreComments && report.kierCoreComments.trim() !== "") {
@@ -546,16 +534,10 @@ export const generateReportPDF = async (
             addField("CCTV Issues Reported", report.m3Jct9.join(", "), true);
           }
         }
-        if (report.m3Jct9Blackspot && report.m3Jct9Blackspot.length > 0) {
-          const bsAllWorking =
-            report.m3Jct9Blackspot[0] === "All Working Correctly";
-          addField(
-            "Blackspot Issues Reported",
-            bsAllWorking
-              ? "All Working Correctly"
-              : report.m3Jct9Blackspot.join(", "),
-            true,
-          );
+        {
+          const blackspot = report.m3Jct9Blackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
           addField("TSS Informed", report.m3TssInformed ? "Yes" : "No");
         }
         if (report.m3Jct9Comments && report.m3Jct9Comments.trim() !== "") {
@@ -590,16 +572,10 @@ export const generateReportPDF = async (
             addField("CCTV Issues Reported", report.A452.join(", "), true);
           }
         }
-        if (report.A452Blackspot && report.A452Blackspot.length > 0) {
-          const bsAllWorking =
-            report.A452Blackspot[0] === "All Working Correctly";
-          addField(
-            "Blackspot Issues Reported",
-            bsAllWorking
-              ? "All Working Correctly"
-              : report.A452Blackspot.join(", "),
-            true,
-          );
+        {
+          const blackspot = report.A452Blackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
           addField("TSS Informed", report.A452TssInformed ? "Yes" : "No");
         }
         if (report.A452Comments && report.A452Comments.trim() !== "") {
@@ -672,16 +648,10 @@ export const generateReportPDF = async (
             );
           }
         }
-        if (report.demoBlackspot && report.demoBlackspot.length > 0) {
-          const bsAllWorking =
-            report.demoBlackspot[0] === "All Working Correctly";
-          addField(
-            "Blackspot Issues Reported",
-            bsAllWorking
-              ? "All Working Correctly"
-              : report.demoBlackspot.join(", "),
-            true,
-          );
+        {
+          const blackspot = report.demoBlackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
           addField("TSS Informed", report.demoTssInformed ? "Yes" : "No");
         }
         if (report.demoComments && report.demoComments.trim() !== "") {

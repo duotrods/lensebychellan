@@ -375,6 +375,11 @@ service cloud.firestore {
       );
     }
 
+    // CCTV Uptime Cache (computed summaries, shared across users, 15-min TTL)
+    match /cctvUptimeCache/{docId} {
+      allow read, write: if isVerified();
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

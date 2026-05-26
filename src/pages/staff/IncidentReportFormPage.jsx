@@ -128,6 +128,7 @@ const IncidentReportFormPage = () => {
             { type: "", make: "", model: "", vin: "" },
           ],
           description: report.description || "",
+          files: report.files || [],
         });
 
         // If editing a live incident, go directly to Step 2
@@ -232,6 +233,13 @@ const IncidentReportFormPage = () => {
 
   const removeFile = (index) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingFile = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      files: (prev.files || []).filter((_, i) => i !== index),
+    }));
   };
 
   const uploadFiles = async () => {
@@ -393,7 +401,7 @@ const IncidentReportFormPage = () => {
       const updateData = { ...formData };
 
       if (uploadedFiles.length > 0) {
-        updateData.files = uploadedFiles;
+        updateData.files = [...(formData.files || []), ...uploadedFiles];
       } else if (formData.files) {
         updateData.files = formData.files;
       }
@@ -450,7 +458,7 @@ const IncidentReportFormPage = () => {
         const updateData = { ...dataWithTimings };
 
         if (uploadedFiles.length > 0) {
-          updateData.files = uploadedFiles;
+          updateData.files = [...(formData.files || []), ...uploadedFiles];
         } else if (formData.files) {
           updateData.files = formData.files;
         }
@@ -748,8 +756,30 @@ const IncidentReportFormPage = () => {
             <p className="text-gray-500 text-sm">Drag and drop files here</p>
           </label>
 
+          {formData.files?.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Saved files</p>
+              {formData.files.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between bg-blue-50 p-2 rounded"
+                >
+                  <span className="text-sm text-gray-700 truncate">{file.fileName}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeExistingFile(index)}
+                    className="text-red-500 hover:text-red-700 shrink-0 ml-2"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {files.length > 0 && (
             <div className="mt-4 space-y-2">
+              {formData.files?.length > 0 && <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">New files</p>}
               {files.map((file, index) => (
                 <div
                   key={index}
@@ -1222,6 +1252,10 @@ const IncidentReportFormPage = () => {
             <option value="Medical Incident">Medical Incident</option>
             <option value="Incursion">Incursion</option>
             <option value="Footage Request">Footage Request</option>
+            <option value="Vehicle Fire">Vehicle Fire</option>
+            <option value="Fire">Fire</option>
+            <option value="Asset Damage">Asset Damage</option>
+            <option value="Other">Other</option>
           </select>
         </div>
       </div>
@@ -1562,8 +1596,30 @@ const IncidentReportFormPage = () => {
             <p className="text-gray-500 text-sm">Drag and drop files here</p>
           </label>
 
+          {formData.files?.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Saved files</p>
+              {formData.files.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between bg-blue-50 p-2 rounded"
+                >
+                  <span className="text-sm text-gray-700 truncate">{file.fileName}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeExistingFile(index)}
+                    className="text-red-500 hover:text-red-700 shrink-0 ml-2"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {files.length > 0 && (
             <div className="mt-4 space-y-2">
+              {formData.files?.length > 0 && <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">New files</p>}
               {files.map((file, index) => (
                 <div
                   key={index}

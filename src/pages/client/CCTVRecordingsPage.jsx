@@ -27,6 +27,7 @@ const CCTVRecordingsPage = () => {
   const [cameraFilter, setCameraFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRecording, setSelectedRecording] = useState(null);
+  const [previewFileIndex, setPreviewFileIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const recordingsPerPage = 12;
 
@@ -137,6 +138,7 @@ const CCTVRecordingsPage = () => {
 
   const handleViewRecording = (recording) => {
     setSelectedRecording(recording);
+    setPreviewFileIndex(0);
   };
 
   const downloadFile = (downloadUrl, fileName) => {
@@ -289,6 +291,9 @@ const CCTVRecordingsPage = () => {
                             loop
                             playsInline
                             className="w-full h-full object-cover"
+                            controlsList="nodownload"
+                            disablePictureInPicture
+                            onContextMenu={(e) => e.preventDefault()}
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
@@ -457,22 +462,27 @@ const CCTVRecordingsPage = () => {
               {/* Video/Image Player */}
               {selectedRecording.files &&
               selectedRecording.files.length > 0 &&
-              selectedRecording.files[0].downloadUrl ? (
-                <div className="bg-gray-900 aspect-video rounded-lg overflow-hidden mb-6">
-                  {selectedRecording.files[0].fileType?.startsWith("video/") ? (
+              selectedRecording.files[previewFileIndex]?.downloadUrl ? (
+                <div className="bg-gray-900 aspect-video rounded-lg overflow-hidden mb-4">
+                  {selectedRecording.files[previewFileIndex].fileType?.startsWith("video/") ? (
                     <video
+                      key={previewFileIndex}
                       controls
                       preload="none"
                       className="w-full h-full"
-                      src={selectedRecording.files[0].downloadUrl}
+                      src={selectedRecording.files[previewFileIndex].downloadUrl}
+                      controlsList="nodownload"
+                      disablePictureInPicture
+                      onContextMenu={(e) => e.preventDefault()}
                     >
                       Your browser does not support the video tag.
                     </video>
                   ) : (
                     <img
-                      src={selectedRecording.files[0].downloadUrl}
+                      src={selectedRecording.files[previewFileIndex].downloadUrl}
                       alt="Incident file"
                       className="w-full h-full object-contain"
+                      onContextMenu={(e) => e.preventDefault()}
                     />
                   )}
                 </div>
@@ -554,7 +564,12 @@ const CCTVRecordingsPage = () => {
                         return (
                           <div
                             key={idx}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                            onClick={() => setPreviewFileIndex(idx)}
+                            className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                              idx === previewFileIndex
+                                ? "bg-teal-50 ring-1 ring-teal-400"
+                                : "bg-gray-50 hover:bg-gray-100"
+                            }`}
                           >
                             <div className="flex items-center gap-3">
                               {isVideo ? (

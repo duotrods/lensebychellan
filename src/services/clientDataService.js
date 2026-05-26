@@ -10,9 +10,14 @@ import {
   onSnapshot,
   startAfter,
   getCountFromServer,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
+import { CAMERA_OPTIONS_BY_SCHEME } from "../utils/schemes";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -789,6 +794,7 @@ class ClientDataService {
           time: incident.createdAt,
           status: incident.status || "Resolved",
         })),
+        ...this.calcAverageTimes(incidents),
       };
 
       return stats;
@@ -902,6 +908,27 @@ class ClientDataService {
     });
 
     return ranges;
+  }
+
+  calcAverageTimes(incidents) {
+    const parse = (val) => {
+      if (val == null || val === "") return null;
+      // already a number
+      if (typeof val === "number") return isFinite(val) ? Math.round(val) : null;
+      // string like "8 mins", "8", "08:30" — extract first integer
+      const m = String(val).match(/(\d+)/);
+      return m ? parseInt(m[1]) : null;
+    };
+    const avg = (values) =>
+      values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null;
+
+    const toSite = incidents.map((i) => parse(i.timeSpottedToOn)).filter((v) => v !== null);
+    const toRecover = incidents.map((i) => parse(i.timeOnsiteToCleared)).filter((v) => v !== null);
+
+    console.log("avgTimeToSite raw values:", toSite);
+    console.log("avgTimeToRecover raw values:", toRecover);
+
+    return { avgTimeToSite: avg(toSite), avgTimeToRecover: avg(toRecover) };
   }
 
   // Helper function to group time data by ranges (legacy - for backward compatibility)
@@ -1221,6 +1248,7 @@ class ClientDataService {
           time: incident.createdAt,
           status: incident.status || "Resolved",
         })),
+        ...this.calcAverageTimes(incidents),
       };
 
       return { ...stats, incidents };
@@ -2215,6 +2243,228 @@ class ClientDataService {
       (a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0),
     );
     return results.slice(0, 10);
+  }
+
+  async getCCTVUptimeData(schemeId, dateRange = 30, force = false) {
+    const CACHE_TTL_MS = 15 * 60 * 1000;
+    const cacheRef = doc(db, "cctvUptimeCache", `${schemeId}_${dateRange}d`);
+
+    if (!force) {
+      try {
+        const cacheSnap = await getDoc(cacheRef);
+        if (cacheSnap.exists()) {
+          const cached = cacheSnap.data();
+          if (Date.now() - cached.cachedAt.toMillis() < CACHE_TTL_MS) {
+            return { cameras: cached.cameras, totals: cached.totals };
+          }
+        }
+      } catch {
+        // Cache read failed — fall through to full query
+      }
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - dateRange);
+    const cutoffTs = Timestamp.fromDate(cutoff);
+
+    const q = query(
+      collection(db, "cctvFaultsReports"),
+      where("schemeIds", "array-contains", schemeId),
+      where("createdAt", ">=", cutoffTs),
+      orderBy("createdAt", "desc"),
+      limit(500),
+    );
+
+    const snap = await getDocs(q).catch(async () => {
+      const q2 = query(
+        collection(db, "cctvFaultsReports"),
+        where("createdAt", ">=", cutoffTs),
+        orderBy("createdAt", "desc"),
+        limit(500),
+      );
+      const s = await getDocs(q2);
+      return {
+        docs: s.docs.filter((d) => {
+          const data = d.data();
+          return (
+            (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
+            data.schemeId === schemeId
+          );
+        }),
+      };
+    });
+
+    const periodMs = dateRange * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const cameraMap = {};
+    for (const cam of (CAMERA_OPTIONS_BY_SCHEME[schemeId] ?? [])) {
+      cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
+    }
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const cam = data.camera || "Unknown";
+      if (!cameraMap[cam]) continue;
+
+      if (data.status === "live") {
+        cameraMap[cam].liveFault = true;
+        const downMs = now - (data.createdAt?.toMillis?.() || now);
+        cameraMap[cam].totalDownMs += downMs;
+        cameraMap[cam].outages += 1;
+      } else if (data.status === "completed" && data.completedAt && data.createdAt) {
+        const downMs = data.completedAt.toMillis() - data.createdAt.toMillis();
+        if (downMs > 0) {
+          cameraMap[cam].totalDownMs += downMs;
+          cameraMap[cam].outages += 1;
+        }
+      }
+    }
+
+    const cameras = Object.entries(cameraMap).map(([name, stats]) => {
+      const downMins = Math.round(stats.totalDownMs / 60000);
+      const uptimePct = Math.max(
+        0,
+        Math.min(100, ((periodMs - stats.totalDownMs) / periodMs) * 100),
+      ).toFixed(1);
+      const mttr =
+        stats.outages > 0
+          ? Math.round(stats.totalDownMs / stats.outages / 60000)
+          : null;
+      return {
+        name,
+        uptimePct: parseFloat(uptimePct),
+        downMins,
+        outages: stats.outages,
+        mttrMins: mttr,
+        liveFault: stats.liveFault,
+      };
+    });
+
+    cameras.sort((a, b) => a.uptimePct - b.uptimePct);
+
+    const withMttr = cameras.filter((c) => c.mttrMins !== null);
+    const totals = {
+      avgUptimePct:
+        cameras.length
+          ? (cameras.reduce((s, c) => s + c.uptimePct, 0) / cameras.length).toFixed(1)
+          : "100.0",
+      totalDownMins: cameras.reduce((s, c) => s + c.downMins, 0),
+      totalOutages: cameras.reduce((s, c) => s + c.outages, 0),
+      avgMttrMins:
+        withMttr.length
+          ? Math.round(withMttr.reduce((s, c) => s + c.mttrMins, 0) / withMttr.length)
+          : null,
+      liveFaults: cameras.filter((c) => c.liveFault).length,
+    };
+
+    // Write result to shared Firestore cache (fire-and-forget, non-blocking)
+    setDoc(cacheRef, { cameras, totals, cachedAt: serverTimestamp(), schemeId, dateRange }).catch(() => {});
+
+    return { cameras, totals };
+  }
+
+  async searchReportsPaginated(schemeId, searchTerm, pageSize = 10, lastDocs = {}, filterType = null) {
+    const raw = searchTerm.trim();
+    if (!raw) return { results: [], lastDocs: {}, hasMore: false };
+    if (raw.length > 100) return { results: [], lastDocs: {}, hasMore: false };
+
+    const termRef = raw.toUpperCase();
+    const termName = raw;
+    const termRefEnd = termRef + "";
+    const termNameEnd = termName + "";
+
+    const ALL_COLLECTIONS = [
+      { name: "incidentReports",        key: "incident",        type: "incident",         typeField: "incidentType" },
+      { name: "assetDamageReports",     key: "assetDamage",     type: "asset-damage",     typeField: "damageType"   },
+      { name: "dailyOccurrenceReports", key: "dailyOccurrence", type: "daily-occurrence", typeField: null           },
+      { name: "cctvCheckForms",         key: "cctvCheck",       type: "cctv-check",       typeField: null           },
+      { name: "cctvFaultsReports",      key: "cctvFaults",      type: "cctv-faults",      typeField: null           },
+    ];
+
+    const typeToCollection = {
+      incident: "incidentReports",
+      "asset-damage": "assetDamageReports",
+      "daily-occurrence": "dailyOccurrenceReports",
+      "cctv-check": "cctvCheckForms",
+      "cctv-faults": "cctvFaultsReports",
+    };
+    const COLLECTIONS = filterType && typeToCollection[filterType]
+      ? ALL_COLLECTIONS.filter((c) => c.name === typeToCollection[filterType])
+      : ALL_COLLECTIONS;
+
+    const fetchLimit = pageSize + 1;
+
+    const buildQuery = (collName, field, start, end, cursor) => {
+      const tryWithScheme = async () => {
+        const constraints = [
+          where("schemeIds", "array-contains", schemeId),
+          where(field, ">=", start),
+          where(field, "<=", end),
+          orderBy(field, "asc"),
+        ];
+        if (cursor) constraints.push(startAfter(cursor));
+        constraints.push(limit(fetchLimit));
+        return getDocs(query(collection(db, collName), ...constraints));
+      };
+      const tryWithoutScheme = async () => {
+        const constraints = [
+          where(field, ">=", start),
+          where(field, "<=", end),
+          orderBy(field, "asc"),
+        ];
+        if (cursor) constraints.push(startAfter(cursor));
+        constraints.push(limit(fetchLimit));
+        return getDocs(query(collection(db, collName), ...constraints));
+      };
+      return tryWithScheme().catch(() => tryWithoutScheme());
+    };
+
+    const perCollectionResults = await Promise.all(
+      COLLECTIONS.map(async ({ name, key, type, typeField }) => {
+        const cursor = lastDocs[key] || null;
+        const [refSnap, nameSnap] = await Promise.all([
+          buildQuery(name, "referenceId",      termRef,  termRefEnd,  cursor),
+          buildQuery(name, "submittedBy.name", termName, termNameEnd, cursor),
+        ]);
+
+        const seen = new Set();
+        const docs = [];
+        for (const snap of [refSnap, nameSnap]) {
+          for (const d of snap.docs) {
+            if (seen.has(d.id)) continue;
+            const data = d.data();
+            const inScheme =
+              (Array.isArray(data.schemeIds) && data.schemeIds.includes(schemeId)) ||
+              data.schemeId === schemeId;
+            if (!inScheme) continue;
+            seen.add(d.id);
+            docs.push({
+              id: d.id,
+              ...data,
+              reportType: type,
+              type: typeField ? data[typeField] : data.type,
+              timestamp: data.createdAt,
+              _firestoreDoc: d,
+              _key: key,
+            });
+          }
+        }
+        return docs;
+      })
+    );
+
+    const allDocs = perCollectionResults.flat();
+    allDocs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+    const hasMore = allDocs.length > pageSize;
+    const page = allDocs.slice(0, pageSize);
+
+    const newLastDocs = { ...lastDocs };
+    page.forEach((doc) => { newLastDocs[doc._key] = doc._firestoreDoc; });
+
+    const results = page.map(({ _firestoreDoc, _key, ...rest }) => rest);
+    return { results, lastDocs: newLastDocs, hasMore };
   }
 }
 
