@@ -451,7 +451,7 @@ const OTPManagement = () => {
           }`}
         >
           <Users className="w-5 h-5" />
-          Staff Invite Codes
+          Staff/Live Operator Invite Codes
         </button>
         <button
           onClick={() => setActiveTab("thirdparty")}

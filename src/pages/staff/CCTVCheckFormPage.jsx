@@ -76,6 +76,12 @@ const CCTVCheckFormPage = () => {
     CostainBlackspot: false,
     CostainTssInformed: false,
 
+    // Costain Simister Island Section
+    csi: [],
+    csiComments: "",
+    csiBlackspot: false,
+    csiTssInformed: false,
+
     // Demo Section
     demoCameras: [],
     demoComments: "",
@@ -223,6 +229,13 @@ const CCTVCheckFormPage = () => {
       "Tower 2 - CAM 3",
       "Tower 2 - CAM 4",
     ],
+    csi: [
+      "All Working Correctly",
+      "CAM 1","CAM 2","CAM 3","CAM 4","CAM 5","CAM 6","CAM 7","CAM 8","CAM 9","CAM 10",
+      "CAM 11","CAM 12","CAM 13","CAM 14","CAM 15","CAM 16","CAM 17","CAM 18","CAM 19","CAM 20",
+      "CAM 21","CAM 22","CAM 23","CAM 24","CAM 25","CAM 26","CAM 27","CAM 28","CAM 29","CAM 30",
+      "CAM 31","CAM 32","CAM 33","CAM 34","CAM 35","CAM 36","CAM 37",
+    ],
     demo: [
       "All Working Correctly",
       "DEMO-CAM-1",
@@ -278,6 +291,10 @@ const CCTVCheckFormPage = () => {
           CostainComments: form.CostainComments || "",
           CostainBlackspot: Array.isArray(form.CostainBlackspot) ? form.CostainBlackspot.length > 0 : (form.CostainBlackspot || false),
           CostainTssInformed: form.CostainTssInformed || false,
+          csi: form.csi || [],
+          csiComments: form.csiComments || "",
+          csiBlackspot: Array.isArray(form.csiBlackspot) ? form.csiBlackspot.length > 0 : (form.csiBlackspot || false),
+          csiTssInformed: form.csiTssInformed || false,
           demoCameras: form.demoCameras || [],
           demoComments: form.demoComments || "",
           demoBlackspot: Array.isArray(form.demoBlackspot) ? form.demoBlackspot.length > 0 : (form.demoBlackspot || false),
@@ -345,6 +362,7 @@ const CCTVCheckFormPage = () => {
         kierCoreComments: formData.kierCoreComments.trim(),
         m3Jct9Comments: formData.m3Jct9Comments.trim(),
         A452Comments: formData.A452Comments.trim(),
+        csiComments: formData.csiComments.trim(),
         demoComments: formData.demoComments.trim(),
       };
 
@@ -392,6 +410,10 @@ const CCTVCheckFormPage = () => {
           CostainComments: "",
           CostainBlackspot: false,
           CostainTssInformed: false,
+          csi: [],
+          csiComments: "",
+          csiBlackspot: false,
+          csiTssInformed: false,
           demoCameras: [],
           demoComments: "",
           demoBlackspot: false,
@@ -673,12 +695,21 @@ const CCTVCheckFormPage = () => {
               )}
 
               {renderCheckboxSection(
-                "Costain - GC (only tick cameras that are not working correctly)",
+                "Gallows Corner - Costain (only tick cameras that are not working correctly)",
                 "Costain",
                 "CostainComments",
                 cameraOptions.Costain,
                 "CostainBlackspot",
                 "CostainTssInformed",
+              )}
+
+              {renderCheckboxSection(
+                "Simister Island - Costain (only tick cameras that are not working correctly)",
+                "csi",
+                "csiComments",
+                cameraOptions.csi,
+                "csiBlackspot",
+                "csiTssInformed",
               )}
             </>
           )}

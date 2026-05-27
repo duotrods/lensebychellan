@@ -117,7 +117,15 @@ class StaffService {
         (formData.Costain && formData.Costain.length > 0) ||
         (formData.CostainComments && formData.CostainComments.trim() !== "");
       if (hasCostainData) {
-        schemeIds.push("Costain");
+        schemeIds.push("Gallows");
+      }
+
+      // Check Costain Simister Island section
+      const hasCSIData =
+        (formData.csi && formData.csi.length > 0) ||
+        (formData.csiComments && formData.csiComments.trim() !== "");
+      if (hasCSIData) {
+        schemeIds.push("SimisterIsland");
       }
 
       // Check Demo section
@@ -152,7 +160,7 @@ class StaffService {
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3", "Costain");
+        schemeIds.push("A417", "A47", "M3", "Gallows", "SimisterIsland");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility
@@ -299,7 +307,15 @@ class StaffService {
         (formData.Costain && formData.Costain.length > 0) ||
         (formData.CostainComments && formData.CostainComments.trim() !== "");
       if (hasCostainData) {
-        schemeIds.push("Costain");
+        schemeIds.push("Gallows");
+      }
+
+      // Check Costain Simister Island section
+      const hasCSIData =
+        (formData.csi && formData.csi.length > 0) ||
+        (formData.csiComments && formData.csiComments.trim() !== "");
+      if (hasCSIData) {
+        schemeIds.push("SimisterIsland");
       }
 
       // Check Demo section
@@ -313,7 +329,7 @@ class StaffService {
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3", "Costain");
+        schemeIds.push("A417", "A47", "M3", "Gallows", "SimisterIsland");
       }
 
       // Use the first scheme as the primary schemeId for backward compatibility

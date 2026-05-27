@@ -305,86 +305,35 @@ const SchemeAssignment = () => {
       {activeTab === "assignments" && (
         <>
           {/* Role filter toggle */}
-          <div className="flex flex-wrap gap-4 mb-5">
-            {/* Internal roles */}
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Internal</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleRoleFilterChange("client")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "client"
-                      ? "bg-teal-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  Clients
-                </button>
-                <button
-                  onClick={() => handleRoleFilterChange("cctvfaultoperator")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "cctvfaultoperator"
-                      ? "bg-pink-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <CameraOff className="w-4 h-4" />
-                  CCTV Operators
-                </button>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="w-px bg-gray-200 self-stretch mx-1" />
-
-            {/* Third-party roles */}
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">Third Party</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleRoleFilterChange("thirdpartyclient")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "thirdpartyclient"
-                      ? "bg-blue-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <Building2 className="w-4 h-4" />
-                  TP Client
-                </button>
-                <button
-                  onClick={() => handleRoleFilterChange("thirdpartyliveoperator")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "thirdpartyliveoperator"
-                      ? "bg-purple-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <Radio className="w-4 h-4" />
-                  TP Live Op
-                </button>
-                <button
-                  onClick={() => handleRoleFilterChange("thirdpartycctvoperator")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "thirdpartycctvoperator"
-                      ? "bg-pink-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <CameraOff className="w-4 h-4" />
-                  TP CCTV Op
-                </button>
-              </div>
-            </div>
+          <div className="flex gap-2 mb-5">
+            <button
+              onClick={() => handleRoleFilterChange("client")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === "client"
+                  ? "bg-teal-500 text-white"
+                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <User className="w-4 h-4" />
+              Clients
+            </button>
+            <button
+              onClick={() => handleRoleFilterChange("cctvfaultoperator")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                roleFilter === "cctvfaultoperator"
+                  ? "bg-pink-500 text-white"
+                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <CameraOff className="w-4 h-4" />
+              CCTV Operators
+            </button>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-500 mb-1">
-                {roleFilter === "client" ? "Total Clients" : "Total CCTV Operators"}
-              </p>
+              <p className="text-sm text-gray-500 mb-1">Total Clients</p>
               <p className="text-2xl font-bold text-gray-800">{totalCount}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
