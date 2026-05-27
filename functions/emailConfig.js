@@ -14,6 +14,8 @@
 //   ],
 //   "A47 Thickthorn - Core": ["david@chellan.co.uk, wayne@chellan.co.uk"],
 //   "A452 HS2 - Traffix": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+//   "Gallows Corner - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
+//   "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
 //   default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
 // };
 
@@ -22,6 +24,8 @@ const INCIDENT_ALERT_RECIPIENTS = {
   "M3 Jct 9 - Balfour Beatty": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
   "A47 Thickthorn - Core": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
   "A452 HS2 - Traffix": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
+  "Gallows Corner - Costain": ["rroduot@gmail.com"],
+  "Simister Island - Costain": ["rroduot@gmail.com"],
   default: ["duotrodolinor@gmail.com, rroduot@gmail.com"],
 };
 

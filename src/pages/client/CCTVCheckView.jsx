@@ -349,11 +349,11 @@ const CCTVCheckView = () => {
                 );
               }
               else if (
-                currentSchemeId === "Costain" &&
-                form.schemeIds?.includes("Costain")
+                currentSchemeId === "Gallows" &&
+                form.schemeIds?.includes("Gallows")
               ) {
                 return renderCameraSection(
-                  "Costain - Gallows Corner",
+                  "Gallows Corner - Costain",
                   form.Costain,
                   form.CostainComments,
                   form.CostainBlackspot,
@@ -370,6 +370,17 @@ const CCTVCheckView = () => {
                   form.A452Comments,
                   form.A452Blackspot,
                   form.A452TssInformed,
+                );
+              } else if (
+                currentSchemeId === "SimisterIsland" &&
+                form.schemeIds?.includes("SimisterIsland")
+              ) {
+                return renderCameraSection(
+                  "Simister Island - Costain",
+                  form.csi,
+                  form.csiComments,
+                  form.csiBlackspot,
+                  form.csiTssInformed,
                 );
               }
 

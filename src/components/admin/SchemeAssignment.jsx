@@ -302,25 +302,12 @@ const SchemeAssignment = () => {
               <User className="w-4 h-4" />
               Clients
             </button>
-            <button
-              onClick={() => handleRoleFilterChange("cctvfaultoperator")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "cctvfaultoperator"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <CameraOff className="w-4 h-4" />
-              CCTV Operators
-            </button>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-500 mb-1">
-                {roleFilter === "client" ? "Total Clients" : "Total CCTV Operators"}
-              </p>
+              <p className="text-sm text-gray-500 mb-1">Total Clients</p>
               <p className="text-2xl font-bold text-gray-800">{totalCount}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4">

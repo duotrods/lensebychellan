@@ -28,10 +28,16 @@ export const SCHEMES = [
     contractor: "Traffix",
   },
   {
-    id: "Costain",
-    fullName: "Costain - Gallows Corner",
+    id: "Gallows",
+    fullName: "Gallows Corner - Costain",
     shortName: "Costain - GC",
     contractor: "Gallows Corner",
+  },
+  {
+    id: "SimisterIsland",
+    fullName: "Simister Island - Costain",
+    shortName: "Simister Island",
+    contractor: "Costain",
   },
   {
     id: "DMO1",
@@ -107,9 +113,15 @@ export const CAMERA_OPTIONS_BY_SCHEME = {
     "3401","3402","3403","3404","3407","3408","3409","3410",
   ],
   A452: ["CAM 15","CAM 16","CAM 17","CAM 18","CAM 19","CAM 20","CAM 21"],
-  Costain: [
+  Gallows: [
     "Tower 1 - CAM 1","Tower 1 - CAM 2","Tower 1 - CAM 3","Tower 1 - CAM 4",
     "Tower 2 - CAM 1","Tower 2 - CAM 2","Tower 2 - CAM 3","Tower 2 - CAM 4",
+  ],
+  SimisterIsland: [
+    "CAM 1","CAM 2","CAM 3","CAM 4","CAM 5","CAM 6","CAM 7","CAM 8","CAM 9","CAM 10",
+    "CAM 11","CAM 12","CAM 13","CAM 14","CAM 15","CAM 16","CAM 17","CAM 18","CAM 19","CAM 20",
+    "CAM 21","CAM 22","CAM 23","CAM 24","CAM 25","CAM 26","CAM 27","CAM 28","CAM 29","CAM 30",
+    "CAM 31","CAM 32","CAM 33","CAM 34","CAM 35","CAM 36","CAM 37",
   ],
   DMO1: [
     "DEMO-CAM-1","DEMO-CAM-2","DEMO-CAM-3","DEMO-CAM-4",
