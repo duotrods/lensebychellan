@@ -55,17 +55,19 @@ export const SCHEMES = [
 // - company: used to group schemes in the dropdown — all schemes for the same company share this value
 // - cameras: list of camera names shown in the CCTV Check form for this scheme (update with real names before go-live)
 export const THIRD_PARTY_SCHEMES = [
+  //NewCo company
   {
     id: "NEWCO1",
     fullName: "NewCo - Scheme 1",
     company: "NewCo",
     cameras: [
       "All Working Correctly",
-      "CAM 1",
-      "CAM 2",
-      "CAM 3",
-      "CAM 4",
-      "CAM 5",
+      "NewCO1 1",
+      "NewCO1 2",
+      "NewCO1 3",
+      "NewCO1 4",
+      "NewCO1 5",
+      "NewCO1 6",
     ],
   },
   {
@@ -81,6 +83,7 @@ export const THIRD_PARTY_SCHEMES = [
       "CAM 5",
     ],
   },
+  //NewCo3 company
   {
     id: "NEWCO2",
     fullName: "NewCo - Scheme 2",

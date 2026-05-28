@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
-import { getSchemesForUser } from "../../utils/schemes";
+import { getSchemesForUser, CAMERA_OPTIONS_BY_SCHEME, extractSchemeId } from "../../utils/schemes";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { getStaffBasePath } from "../../utils/constants";
 
@@ -329,7 +329,12 @@ const CCTVFaultsFormPage = () => {
                 <option value="">
                   {formData.scheme ? "Please Select" : "Select a scheme first"}
                 </option>
-                {(CAMERA_OPTIONS_BY_SCHEME[extractSchemeId(formData.scheme)] ?? []).map((cam) => (
+                {(formData.scheme
+                  ? (CAMERA_OPTIONS_BY_SCHEME[extractSchemeId(formData.scheme)]
+                    ?? availableSchemes.find(s => s.fullName === formData.scheme)?.cameras?.filter(c => c !== "All Working Correctly")
+                    ?? [])
+                  : []
+                ).map((cam) => (
                   <option key={cam} value={cam}>{cam}</option>
                 ))}
               </select>

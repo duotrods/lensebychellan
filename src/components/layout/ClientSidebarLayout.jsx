@@ -63,12 +63,12 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
     },
     {
       name: "CCTV Uptime",
-      path: "/dashboard/client/cctv-uptime",
+      path: `${basePath}/cctv-uptime`,
       icon: MonitorCheck,
     },
     {
       name: "Documents",
-      path: "/dashboard/client/documents",
+      path: `${basePath}/documents`,
       icon: FolderOpen,
     },
   ];

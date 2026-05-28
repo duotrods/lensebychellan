@@ -75,11 +75,6 @@ const AdminSidebarLayout = ({ children }) => {
       path: "/dashboard/admin/client-charts",
       icon: BarChart3,
     },
-    {
-      name: "Reference IDs",
-      path: "/dashboard/admin/reference-id-manager",
-      icon: Hash,
-    },
   ];
 
   return (

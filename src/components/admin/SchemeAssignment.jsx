@@ -122,6 +122,12 @@ const SchemeAssignment = () => {
     if (tab === "overview" && overviewUsers.length === 0) {
       loadOverview();
     }
+    if (tab === "cctv") {
+      handleRoleFilterChange("cctvfaultoperator");
+    }
+    if (tab === "assignments") {
+      handleRoleFilterChange("client");
+    }
   };
 
   const handleAssignScheme = async (e) => {
@@ -289,6 +295,17 @@ const SchemeAssignment = () => {
           Client Assignments
         </button>
         <button
+          onClick={() => handleTabChange("cctv")}
+          className={`flex items-center gap-2 px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === "cctv"
+              ? "border-orange-500 text-orange-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <CameraOff className="w-4 h-4" />
+          CCTV Operator Assignments
+        </button>
+        <button
           onClick={() => handleTabChange("overview")}
           className={`flex items-center gap-2 px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
             activeTab === "overview"
@@ -302,38 +319,72 @@ const SchemeAssignment = () => {
       </div>
 
       {/* ── CLIENT ASSIGNMENTS TAB ── */}
-      {activeTab === "assignments" && (
+      {(activeTab === "assignments" || activeTab === "cctv") && (
         <>
           {/* Role filter toggle */}
           <div className="flex gap-2 mb-5">
-            <button
-              onClick={() => handleRoleFilterChange("client")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "client"
-                  ? "bg-teal-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              Clients
-            </button>
-            <button
-              onClick={() => handleRoleFilterChange("cctvfaultoperator")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                roleFilter === "cctvfaultoperator"
-                  ? "bg-pink-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <CameraOff className="w-4 h-4" />
-              CCTV Operators
-            </button>
+            {activeTab === "assignments" ? (
+              <>
+                <button
+                  onClick={() => handleRoleFilterChange("client")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "client"
+                      ? "bg-teal-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Clients
+                </button>
+                <button
+                  onClick={() => handleRoleFilterChange("thirdpartyclient")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "thirdpartyclient"
+                      ? "bg-violet-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  Third Party Clients
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleRoleFilterChange("cctvfaultoperator")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "cctvfaultoperator"
+                      ? "bg-orange-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <CameraOff className="w-4 h-4" />
+                  CCTV Operators
+                </button>
+                <button
+                  onClick={() => handleRoleFilterChange("thirdpartycctvoperator")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    roleFilter === "thirdpartycctvoperator"
+                      ? "bg-pink-500 text-white"
+                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <CameraOff className="w-4 h-4" />
+                  Third Party CCTV Operators
+                </button>
+              </>
+            )}
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
-              <p className="text-sm text-gray-500 mb-1">Total Clients</p>
+              <p className="text-sm text-gray-500 mb-1">
+                {roleFilter === "thirdpartyclient" ? "Total Third Party Clients"
+                  : roleFilter === "cctvfaultoperator" ? "Total CCTV Operators"
+                  : roleFilter === "thirdpartycctvoperator" ? "Total Third Party CCTV Operators"
+                  : "Total Clients"}
+              </p>
               <p className="text-2xl font-bold text-gray-800">{totalCount}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
@@ -495,7 +546,12 @@ const SchemeAssignment = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-between p-4 border-t">
                 <p className="text-sm text-gray-600">
-                  Showing page {currentPage} of {totalPages} ({totalCount} total clients)
+                  Showing page {currentPage} of {totalPages} ({totalCount} total {
+                    roleFilter === "thirdpartyclient" ? "third party clients"
+                    : roleFilter === "cctvfaultoperator" ? "CCTV operators"
+                    : roleFilter === "thirdpartycctvoperator" ? "third party CCTV operators"
+                    : "clients"
+                  })
                 </p>
                 <div className="flex items-center gap-2">
                   <button

@@ -12,15 +12,32 @@ const layouts = {
   client: ClientSidebarLayout,
   cctvfaultoperator: CCTVOperatorSidebarLayout,
   liveoperator: LiveOperatorSidebarLayout,
+  thirdpartystaff: StaffSidebarLayout,
+  thirdpartyclient: ClientSidebarLayout,
+  thirdpartyliveoperator: LiveOperatorSidebarLayout,
+  thirdpartycctvoperator: CCTVOperatorSidebarLayout,
+};
+
+const roleBasePaths = {
+  admin: "/dashboard/admin",
+  staff: "/dashboard/staff",
+  client: "/dashboard/client",
+  cctvfaultoperator: "/dashboard/cctvoperator",
+  liveoperator: "/dashboard/liveoperator",
+  thirdpartystaff: "/dashboard/thirdparty/staff",
+  thirdpartyclient: "/dashboard/thirdparty/client",
+  thirdpartyliveoperator: "/dashboard/thirdparty/liveoperator",
+  thirdpartycctvoperator: "/dashboard/thirdparty/cctvoperator",
 };
 
 const HelpPage = () => {
   const { userProfile } = useAuth();
   const role = userProfile?.role || "staff";
   const Layout = layouts[role] || StaffSidebarLayout;
+  const basePath = roleBasePaths[role] || "/dashboard/staff";
 
   return (
-    <Layout>
+    <Layout basePath={basePath}>
       <div className="max-w-3xl mx-auto p-6">
         <div className="flex items-center gap-3 mb-8">
           <div className="p-3 bg-teal-50 rounded-xl">

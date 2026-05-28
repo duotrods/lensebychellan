@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
-import { CAMERA_OPTIONS_BY_SCHEME } from "../utils/schemes";
+import { CAMERA_OPTIONS_BY_SCHEME, THIRD_PARTY_SCHEMES } from "../utils/schemes";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -2298,14 +2298,22 @@ class ClientDataService {
     const now = Date.now();
 
     const cameraMap = {};
-    for (const cam of (CAMERA_OPTIONS_BY_SCHEME[schemeId] ?? [])) {
+    const tpScheme = THIRD_PARTY_SCHEMES.find((s) => s.id === schemeId);
+    const cameraList =
+      CAMERA_OPTIONS_BY_SCHEME[schemeId] ??
+      tpScheme?.cameras?.filter((c) => c !== "All Working Correctly") ??
+      [];
+    for (const cam of cameraList) {
       cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
     }
 
     for (const d of snap.docs) {
       const data = d.data();
       const cam = data.camera || "Unknown";
-      if (!cameraMap[cam]) continue;
+      if (!cameraMap[cam]) {
+        if (cameraList.length > 0) continue;
+        cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
+      }
 
       if (data.status === "live") {
         cameraMap[cam].liveFault = true;

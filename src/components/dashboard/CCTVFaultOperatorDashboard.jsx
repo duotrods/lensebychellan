@@ -20,6 +20,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { USER_ROLES } from "../../utils/constants";
+import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 import { clientDataService } from "../../services/clientDataService";
 import { toast } from "react-hot-toast";
 
@@ -84,11 +85,16 @@ const LiveCameraFaultsPage = ({
   const canAddNote = role === USER_ROLES.CCTVOPERATOR;
   const authorName = userProfile?.displayName || userProfile?.name || "";
 
-  // Real-time subscription for ALL schemes — notes update automatically via onSnapshot
-  const { faults: recentFaults, loading: recentLoading } =
-    useStaffLiveCCTVFaults();
+  // Restrict to assigned schemes when the operator has been assigned specific schemes
+  const operatorSchemeIds = userProfile?.schemeIds?.length > 0
+    ? userProfile.schemeIds
+    : null;
 
-  // Server-side paginated completed fault history — all schemes (null = no scheme filter)
+  // Real-time subscription scoped to assigned schemes (or all if none assigned)
+  const { faults: recentFaults, loading: recentLoading } =
+    useStaffLiveCCTVFaults(operatorSchemeIds);
+
+  // Server-side paginated completed fault history scoped to first assigned scheme
   const {
     faults: historyFaults,
     loading: historyLoading,
@@ -99,7 +105,7 @@ const LiveCameraFaultsPage = ({
     goToPrevPage,
     refresh: refreshHistory,
     pageSize,
-  } = usePaginatedCCTVFaults(null, 6);
+  } = usePaginatedCCTVFaults(operatorSchemeIds?.[0] ?? null, 6);
 
   // When a live fault gets completed, auto-refresh history
   const prevLiveFaultCount = useRef(recentFaults.length);
@@ -203,7 +209,16 @@ const LiveCameraFaultsPage = ({
           <div className="mb-8 bg-white rounded-xl text-center p-6 shadow-sm">
             <h4 className="font-bold text-gray-800">Camera Fault Reports</h4>
             <p className="text-gray-500">
-              All schemes — live and completed faults
+              {operatorSchemeIds
+                ? operatorSchemeIds
+                    .map((id) => {
+                      const s =
+                        [...SCHEMES, ...THIRD_PARTY_SCHEMES].find((s) => s.id === id);
+                      return s ? s.name : id;
+                    })
+                    .join(", ")
+                : "All schemes"}{" "}
+              — live and completed faults
             </p>
           </div>
 

@@ -177,8 +177,10 @@ service cloud.firestore {
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
         getUserRole() == 'client' ||
+        getUserRole() == 'cctvfaultoperator' ||
         getUserRole() == 'thirdpartystaff' ||
-        getUserRole() == 'thirdpartyclient'
+        getUserRole() == 'thirdpartyclient' ||
+        getUserRole() == 'thirdpartycctvoperator'
       );
 
       allow update, delete: if isVerified() && (
@@ -254,6 +256,7 @@ service cloud.firestore {
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
         getUserRole() == 'staff' ||
+        getUserRole() == 'thirdpartystaff' ||
         getUserRole() == 'cctvfaultoperator' ||
         getUserRole() == 'thirdpartycctvoperator' ||
         ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') && (

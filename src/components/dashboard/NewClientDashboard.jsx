@@ -670,7 +670,7 @@ const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         {statsCards.map((stat, index) => (
           <div
             key={index}
