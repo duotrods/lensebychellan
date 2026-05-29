@@ -57,22 +57,35 @@ export const SCHEMES = [
 export const THIRD_PARTY_SCHEMES = [
   //NewCo company
   {
-    id: "NEWCO1",
-    fullName: "NewCo - Scheme 1",
-    company: "NewCo",
+    id: "A66-WJ",
+    fullName: "A66 - WJ Scheme 1",
+    company: "WJ",
     cameras: [
       "All Working Correctly",
-      "NewCO1 1",
-      "NewCO1 2",
-      "NewCO1 3",
-      "NewCO1 4",
-      "NewCO1 5",
-      "NewCO1 6",
+      "WJ1 CAM 1",
+      "WJ1 CAM 2",
+      "WJ1 CAM 3",
+      "WJ1 CAM 4",
+      "WJ1 CAM 5",
+      "WJ1 CAM 6",
     ],
   },
   {
     id: "CO2",
     fullName: "CO2 - Scheme 2",
+    company: "NewCo",
+    cameras: [
+      "All Working Correctly",
+      "CAM 1",
+      "CAM 2",
+      "CAM 3",
+      "CAM 4",
+      "CAM 5",
+    ],
+  },
+  {
+    id: "CO3",
+    fullName: "CO3 - Scheme 3",
     company: "NewCo",
     cameras: [
       "All Working Correctly",

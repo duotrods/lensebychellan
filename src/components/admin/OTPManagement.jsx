@@ -22,7 +22,7 @@ const TP_TABS = [
   { key: 'tpoperator',    label: 'Staff',         byCompany: true,  create: (company, uid) => otpService.createThirdPartyOperatorCode(company, uid) },
   { key: 'tpclient',      label: 'Client',        byCompany: false, create: (sid, sn, uid) => otpService.createThirdPartyClientCode(sid, sn, uid) },
   { key: 'tpliveoperator', label: 'Live Operator', byCompany: true, create: (company, uid) => otpService.createThirdPartyLiveOperatorCode(company, uid) },
-  { key: 'tpcctvoperator', label: 'CCTV Operator', byCompany: true, create: (company, uid) => otpService.createThirdPartyCCTVOperatorCode(company, uid) },
+  { key: 'tpcctvoperator', label: 'CCTV Operator', byCompany: false, create: (sid, sn, uid) => otpService.createThirdPartyCCTVOperatorCode(sid, sn, uid) },
 ];
 
 const OTPManagement = () => {
@@ -216,9 +216,16 @@ const OTPManagement = () => {
   const handleCreateCCTVCode = async (e) => {
     e.preventDefault();
 
+    if (!formData.schemeId || !formData.schemeName) {
+      toast.error("Please select a scheme");
+      return;
+    }
+
     setLoading(true);
     try {
       const code = await otpService.createCCTVOperatorCode(
+        formData.schemeId.toUpperCase(),
+        formData.schemeName,
         userProfile.uid,
         formData.expiresInDays,
       );
@@ -886,7 +893,7 @@ const OTPManagement = () => {
               }
               className="space-y-4"
             >
-              {activeTab === "client" ? (
+              {(activeTab === "client" || activeTab === "cctv") && (
                 <div className="form-control">
                   <label className="label">
                     <span className="label-text font-semibold">
@@ -901,8 +908,8 @@ const OTPManagement = () => {
                       );
                       setFormData({
                         ...formData,
-                        schemeId: selectedScheme.id,
-                        schemeName: selectedScheme.fullName,
+                        schemeId: selectedScheme ? selectedScheme.id : "",
+                        schemeName: selectedScheme ? selectedScheme.fullName : "",
                       });
                     }}
                     className="select select-bordered select-md mt-2 w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
@@ -922,36 +929,35 @@ const OTPManagement = () => {
                     </span>
                   </label>
                 </div>
-              ) : (
-                <>
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text font-semibold">
-                        Expires In (Days)
-                      </span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={formData.expiresInDays}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          expiresInDays: parseInt(e.target.value),
-                        })
-                      }
-                      className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
-                      required
-                    />
-                    <label className="label">
-                      <span className="label-text-alt text-gray-500">
-                        Code will expire in {formData.expiresInDays} days. Each
-                        code is single-use only.
-                      </span>
-                    </label>
-                  </div>
-                </>
+              )}
+              {activeTab !== "client" && (
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">
+                      Expires In (Days)
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={formData.expiresInDays}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        expiresInDays: parseInt(e.target.value),
+                      })
+                    }
+                    className="input input-bordered w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+                    required
+                  />
+                  <label className="label">
+                    <span className="label-text-alt text-gray-500">
+                      Code will expire in {formData.expiresInDays} days. Each
+                      code is single-use only.
+                    </span>
+                  </label>
+                </div>
               )}
 
               <div className="flex gap-3 mt-6">

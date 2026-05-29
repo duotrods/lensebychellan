@@ -13,6 +13,7 @@ import {
   Menu,
   MonitorCheck,
   FolderOpen,
+  Sparkles,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -145,6 +146,27 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
               <item.icon className="w-5 h-5 shrink-0" />
               {!collapsed && <span className="font-medium">{item.name}</span>}
             </Link>
+          ))}
+
+          {/* Coming soon items */}
+          {[
+            { name: "Lense Assist", icon: Sparkles },
+          ].map((item) => (
+            <div
+              key={item.name}
+              title={collapsed ? `${item.name} — Coming soon` : undefined}
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : ''}`}
+            >
+              <item.icon className="w-5 h-5 shrink-0" />
+              {!collapsed && (
+                <>
+                  <span className="font-medium flex-1">{item.name}</span>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
+                    Soon
+                  </span>
+                </>
+              )}
+            </div>
           ))}
         </nav>
 

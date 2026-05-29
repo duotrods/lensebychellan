@@ -239,6 +239,8 @@ class AuthService {
         ...userData,
         email,
         role: USER_ROLES.CCTVOPERATOR,
+        schemeId: otpValidation.schemeId,
+        schemeName: otpValidation.schemeName,
         emailVerified: false,
         metadata: {
           signInMethod: 'email',
@@ -432,7 +434,8 @@ class AuthService {
         ...userData,
         email,
         role: USER_ROLES.THIRDPARTYCCTVOPERATOR,
-        company: otpValidation.company,
+        schemeId: otpValidation.schemeId,
+        schemeName: otpValidation.schemeName,
         emailVerified: false,
         metadata: {
           signInMethod: 'email',

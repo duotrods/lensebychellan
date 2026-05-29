@@ -364,7 +364,7 @@ class OTPService {
   }
 
   // Admin: Create a new CCTV Operator access code (cross-scheme, no scheme restriction)
-  async createCCTVOperatorCode(adminUid, expiresInDays = 30) {
+  async createCCTVOperatorCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
     try {
       const code = this.generateCCTVOperatorCode();
       const codeRef = doc(db, 'cctvOperatorOTPs', code);
@@ -374,6 +374,8 @@ class OTPService {
 
       await setDoc(codeRef, {
         code,
+        schemeId,
+        schemeName,
         isUsed: false,
         createdBy: adminUid,
         createdAt: serverTimestamp(),
@@ -409,7 +411,7 @@ class OTPService {
         throw new AppError('This access code has expired', 'otp/expired');
       }
 
-      return { isValid: true };
+      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to validate CCTV operator code', 'otp/validation-error', error);
@@ -646,14 +648,14 @@ class OTPService {
 
   // ==================== THIRD-PARTY CCTV OPERATOR CODE METHODS ====================
 
-  async createThirdPartyCCTVOperatorCode(company, adminUid, expiresInDays = 30) {
+  async createThirdPartyCCTVOperatorCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
     try {
       const code = this.generateThirdPartyCCTVOperatorCode();
       const codeRef = doc(db, 'thirdPartyCCTVOperatorCodes', code);
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expiresInDays);
       await setDoc(codeRef, {
-        code, company, isUsed: false,
+        code, schemeId, schemeName, isUsed: false,
         createdBy: adminUid, createdAt: serverTimestamp(),
         expiresAt, usedBy: null, usedAt: null
       });
@@ -672,7 +674,7 @@ class OTPService {
       if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
       const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
       if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
-      return { isValid: true, company: codeData.company };
+      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
     } catch (error) {
       if (error instanceof AppError) throw error;
       throw new AppError('Failed to validate third party CCTV operator code', 'otp/validation-error', error);
