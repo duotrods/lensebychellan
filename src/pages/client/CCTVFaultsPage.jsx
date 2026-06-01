@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
@@ -11,11 +11,53 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   CheckCircle,
+  MessageSquare,
 } from "lucide-react";
 import { SCHEMES } from "../../utils/schemes";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
+
+const formatNoteTime = (addedAt) => {
+  if (!addedAt) return "";
+  const d = new Date(addedAt);
+  return `${d.toLocaleDateString("en-GB")} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+};
+
+const NoteThread = ({ notes, legacyNote }) => {
+  const allNotes = notes?.length
+    ? notes
+    : legacyNote
+      ? [{ text: legacyNote, addedAt: null, authorRole: "cctvfaultoperator", authorName: "Operator" }]
+      : [];
+
+  if (!allNotes.length) return null;
+
+  return (
+    <div className="space-y-2 pb-2">
+      {allNotes.map((note, idx) => {
+        const isCCTV = note.authorRole === "cctvfaultoperator";
+        return (
+          <div key={idx} className={`flex flex-col ${isCCTV ? "items-end" : "items-start"}`}>
+            <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${
+              isCCTV
+                ? "bg-teal-500 text-white rounded-tr-sm"
+                : "bg-blue-100 text-blue-900 rounded-tl-sm"
+            }`}>
+              {note.text}
+            </div>
+            <span className="text-xs text-gray-400 mt-0.5">
+              {note.authorName || (isCCTV ? "Operator" : "Staff")}
+              {note.addedAt && ` · ${formatNoteTime(note.addedAt)}`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const CCTVFaultsPage = () => {
   const navigate = useNavigate();
@@ -59,6 +101,12 @@ const CCTVFaultsPage = () => {
     }
     prevLiveCount.current = liveFaults.length;
   }, [liveFaults.length, refresh]);
+
+  const [notesOpen, setNotesOpen] = useState({});
+  const toggleNotes = (faultId, e) => {
+    e.stopPropagation();
+    setNotesOpen((prev) => ({ ...prev, [faultId]: !prev[faultId] }));
+  };
 
   const handleView = (fault) => {
     navigate(`${basePath}/reports/cctv-faults/${fault.id}`);
@@ -125,45 +173,74 @@ const CCTVFaultsPage = () => {
                     No live camera faults at this time
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-                    {liveFaults.map((fault) => (
-                      <div
-                        key={fault.id}
-                        onClick={() => handleView(fault)}
-                        className="px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <span className="text-red-400 font-mono font-semibold">
-                              {fault.time || "N/A"}
-                            </span>
-                            <span className="text-green-500 font-bold">|</span>
-                            <span className="text-black font-mono">
-                              {fault.date || "N/A"}
-                            </span>
-                            <span className="text-red-500 font-bold">|</span>
-                            <span className="font-medium">
-                              {fault.referenceId || fault.id.slice(0, 6)}
-                            </span>
-                            <span className="text-red-500 font-bold">|</span>
-                            <span className="font-medium">
-                              Camera: {fault.camera || "N/A"}
-                            </span>
-                          </div>
-                          <button
-                            className="p-1.5 rounded text-blue-400 hover:text-blue-300"
-                            title="View Details"
+                  <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                    {liveFaults.map((fault) => {
+                      const noteCount = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
+                      const isOpen = notesOpen[fault.id];
+                      return (
+                        <div
+                          key={fault.id}
+                          className="px-4 py-4"
+                        >
+                          {/* Top row */}
+                          <div
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => handleView(fault)}
                           >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="text-red-400 font-mono font-semibold">
+                                {fault.time || "N/A"}
+                              </span>
+                              <span className="text-green-500 font-bold">|</span>
+                              <span className="text-black font-mono">
+                                {fault.date || "N/A"}
+                              </span>
+                              <span className="text-red-500 font-bold">|</span>
+                              <span className="font-medium">
+                                {fault.referenceId || fault.id.slice(0, 6)}
+                              </span>
+                              <span className="text-red-500 font-bold">|</span>
+                              <span className="font-medium">
+                                Camera: {fault.camera || "N/A"}
+                              </span>
+                            </div>
+                            <button
+                              className="p-1.5 rounded text-blue-400 hover:text-blue-300"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Comment */}
+                          {fault.comments && (
+                            <p className="text-slate-400 text-sm mt-1 truncate">
+                              {fault.comments}
+                            </p>
+                          )}
+
+                          {/* Notes thread */}
+                          {noteCount > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-100">
+                              <button
+                                onClick={(e) => toggleNotes(fault.id, e)}
+                                className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 rounded px-1.5 py-0.5 transition-colors mb-2"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span>{noteCount} {noteCount === 1 ? "note" : "notes"}</span>
+                                {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              </button>
+                              {isOpen && (
+                                <NoteThread
+                                  notes={fault.clientNotes}
+                                  legacyNote={fault.clientNote}
+                                />
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {fault.comments && (
-                          <p className="text-slate-400 text-sm mt-1 truncate">
-                            {fault.comments}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -195,50 +272,73 @@ const CCTVFaultsPage = () => {
                 ) : (
                   <>
                     <div className="divide-y divide-gray-100 overflow-y-auto">
-                      {resolvedFaults.map((fault) => (
-                        <div
-                          key={fault.id}
-                          onClick={() => handleView(fault)}
-                          className="px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <span className="text-black font-mono">
-                                {fault.time || "N/A"}
-                              </span>
-                              <span className="text-green-500 font-bold">
-                                |
-                              </span>
-                              <span className="text-black font-mono">
-                                {fault.date || "N/A"}
-                              </span>
-                              <span className="text-green-500 font-bold">
-                                |
-                              </span>
-                              <span className="font-medium">
-                                {fault.referenceId || fault.id.slice(0, 6)}
-                              </span>
-                              <span className="text-green-500 font-bold">
-                                |
-                              </span>
-                              <span className="text-black font-medium">
-                                Camera: {fault.camera || "N/A"}
-                              </span>
-                            </div>
-                            <button
-                              className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
-                              title="View Details"
+                      {resolvedFaults.map((fault) => {
+                        const noteCount = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
+                        const isOpen = notesOpen[fault.id];
+                        return (
+                          <div
+                            key={fault.id}
+                            className="px-4 py-4"
+                          >
+                            {/* Top row */}
+                            <div
+                              className="flex items-center justify-between cursor-pointer hover:bg-gray-50 -mx-1 px-1 rounded transition-colors"
+                              onClick={() => handleView(fault)}
                             >
-                              <Eye className="w-4 h-4" />
-                            </button>
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <span className="text-black font-mono">
+                                  {fault.time || "N/A"}
+                                </span>
+                                <span className="text-green-500 font-bold">|</span>
+                                <span className="text-black font-mono">
+                                  {fault.date || "N/A"}
+                                </span>
+                                <span className="text-green-500 font-bold">|</span>
+                                <span className="font-medium">
+                                  {fault.referenceId || fault.id.slice(0, 6)}
+                                </span>
+                                <span className="text-green-500 font-bold">|</span>
+                                <span className="text-black font-medium">
+                                  Camera: {fault.camera || "N/A"}
+                                </span>
+                              </div>
+                              <button
+                                className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            </div>
+
+                            {/* Comment */}
+                            {fault.comments && (
+                              <p className="text-slate-400 text-sm mt-1 truncate">
+                                {fault.comments}
+                              </p>
+                            )}
+
+                            {/* Notes thread */}
+                            {noteCount > 0 && (
+                              <div className="mt-2 pt-2 border-t border-gray-100">
+                                <button
+                                  onClick={(e) => toggleNotes(fault.id, e)}
+                                  className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 rounded px-1.5 py-0.5 transition-colors mb-2"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>{noteCount} {noteCount === 1 ? "note" : "notes"}</span>
+                                  {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </button>
+                                {isOpen && (
+                                  <NoteThread
+                                    notes={fault.clientNotes}
+                                    legacyNote={fault.clientNote}
+                                  />
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {fault.comments && (
-                            <p className="text-slate-400 text-sm mt-1 truncate">
-                              {fault.comments}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Pagination */}

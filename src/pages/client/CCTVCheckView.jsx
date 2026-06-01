@@ -346,7 +346,7 @@ const CCTVCheckView = () => {
                   form.m3Jct9,
                   form.m3Jct9Comments,
                   form.m3Jct9Blackspot,
-                  form.m3Jct9TssInformed,
+                  form.m3TssInformed,
                 );
               }
               else if (

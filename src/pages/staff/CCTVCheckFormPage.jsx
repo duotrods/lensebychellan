@@ -682,7 +682,7 @@ const CCTVCheckFormPage = () => {
                 "m3Jct9Comments",
                 cameraOptions.m3,
                 "m3Jct9Blackspot",
-                "m3Jct9TssInformed",
+                "m3TssInformed",
               )}
 
               {renderCheckboxSection(

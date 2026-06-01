@@ -622,6 +622,40 @@ export const generateReportPDF = async (
         yPosition += 3;
       }
 
+      // Simister Island - Costain Section - only show if no filter OR filter matches SimisterIsland
+      if (
+        (!filterSchemeId || filterSchemeId === "SimisterIsland") &&
+        ((report.csi && report.csi.length > 0) || (report.csiComments && report.csiComments.trim() !== ""))
+      ) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Simister Island - Costain", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.csi && report.csi.length > 0) {
+          const isNone = report.csi.includes("NONE");
+          if (isNone) {
+            addField("CCTV Status", "NONE - All cameras working correctly", true);
+          } else {
+            addField("CCTV Issues Reported", report.csi.join(", "), true);
+          }
+        }
+        {
+          const blackspot = report.csiBlackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
+          addField("TSS Informed", report.csiTssInformed ? "Yes" : "No");
+        }
+        if (report.csiComments && report.csiComments.trim() !== "") {
+          addField("Comments", report.csiComments);
+        }
+        yPosition += 3;
+      }
+
       // Demo Section - only show if explicitly filtered to DMO1 (never in staff full download)
       if (
         filterSchemeId === "DMO1" &&

@@ -8,6 +8,45 @@ import { USER_ROLES } from '../../utils/constants';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 import CCTVOperatorSidebarLayout from '../../components/layout/CCTVOperatorSidebarLayout';
 
+const formatNoteTime = (addedAt) => {
+  if (!addedAt) return '';
+  const d = new Date(addedAt);
+  return `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+};
+
+const ReadOnlyNoteThread = ({ notes, legacyNote }) => {
+  const allNotes = notes?.length
+    ? notes
+    : legacyNote
+    ? [{ text: legacyNote, addedAt: null, authorRole: 'cctvfaultoperator', authorName: 'Operator' }]
+    : [];
+
+  if (!allNotes.length) return <p className="text-xs text-gray-400 text-center py-2">No notes yet.</p>;
+
+  return (
+    <div className="space-y-2 py-2">
+      {allNotes.map((note, idx) => {
+        const isCCTV = note.authorRole === 'cctvfaultoperator';
+        return (
+          <div key={idx} className={`flex flex-col ${isCCTV ? 'items-end' : 'items-start'}`}>
+            <div className={`px-3 py-2 rounded-xl text-sm max-w-[80%] ${
+              isCCTV
+                ? 'bg-teal-500 text-white rounded-tr-sm'
+                : 'bg-blue-100 text-blue-900 rounded-tl-sm'
+            }`}>
+              {note.text}
+            </div>
+            <span className="text-xs text-gray-400 mt-0.5">
+              {note.authorName || (isCCTV ? 'Operator' : 'Staff')}
+              {note.addedAt && ` · ${formatNoteTime(note.addedAt)}`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const CCTVFaultView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,7 +54,7 @@ const CCTVFaultView = () => {
   const Layout = role === USER_ROLES.CCTVOPERATOR ? CCTVOperatorSidebarLayout : ClientSidebarLayout;
   const [fault, setFault] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [notesOpen, setNotesOpen] = useState(false);
+  const [threadOpen, setThreadOpen] = useState(false);
 
   useEffect(() => {
     loadFault();
@@ -131,51 +170,9 @@ const CCTVFaultView = () => {
 
           {/* Client Acknowledgment */}
           {fault.clientAcknowledged && (
-            <div className="bg-teal-50 border border-teal-100 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setNotesOpen((o) => !o)}
-                className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
-                  <p className="font-semibold text-teal-700 text-sm">Acknowledged</p>
-                  {(() => {
-                    const count = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
-                    return count > 0 ? (
-                      <span className="text-xs text-teal-500 bg-teal-100 px-2 py-0.5 rounded-full">
-                        {count} {count === 1 ? 'note' : 'notes'}
-                      </span>
-                    ) : null;
-                  })()}
-                </div>
-                {notesOpen
-                  ? <ChevronUp className="w-4 h-4 text-teal-400 shrink-0" />
-                  : <ChevronDown className="w-4 h-4 text-teal-400 shrink-0" />}
-              </button>
-
-              {notesOpen && (() => {
-                const notesList = fault.clientNotes?.length
-                  ? fault.clientNotes
-                  : fault.clientNote
-                  ? [{ text: fault.clientNote, addedAt: null }]
-                  : [];
-                return notesList.length > 0 ? (
-                  <div className="px-4 pb-4 space-y-1 border-t border-teal-100 pt-3">
-                    {notesList.map((note, idx) => (
-                      <div key={idx} className="flex items-start gap-2 text-sm">
-                        <span className="text-teal-600 flex-1">{note.text}</span>
-                        {note.addedAt && (
-                          <span className="text-xs text-teal-400 shrink-0 mt-0.5">
-                            {new Date(note.addedAt).toLocaleDateString('en-GB')} {new Date(note.addedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="px-4 pb-4 text-xs text-teal-400">No notes added.</p>
-                );
-              })()}
+            <div className="flex items-center gap-3 p-4 bg-teal-50 border border-teal-100 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
+              <p className="font-semibold text-teal-700 text-sm">You have acknowledged this fault.</p>
             </div>
           )}
 
@@ -241,6 +238,36 @@ const CCTVFaultView = () => {
               </p>
             </div>
           )}
+
+          {/* Staff / Operator Notes — read-only for client */}
+          {(() => {
+            const hasNotes = fault.clientNotes?.length || fault.clientNote;
+            if (!hasNotes) return null;
+            return (
+              <div>
+                <button
+                  onClick={() => setThreadOpen((o) => !o)}
+                  className="w-full flex items-center justify-between gap-2 text-left mb-2"
+                >
+                  <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    Notes
+                    <span className="text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {fault.clientNotes?.length || (fault.clientNote ? 1 : 0)}
+                    </span>
+                  </h4>
+                  {threadOpen
+                    ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                    : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+                </button>
+                {threadOpen && (
+                  <div className="bg-gray-50 rounded-lg px-4 pb-3 border border-gray-100">
+                    <ReadOnlyNoteThread notes={fault.clientNotes} legacyNote={fault.clientNote} />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Metadata */}
           <div className="border-t pt-4">
