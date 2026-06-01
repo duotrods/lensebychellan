@@ -26,7 +26,15 @@ const SignInForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const redirectParam = new URLSearchParams(location.search).get("redirect");
-  const safeRedirect = redirectParam?.startsWith("/") ? redirectParam : null;
+
+  // Validate dashboard redirects to match the user's role
+  const isValidRedirect = (redirect, userRole) => {
+    if (!redirect?.startsWith("/")) return false;
+    if (!redirect.includes("/dashboard")) return true; // Non-dashboard routes are always OK
+    // For dashboard routes, check if they match the user's role's base path
+    const basePath = DASHBOARD_ROUTES[userRole];
+    return basePath && redirect.startsWith(basePath);
+  };
 
   useEffect(() => {
     const { lockedUntil } = getLockoutState();
@@ -66,7 +74,9 @@ const SignInForm = () => {
       firestoreService.logUserLogin(user.uid, profile?.displayName, user.email, profile?.role).catch(console.error);
       toast.success("Welcome back!");
       const dashboardRoute = DASHBOARD_ROUTES[profile?.role] || "/dashboard";
-      navigate(safeRedirect || dashboardRoute);
+      // Use redirect only if it's valid for the user's role
+      const validRedirect = redirectParam && isValidRedirect(redirectParam, profile?.role) ? redirectParam : dashboardRoute;
+      navigate(validRedirect);
     } catch (error) {
       const newAttempts = (getLockoutState().attempts || 0) + 1;
       localStorage.setItem("signin_attempts", newAttempts);

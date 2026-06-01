@@ -86,6 +86,8 @@ class AuthService {
       }
       // Clear session storage to reset notice board for next login
       sessionStorage.removeItem('hasSeenNoticeBoard');
+      // Clear redirect to prevent redirecting to role-specific pages on next login
+      window.history.replaceState({}, '', '/signin');
       await signOut(auth);
     } catch (error) {
       throw new AppError(error.message, error.code, error);
