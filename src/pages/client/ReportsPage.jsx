@@ -5,7 +5,6 @@ import { clientDataService } from "../../services/clientDataService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import {
   FileText,
-  AlertTriangle,
   Calendar,
   Search,
   Filter,
@@ -13,16 +12,18 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Wrench,
-  ShieldAlert,
-  CameraOff,
-  Car,
-  Hammer,
-  Package,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 import { SCHEMES } from "../../utils/schemes";
+import ReportStatsCards from "../../components/client/reports/ReportStatsCards";
+import ReportDetailModal from "../../components/client/reports/ReportDetailModal";
+import {
+  getReportTypeIcon,
+  getReportTypeBadge,
+  getReportDisplayDate,
+  getReportDisplayTime,
+} from "../../utils/reportDisplay";
 
 // Module-level variable — survives component unmount/remount, no serialization needed
 let _reportsRestore = null;
@@ -484,34 +485,6 @@ const ReportsPage = () => {
     }
   };
 
-  const getReportTypeIcon = (type) => {
-    switch (type) {
-      case "incident":
-        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
-      case "asset-damage":
-        return <Package className="w-5 h-5 text-red-500" />;
-      case "daily-occurrence":
-        return <Calendar className="w-5 h-5 text-blue-500" />;
-      case "cctv-check":
-        return <Eye className="w-5 h-5 text-green-500" />;
-      case "cctv-faults":
-        return <Eye className="w-5 h-5 text-purple-500" />;
-      default:
-        return <FileText className="w-5 h-5 text-gray-500" />;
-    }
-  };
-
-  const getReportTypeBadge = (type) => {
-    const badges = {
-      incident: "badge-warning",
-      "asset-damage": "badge-error",
-      "daily-occurrence": "badge-info",
-      "cctv-check": "badge-success",
-      "cctv-faults": "badge-secondary",
-    };
-    return badges[type] || "badge-ghost";
-  };
-
   const handleViewReport = (report) => {
     _reportsRestore = {
       page: currentPage,
@@ -552,83 +525,6 @@ const ReportsPage = () => {
       console.error("Failed to generate PDF:", error);
       toast.error("Failed to download report");
     }
-  };
-
-  const formatDate = (timestamp) => {
-    if (!timestamp) return "N/A";
-    const date = timestamp.seconds
-      ? new Date(timestamp.seconds * 1000)
-      : new Date(timestamp);
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatTime = (timestamp) => {
-    if (!timestamp) return "";
-    const date = timestamp.seconds
-      ? new Date(timestamp.seconds * 1000)
-      : new Date(timestamp);
-    return date.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  // Helper to parse DD/MM/YYYY date format
-  const parseBritishDate = (dateStr) => {
-    if (!dateStr) return null;
-    const parts = dateStr.split("/");
-    if (parts.length === 3) {
-      return new Date(parts[2], parts[1] - 1, parts[0]);
-    }
-    return null;
-  };
-
-  // Get display date for a report - use form date for incidents, asset damage, cctv checks
-  const getReportDisplayDate = (report) => {
-    // For incident, asset-damage, and cctv-check reports, use the form's date field
-    if (
-      (report.reportType === "incident" ||
-        report.reportType === "asset-damage" ||
-        report.reportType === "cctv-check" ||
-        report.reportType === "cctv-faults") &&
-      report.date
-    ) {
-      // Date is in DD/MM/YYYY format, convert to display format
-      const date = parseBritishDate(report.date);
-      if (date) {
-        return date.toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        });
-      }
-      return report.date;
-    }
-    // For daily occurrence and other reports, use timestamp (createdAt)
-    return formatDate(report.timestamp);
-  };
-
-  // Get display time for a report
-  const getReportDisplayTime = (report) => {
-    // For incident reports - always use timeSpotted
-    if (report.reportType === "incident" && report.timeSpotted) {
-      return report.timeSpotted;
-    }
-    // For asset-damage and cctv-check reports, use the form's time field
-    if (
-      (report.reportType === "asset-damage" ||
-        report.reportType === "cctv-check" ||
-        report.reportType === "cctv-faults") &&
-      report.time
-    ) {
-      return report.time;
-    }
-    // For daily occurrence and other reports, use timestamp (createdAt)
-    return formatTime(report.timestamp);
   };
 
   const reportStats = {
@@ -709,109 +605,7 @@ const ReportsPage = () => {
           </p>
         </div>
 
-        {/* Row 1: Report Type Counts */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-brand-500 transition-all"
-            onClick={() => handleCardClick("all")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <FileText className="w-3.5 h-3.5 text-brand-500" />
-              <p className="text-gray-500 text-sm">Total Reports</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.total}
-            </p>
-          </div>
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all"
-            onClick={() => handleCardClick("daily-occurrence")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Calendar className="w-3.5 h-3.5 text-blue-500" />
-              <p className="text-gray-500 text-sm">Daily Logs</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.dailyOccurrence}
-            </p>
-          </div>
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-orange-500 transition-all"
-            onClick={() => handleCardClick("incident", "pure")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-              <p className="text-gray-500 text-sm">Incidents</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.pureIncident}
-            </p>
-          </div>
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-purple-500 transition-all"
-            onClick={() => handleCardClick("cctv-faults")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <CameraOff className="w-3.5 h-3.5 text-purple-500" />
-              <p className="text-gray-500 text-sm">CCTV Faults</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.cctvFaults}
-            </p>
-          </div>
-        </div>
-
-        {/* Row 2: Incident Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-green-500 transition-all"
-            onClick={() => handleCardClick("incident", "free-recovery")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Wrench className="w-3.5 h-3.5 text-green-500" />
-              <p className="text-gray-500 text-sm">Free Recovery</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.freeRecovery}
-            </p>
-          </div>
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-red-500 transition-all"
-            onClick={() => handleCardClick("incident", "incursion")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
-              <p className="text-gray-500 text-sm">Incursions</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.incursions}
-            </p>
-          </div>
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-blue-500 transition-all"
-            onClick={() => handleCardClick("incident")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Car className="w-3.5 h-3.5 text-blue-500" />
-              <p className="text-gray-500 text-sm">Vehicles Dispatched</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.vehiclesDispatched}
-            </p>
-          </div>
-          <div
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md hover:border-l-4 hover:border-yellow-500 transition-all"
-            onClick={() => handleCardClick("incident", "asset-damage")}
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <Hammer className="w-3.5 h-3.5 text-yellow-500" />
-              <p className="text-gray-500 text-sm">Asset Damage</p>
-            </div>
-            <p className="text-2xl font-bold text-brand-500">
-              {reportStats.incidentAssetDamage}
-            </p>
-          </div>
-        </div>
+        <ReportStatsCards reportStats={reportStats} onCardClick={handleCardClick} />
 
         {/* Search and Filter */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -1110,109 +904,12 @@ const ReportsPage = () => {
         </div>
       </div>
 
-      {/* Report Detail Modal */}
-      {selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Report Details
-                </h2>
-                <button
-                  onClick={() => setSelectedReport(null)}
-                  className="btn btn-sm btn-ghost"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-sm text-gray-500">Reference ID</p>
-                  <p className="font-mono font-semibold">
-                    {selectedReport.referenceId}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Type</p>
-                  <span
-                    className={`badge ${getReportTypeBadge(selectedReport.reportType)}`}
-                  >
-                    {selectedReport.reportType.replace("-", " ").toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Date & Time</p>
-                  <p className="font-medium">
-                    {formatDate(
-                      selectedReport.timestamp || selectedReport.date,
-                    )}{" "}
-                    {formatTime(
-                      selectedReport.timestamp || selectedReport.time,
-                    )}
-                  </p>
-                </div>
-                {/* <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(selectedReport.status)}`}>
-                    {selectedReport.status || 'Pending'}
-                  </span>
-                </div> */}
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500">Title/Type</p>
-                  <p className="font-medium">
-                    {selectedReport.type || selectedReport.title || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Location</p>
-                  <p className="font-medium">
-                    {selectedReport.location || "N/A"}
-                  </p>
-                </div>
-                {selectedReport.description && (
-                  <div>
-                    <p className="text-sm text-gray-500">Description</p>
-                    <p className="text-gray-700">
-                      {selectedReport.description}
-                    </p>
-                  </div>
-                )}
-                {selectedReport.submittedBy && (
-                  <div>
-                    <p className="text-sm text-gray-500">Submitted By</p>
-                    <p className="font-medium">
-                      {selectedReport.submittedBy?.name ||
-                        (typeof selectedReport.submittedBy === "string"
-                          ? selectedReport.submittedBy
-                          : "Staff")}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="mt-6 flex gap-3">
-                <button
-                  onClick={() => handleDownloadReport(selectedReport)}
-                  className="btn btn-brand flex-1"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Report
-                </button>
-                <button
-                  onClick={() => setSelectedReport(null)}
-                  className="btn btn-outline flex-1"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Report Detail Modal (fallback when no dedicated view route exists) */}
+      <ReportDetailModal
+        report={selectedReport}
+        onClose={() => setSelectedReport(null)}
+        onDownload={handleDownloadReport}
+      />
     </ClientSidebarLayout>
   );
 };

@@ -26,4 +26,15 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Test, E2E and tooling configs run in Node (process, etc.).
+    files: [
+      '**/*.{test,spec}.{js,jsx}',
+      'tests/**/*.{js,jsx}',
+      '*.config.js',
+    ],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 ])

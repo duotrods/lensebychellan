@@ -53,3 +53,12 @@ CLAUDE.md
 /docs
 
 /I dunno copy
+
+/test-results
+/coverage
+/playwright-report
+/coverage-ssr
+/coverage-ssr-final
+/coverage-ssr-final-lcov.info
+/coverage-ssr-final-lcov-report
+/coverage-ssr-final-lcov-report/index.html

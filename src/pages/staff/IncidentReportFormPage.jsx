@@ -17,8 +17,13 @@ const r2Client = new S3Client({
   },
 });
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import StepIndicator from "../../components/staff/incident/StepIndicator";
 import { compressImage } from "../../utils/imageCompression";
 import { getSchemesForUser } from "../../utils/schemes";
+import {
+  formatDateToBritish,
+  calculateTimeDifferences,
+} from "../../utils/incidentForm";
 
 import chellanlogo from "../../assets/chellanpng.png";
 
@@ -37,15 +42,6 @@ const IncidentReportFormPage = () => {
   const [isEditingLiveIncident, setIsEditingLiveIncident] = useState(false);
   const [liveIncidentId, setLiveIncidentId] = useState(null);
   const [existingReferenceId, setExistingReferenceId] = useState(null);
-
-  // Helper function to format date as DD/MM/YYYY
-  const formatDateToBritish = (date) => {
-    const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
 
   const [formData, setFormData] = useState({
     scheme: "",
@@ -274,42 +270,6 @@ const IncidentReportFormPage = () => {
     const uploadedFiles = await Promise.all(uploadPromises);
     setUploadingFiles(false);
     return uploadedFiles;
-  };
-
-  const calculateTimeDifferences = (data) => {
-    const calculateMinutes = (time1, time2) => {
-      if (!time1 || !time2) return null;
-
-      const [hours1, mins1] = time1.split(":").map(Number);
-      const [hours2, mins2] = time2.split(":").map(Number);
-
-      const totalMins1 = hours1 * 60 + mins1;
-      const totalMins2 = hours2 * 60 + mins2;
-
-      let diff = totalMins2 - totalMins1;
-
-      if (diff < 0) diff += 24 * 60;
-
-      return diff;
-    };
-
-    const result = { ...data };
-
-    if (data.timeSpotted && data.timeOnSite) {
-      const mins = calculateMinutes(data.timeSpotted, data.timeOnSite);
-      if (mins !== null) {
-        result.timeSpottedToOn = `${mins} mins`;
-      }
-    }
-
-    if (data.timeOnSite && data.timeCleared) {
-      const mins = calculateMinutes(data.timeOnSite, data.timeCleared);
-      if (mins !== null) {
-        result.timeOnsiteToCleared = `${mins} mins`;
-      }
-    }
-
-    return result;
   };
 
   // Step 1: Submit as Live Incident
@@ -558,46 +518,6 @@ const IncidentReportFormPage = () => {
   };
 
   // Step Indicator Component
-  const StepIndicator = () => (
-    <div className="flex items-center justify-center mb-8">
-      <div className="flex items-center">
-        <div
-          className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
-            currentStep >= 1
-              ? "bg-teal-500 text-white"
-              : "bg-gray-200 text-gray-500"
-          }`}
-        >
-          1
-        </div>
-        <span
-          className={`ml-2 font-medium ${currentStep >= 1 ? "text-teal-600" : "text-gray-400"}`}
-        >
-          Live Incident
-        </span>
-      </div>
-      <div
-        className={`w-16 h-1 mx-4 ${currentStep >= 2 ? "bg-teal-500" : "bg-gray-200"}`}
-      />
-      <div className="flex items-center">
-        <div
-          className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
-            currentStep >= 2
-              ? "bg-teal-500 text-white"
-              : "bg-gray-200 text-gray-500"
-          }`}
-        >
-          2
-        </div>
-        <span
-          className={`ml-2 font-medium ${currentStep >= 2 ? "text-teal-600" : "text-gray-400"}`}
-        >
-          Complete Report
-        </span>
-      </div>
-    </div>
-  );
-
   // Render Step 1 Form
   const renderStep1 = () => (
     <form
@@ -608,7 +528,7 @@ const IncidentReportFormPage = () => {
         <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
       </div>
 
-      <StepIndicator />
+      <StepIndicator currentStep={currentStep} />
 
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
         <p className="text-red-700 font-medium">Step 1: Create Live Incident</p>
@@ -841,7 +761,7 @@ const IncidentReportFormPage = () => {
         <img src={chellanlogo} alt="MyApp Logo" className="h-25 w-auto" />
       </div>
 
-      {isEditingLiveIncident && <StepIndicator />}
+      {isEditingLiveIncident && <StepIndicator currentStep={currentStep} />}
 
       {isEditingLiveIncident && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">

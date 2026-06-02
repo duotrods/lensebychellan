@@ -18,6 +18,7 @@ import {
   getCountFromServer,
   increment,
   setDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { referenceIdService } from "./referenceIdService";
@@ -27,6 +28,7 @@ import {
   DEMO_SCHEME_ID,
   getThirdPartySchemeById,
 } from "../utils/schemes";
+import { countVehicles, isPureIncident } from "../utils/incidentStats";
 
 class StaffService {
   // ============================================
@@ -392,9 +394,7 @@ class StaffService {
   // ============================================
 
   _countVehicles(formData) {
-    const r = formData?.recoveryRequested;
-    if (!r || typeof r !== "object") return 0;
-    return (r.light || 0) + (r.heavy || 0) + (r.ipv || 0) + (r.hetos || 0);
+    return countVehicles(formData);
   }
 
   async _updateSchemeVehicleStats(schemeId, delta) {
@@ -405,6 +405,46 @@ class StaffService {
       { totalVehiclesDispatched: increment(delta) },
       { merge: true },
     );
+  }
+
+  // Queue a vehicle-stats delta onto an existing batch so the stats update
+  // commits atomically with the incident write that caused it.
+  _queueSchemeVehicleStats(batch, schemeId, delta) {
+    if (!schemeId || delta === 0) return;
+    const statsRef = doc(db, "schemeStats", schemeId);
+    batch.set(
+      statsRef,
+      { totalVehiclesDispatched: increment(delta) },
+      { merge: true },
+    );
+  }
+
+  // Recompute schemeStats.totalVehiclesDispatched from scratch by summing every
+  // incident report's vehicle count per scheme. Use this to correct any drift
+  // accumulated before the atomic writes above (admin/maintenance only).
+  // Returns the recomputed totals keyed by schemeId.
+  async reconcileSchemeVehicleStats() {
+    const snapshot = await getDocs(collection(db, "incidentReports"));
+    const totals = {};
+    snapshot.forEach((d) => {
+      const data = d.data();
+      const schemeId =
+        data.schemeId || (data.scheme ? extractSchemeId(data.scheme) : null);
+      if (!schemeId) return;
+      totals[schemeId] = (totals[schemeId] || 0) + this._countVehicles(data);
+    });
+
+    const batch = writeBatch(db);
+    Object.entries(totals).forEach(([schemeId, total]) => {
+      batch.set(
+        doc(db, "schemeStats", schemeId),
+        { totalVehiclesDispatched: total },
+        { merge: true },
+      );
+    });
+    await batch.commit();
+
+    return totals;
   }
 
   async submitIncidentReport(formData, userId, userName, status = "submitted") {
@@ -424,8 +464,11 @@ class StaffService {
         isDemo,
       );
 
-      const reportsRef = collection(db, "incidentReports");
-      const docRef = await addDoc(reportsRef, {
+      // Create the doc ref up-front so the report write and the scheme-stats
+      // update can be committed atomically in a single batch.
+      const docRef = doc(collection(db, "incidentReports"));
+      const batch = writeBatch(db);
+      batch.set(docRef, {
         ...formData,
         schemeId, // Keep for backward compatibility
         schemeIds: [schemeId], // New array format for multi-scheme support
@@ -435,19 +478,16 @@ class StaffService {
           name: userName,
         },
         status, // Use the provided status (defaults to "submitted", can be "live")
-        isPureIncident:
-          formData.incidentType !== "Free Recovery" &&
-          formData.incidentType !== "Drive Off" &&
-          formData.incursion !== "YES" &&
-          !formData.propertyDamage,
+        isPureIncident: isPureIncident(formData),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      // Update running vehicle total for this scheme
+      // Update running vehicle total for this scheme (atomic with the report)
       const vehicleDelta = this._countVehicles(formData);
-      if (vehicleDelta > 0)
-        await this._updateSchemeVehicleStats(schemeId, vehicleDelta);
+      this._queueSchemeVehicleStats(batch, schemeId, vehicleDelta);
+
+      await batch.commit();
 
       await this.logActivity({
         type: "form_submitted",
@@ -540,28 +580,40 @@ class StaffService {
       }
 
       // Recalculate schemeIds when scheme is updated
-      const schemeId = formData.scheme
+      const newSchemeId = formData.scheme
         ? extractSchemeId(formData.scheme)
         : currentData.schemeId;
+      const oldSchemeId =
+        currentData.schemeId ||
+        (currentData.scheme ? extractSchemeId(currentData.scheme) : null);
 
-      await updateDoc(reportRef, {
+      const batch = writeBatch(db);
+      batch.update(reportRef, {
         ...formData,
-        schemeId, // Keep for backward compatibility
-        schemeIds: [schemeId], // Update array for client filtering
-        isPureIncident:
-          formData.incidentType !== "Free Recovery" &&
-          formData.incidentType !== "Drive Off" &&
-          formData.incursion !== "YES" &&
-          !formData.propertyDamage,
+        schemeId: newSchemeId, // Keep for backward compatibility
+        schemeIds: [newSchemeId], // Update array for client filtering
+        isPureIncident: isPureIncident(formData),
         ...extraFields,
         updatedAt: serverTimestamp(),
       });
 
-      // Update running vehicle total — only the difference
+      // Keep schemeStats correct, including when the scheme itself changes.
       const oldVehicles = this._countVehicles(currentData);
       const newVehicles = this._countVehicles(formData);
-      const delta = newVehicles - oldVehicles;
-      if (delta !== 0) await this._updateSchemeVehicleStats(schemeId, delta);
+      if (oldSchemeId !== newSchemeId) {
+        // Move the whole count off the old scheme and onto the new one.
+        this._queueSchemeVehicleStats(batch, oldSchemeId, -oldVehicles);
+        this._queueSchemeVehicleStats(batch, newSchemeId, newVehicles);
+      } else {
+        // Same scheme: only apply the difference.
+        this._queueSchemeVehicleStats(
+          batch,
+          newSchemeId,
+          newVehicles - oldVehicles,
+        );
+      }
+
+      await batch.commit();
 
       // Log activity
       await this.logActivity({
@@ -590,15 +642,17 @@ class StaffService {
 
       const currentData = reportDoc.data();
 
-      await deleteDoc(reportRef);
-
-      // Subtract vehicles from running total
+      // Delete the report and subtract its vehicles from the running total
+      // atomically so the two can never diverge.
+      const batch = writeBatch(db);
+      batch.delete(reportRef);
       const vehicleDelta = this._countVehicles(currentData);
       if (vehicleDelta > 0) {
         const deletedSchemeId =
           currentData.schemeId || extractSchemeId(currentData.scheme);
-        await this._updateSchemeVehicleStats(deletedSchemeId, -vehicleDelta);
+        this._queueSchemeVehicleStats(batch, deletedSchemeId, -vehicleDelta);
       }
+      await batch.commit();
 
       await this.logActivity({
         type: "form_deleted",

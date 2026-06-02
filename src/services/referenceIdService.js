@@ -1,15 +1,15 @@
 import {
-  collection,
-  query,
-  orderBy,
-  limit,
-  getDocs,
   doc,
   setDoc,
   getDoc,
   runTransaction
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import {
+  getReferenceConfig,
+  getCounterName,
+  formatReferenceId,
+} from '../utils/referenceFormat';
 
 /**
  * Service for generating unique reference IDs with prefixes
@@ -28,15 +28,7 @@ class ReferenceIdService {
    */
   async generateReferenceId(type, isDemo = false, thirdPartySchemeId = null) {
     const config = this.getTypeConfig(type);
-
-    let counterName;
-    if (thirdPartySchemeId) {
-      counterName = `${config.counterName}_tp_${thirdPartySchemeId}`;
-    } else if (isDemo) {
-      counterName = `${config.counterName}_demo`;
-    } else {
-      counterName = config.counterName;
-    }
+    const counterName = getCounterName(config, { isDemo, thirdPartySchemeId });
 
     try {
       // Use a transaction to ensure atomicity
@@ -54,15 +46,10 @@ class ReferenceIdService {
           transaction.set(counterRef, { current: nextNumber });
         }
 
-        // Format the number with leading zeros
-        const formattedNumber = String(nextNumber).padStart(config.digits, '0');
-
-        if (thirdPartySchemeId) {
-          return `${config.prefix}${formattedNumber}-TP-${thirdPartySchemeId}`;
-        }
-        return isDemo
-          ? `${config.prefix}${formattedNumber}-DEMO`
-          : `${config.prefix}${formattedNumber}`;
+        return formatReferenceId(config, nextNumber, {
+          isDemo,
+          thirdPartySchemeId,
+        });
       });
 
       return referenceId;
@@ -78,39 +65,7 @@ class ReferenceIdService {
    * @returns {Object} Configuration object
    */
   getTypeConfig(type) {
-    const configs = {
-      incident: {
-        prefix: 'IN',
-        digits: 2,
-        counterName: 'incidentReports'
-      },
-      assetDamage: {
-        prefix: 'AD',
-        digits: 2,
-        counterName: 'assetDamage'
-      },
-      dailyOccurrence: {
-        prefix: 'DO',
-        digits: 2,
-        counterName: 'dailyOccurrence'
-      },
-      cctvCheck: {
-        prefix: 'CC',
-        digits: 2,
-        counterName: 'cctvCheck'
-      },
-      cctvFaults: {
-        prefix: 'CF',
-        digits: 2,
-        counterName: 'cctvFaults'
-      }
-    };
-
-    if (!configs[type]) {
-      throw new Error(`Unknown form type: ${type}`);
-    }
-
-    return configs[type];
+    return getReferenceConfig(type);
   }
 
   /**
