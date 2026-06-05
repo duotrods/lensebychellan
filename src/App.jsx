@@ -39,6 +39,7 @@
   import CCTVFaultsView from "./pages/staff/CCTVFaultsView";
   import OTPManagementPage from "./pages/admin/OTPManagementPage";
   import BackfillVehicleStatsPage from "./pages/admin/BackfillVehicleStatsPage";
+  import BackfillHasVideoPage from "./pages/admin/BackfillHasVideoPage";
   import ReferenceIdManagerPage from "./pages/admin/ReferenceIdManagerPage";
   import SchemeAssignmentPage from "./pages/admin/SchemeAssignmentPage";
   import StaffManagementPage from "./pages/admin/StaffManagementPage";
@@ -121,6 +122,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <BackfillVehicleStatsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/backfill-has-video"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <BackfillHasVideoPage />
                     </ProtectedRoute>
                   }
                 />

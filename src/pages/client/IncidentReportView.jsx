@@ -5,15 +5,7 @@ import { ArrowLeft, Download, Image, Video, X } from "lucide-react";
 import { clientDataService } from "../../services/clientDataService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import { generateReportPDF } from "../../utils/pdfGenerator";
-
-const isVideoFile = (file) => {
-  if (file.fileType && file.fileType.startsWith("video/")) return true;
-  if (file.fileName) {
-    const ext = file.fileName.split(".").pop().toLowerCase();
-    return ["mp4", "mov", "avi", "webm", "mkv", "m4v"].includes(ext);
-  }
-  return false;
-};
+import { isVideoFile } from "../../utils/fileType";
 
 const IncidentReportView = () => {
   const { id } = useParams();

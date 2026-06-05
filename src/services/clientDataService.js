@@ -18,6 +18,7 @@ import {
 import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
 import { CAMERA_OPTIONS_BY_SCHEME, THIRD_PARTY_SCHEMES } from "../utils/schemes";
+import { isVideoFile } from "../utils/fileType";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -2048,66 +2049,53 @@ class ClientDataService {
   }
 
   // Get CCTV recordings for a specific scheme — pulls from incidentReports with video/image files
-  async getCCTVRecordings(schemeId, limitCount = 100) {
+  async getCCTVRecordings(schemeId) {
     try {
       const reportsRef = collection(db, "incidentReports");
 
-      try {
-        const q = query(
-          reportsRef,
-          where("schemeIds", "array-contains", schemeId),
-          orderBy("createdAt", "desc"),
-          limit(limitCount),
-        );
-        const querySnapshot = await getDocs(q);
-        const docs = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          dateTime: doc.data().createdAt,
-        }));
-        // Only return reports that have video files, strip out non-video files
-        return docs
-          .map((doc) => ({
-            ...doc,
-            files: (doc.files || []).filter((f) =>
-              f.fileType?.startsWith("video/"),
-            ),
-          }))
-          .filter((doc) => doc.files.length > 0);
-      } catch (indexError) {
-        if (
-          indexError.code === "failed-precondition" ||
-          indexError.message?.includes("index")
-        ) {
-          console.warn(
-            "Index not available for incidentReports, trying simplified query",
-          );
-          const simpleQuery = query(
+      // Two queries cover both the new `schemeIds` array and the legacy
+      // single-string `schemeId`. The `hasVideo == true` filter means Firestore
+      // returns ONLY reports that actually have a video — reads scale with the
+      // number of recordings, not with total incidents. Requires the composite
+      // indexes in firestore.indexes.json and a one-time backfill of the
+      // hasVideo flag on existing reports (admin → Backfill hasVideo).
+      const [arrSnapshot, legacySnapshot] = await Promise.all([
+        getDocs(
+          query(
             reportsRef,
             where("schemeIds", "array-contains", schemeId),
-            limit(limitCount),
-          );
-          const snapshot = await getDocs(simpleQuery);
-          const docs = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            dateTime: doc.data().createdAt,
-          }));
-          return docs
-            .map((doc) => ({
-              ...doc,
-              files: (doc.files || []).filter((f) =>
-                f.fileType?.startsWith("video/"),
-              ),
-            }))
-            .filter((doc) => doc.files.length > 0)
-            .sort(
-              (a, b) =>
-                (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-            );
+            where("hasVideo", "==", true),
+            orderBy("createdAt", "desc"),
+          ),
+        ),
+        getDocs(
+          query(
+            reportsRef,
+            where("schemeId", "==", schemeId),
+            where("hasVideo", "==", true),
+            orderBy("createdAt", "desc"),
+          ),
+        ),
+      ]);
+
+      const byId = new Map();
+      [...arrSnapshot.docs, ...legacySnapshot.docs].forEach((d) => {
+        if (!byId.has(d.id)) {
+          byId.set(d.id, { id: d.id, ...d.data(), dateTime: d.data().createdAt });
         }
-        throw indexError;
-      }
+      });
+
+      // Only return reports that have video files (detected by MIME *or* file
+      // extension), strip out non-video files, then sort newest-first.
+      return [...byId.values()]
+        .map((doc) => ({
+          ...doc,
+          files: (doc.files || []).filter(isVideoFile),
+        }))
+        .filter((doc) => doc.files.length > 0)
+        .sort(
+          (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+        );
     } catch (error) {
       console.error("Error fetching CCTV recordings:", error);
       throw new AppError(

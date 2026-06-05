@@ -29,6 +29,42 @@
       ]
     },
     {
+      "collectionGroup": "incidentReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "hasVideo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "incidentReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "schemeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hasVideo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "cctvCheckForms",
       "queryScope": "COLLECTION",
       "fields": [

@@ -29,6 +29,7 @@ import {
   getThirdPartySchemeById,
 } from "../utils/schemes";
 import { countVehicles, isPureIncident } from "../utils/incidentStats";
+import { isVideoFile } from "../utils/fileType";
 
 class StaffService {
   // ============================================
@@ -479,6 +480,9 @@ class StaffService {
         },
         status, // Use the provided status (defaults to "submitted", can be "live")
         isPureIncident: isPureIncident(formData),
+        // Precomputed flag so the CCTV Recordings page can query video reports
+        // directly instead of scanning every incident.
+        hasVideo: (formData.files || []).some(isVideoFile),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -587,12 +591,19 @@ class StaffService {
         currentData.schemeId ||
         (currentData.scheme ? extractSchemeId(currentData.scheme) : null);
 
+      // Recompute hasVideo from the final files array. Fall back to the current
+      // files when this update doesn't carry `files`, so a non-file edit never
+      // wipes the flag.
+      const finalFiles =
+        formData.files !== undefined ? formData.files : currentData.files;
+
       const batch = writeBatch(db);
       batch.update(reportRef, {
         ...formData,
         schemeId: newSchemeId, // Keep for backward compatibility
         schemeIds: [newSchemeId], // Update array for client filtering
         isPureIncident: isPureIncident(formData),
+        hasVideo: (finalFiles || []).some(isVideoFile),
         ...extraFields,
         updatedAt: serverTimestamp(),
       });

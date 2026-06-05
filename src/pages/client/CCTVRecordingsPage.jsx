@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { SCHEMES } from "../../utils/schemes";
+import { isVideoFile, isImageFile } from "../../utils/fileType";
 
 const CCTVRecordingsPage = () => {
   const { userProfile } = useAuth();
@@ -172,14 +173,14 @@ const CCTVRecordingsPage = () => {
 
   // Get file type counts for a recording
   const getFileCounts = (files = []) => {
-    const videos = files.filter((f) => f.fileType?.startsWith("video/")).length;
-    const images = files.filter((f) => f.fileType?.startsWith("image/")).length;
+    const videos = files.filter(isVideoFile).length;
+    const images = files.filter(isImageFile).length;
     return { videos, images };
   };
 
   // Get first video file URL for hover preview
   const getFirstVideoUrl = (files = []) => {
-    const video = files.find((f) => f.fileType?.startsWith("video/"));
+    const video = files.find(isVideoFile);
     return video?.downloadUrl || null;
   };
 
@@ -464,7 +465,7 @@ const CCTVRecordingsPage = () => {
               selectedRecording.files.length > 0 &&
               selectedRecording.files[previewFileIndex]?.downloadUrl ? (
                 <div className="bg-gray-900 aspect-video rounded-lg overflow-hidden mb-4">
-                  {selectedRecording.files[previewFileIndex].fileType?.startsWith("video/") ? (
+                  {isVideoFile(selectedRecording.files[previewFileIndex]) ? (
                     <video
                       key={previewFileIndex}
                       controls
@@ -560,7 +561,7 @@ const CCTVRecordingsPage = () => {
                     </p>
                     <div className="space-y-2">
                       {selectedRecording.files.map((file, idx) => {
-                        const isVideo = file.fileType?.startsWith("video/");
+                        const isVideo = isVideoFile(file);
                         return (
                           <div
                             key={idx}
