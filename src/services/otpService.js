@@ -8,6 +8,7 @@ import {
   query,
   where,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   orderBy,
   limit,
@@ -686,6 +687,34 @@ class OTPService {
       await updateDoc(doc(db, 'thirdPartyCCTVOperatorCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
     } catch (error) {
       throw new AppError('Failed to mark code as used', 'otp/update-error', error);
+    }
+  }
+
+  // ==================== THIRD-PARTY CODE LISTING / DELETION ====================
+  // Shared across all four thirdParty*Codes collections (doc ID is the code).
+
+  async getThirdPartyCodesPaginated(collectionName, limitCount = 10, lastDoc = null) {
+    try {
+      const codesRef = collection(db, collectionName);
+      const q = lastDoc
+        ? query(codesRef, orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(limitCount))
+        : query(codesRef, orderBy('createdAt', 'desc'), limit(limitCount));
+      const snapshot = await getDocs(q);
+      return {
+        codes: snapshot.docs.map((d) => ({ id: d.id, ...d.data() })),
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
+        hasMore: snapshot.docs.length === limitCount,
+      };
+    } catch (error) {
+      throw new AppError('Failed to load third party codes', 'otp/list-error', error);
+    }
+  }
+
+  async deleteThirdPartyCode(collectionName, code) {
+    try {
+      await deleteDoc(doc(db, collectionName, code));
+    } catch (error) {
+      throw new AppError('Failed to delete third party code', 'otp/delete-error', error);
     }
   }
 }

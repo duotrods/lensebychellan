@@ -14,15 +14,16 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 
 // 'byCompany: true' = OTP is tied to a company (Staff, LiveOp, CCTVOp)
 // 'byCompany: false' = OTP is tied to a scheme (Client only)
 const TP_TABS = [
-  { key: 'tpoperator',    label: 'Staff',         byCompany: true,  create: (company, uid) => otpService.createThirdPartyOperatorCode(company, uid) },
-  { key: 'tpclient',      label: 'Client',        byCompany: false, create: (sid, sn, uid) => otpService.createThirdPartyClientCode(sid, sn, uid) },
-  { key: 'tpliveoperator', label: 'Live Operator', byCompany: true, create: (company, uid) => otpService.createThirdPartyLiveOperatorCode(company, uid) },
-  { key: 'tpcctvoperator', label: 'CCTV Operator', byCompany: false, create: (sid, sn, uid) => otpService.createThirdPartyCCTVOperatorCode(sid, sn, uid) },
+  { key: 'tpoperator',    label: 'Staff',         byCompany: true,  collection: 'thirdPartyOperatorCodes',     create: (company, uid) => otpService.createThirdPartyOperatorCode(company, uid) },
+  { key: 'tpclient',      label: 'Client',        byCompany: false, collection: 'thirdPartyClientCodes',       create: (sid, sn, uid) => otpService.createThirdPartyClientCode(sid, sn, uid) },
+  { key: 'tpliveoperator', label: 'Live Operator', byCompany: true, collection: 'thirdPartyLiveOperatorCodes', create: (company, uid) => otpService.createThirdPartyLiveOperatorCode(company, uid) },
+  { key: 'tpcctvoperator', label: 'CCTV Operator', byCompany: false, collection: 'thirdPartyCCTVOperatorCodes', create: (sid, sn, uid) => otpService.createThirdPartyCCTVOperatorCode(sid, sn, uid) },
 ];
 
 const OTPManagement = () => {
@@ -62,7 +63,13 @@ const OTPManagement = () => {
   const [tpSubTab, setTpSubTab] = useState('tpoperator');
   const [tpFormData, setTpFormData] = useState({ company: '', schemeId: '', schemeName: '' });
   const [tpLoading, setTpLoading] = useState(false);
-  const [lastTpCode, setLastTpCode] = useState(null);
+  const [tpCodesLoading, setTpCodesLoading] = useState(false);
+  // Page cache for the third-party table: each loaded page is kept so going
+  // back (or re-visiting a page) costs zero reads. Next fetches +10.
+  const [tpPages, setTpPages] = useState([]); // array of page arrays
+  const [tpCursors, setTpCursors] = useState([]); // lastDoc cursor per page
+  const [tpPage, setTpPage] = useState(0); // 0-based current page index
+  const [tpHasMore, setTpHasMore] = useState(false);
 
   const codesPerPage = 10;
 
@@ -72,6 +79,81 @@ const OTPManagement = () => {
     loadCCTVCodes(true);
     loadTotalCounts();
   }, []);
+
+  // Load the persistent table of generated codes for the active third-party sub-tab.
+  useEffect(() => {
+    if (activeTab !== "thirdparty") return;
+    loadTpCodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, tpSubTab]);
+
+  // Reset the cache and load page 0 (the 10 latest codes).
+  const loadTpCodes = async () => {
+    const tabConfig = TP_TABS.find((t) => t.key === tpSubTab);
+    if (!tabConfig) return;
+    setTpCodesLoading(true);
+    try {
+      const { codes, lastDoc, hasMore } =
+        await otpService.getThirdPartyCodesPaginated(tabConfig.collection, codesPerPage);
+      setTpPages([codes]);
+      setTpCursors([lastDoc]);
+      setTpPage(0);
+      setTpHasMore(hasMore);
+    } catch (error) {
+      console.error("Failed to load third party codes:", error);
+      setTpPages([]);
+      setTpCursors([]);
+      setTpPage(0);
+      setTpHasMore(false);
+    } finally {
+      setTpCodesLoading(false);
+    }
+  };
+
+  // Next page: serve from cache if already loaded (0 reads), else fetch +10.
+  const goNextTpPage = async () => {
+    if (tpPage < tpPages.length - 1) {
+      setTpPage(tpPage + 1);
+      return;
+    }
+    if (!tpHasMore) return;
+    const tabConfig = TP_TABS.find((t) => t.key === tpSubTab);
+    if (!tabConfig) return;
+    setTpCodesLoading(true);
+    try {
+      const { codes, lastDoc, hasMore } = await otpService.getThirdPartyCodesPaginated(
+        tabConfig.collection,
+        codesPerPage,
+        tpCursors[tpPage],
+      );
+      setTpPages((prev) => [...prev, codes]);
+      setTpCursors((prev) => [...prev, lastDoc]);
+      setTpPage((prev) => prev + 1);
+      setTpHasMore(hasMore);
+    } catch (error) {
+      console.error("Failed to load next page of third party codes:", error);
+      toast.error("Failed to load more codes");
+    } finally {
+      setTpCodesLoading(false);
+    }
+  };
+
+  // Previous page: always cached, no reads.
+  const goPrevTpPage = () => setTpPage((prev) => Math.max(0, prev - 1));
+
+  const handleDeleteTpCode = async (code) => {
+    const tabConfig = TP_TABS.find((t) => t.key === tpSubTab);
+    if (!tabConfig) return;
+    if (!window.confirm(`Delete code ${code}? This cannot be undone.`)) return;
+    try {
+      await otpService.deleteThirdPartyCode(tabConfig.collection, code);
+      toast.success("Code deleted");
+      loadTpCodes();
+    } catch (error) {
+      console.error("Failed to delete third party code:", error);
+      toast.error("Failed to delete code");
+    }
+  };
 
   const loadClientCodes = async (resetPage = false) => {
     setLoading(true);
@@ -292,9 +374,9 @@ const OTPManagement = () => {
       const code = tabConfig.byCompany
         ? await tabConfig.create(tpFormData.company, userProfile.uid)
         : await tabConfig.create(tpFormData.schemeId.toUpperCase(), tpFormData.schemeName, userProfile.uid);
-      setLastTpCode(code);
       toast.success(`Third Party ${tabConfig.label} code created: ${code}`);
       setTpFormData({ company: '', schemeId: '', schemeName: '' });
+      loadTpCodes();
     } catch {
       toast.error('Failed to create third party code');
     } finally {
@@ -329,20 +411,52 @@ const OTPManagement = () => {
     return date < new Date();
   };
 
+  // Shared three-state status for every access code. "Used" takes precedence
+  // over "Expired" — a consumed code reads Used even if its date later passes.
+  const getCodeStatus = (code) => {
+    if (code.isUsed) return "used";
+    if (isExpired(code.expiresAt)) return "expired";
+    return "available";
+  };
+
+  const renderStatus = (code) => {
+    const status = getCodeStatus(code);
+    if (status === "used") {
+      return (
+        <span className="flex items-center gap-1 text-sm text-gray-500">
+          <XCircle className="w-4 h-4" />
+          Used
+        </span>
+      );
+    }
+    if (status === "expired") {
+      return (
+        <span className="flex items-center gap-1 text-sm text-red-500">
+          <XCircle className="w-4 h-4" />
+          Expired
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1 text-sm text-green-600">
+        <CheckCircle className="w-4 h-4" />
+        Available
+      </span>
+    );
+  };
+
   const displayCodes =
     activeTab === "client"
       ? clientOTPs
       : activeTab === "cctv"
         ? cctvCodes
         : staffInviteCodes;
-  const availableCount =
-    activeTab === "client"
-      ? clientOTPs.filter((otp) => !otp.isUsed).length
-      : activeTab === "cctv"
-        ? cctvCodes.filter((c) => !c.isUsed).length
-        : staffInviteCodes.filter(
-            (code) => !code.isUsed && !isExpired(code.expiresAt),
-          ).length;
+  const availableCount = displayCodes.filter(
+    (code) => getCodeStatus(code) === "available",
+  ).length;
+
+  // Codes for the currently-viewed third-party page (from the page cache).
+  const tpCurrentCodes = tpPages[tpPage] || [];
 
   // Pagination handlers for client codes
   const clientTotalPages = Math.ceil(clientTotalCount / codesPerPage);
@@ -417,7 +531,13 @@ const OTPManagement = () => {
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+            disabled={activeTab === "thirdparty"}
+            title={
+              activeTab === "thirdparty"
+                ? "Use the Generate Code button below for third party codes"
+                : undefined
+            }
+            className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-teal-500"
           >
             <Plus className="w-4 h-4" />
             Generate New Code
@@ -555,17 +675,7 @@ const OTPManagement = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {otp.isUsed ? (
-                          <span className="flex items-center gap-1 text-sm text-gray-500">
-                            <XCircle className="w-4 h-4" />
-                            Used
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-sm text-green-600">
-                            <CheckCircle className="w-4 h-4" />
-                            Available
-                          </span>
-                        )}
+                        {renderStatus(otp)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(otp.createdAt)}
@@ -590,17 +700,7 @@ const OTPManagement = () => {
                           </code>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {c.isUsed ? (
-                            <span className="flex items-center gap-1 text-sm text-gray-500">
-                              <XCircle className="w-4 h-4" />
-                              Used
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-sm text-green-600">
-                              <CheckCircle className="w-4 h-4" />
-                              Available
-                            </span>
-                          )}
+                          {renderStatus(c)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(c.createdAt)}
@@ -641,17 +741,7 @@ const OTPManagement = () => {
                           </p>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {code.isUsed || isExpired(code.expiresAt) ? (
-                            <span className="flex items-center gap-1 text-sm text-gray-500">
-                              <XCircle className="w-4 h-4" />
-                              {isExpired(code.expiresAt) ? "Expired" : "Used"}
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-sm text-green-600">
-                              <CheckCircle className="w-4 h-4" />
-                              Available
-                            </span>
-                          )}
+                          {renderStatus(code)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(code.createdAt)}
@@ -775,7 +865,7 @@ const OTPManagement = () => {
             {TP_TABS.map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => { setTpSubTab(key); setLastTpCode(null); setTpFormData({ company: '', schemeId: '', schemeName: '' }); }}
+                onClick={() => { setTpSubTab(key); setTpFormData({ company: '', schemeId: '', schemeName: '' }); }}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tpSubTab === key
                     ? 'border-teal-500 text-teal-600'
@@ -856,19 +946,138 @@ const OTPManagement = () => {
               {tpLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Generate Code
             </button>
-            {lastTpCode && (
-              <div className="mt-4 p-4 bg-teal-50 rounded-lg border border-teal-200 flex items-center gap-4">
-                <code className="text-lg font-mono font-bold text-teal-800">{lastTpCode}</code>
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(lastTpCode)}
-                  className="flex items-center gap-1 px-3 py-1 bg-teal-500 text-white rounded text-sm hover:bg-teal-600"
-                >
-                  <Copy className="w-3 h-3" /> Copy
-                </button>
+          </form>
+
+          {/* Persistent list of generated codes for this sub-tab */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b">
+              <h4 className="text-lg font-semibold text-gray-800">
+                Generated {TP_TABS.find((t) => t.key === tpSubTab)?.label} Codes
+              </h4>
+            </div>
+            {tpCodesLoading ? (
+              <div className="p-12 text-center">
+                <RefreshCw className="w-6 h-6 animate-spin text-teal-500 mx-auto" />
+              </div>
+            ) : tpCurrentCodes.length === 0 ? (
+              <div className="p-12 text-center text-gray-400">
+                No codes generated yet
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                        Code
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                        Company
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                        Scheme
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                        Created
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                        Expires
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {tpCurrentCodes.map((c) => {
+                      const byCompany = TP_TABS.find(
+                        (t) => t.key === tpSubTab,
+                      )?.byCompany;
+                      const expired = isExpired(c.expiresAt);
+                      // Company-based codes carry `company`; scheme-based codes
+                      // carry a schemeId whose company we look up from the scheme list.
+                      const company = byCompany
+                        ? c.company
+                        : THIRD_PARTY_SCHEMES.find((s) => s.id === c.schemeId)
+                            ?.company || "—";
+                      return (
+                        <tr key={c.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                              {c.code}
+                            </code>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                            {company}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                            {byCompany ? "All schemes" : c.schemeName || "—"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {renderStatus(c)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(c.createdAt)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`text-sm ${expired ? "text-red-500" : "text-gray-500"}`}
+                            >
+                              {formatDate(c.expiresAt)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => copyToClipboard(c.code)}
+                                className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
+                              >
+                                <Copy className="w-4 h-4" />
+                                Copy
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTpCode(c.code)}
+                                className="flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
-          </form>
+            {tpCurrentCodes.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t">
+                <span className="text-sm text-gray-600">Page {tpPage + 1}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={goPrevTpPage}
+                    disabled={tpPage === 0}
+                    className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </button>
+                  <button
+                    onClick={goNextTpPage}
+                    disabled={tpPage === tpPages.length - 1 && !tpHasMore}
+                    className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
