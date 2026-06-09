@@ -1,3 +1,4 @@
+  import { lazy, Suspense } from "react";
   import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
   import { Toaster } from "react-hot-toast";
   import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,7 +13,7 @@
     defaultOptions: {
       queries: {
         staleTime: 5 * 60 * 1000, // Data stays fresh for 5 minutes
-        cacheTime: 10 * 60 * 1000, // Cache for 10 minutes
+        gcTime: 10 * 60 * 1000, // Cache retained for 10 minutes (v5: renamed from cacheTime)
         refetchOnWindowFocus: false, // Don't refetch when user returns to tab
         retry: 1, // Retry failed requests once
       },
@@ -26,50 +27,61 @@
   import SignUpPage from "./pages/auth/SignUpPage";
   import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
   import AuthActionPage from "./pages/auth/AuthActionPage";
-  import Dashboard from "./pages/shared/Dashboard";
-  import FormsSelectionPage from "./pages/staff/FormsSelectionPage";
-  import CCTVCheckFormPage from "./pages/staff/CCTVCheckFormPage";
-  import IncidentReportFormPage from "./pages/staff/IncidentReportFormPage";
-  import DailyOccurrenceFormPage from "./pages/staff/DailyOccurrenceFormPage";
-  import CCTVFaultsFormPage from "./pages/staff/CCTVFaultsFormPage";
-  import CCTVFaultsLivePage from "./pages/staff/CCTVFaultsLivePage";
-  import IncidentReportView from "./pages/staff/IncidentReportView";
-  import CCTVCheckView from "./pages/staff/CCTVCheckView";
-  import DailyOccurrenceView from "./pages/staff/DailyOccurrenceView";
-  import CCTVFaultsView from "./pages/staff/CCTVFaultsView";
-  import OTPManagementPage from "./pages/admin/OTPManagementPage";
-  import BackfillVehicleStatsPage from "./pages/admin/BackfillVehicleStatsPage";
-  import BackfillHasVideoPage from "./pages/admin/BackfillHasVideoPage";
-  import ReferenceIdManagerPage from "./pages/admin/ReferenceIdManagerPage";
-  import SchemeAssignmentPage from "./pages/admin/SchemeAssignmentPage";
-  import StaffManagementPage from "./pages/admin/StaffManagementPage";
-  import StaffReportsPage from "./pages/admin/StaffReportsPage";
-  import ClientChartsPage from "./pages/admin/ClientChartsPage";
-  import IncidentReportDetailPage from "./pages/admin/IncidentReportDetailPage";
-  import CCTVCheckDetailPage from "./pages/admin/CCTVCheckDetailPage";
-  import DailyLogsDetailPage from "./pages/admin/DailyLogsDetailPage";
+  // Heavy/authenticated routes are lazy-loaded so they ship as separate chunks
+  // instead of bloating the initial bundle. Auth entry pages (above) stay eager
+  // so the sign-in path has no loading flash.
+  const Dashboard = lazy(() => import("./pages/shared/Dashboard"));
+  const FormsSelectionPage = lazy(() => import("./pages/staff/FormsSelectionPage"));
+  const CCTVCheckFormPage = lazy(() => import("./pages/staff/CCTVCheckFormPage"));
+  const IncidentReportFormPage = lazy(() => import("./pages/staff/IncidentReportFormPage"));
+  const DailyOccurrenceFormPage = lazy(() => import("./pages/staff/DailyOccurrenceFormPage"));
+  const CCTVFaultsFormPage = lazy(() => import("./pages/staff/CCTVFaultsFormPage"));
+  const CCTVFaultsLivePage = lazy(() => import("./pages/staff/CCTVFaultsLivePage"));
+  const IncidentReportView = lazy(() => import("./pages/staff/IncidentReportView"));
+  const CCTVCheckView = lazy(() => import("./pages/staff/CCTVCheckView"));
+  const DailyOccurrenceView = lazy(() => import("./pages/staff/DailyOccurrenceView"));
+  const CCTVFaultsView = lazy(() => import("./pages/staff/CCTVFaultsView"));
+  const OTPManagementPage = lazy(() => import("./pages/admin/OTPManagementPage"));
+  const BackfillVehicleStatsPage = lazy(() => import("./pages/admin/BackfillVehicleStatsPage"));
+  const BackfillHasVideoPage = lazy(() => import("./pages/admin/BackfillHasVideoPage"));
+  const BackfillCollectionStatsPage = lazy(() => import("./pages/admin/BackfillCollectionStatsPage"));
+  const ReferenceIdManagerPage = lazy(() => import("./pages/admin/ReferenceIdManagerPage"));
+  const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
+  const StaffManagementPage = lazy(() => import("./pages/admin/StaffManagementPage"));
+  const StaffReportsPage = lazy(() => import("./pages/admin/StaffReportsPage"));
+  const ClientChartsPage = lazy(() => import("./pages/admin/ClientChartsPage"));
+  const IncidentReportDetailPage = lazy(() => import("./pages/admin/IncidentReportDetailPage"));
+  const CCTVCheckDetailPage = lazy(() => import("./pages/admin/CCTVCheckDetailPage"));
+  const DailyLogsDetailPage = lazy(() => import("./pages/admin/DailyLogsDetailPage"));
 
   // Live Operator pages
-  import LiveOperatorIncidentDetailPage from "./pages/liveoperator/IncidentDetailPage";
+  const LiveOperatorIncidentDetailPage = lazy(() => import("./pages/liveoperator/IncidentDetailPage"));
 
   // Client pages
-  import AnalyticsPage from "./pages/client/AnalyticsPage";
-  import ReportsPage from "./pages/client/ReportsPage";
-  import CCTVRecordingsPage from "./pages/client/CCTVRecordingsPage";
-  import ClientIncidentReportView from "./pages/client/IncidentReportView";
-  import ClientDailyOccurrenceView from "./pages/client/DailyOccurrenceView";
-  import ClientCCTVCheckView from "./pages/client/CCTVCheckView";
-  import ClientLiveIncidentsPage from "./pages/client/LiveIncidentsPage";
-  import ClientLiveCameraFaultsPage from "./components/dashboard/CCTVFaultOperatorDashboard";
-  import ClientCCTVFaultView from "./pages/client/CCTVFaultView";
-  import ClientCCTVFaultsPage from "./pages/client/CCTVFaultsPage";
-  import CCTVUptimePage from "./pages/client/CCTVUptimePage";
-  import DocumentsPage from "./pages/client/DocumentsPage";
-  import StaffDocumentsPage from "./pages/staff/StaffDocumentsPage";
-  import HelpPage from "./pages/HelpPage";
+  const AnalyticsPage = lazy(() => import("./pages/client/AnalyticsPage"));
+  const ReportsPage = lazy(() => import("./pages/client/ReportsPage"));
+  const CCTVRecordingsPage = lazy(() => import("./pages/client/CCTVRecordingsPage"));
+  const ClientIncidentReportView = lazy(() => import("./pages/client/IncidentReportView"));
+  const ClientDailyOccurrenceView = lazy(() => import("./pages/client/DailyOccurrenceView"));
+  const ClientCCTVCheckView = lazy(() => import("./pages/client/CCTVCheckView"));
+  const ClientLiveIncidentsPage = lazy(() => import("./pages/client/LiveIncidentsPage"));
+  const ClientLiveCameraFaultsPage = lazy(() => import("./components/dashboard/CCTVFaultOperatorDashboard"));
+  const ClientCCTVFaultView = lazy(() => import("./pages/client/CCTVFaultView"));
+  const ClientCCTVFaultsPage = lazy(() => import("./pages/client/CCTVFaultsPage"));
+  const CCTVUptimePage = lazy(() => import("./pages/client/CCTVUptimePage"));
+  const DocumentsPage = lazy(() => import("./pages/client/DocumentsPage"));
+  const StaffDocumentsPage = lazy(() => import("./pages/staff/StaffDocumentsPage"));
+  const HelpPage = lazy(() => import("./pages/HelpPage"));
 
   import { USER_ROLES } from "./utils/constants";
   import "./index.css";
+
+  // Fallback shown while a lazy route chunk loads.
+  const PageLoader = () => (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <span className="loading loading-spinner loading-lg text-brand-500"></span>
+    </div>
+  );
 
   const App = () => {
     return (
@@ -81,6 +93,7 @@
               <Analytics />
               <SpeedInsights />
 
+              <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Navigate to="/signin" replace />} />
@@ -131,6 +144,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <BackfillHasVideoPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/backfill-collection-stats"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <BackfillCollectionStatsPage />
                     </ProtectedRoute>
                   }
                 />
@@ -783,6 +805,7 @@
                 {/* Catch all */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              </Suspense>
             </AuthProvider>
           </BrowserRouter>
         </QueryClientProvider>

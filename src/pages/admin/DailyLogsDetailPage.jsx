@@ -22,8 +22,7 @@ const DailyLogsDetailPage = () => {
   const loadReport = async () => {
     try {
       setLoading(true);
-      const reports = await staffService.getDailyOccurrenceReports(null);
-      const foundReport = reports.find(r => r.id === id);
+      const foundReport = await staffService.getDailyOccurrenceReportById(id);
 
       if (foundReport) {
         setReport(foundReport);

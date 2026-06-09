@@ -74,9 +74,19 @@ const ClientChartsPage = () => {
   };
 
   useEffect(() => {
-    loadAllData();
+    // Scheme dropdown = the set of active schemes (stable, independent of the
+    // selected date range, so changing the range never disturbs the selection).
+    const activeSchemeNames = SCHEMES.map((s) => s.fullName).sort();
+    setSchemes(activeSchemeNames);
+    if (activeSchemeNames.length > 0) setSelectedScheme(activeSchemeNames[0]);
     loadFormCounts();
   }, []);
+
+  // Refetch incidents whenever the date range changes — scoped server-side so
+  // we read only the selected window instead of the whole collection.
+  useEffect(() => {
+    loadAllData(dateRange[0].startDate, dateRange[0].endDate);
+  }, [dateRange]);
 
   // Close date picker when clicking outside
   useEffect(() => {
@@ -90,24 +100,19 @@ const ClientChartsPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const loadAllData = async () => {
+  const loadAllData = async (startDate, endDate) => {
     try {
       setLoading(true);
-      // Only load incident reports - all 12 charts are incident-based
-      const incidentReports = await staffService.getIncidentReports(null);
+      // Only load incident reports - all 12 charts are incident-based.
+      // Scoped to the selected date window so we don't read the whole collection.
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // include the entire end day
+      const incidentReports = await staffService.getIncidentReports(null, null, {
+        startDate,
+        endDate: end,
+      });
       const reportsWithType = incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
       setReports(reportsWithType);
-
-      // Extract unique schemes from loaded incident reports
-      const activeSchemeNames = SCHEMES.map(s => s.fullName);
-      const uniqueSchemes = [...new Set(reportsWithType.map((r) => r.scheme).filter(Boolean))]
-        .filter(scheme => activeSchemeNames.includes(scheme))
-        .sort();
-      setSchemes(uniqueSchemes);
-
-      if (uniqueSchemes.length > 0) {
-        setSelectedScheme(uniqueSchemes[0]);
-      }
     } catch (error) {
       console.error("Failed to load data:", error);
       toast.error("Failed to load chart data");

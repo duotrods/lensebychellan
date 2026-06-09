@@ -1,9 +1,9 @@
 import React from "react";
 import { FileText, Camera, Lock, Video } from "lucide-react";
-import roadImage from "../assets/stpdvhcle.png";
+import roadImage from "../assets/stpdvhcle.jpg";
 import cctvImage from "../assets/cctvhighway.jpg";
 import temprycctv from "../assets/temprycctv.jpg";
-import compoundmonitoring from "../assets/compnd.png";
+import compoundmonitoring from "../assets/compnd.jpg";
 import softwaredevelopment from "../assets/sftwrdev.jpg";
 import analyticsimage from "../assets/analytics.png";
 

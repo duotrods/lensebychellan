@@ -383,6 +383,11 @@ service cloud.firestore {
       allow read, write: if isVerified();
     }
 
+    // Collection count cache (computed dashboard totals, shared, 15-min TTL)
+    match /collectionStatsCache/{docId} {
+      allow read, write: if isVerified();
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

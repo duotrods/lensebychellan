@@ -20,8 +20,7 @@ const CCTVCheckDetailPage = () => {
   const loadReport = async () => {
     try {
       setLoading(true);
-      const reports = await staffService.getCCTVCheckForms(null);
-      const foundReport = reports.find(r => r.id === id);
+      const foundReport = await staffService.getCCTVCheckFormById(id);
 
       if (foundReport) {
         setReport(foundReport);

@@ -200,6 +200,10 @@ class StaffService {
         updatedAt: serverTimestamp(),
       });
 
+      // Keep the live dashboard counter in step (decoupled, non-fatal).
+      // CCTV-check deletes are rare and rely on the hourly self-heal recount.
+      this._applyCountDelta("cctvCheckForms", isDemo, 1);
+
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
@@ -250,6 +254,39 @@ class StaffService {
     } catch (error) {
       console.error("Failed to get CCTV check forms:", error);
       return [];
+    }
+  }
+
+  // Fetch a single CCTV check form by id (1 read instead of scanning the whole
+  // collection). Returns null if it doesn't exist.
+  async getCCTVCheckFormById(formId) {
+    try {
+      const snap = await getDoc(doc(db, "cctvCheckForms", formId));
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    } catch (error) {
+      console.error("Failed to get CCTV check form:", error);
+      return null;
+    }
+  }
+
+  // Single-doc getters (1 read by id) used by the admin detail pages.
+  async getIncidentReportById(reportId) {
+    try {
+      const snap = await getDoc(doc(db, "incidentReports", reportId));
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    } catch (error) {
+      console.error("Failed to get incident report:", error);
+      return null;
+    }
+  }
+
+  async getDailyOccurrenceReportById(reportId) {
+    try {
+      const snap = await getDoc(doc(db, "dailyOccurrenceReports", reportId));
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    } catch (error) {
+      console.error("Failed to get daily occurrence report:", error);
+      return null;
     }
   }
 
@@ -493,6 +530,9 @@ class StaffService {
 
       await batch.commit();
 
+      // Keep the live dashboard counter in step (decoupled, non-fatal).
+      this._applyCountDelta("incidentReports", isDemo, 1);
+
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
@@ -509,33 +549,28 @@ class StaffService {
     }
   }
 
-  async getIncidentReports(userId = null, limitCount = null) {
+  async getIncidentReports(userId = null, limitCount = null, dateRange = null) {
     try {
       const reportsRef = collection(db, "incidentReports");
-      let q;
-
-      if (userId) {
-        // When fetching for a specific user, apply limit if provided
-        q = limitCount
-          ? query(
-              reportsRef,
-              where("submittedBy.userId", "==", userId),
-              orderBy("createdAt", "desc"),
-              limit(limitCount),
-            )
-          : query(
-              reportsRef,
-              where("submittedBy.userId", "==", userId),
-              orderBy("createdAt", "desc"),
-            );
-      } else {
-        // When fetching all, no limit unless explicitly provided
-        q = limitCount
-          ? query(reportsRef, orderBy("createdAt", "desc"), limit(limitCount))
-          : query(reportsRef, orderBy("createdAt", "desc"));
+      // Build constraints so an optional createdAt range can be applied
+      // server-side (avoids fetching the whole collection just to filter by
+      // date). Range + orderBy on createdAt uses the auto single-field index.
+      const constraints = [];
+      if (userId) constraints.push(where("submittedBy.userId", "==", userId));
+      if (dateRange?.startDate) {
+        constraints.push(
+          where("createdAt", ">=", Timestamp.fromDate(dateRange.startDate)),
+        );
       }
+      if (dateRange?.endDate) {
+        constraints.push(
+          where("createdAt", "<=", Timestamp.fromDate(dateRange.endDate)),
+        );
+      }
+      constraints.push(orderBy("createdAt", "desc"));
+      if (limitCount) constraints.push(limit(limitCount));
 
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(query(reportsRef, ...constraints));
       return snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -665,6 +700,13 @@ class StaffService {
       }
       await batch.commit();
 
+      // Keep the live dashboard counter in step (decoupled, non-fatal).
+      this._applyCountDelta(
+        "incidentReports",
+        currentData.schemeId === DEMO_SCHEME_ID,
+        -1,
+      );
+
       await this.logActivity({
         type: "form_deleted",
         staffId: userId,
@@ -772,120 +814,6 @@ class StaffService {
     } catch (error) {
       console.error("Failed to get paginated completed incidents:", error);
       return { incidents: [], lastDoc: null, hasMore: false };
-    }
-  }
-
-  // ============================================
-  // DASHBOARD STATISTICS
-  // ============================================
-
-  // Helper: Count documents in collection (for specific user or all)
-  async getCollectionCount(collectionName, userId = null) {
-    try {
-      const collectionRef = collection(db, collectionName);
-      let q;
-
-      if (userId) {
-        q = query(collectionRef, where("submittedBy.userId", "==", userId));
-      } else {
-        q = query(collectionRef);
-      }
-
-      const snapshot = await getDocs(q);
-      return snapshot.size;
-    } catch (error) {
-      console.error(`Failed to count ${collectionName}:`, error);
-      return 0;
-    }
-  }
-
-  // Helper: Count documents created since a date
-  async getCollectionCountSince(collectionName, userId, sinceTimestamp) {
-    try {
-      const collectionRef = collection(db, collectionName);
-      let q;
-
-      if (userId) {
-        q = query(
-          collectionRef,
-          where("submittedBy.userId", "==", userId),
-          where("createdAt", ">=", sinceTimestamp),
-        );
-      } else {
-        q = query(collectionRef, where("createdAt", ">=", sinceTimestamp));
-      }
-
-      const snapshot = await getDocs(q);
-      return snapshot.size;
-    } catch (error) {
-      console.error(`Failed to count ${collectionName} since date:`, error);
-      return 0;
-    }
-  }
-
-  async getDashboardStats(userId) {
-    try {
-      // Calculate one week ago as Firestore Timestamp
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const oneWeekAgoTimestamp = Timestamp.fromDate(oneWeekAgo);
-
-      // Query 1: Total counts (without date filter) - run in parallel
-      const [cctvTotal, incidentsTotal, damageTotal, logsTotal] =
-        await Promise.all([
-          this.getCollectionCount("cctvCheckForms", userId),
-          this.getCollectionCount("incidentReports", userId),
-          this.getCollectionCount("assetDamageReports", userId),
-          this.getCollectionCount("dailyOccurrenceReports", userId),
-        ]);
-
-      // Query 2: This week's counts (with date filter) - run in parallel
-      const [cctvThisWeek, incidentsThisWeek, damageThisWeek, logsThisWeek] =
-        await Promise.all([
-          this.getCollectionCountSince(
-            "cctvCheckForms",
-            userId,
-            oneWeekAgoTimestamp,
-          ),
-          this.getCollectionCountSince(
-            "incidentReports",
-            userId,
-            oneWeekAgoTimestamp,
-          ),
-          this.getCollectionCountSince(
-            "assetDamageReports",
-            userId,
-            oneWeekAgoTimestamp,
-          ),
-          this.getCollectionCountSince(
-            "dailyOccurrenceReports",
-            userId,
-            oneWeekAgoTimestamp,
-          ),
-        ]);
-
-      return {
-        cctvCheckTotal: cctvTotal,
-        cctvCheckThisWeek: cctvThisWeek,
-        incidentReportTotal: incidentsTotal,
-        incidentReportThisWeek: incidentsThisWeek,
-        dailyLogsTotal: logsTotal,
-        dailyLogsThisWeek: logsThisWeek,
-        assetDamageTotal: damageTotal,
-        assetDamageThisWeek: damageThisWeek,
-      };
-    } catch (error) {
-      console.error("Failed to get dashboard stats:", error);
-      return {
-        cctvCheckTotal: 0,
-        cctvCheckThisWeek: 0,
-        incidentReportTotal: 0,
-        incidentReportThisWeek: 0,
-        dailyLogsTotal: 0,
-        dailyLogsThisWeek: 0,
-        assetDamageTotal: 0,
-        assetDamageThisWeek: 0,
-      };
     }
   }
 
@@ -1042,6 +970,9 @@ class StaffService {
         updatedAt: serverTimestamp(),
       });
 
+      // Keep the live dashboard counter in step (decoupled, non-fatal).
+      this._applyCountDelta("assetDamageReports", isDemo, 1);
+
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
@@ -1167,6 +1098,9 @@ class StaffService {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
+      // Keep the live dashboard counter in step (decoupled, non-fatal).
+      this._applyCountDelta("cctvFaultsReports", isDemo, 1);
 
       await this.logActivity({
         type: "form_submitted",
@@ -1376,6 +1310,13 @@ class StaffService {
 
       await deleteDoc(reportRef);
 
+      // Keep the live dashboard counter in step (decoupled, non-fatal).
+      this._applyCountDelta(
+        "assetDamageReports",
+        currentData.schemeId === DEMO_SCHEME_ID,
+        -1,
+      );
+
       await this.logActivity({
         type: "form_deleted",
         staffId: userId,
@@ -1563,6 +1504,10 @@ class StaffService {
         updatedAt: serverTimestamp(),
       });
 
+      // Only a brand-new document changes the count — the merge path above
+      // returns early and doesn't reach here, so +1 here is always correct.
+      this._applyCountDelta("dailyOccurrenceReports", isNewSubmissionDemo, 1);
+
       await this.logActivity({
         type: "form_submitted",
         staffId: userId,
@@ -1695,6 +1640,10 @@ class StaffService {
 
       await deleteDoc(reportRef);
 
+      // A delete always removes one whole document → total −1. (Daily-log
+      // counts use the collection total, so demo status is irrelevant here.)
+      this._applyCountDelta("dailyOccurrenceReports", false, -1);
+
       await this.logActivity({
         type: "form_deleted",
         staffId: userId,
@@ -1743,6 +1692,9 @@ class StaffService {
       // If no occurrences left, delete the entire report
       if (updatedOccurrences.length === 0) {
         await deleteDoc(reportRef);
+
+        // Whole document removed → total −1.
+        this._applyCountDelta("dailyOccurrenceReports", false, -1);
 
         await this.logActivity({
           type: "form_deleted",
@@ -2043,10 +1995,12 @@ class StaffService {
    */
   async getAllFormsCount(tpSchemeIds = null) {
     try {
+      // TP (scheme-scoped) counts stay live; the global non-demo totals are
+      // served from the cached-aggregate doc.
       const countFn = (col) =>
         tpSchemeIds && tpSchemeIds.length > 0
           ? this.getCollectionCountServerBySchemeIds(col, tpSchemeIds)
-          : this.getCollectionCountServerExcludeDemo(col);
+          : this.getCollectionCountCached(col, { excludeDemo: true });
 
       const [
         cctvCount,
@@ -2060,7 +2014,7 @@ class StaffService {
         countFn("assetDamageReports"),
         tpSchemeIds && tpSchemeIds.length > 0
           ? this.getCollectionCountServerBySchemeIds("dailyOccurrenceReports", tpSchemeIds)
-          : this.getCollectionCountServer("dailyOccurrenceReports"),
+          : this.getCollectionCountCached("dailyOccurrenceReports"),
         countFn("cctvFaultsReports"),
       ]);
 
@@ -2080,10 +2034,12 @@ class StaffService {
    */
   async getAllFormsCountByType(tpSchemeIds = null) {
     try {
+      // TP (scheme-scoped) counts stay live; the global non-demo totals are
+      // served from the cached-aggregate doc.
       const countFn = (col) =>
         tpSchemeIds && tpSchemeIds.length > 0
           ? this.getCollectionCountServerBySchemeIds(col, tpSchemeIds)
-          : this.getCollectionCountServerExcludeDemo(col);
+          : this.getCollectionCountCached(col, { excludeDemo: true });
 
       const [
         cctvCount,
@@ -2097,7 +2053,7 @@ class StaffService {
         countFn("assetDamageReports"),
         tpSchemeIds && tpSchemeIds.length > 0
           ? this.getCollectionCountServerBySchemeIds("dailyOccurrenceReports", tpSchemeIds)
-          : this.getCollectionCountServer("dailyOccurrenceReports"),
+          : this.getCollectionCountCached("dailyOccurrenceReports"),
         countFn("cctvFaultsReports"),
       ]);
       return {
@@ -2134,22 +2090,31 @@ class StaffService {
     };
     const collectionName = collectionMap[formType];
     if (!collectionName) return 0;
-    // Daily occurrence forms don't have a top-level schemeId, use regular count
+    // Daily occurrence forms don't have a top-level schemeId, use regular count.
     if (formType === "daily-occurrence") {
-      return await this.getCollectionCountServer(collectionName);
+      return await this.getCollectionCountCached(collectionName);
     }
-    return await this.getCollectionCountServerExcludeDemo(collectionName);
+    return await this.getCollectionCountCached(collectionName, {
+      excludeDemo: true,
+    });
   }
 
   /**
    * Helper: count documents excluding demo submissions.
+   * Uses two positive aggregations (total − demo) instead of a `!=` inequality
+   * scan — same result for these schemeId-bearing collections, but avoids the
+   * inequality index scan.
    */
   async getCollectionCountServerExcludeDemo(collectionName) {
     try {
       const collectionRef = collection(db, collectionName);
-      const q = query(collectionRef, where("schemeId", "!=", DEMO_SCHEME_ID));
-      const snapshot = await getCountFromServer(q);
-      return snapshot.data().count;
+      const [totalSnap, demoSnap] = await Promise.all([
+        getCountFromServer(collectionRef),
+        getCountFromServer(
+          query(collectionRef, where("schemeId", "==", DEMO_SCHEME_ID)),
+        ),
+      ]);
+      return totalSnap.data().count - demoSnap.data().count;
     } catch (error) {
       console.warn(
         `Could not get non-demo count for ${collectionName}:`,
@@ -2169,6 +2134,103 @@ class StaffService {
       console.warn(`Could not get scheme-scoped count for ${collectionName}:`, error);
       return 0;
     }
+  }
+
+  /**
+   * Hybrid live counter. Reads a shared summary doc (1 read). The doc's `count`
+   * is kept LIVE by `_applyCountDelta` (+1 on create, −1 on delete), so reads
+   * are both cheap and up-to-the-second. A full recount runs at most once per
+   * SELF_HEAL window: if the stored count was last reconciled longer ago than
+   * that (or the doc is missing), we recompute the true count via aggregation
+   * and reset the baseline — so any missed/incorrect increment self-corrects.
+   * Used for the all-time dashboard totals (not date-range counts).
+   */
+  async getCollectionCountCached(collectionName, { excludeDemo = false } = {}) {
+    const SELF_HEAL_TTL_MS = 60 * 60 * 1000; // recount baseline at most hourly
+    const cacheRef = doc(
+      db,
+      "collectionStatsCache",
+      excludeDemo ? `${collectionName}__nondemo` : collectionName,
+    );
+
+    try {
+      const snap = await getDoc(cacheRef);
+      if (snap.exists()) {
+        const cached = snap.data();
+        if (
+          typeof cached.count === "number" &&
+          cached.cachedAt &&
+          Date.now() - cached.cachedAt.toMillis() < SELF_HEAL_TTL_MS
+        ) {
+          return cached.count;
+        }
+      }
+    } catch {
+      // Cache read failed — fall through to a fresh aggregation.
+    }
+
+    const count = excludeDemo
+      ? await this.getCollectionCountServerExcludeDemo(collectionName)
+      : await this.getCollectionCountServer(collectionName);
+
+    // Fire-and-forget cache write (don't block or fail the read).
+    setDoc(cacheRef, {
+      count,
+      collectionName,
+      excludeDemo,
+      cachedAt: serverTimestamp(),
+    }).catch(() => {});
+
+    return count;
+  }
+
+  /**
+   * Keep the live counters in step with a create (+1) or delete (−1). Updates
+   * the collection total and, when the doc isn't a demo submission, the
+   * non-demo total. Fire-and-forget and fully decoupled from the form write —
+   * if it fails (e.g. rules not yet deployed) the form is unaffected and the
+   * hourly recount in getCollectionCountCached corrects the number.
+   */
+  _applyCountDelta(collectionName, isDemo, delta) {
+    try {
+      setDoc(
+        doc(db, "collectionStatsCache", collectionName),
+        { count: increment(delta) },
+        { merge: true },
+      ).catch(() => {});
+      if (!isDemo) {
+        setDoc(
+          doc(db, "collectionStatsCache", `${collectionName}__nondemo`),
+          { count: increment(delta) },
+          { merge: true },
+        ).catch(() => {});
+      }
+    } catch {
+      // Never let counter maintenance affect the caller.
+    }
+  }
+
+  /**
+   * Force a fresh recount of one counter doc and write it as the new baseline.
+   * Used by the admin "Backfill collection stats" utility to seed/reset the
+   * live counters to the true values. Returns the computed count.
+   */
+  async recountCollectionStat(collectionName, excludeDemo = false) {
+    const count = excludeDemo
+      ? await this.getCollectionCountServerExcludeDemo(collectionName)
+      : await this.getCollectionCountServer(collectionName);
+    const cacheRef = doc(
+      db,
+      "collectionStatsCache",
+      excludeDemo ? `${collectionName}__nondemo` : collectionName,
+    );
+    await setDoc(cacheRef, {
+      count,
+      collectionName,
+      excludeDemo,
+      cachedAt: serverTimestamp(),
+    });
+    return count;
   }
 
   async searchFormsPaginated(searchTerm, pageSize = 10, lastDocs = {}, collections = null) {
