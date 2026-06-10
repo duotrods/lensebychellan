@@ -163,16 +163,17 @@ export function usePaginatedCCTVFaults(schemeId, pageSize = 10) {
 
 /**
  * Staff-side hook for live CCTV faults.
- * Pass tpSchemeIds array to scope the feed to a company's schemes.
+ * Pass schemeScope array to scope the feed to the viewer's schemes (real staff →
+ * internal schemes; TP staff → company schemes; demo → demo scheme).
  * Uses onSnapshot — free real-time updates, no polling.
  */
-export function useStaffLiveCCTVFaults(tpSchemeIds = null) {
+export function useStaffLiveCCTVFaults(schemeScope = null) {
   const [faults, setFaults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Stable key so useEffect only re-runs when the actual IDs change
-  const schemeKey = tpSchemeIds ? tpSchemeIds.slice().sort().join(',') : null;
+  const schemeKey = schemeScope ? schemeScope.slice().sort().join(',') : null;
 
   useEffect(() => {
     setLoading(true);
@@ -188,7 +189,7 @@ export function useStaffLiveCCTVFaults(tpSchemeIds = null) {
         setError(err);
         setLoading(false);
       },
-      tpSchemeIds,
+      schemeScope,
     );
 
     return () => {

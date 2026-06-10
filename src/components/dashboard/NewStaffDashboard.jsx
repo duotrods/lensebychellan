@@ -23,10 +23,12 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
-import { isDemoUser, DEMO_SCHEME_ID, getSchemeIdsForCompany } from "../../utils/schemes";
-import { USER_ROLES, getStaffBasePath } from "../../utils/constants";
-
-const TP_STAFF_ROLES = [USER_ROLES.THIRDPARTYSTAFF, USER_ROLES.THIRDPARTYLIVEOPERATOR, USER_ROLES.THIRDPARTYCCTVOPERATOR];
+import {
+  isDemoUser,
+  DEMO_SCHEME_ID,
+  getViewerSchemeScope,
+} from "../../utils/schemes";
+import { getStaffBasePath } from "../../utils/constants";
 
 // Module-level variable — survives component unmount/remount, no serialization needed
 let _dashRestore = null;
@@ -35,12 +37,10 @@ const NewStaffDashboard = () => {
   const navigate = useNavigate();
   const { userProfile, role } = useAuth();
   const basePath = getStaffBasePath(role);
-  // TP Staff/LiveOp/CCTVOp are scoped to all schemes belonging to their company.
-  // null = real staff (no filter).
-  const _ids = TP_STAFF_ROLES.includes(userProfile?.role) && userProfile?.company
-    ? getSchemeIdsForCompany(userProfile.company)
-    : null;
-  const tpSchemeIds = _ids && _ids.length > 0 ? _ids : null;
+  // Scheme scope for this viewer: TP staff → their company schemes; real staff →
+  // all internal (non-demo, non-TP) schemes; demo → demo scheme. This keeps
+  // third-party forms out of the real-staff list, counts, and search.
+  const schemeScope = getViewerSchemeScope(userProfile);
   // Check if notice board has been shown in this session
   const [showNoticeBoard, setShowNoticeBoard] = useState(() => {
     const hasSeenNotice = sessionStorage.getItem("hasSeenNoticeBoard");
@@ -145,7 +145,7 @@ const NewStaffDashboard = () => {
         const result = await staffService.getAllFormsPaginated(
           formsPerPage,
           effectiveCursors,
-          tpSchemeIds,
+          schemeScope,
         );
         rawForms = result.forms;
         newCursors = result.cursors;
@@ -162,7 +162,7 @@ const NewStaffDashboard = () => {
           activeFilter,
           formsPerPage,
           effectiveTypeCursor,
-          tpSchemeIds,
+          schemeScope,
         );
         rawForms = result.forms;
         newTypeCursor = result.lastDoc;
@@ -223,7 +223,7 @@ const NewStaffDashboard = () => {
 
   const loadTotalCount = async () => {
     try {
-      const count = await staffService.getAllFormsCount(tpSchemeIds);
+      const count = await staffService.getAllFormsCount(schemeScope);
       setTotalCount(count);
     } catch (error) {
       console.warn("Could not load total count:", error);
@@ -232,7 +232,7 @@ const NewStaffDashboard = () => {
 
   const loadStatCounts = async () => {
     try {
-      const counts = await staffService.getAllFormsCountByType(tpSchemeIds);
+      const counts = await staffService.getAllFormsCountByType(schemeScope);
       setStats(counts);
     } catch (error) {
       console.warn("Could not load stat counts:", error);
@@ -265,7 +265,13 @@ const NewStaffDashboard = () => {
     setSearchLoading(true);
     try {
       const { results, lastDocs: newLastDocs, hasMore } =
-        await staffService.searchFormsPaginated(term.trim(), 10, lastDocs);
+        await staffService.searchFormsPaginated(
+          term.trim(),
+          10,
+          lastDocs,
+          null,
+          schemeScope,
+        );
       if (myCount !== searchCounterRef.current) return; // stale
       searchPageCacheRef.current[page] = { results, lastDocs: newLastDocs, hasMore };
       setSearchResults(results);
@@ -306,7 +312,7 @@ const NewStaffDashboard = () => {
     loadDashboardData(true, newType);
     if (newType !== "all") {
       try {
-        const count = await staffService.getFormCountForType(newType, tpSchemeIds);
+        const count = await staffService.getFormCountForType(newType, schemeScope);
         setTypeCount(count);
       } catch {
         setTypeCount(0);

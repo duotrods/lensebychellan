@@ -8,8 +8,8 @@ const StaffCCTVFaultsContext = createContext({ faults: [], loading: true, error:
  * Wrap StaffSidebarLayout's children with this so the sidebar badge and
  * CCTVFaultsLivePage both consume from ONE listener instead of two identical ones.
  */
-export const StaffCCTVFaultsProvider = ({ children, tpSchemeIds = null }) => {
-  const value = useStaffLiveCCTVFaults(tpSchemeIds);
+export const StaffCCTVFaultsProvider = ({ children, schemeScope = null }) => {
+  const value = useStaffLiveCCTVFaults(schemeScope);
   return (
     <StaffCCTVFaultsContext.Provider value={value}>
       {children}

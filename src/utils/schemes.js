@@ -133,6 +133,41 @@ export const getSchemeIdsForCompany = (company) => {
   return ids.length > 0 ? ids : null;
 };
 
+// All internal (non-demo, non-third-party) scheme IDs. Real LENSE staff are
+// scoped to these so third-party forms never leak into their dashboard/feeds.
+export const getInternalSchemeIds = () =>
+  SCHEMES.filter((s) => !s.isDemo).map((s) => s.id);
+
+// All third-party scheme IDs across every company. Used to subtract TP forms
+// from the cached non-demo totals when counting for real staff.
+export const getAllThirdPartySchemeIds = () =>
+  THIRD_PARTY_SCHEMES.map((s) => s.id);
+
+// Returns the scheme-ID array a *staff-side* viewer is scoped to for forms,
+// counts, search, and live feeds. (Admin views are intentionally unscoped and
+// do not call this.)
+// - Demo users: only the demo scheme
+// - TP Staff/LiveOp/CCTVOp: all schemes belonging to their company
+// - Real staff: all internal (non-demo) schemes
+export const getViewerSchemeScope = (userProfile) => {
+  if (!userProfile) return getInternalSchemeIds();
+  if (isDemoUser(userProfile)) return [DEMO_SCHEME_ID];
+  const tpStaffRoles = [
+    "thirdpartystaff",
+    "thirdpartyliveoperator",
+    "thirdpartycctvoperator",
+  ];
+  if (tpStaffRoles.includes(userProfile.role)) {
+    const ids = userProfile.company
+      ? getSchemeIdsForCompany(userProfile.company)
+      : // Legacy fallback: accounts that still carry schemeIds/schemeId
+        userProfile.schemeIds ||
+        (userProfile.schemeId ? [userProfile.schemeId] : null);
+    return ids && ids.length > 0 ? ids : getInternalSchemeIds();
+  }
+  return getInternalSchemeIds();
+};
+
 // Returns the filtered list of SCHEMES a user should see in form dropdowns.
 // - Demo users: only the demo scheme
 // - TP Staff/LiveOp/CCTVOp: all schemes belonging to their company (via userProfile.company)

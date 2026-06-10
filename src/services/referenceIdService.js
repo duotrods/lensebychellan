@@ -21,14 +21,14 @@ class ReferenceIdService {
    * Generate next reference ID for a given type
    * @param {string} type - The form type (incident, assetDamage, dailyOccurrence, cctvCheck, cctvFaults)
    * @param {boolean} isDemo - Whether this is a demo account submission
-   * @param {string|null} thirdPartySchemeId - Scheme ID for third party submissions (e.g. "NEWCO1")
-   *   When provided, uses an isolated counter so third party numbering never overlaps with
-   *   real staff or demo counters. Format: CF01-TP-NEWCO1
+   * @param {string|null} thirdPartyCompany - Company for third party submissions (e.g. "NewCo")
+   *   When provided, uses an isolated per-company counter so every company's numbering starts at 1
+   *   and never overlaps with real staff or demo counters. Format: CF01-TP-NEWCO
    * @returns {Promise<string>} The generated reference ID
    */
-  async generateReferenceId(type, isDemo = false, thirdPartySchemeId = null) {
+  async generateReferenceId(type, isDemo = false, thirdPartyCompany = null) {
     const config = this.getTypeConfig(type);
-    const counterName = getCounterName(config, { isDemo, thirdPartySchemeId });
+    const counterName = getCounterName(config, { isDemo, thirdPartyCompany });
 
     try {
       // Use a transaction to ensure atomicity
@@ -48,7 +48,7 @@ class ReferenceIdService {
 
         return formatReferenceId(config, nextNumber, {
           isDemo,
-          thirdPartySchemeId,
+          thirdPartyCompany,
         });
       });
 

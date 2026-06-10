@@ -20,8 +20,7 @@ import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import CCTVCheckReminder from "../staff/CCTVCheckReminder";
 import { useCCTVReminder } from "../../hooks/useCCTVReminder";
-import { isDemoUser, getSchemeIdsForCompany } from "../../utils/schemes";
-import { USER_ROLES } from "../../utils/constants";
+import { isDemoUser, getViewerSchemeScope } from "../../utils/schemes";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
@@ -289,16 +288,13 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
   );
 };
 
-const TP_STAFF_ROLES = [USER_ROLES.THIRDPARTYSTAFF, USER_ROLES.THIRDPARTYLIVEOPERATOR, USER_ROLES.THIRDPARTYCCTVOPERATOR];
-
 const StaffSidebarLayout = ({ children, basePath = '/dashboard/staff' }) => {
   const { userProfile } = useAuth();
-  const _ids = TP_STAFF_ROLES.includes(userProfile?.role)
-    ? getSchemeIdsForCompany(userProfile?.company)
-    : null;
-  const tpSchemeIds = _ids && _ids.length > 0 ? _ids : null;
+  // Real staff → internal schemes; TP staff → their company schemes; demo → demo.
+  // Scopes the live CCTV faults feed so third-party faults never leak to real staff.
+  const schemeScope = getViewerSchemeScope(userProfile);
   return (
-    <StaffCCTVFaultsProvider tpSchemeIds={tpSchemeIds}>
+    <StaffCCTVFaultsProvider schemeScope={schemeScope}>
       <StaffSidebarLayoutInner basePath={basePath}>{children}</StaffSidebarLayoutInner>
     </StaffCCTVFaultsProvider>
   );

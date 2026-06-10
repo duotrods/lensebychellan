@@ -27,6 +27,7 @@ import {
   SCHEMES,
   DEMO_SCHEME_ID,
   getThirdPartySchemeById,
+  getInternalSchemeIds,
 } from "../utils/schemes";
 import { countVehicles, isPureIncident } from "../utils/incidentStats";
 import { isVideoFile } from "../utils/fileType";
@@ -178,11 +179,15 @@ class StaffService {
         schemeIds.every((id) => getThirdPartySchemeById(id))
           ? schemeIds[0]
           : null;
+      const tpCompany = tpSchemeId
+        ? getThirdPartySchemeById(tpSchemeId)?.company || null
+        : null;
 
-      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
+      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "cctvCheck",
         isDemo,
+        tpCompany,
       );
 
       const formsRef = collection(db, "cctvCheckForms");
@@ -494,12 +499,15 @@ class StaffService {
       const isDemo = schemeId === DEMO_SCHEME_ID;
 
       // Check if this is a third party submission
-      const tpSchemeId = getThirdPartySchemeById(schemeId) ? schemeId : null;
+      const tpScheme = getThirdPartySchemeById(schemeId);
+      const tpSchemeId = tpScheme ? schemeId : null;
+      const tpCompany = tpScheme?.company || null;
 
-      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
+      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "incident",
         isDemo,
+        tpCompany,
       );
 
       // Create the doc ref up-front so the report write and the scheme-stats
@@ -947,12 +955,15 @@ class StaffService {
       const isDemo = schemeId === DEMO_SCHEME_ID;
 
       // Check if this is a third party submission
-      const tpSchemeId = getThirdPartySchemeById(schemeId) ? schemeId : null;
+      const tpScheme = getThirdPartySchemeById(schemeId);
+      const tpSchemeId = tpScheme ? schemeId : null;
+      const tpCompany = tpScheme?.company || null;
 
-      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
+      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "assetDamage",
         isDemo,
+        tpCompany,
       );
 
       const reportsRef = collection(db, "assetDamageReports");
@@ -1080,9 +1091,12 @@ class StaffService {
         ? extractSchemeId(formData.scheme)
         : null;
       const isDemo = schemeId === DEMO_SCHEME_ID;
+      // Isolated per-company counter for third party submissions
+      const tpCompany = getThirdPartySchemeById(schemeId)?.company || null;
       const referenceId = await referenceIdService.generateReferenceId(
         "cctvFaults",
         isDemo,
+        tpCompany,
       );
 
       const docRef = await addDoc(collection(db, "cctvFaultsReports"), {
@@ -1174,94 +1188,47 @@ class StaffService {
     }
   }
 
-  // Real-time subscription to live CCTV faults.
-  // Pass tpSchemeIds array to scope the feed to a company's schemes.
-  // null = real staff (see all).
-  subscribeAllLiveCCTVFaults(callback, onError, tpSchemeIds = null) {
-    const hasFilter = tpSchemeIds && tpSchemeIds.length > 0;
+  // Real-time subscription to live CCTV faults, scoped to a viewer's scheme set.
+  // schemeScope: array of scheme IDs the viewer may see (real staff → internal
+  // schemes; TP staff → company schemes; demo → demo scheme). Falls back to the
+  // internal schemes if none is supplied, so third-party faults never leak.
+  // One listener per scheme — avoids a composite index and the "in"-operator crash.
+  subscribeAllLiveCCTVFaults(callback, onError, schemeScope = null) {
+    const scope =
+      schemeScope && schemeScope.length > 0
+        ? schemeScope
+        : getInternalSchemeIds();
 
-    if (hasFilter) {
-      // TP staff: one listener per scheme — avoids composite index requirement
-      // and the "in" operator SDK crash.
-      const resultsByScheme = {};
-      const unsubs = tpSchemeIds.map((schemeId) => {
-        const q = query(
-          collection(db, "cctvFaultsReports"),
-          where("status", "==", "live"),
-          where("schemeId", "==", schemeId),
-          orderBy("createdAt", "desc"),
-          limit(100),
-        );
-        return onSnapshot(
-          q,
-          (snapshot) => {
-            resultsByScheme[schemeId] = snapshot.docs.map((d) => ({
-              id: d.id,
-              ...d.data(),
-            }));
-            const merged = Object.values(resultsByScheme)
-              .flat()
-              .sort(
-                (a, b) =>
-                  (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-              );
-            callback(merged);
-          },
-          (err) => {
-            if (onError) onError(err);
-          },
-        );
-      });
-      return () => unsubs.forEach((u) => u());
-    }
-
-    // Real staff — single query, no scheme filter needed.
-    const q = query(
-      collection(db, "cctvFaultsReports"),
-      where("status", "==", "live"),
-      orderBy("createdAt", "desc"),
-      limit(100),
-    );
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const faults = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        callback(faults);
-      },
-      (error) => {
-        if (
-          error.code === "failed-precondition" ||
-          error.message?.includes("index")
-        ) {
-          console.warn(
-            "Index not available for live CCTV faults, using fallback",
-          );
-          const fallback = query(
-            collection(db, "cctvFaultsReports"),
-            where("status", "==", "live"),
-            limit(100),
-          );
-          return onSnapshot(
-            fallback,
-            (snapshot) => {
-              const faults = snapshot.docs
-                .map((doc) => ({ id: doc.id, ...doc.data() }))
-                .sort(
-                  (a, b) =>
-                    (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-                );
-              callback(faults);
-            },
-            onError,
-          );
-        }
-        if (onError) onError(error);
-      },
-    );
+    const resultsByScheme = {};
+    const unsubs = scope.map((schemeId) => {
+      const q = query(
+        collection(db, "cctvFaultsReports"),
+        where("status", "==", "live"),
+        where("schemeId", "==", schemeId),
+        orderBy("createdAt", "desc"),
+        limit(100),
+      );
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          resultsByScheme[schemeId] = snapshot.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          const merged = Object.values(resultsByScheme)
+            .flat()
+            .sort(
+              (a, b) =>
+                (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+            );
+          callback(merged);
+        },
+        (err) => {
+          if (onError) onError(err);
+        },
+      );
+    });
+    return () => unsubs.forEach((u) => u());
   }
 
   async completeCCTVFault(reportId, userId, userName) {
@@ -1458,17 +1425,18 @@ class StaffService {
 
       // No existing report found - create a new one
       // Check if this is a third party submission
-      const tpSchemeId =
-        !isNewSubmissionDemo &&
-        newSubmissionSchemeId &&
-        getThirdPartySchemeById(newSubmissionSchemeId)
-          ? newSubmissionSchemeId
+      const tpScheme =
+        !isNewSubmissionDemo && newSubmissionSchemeId
+          ? getThirdPartySchemeById(newSubmissionSchemeId)
           : null;
+      const tpSchemeId = tpScheme ? newSubmissionSchemeId : null;
+      const tpCompany = tpScheme?.company || null;
 
-      // Generate reference ID — isolated counter per third party scheme, separate demo counter, or real staff counter
+      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "dailyOccurrence",
         isNewSubmissionDemo,
+        tpCompany,
       );
 
       // Extract unique schemeIds from all occurrences
@@ -1989,18 +1957,29 @@ class StaffService {
   }
 
   /**
-   * Get total count of all forms.
-   * tpSchemeIds: array of scheme IDs for a TP company — scopes count to those schemes.
-   * null = real staff (excludes demo, sees everything else).
+   * Count a collection scoped to a viewer's scheme set.
+   * schemeScope: array of scheme IDs the viewer may see (real staff → internal
+   * schemes; TP staff → company schemes; demo → demo scheme). Always scoped via
+   * `schemeIds array-contains-any`, so the count matches exactly what the list
+   * query returns. Falls back to the cached non-demo aggregate if no scope.
    */
-  async getAllFormsCount(tpSchemeIds = null) {
+  countForScope(collectionName, schemeScope) {
+    if (schemeScope && schemeScope.length > 0) {
+      return this.getCollectionCountServerBySchemeIds(
+        collectionName,
+        schemeScope,
+      );
+    }
+    return this.getCollectionCountCached(collectionName, { excludeDemo: true });
+  }
+
+  /**
+   * Get total count of all forms, scoped to the viewer's scheme set.
+   * schemeScope: array of scheme IDs (see countForScope).
+   */
+  async getAllFormsCount(schemeScope = null) {
     try {
-      // TP (scheme-scoped) counts stay live; the global non-demo totals are
-      // served from the cached-aggregate doc.
-      const countFn = (col) =>
-        tpSchemeIds && tpSchemeIds.length > 0
-          ? this.getCollectionCountServerBySchemeIds(col, tpSchemeIds)
-          : this.getCollectionCountCached(col, { excludeDemo: true });
+      const countFn = (col) => this.countForScope(col, schemeScope);
 
       const [
         cctvCount,
@@ -2012,9 +1991,7 @@ class StaffService {
         countFn("cctvCheckForms"),
         countFn("incidentReports"),
         countFn("assetDamageReports"),
-        tpSchemeIds && tpSchemeIds.length > 0
-          ? this.getCollectionCountServerBySchemeIds("dailyOccurrenceReports", tpSchemeIds)
-          : this.getCollectionCountCached("dailyOccurrenceReports"),
+        countFn("dailyOccurrenceReports"),
         countFn("cctvFaultsReports"),
       ]);
 
@@ -2028,18 +2005,12 @@ class StaffService {
   }
 
   /**
-   * Get count per form type (for stat cards).
-   * tpSchemeIds: array of scheme IDs for a TP company — scopes count to those schemes.
-   * null = real staff (excludes demo).
+   * Get count per form type (for stat cards), scoped to the viewer's scheme set.
+   * schemeScope: array of scheme IDs (see countForScope).
    */
-  async getAllFormsCountByType(tpSchemeIds = null) {
+  async getAllFormsCountByType(schemeScope = null) {
     try {
-      // TP (scheme-scoped) counts stay live; the global non-demo totals are
-      // served from the cached-aggregate doc.
-      const countFn = (col) =>
-        tpSchemeIds && tpSchemeIds.length > 0
-          ? this.getCollectionCountServerBySchemeIds(col, tpSchemeIds)
-          : this.getCollectionCountCached(col, { excludeDemo: true });
+      const countFn = (col) => this.countForScope(col, schemeScope);
 
       const [
         cctvCount,
@@ -2051,9 +2022,7 @@ class StaffService {
         countFn("cctvCheckForms"),
         countFn("incidentReports"),
         countFn("assetDamageReports"),
-        tpSchemeIds && tpSchemeIds.length > 0
-          ? this.getCollectionCountServerBySchemeIds("dailyOccurrenceReports", tpSchemeIds)
-          : this.getCollectionCountCached("dailyOccurrenceReports"),
+        countFn("dailyOccurrenceReports"),
         countFn("cctvFaultsReports"),
       ]);
       return {
@@ -2076,11 +2045,11 @@ class StaffService {
   }
 
   /**
-   * Get count for a specific form type (for filtered pagination display).
-   * tpSchemeIds: array of scheme IDs for a TP company — scopes count to those schemes.
-   * null = real staff (excludes demo).
+   * Get count for a specific form type (for filtered pagination display),
+   * scoped to the viewer's scheme set.
+   * schemeScope: array of scheme IDs (see countForScope).
    */
-  async getFormCountForType(formType, tpSchemeIds = null) {
+  async getFormCountForType(formType, schemeScope = null) {
     const collectionMap = {
       "cctv-check": "cctvCheckForms",
       incident: "incidentReports",
@@ -2090,13 +2059,7 @@ class StaffService {
     };
     const collectionName = collectionMap[formType];
     if (!collectionName) return 0;
-    // Daily occurrence forms don't have a top-level schemeId, use regular count.
-    if (formType === "daily-occurrence") {
-      return await this.getCollectionCountCached(collectionName);
-    }
-    return await this.getCollectionCountCached(collectionName, {
-      excludeDemo: true,
-    });
+    return await this.countForScope(collectionName, schemeScope);
   }
 
   /**
@@ -2233,10 +2196,30 @@ class StaffService {
     return count;
   }
 
-  async searchFormsPaginated(searchTerm, pageSize = 10, lastDocs = {}, collections = null) {
+  async searchFormsPaginated(
+    searchTerm,
+    pageSize = 10,
+    lastDocs = {},
+    collections = null,
+    schemeScope = null,
+  ) {
     const raw = searchTerm.trim();
     if (!raw) return { results: [], lastDocs: {}, hasMore: false };
     if (raw.length > 100) return { results: [], lastDocs: {}, hasMore: false };
+
+    // Restrict results to the viewer's scheme scope (keeps third-party forms out
+    // of real-staff search, and vice-versa). A doc is in scope if its schemeId or
+    // any of its schemeIds falls within the scope set.
+    const scopeSet =
+      schemeScope && schemeScope.length > 0 ? new Set(schemeScope) : null;
+    const inScope = (doc) => {
+      if (!scopeSet) return true;
+      if (Array.isArray(doc.schemeIds) && doc.schemeIds.length > 0) {
+        return doc.schemeIds.some((id) => scopeSet.has(id));
+      }
+      if (doc.schemeId) return scopeSet.has(doc.schemeId);
+      return false;
+    };
 
     const termRef = raw.toUpperCase();
     const termName = raw;
@@ -2287,7 +2270,7 @@ class StaffService {
       })
     );
 
-    const allDocs = perCollectionResults.flat();
+    const allDocs = perCollectionResults.flat().filter(inScope);
 
     // Sort by createdAt desc
     allDocs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
