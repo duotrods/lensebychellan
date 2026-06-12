@@ -152,7 +152,7 @@ const SchemeAssignment = () => {
       setFormData({ schemeId: "", schemeName: "" });
       setShowAssignModal(false);
       setSelectedUser(null);
-      loadUsers();
+      loadUsers(true);
     } catch (error) {
       console.error("Failed to assign scheme:", error);
       if (error.code === "firestore/already-exists") {
@@ -171,7 +171,7 @@ const SchemeAssignment = () => {
     try {
       await firestoreService.removeSchemeFromUser(user.uid, schemeId, userProfile.uid);
       toast.success(`Scheme ${schemeId} removed from ${user.displayName}`);
-      loadUsers();
+      loadUsers(true);
     } catch (error) {
       console.error("Failed to remove scheme:", error);
       if (error.code === "firestore/invalid-operation") {
@@ -209,7 +209,7 @@ const SchemeAssignment = () => {
     try {
       await firestoreService.archiveUser(user.uid, userProfile.uid);
       toast.success(`User ${user.displayName} archived successfully`);
-      loadUsers();
+      loadUsers(true);
     } catch (error) {
       console.error("Failed to archive user:", error);
       toast.error(error.message || "Failed to archive user");
@@ -224,7 +224,7 @@ const SchemeAssignment = () => {
     try {
       await firestoreService.unarchiveUser(user.uid, userProfile.uid);
       toast.success(`User ${user.displayName} unarchived successfully`);
-      loadUsers();
+      loadUsers(true);
     } catch (error) {
       console.error("Failed to unarchive user:", error);
       toast.error(error.message || "Failed to unarchive user");

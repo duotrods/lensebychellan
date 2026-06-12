@@ -4,7 +4,7 @@ import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import {
   THIRD_PARTY_SCHEMES,
   getThirdPartyCompanies,
-  extractSchemeId,
+  getAllThirdPartySchemeIds,
 } from "../../utils/schemes";
 import {
   BarChart3,
@@ -92,11 +92,11 @@ const ThirdPartyChartsPage = () => {
     loadAllData(dateRange[0].startDate, dateRange[0].endDate);
   }, [dateRange]);
 
-  // Stat cards reflect the selected third-party scheme.
+  // Stat cards reflect ALL third-party schemes combined (a company-wide total),
+  // independent of the selected scheme — so load once on mount.
   useEffect(() => {
     loadFormCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedScheme]);
+  }, []);
 
   // Close date picker when clicking outside
   useEffect(() => {
@@ -133,9 +133,11 @@ const ThirdPartyChartsPage = () => {
 
   const loadFormCounts = async () => {
     try {
-      // Scope the stat-card counts to the selected third-party scheme.
-      const schemeId = selectedScheme ? extractSchemeId(selectedScheme) : null;
-      const counts = await staffService.getAllFormsCountByType(schemeId ? [schemeId] : null);
+      // Cards show a third-party-wide total across every TP scheme
+      // (excludes internal staff + demo data), regardless of the selected scheme.
+      const counts = await staffService.getAllFormsCountByType(
+        getAllThirdPartySchemeIds()
+      );
       setFormCounts(counts);
     } catch (error) {
       console.warn('Could not load form counts:', error);

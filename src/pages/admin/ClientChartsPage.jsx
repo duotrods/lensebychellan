@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
-import { SCHEMES } from "../../utils/schemes";
+import { SCHEMES, getInternalSchemeIds } from "../../utils/schemes";
 import {
   BarChart3,
   TrendingUp,
@@ -123,7 +123,8 @@ const ClientChartsPage = () => {
 
   const loadFormCounts = async () => {
     try {
-      const counts = await staffService.getAllFormsCountByType();
+      // Cards count internal schemes only — excludes third-party (and demo) data.
+      const counts = await staffService.getAllFormsCountByType(getInternalSchemeIds());
       setFormCounts(counts);
     } catch (error) {
       console.warn('Could not load form counts:', error);
