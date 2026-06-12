@@ -19,11 +19,12 @@ import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import SchemeSwitcher from "../client/SchemeSwitcher";
 import { isDemoUser } from "../../utils/schemes";
+import { DASHBOARD_ROUTES, USER_ROLES } from "../../utils/constants";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 
 const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const { userProfile, role } = useAuth();
-  const basePath = basePathProp ?? (role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client");
+  const basePath = basePathProp ?? DASHBOARD_ROUTES[role] ?? "/dashboard/client";
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -67,11 +68,16 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       path: `${basePath}/cctv-uptime`,
       icon: MonitorCheck,
     },
-    {
-      name: "Documents",
-      path: `${basePath}/documents`,
-      icon: FolderOpen,
-    },
+    // Documents is internal-client only — third-party clients don't have it.
+    ...(role === USER_ROLES.THIRDPARTYCLIENT
+      ? []
+      : [
+          {
+            name: "Documents",
+            path: `${basePath}/documents`,
+            icon: FolderOpen,
+          },
+        ]),
   ];
 
   return (

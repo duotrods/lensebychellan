@@ -21,6 +21,7 @@ import logomark from "../../assets/Logomark.svg";
 import CCTVCheckReminder from "../staff/CCTVCheckReminder";
 import { useCCTVReminder } from "../../hooks/useCCTVReminder";
 import { isDemoUser, getViewerSchemeScope } from "../../utils/schemes";
+import { getStaffBasePath } from "../../utils/constants";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
@@ -87,11 +88,16 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
       icon: CameraOff,
       liveCount: liveFaults.length,
     },
-    {
-      name: "Documents",
-      path: "/dashboard/staff/documents",
-      icon: FolderOpen,
-    },
+    // Documents is internal-staff only — third-party staff don't have it.
+    ...(isAnyThirdParty(role)
+      ? []
+      : [
+          {
+            name: "Documents",
+            path: `${basePath}/documents`,
+            icon: FolderOpen,
+          },
+        ]),
   ];
 
   return (
@@ -288,8 +294,12 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
   );
 };
 
-const StaffSidebarLayout = ({ children, basePath = '/dashboard/staff' }) => {
-  const { userProfile } = useAuth();
+const StaffSidebarLayout = ({ children, basePath: basePathProp }) => {
+  const { userProfile, role } = useAuth();
+  // Derive the base path from role when not explicitly provided, so pages that
+  // render this layout without a basePath (e.g. StaffDocumentsPage) still link
+  // third-party staff to their own /dashboard/thirdparty/staff/* routes.
+  const basePath = basePathProp ?? getStaffBasePath(role);
   // Real staff → internal schemes; TP staff → their company schemes; demo → demo.
   // Scopes the live CCTV faults feed so third-party faults never leak to real staff.
   const schemeScope = getViewerSchemeScope(userProfile);

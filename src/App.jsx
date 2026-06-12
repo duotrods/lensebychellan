@@ -72,6 +72,7 @@
   const DocumentsPage = lazy(() => import("./pages/client/DocumentsPage"));
   const StaffDocumentsPage = lazy(() => import("./pages/staff/StaffDocumentsPage"));
   const HelpPage = lazy(() => import("./pages/HelpPage"));
+  const UnauthorizedPage = lazy(() => import("./pages/UnauthorizedPage"));
 
   import { USER_ROLES } from "./utils/constants";
   import "./index.css";
@@ -776,6 +777,16 @@
                   element={
                     <ProtectedRoute>
                       <HelpPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Unauthorized — ProtectedRoute redirects here on a role mismatch */}
+                <Route
+                  path="/unauthorized"
+                  element={
+                    <ProtectedRoute>
+                      <UnauthorizedPage />
                     </ProtectedRoute>
                   }
                 />
