@@ -90,46 +90,46 @@ export const THIRD_PARTY_SCHEMES = [
       "CAM 20",
     ],
   },
-  {
-    id: "CO2",
-    fullName: "CO2 - Scheme 2",
-    company: "NewCo",
-    cameras: [
-      "All Working Correctly",
-      "CAM 1",
-      "CAM 2",
-      "CAM 3",
-      "CAM 4",
-      "CAM 5",
-    ],
-  },
-  {
-    id: "CO3",
-    fullName: "CO3 - Scheme 3",
-    company: "NewCo",
-    cameras: [
-      "All Working Correctly",
-      "CAM 1",
-      "CAM 2",
-      "CAM 3",
-      "CAM 4",
-      "CAM 5",
-    ],
-  },
-  //NewCo3 company
-  {
-    id: "NEWCO2",
-    fullName: "NewCo - Scheme 2",
-    company: "NewCo3",
-    cameras: [
-      "All Working Correctly",
-      "CAM 1",
-      "CAM 2",
-      "CAM 3",
-      "CAM 4",
-      "CAM 5",
-    ],
-  },
+  // {
+  //   id: "CO2",
+  //   fullName: "CO2 - Scheme 2",
+  //   company: "NewCo",
+  //   cameras: [
+  //     "All Working Correctly",
+  //     "CAM 1",
+  //     "CAM 2",
+  //     "CAM 3",
+  //     "CAM 4",
+  //     "CAM 5",
+  //   ],
+  // },
+  // {
+  //   id: "CO3",
+  //   fullName: "CO3 - Scheme 3",
+  //   company: "NewCo",
+  //   cameras: [
+  //     "All Working Correctly",
+  //     "CAM 1",
+  //     "CAM 2",
+  //     "CAM 3",
+  //     "CAM 4",
+  //     "CAM 5",
+  //   ],
+  // },
+  // //NewCo3 company
+  // {
+  //   id: "NEWCO2",
+  //   fullName: "NewCo - Scheme 2",
+  //   company: "NewCo3",
+  //   cameras: [
+  //     "All Working Correctly",
+  //     "CAM 1",
+  //     "CAM 2",
+  //     "CAM 3",
+  //     "CAM 4",
+  //     "CAM 5",
+  //   ],
+  // },
 ];
 
 // Returns the third party scheme object if the given scheme ID belongs to a third party scheme,
