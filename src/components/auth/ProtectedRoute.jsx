@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmailVerification from './EmailVerification';
+import SecurityWarningModal from './SecurityWarningModal';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { currentUser, userProfile, loading, isEmailVerified, role } = useAuth();
@@ -32,7 +33,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      <SecurityWarningModal role={role} />
+    </>
+  );
 };
 
 export default ProtectedRoute;

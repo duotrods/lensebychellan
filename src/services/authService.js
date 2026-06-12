@@ -84,8 +84,9 @@ class AuthService {
       if (uid) {
         await firestoreService.updateLastLogout(uid);
       }
-      // Clear session storage to reset notice board for next login
+      // Clear session storage to reset notice board + security warning for next login
       sessionStorage.removeItem('hasSeenNoticeBoard');
+      sessionStorage.removeItem('hasSeenSecurityWarning');
       // Clear redirect to prevent redirecting to role-specific pages on next login
       window.history.replaceState({}, '', '/signin');
       await signOut(auth);
