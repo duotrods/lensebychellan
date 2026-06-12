@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Download, Calendar, Clock, MapPin, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,6 +11,9 @@ import chellanlogo from "../../assets/chellanpng.png";
 const DailyLogsDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
+  // Return to the page we came from (e.g. Third Party Reports); default to Staff Reports.
+  const backPath = location.state?.from || '/dashboard/admin/staff-reports';
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
@@ -28,12 +31,12 @@ const DailyLogsDetailPage = () => {
         setReport(foundReport);
       } else {
         toast.error('Report not found');
-        navigate('/dashboard/admin/staff-reports');
+        navigate(backPath);
       }
     } catch (error) {
       console.error('Failed to load report:', error);
       toast.error('Failed to load report');
-      navigate('/dashboard/admin/staff-reports');
+      navigate(backPath);
     } finally {
       setLoading(false);
     }
@@ -69,7 +72,7 @@ const DailyLogsDetailPage = () => {
 
       if (result.deleted) {
         toast.success('Report deleted (last occurrence removed)');
-        navigate('/dashboard/admin/staff-reports');
+        navigate(backPath);
       } else {
         toast.success(`Occurrence #${index + 1} removed successfully`);
         loadReport();
@@ -111,7 +114,7 @@ const DailyLogsDetailPage = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/dashboard/admin/staff-reports')}
+              onClick={() => navigate(backPath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-6 h-6 text-gray-600" />

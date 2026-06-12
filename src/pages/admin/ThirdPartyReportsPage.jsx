@@ -1,0 +1,932 @@
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { staffService } from "../../services/staffService";
+import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
+import {
+  DEMO_SCHEME_ID,
+  getThirdPartyCompanies,
+  getSchemeIdsForCompany,
+  getAllThirdPartySchemeIds,
+} from "../../utils/schemes";
+import {
+  FileText,
+  Camera,
+  Calendar,
+  AlertTriangle,
+  Eye,
+  Download,
+  Filter,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+} from "lucide-react";
+import { toast } from "react-hot-toast";
+import { generateReportPDF } from "../../utils/pdfGenerator";
+
+// Module-level variable — survives component unmount/remount, no serialization needed
+let _thirdPartyReportsRestore = null;
+
+const ThirdPartyReportsPage = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState([]);
+  const [filteredReports, setFilteredReports] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [filterType, setFilterType] = useState("all");
+  const [filterCompany, setFilterCompany] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLastDocs, setSearchLastDocs] = useState({});
+  const searchPageCacheRef = useRef({});
+  const [cursors, setCursors] = useState({});
+  const [typeCursor, setTypeCursor] = useState(null);
+  const pageCacheRef = useRef({});
+  const wasRestoredRef = useRef(false);
+  const searchDebounceRef = useRef(null);
+  const searchCounterRef = useRef(0);
+  const searchRateLimitRef = useRef([]); // timestamps of recent searches
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [typeCount, setTypeCount] = useState(0);
+  const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
+  const reportsPerPage = 10;
+
+  // Third-party companies for the filter dropdown
+  const availableCompanies = getThirdPartyCompanies();
+
+  // Resolve a company selection to the scheme-ID array used to scope queries.
+  // "all" → every third-party scheme; a company → just that company's schemes.
+  const getCompanyScope = (company) =>
+    company && company !== "all"
+      ? getSchemeIdsForCompany(company)
+      : getAllThirdPartySchemeIds();
+
+  // Maps admin display filter values → staffService type keys
+  const adminTypeToServiceType = {
+    'CCTV Check':      'cctv-check',
+    'Incident Report': 'incident',
+    'Asset Damage':    'asset-damage',
+    'Daily Logs':      'daily-occurrence',
+  };
+
+  useEffect(() => {
+    const restored = _thirdPartyReportsRestore;
+    if (restored) {
+      setCurrentPage(restored.page);
+      setFilterType(restored.filter);
+      setFilterCompany(restored.company);
+      setReports(restored.reports);
+      setHasMore(restored.hasMore);
+      setCursors(restored.cursors || {});
+      setTypeCursor(restored.typeCursor || null);
+      setTypeCount(restored.typeCount || 0);
+      setTotalCount(restored.totalCount || 0);
+      // Restore the full page cache so Prev/Next navigation works on all cached pages
+      pageCacheRef.current = restored.pageCache ? { ...restored.pageCache } : {
+        [restored.page]: {
+          data: restored.reports,
+          cursors: restored.cursors || {},
+          typeCursor: restored.typeCursor || null,
+          hasMore: restored.hasMore,
+        }
+      };
+      setLoading(false);
+      wasRestoredRef.current = true;
+      loadTotalCount(restored.company);
+      loadFormCounts(restored.company);
+    } else {
+      loadAllReports(true);
+      loadTotalCount("all");
+      loadFormCounts("all");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reports]);
+
+  const clearRestoreState = () => { _thirdPartyReportsRestore = null; };
+
+  const typeToCollectionKey = {
+    'Incident Report': ['incident'],
+    'Asset Damage':    ['assetDamage'],
+    'Daily Logs':      ['dailyOccurrence'],
+    'CCTV Check':      ['cctv'],
+    'CCTV Faults':     ['cctvFaults'],
+  };
+
+  const mapSearchResults = (results) => {
+    const typeMap = {
+      'Incident Report':  { type: 'Incident Report', icon: FileText,      color: 'bg-teal-100 text-teal-600'    },
+      'Asset Damage':     { type: 'Asset Damage',    icon: AlertTriangle, color: 'bg-orange-100 text-orange-600' },
+      'Daily Occurrence': { type: 'Daily Logs',      icon: Calendar,      color: 'bg-blue-100 text-blue-600'    },
+      'CCTV Check Sheet': { type: 'CCTV Check',      icon: Camera,        color: 'bg-purple-100 text-purple-600' },
+      'CCTV Faults':      { type: 'CCTV Faults',     icon: FileText,      color: 'bg-pink-100 text-pink-600'    },
+    };
+    return results.map(f => ({ ...f, ...(typeMap[f.type] || {}) }));
+  };
+
+  const runSearch = async (term, page = 1, lastDocs = {}, overrideType = null, overrideCompany = null) => {
+    if (!term.trim()) {
+      setSearchResults([]);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchLastDocs({});
+      searchPageCacheRef.current = {};
+      return;
+    }
+    const now = Date.now();
+    searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
+    if (searchRateLimitRef.current.length >= 10) {
+      toast.error('Too many searches. Please wait a moment.');
+      return;
+    }
+    searchRateLimitRef.current.push(now);
+    const myCount = ++searchCounterRef.current;
+    setSearchLoading(true);
+    try {
+      const activeType = overrideType !== null ? overrideType : filterType;
+      const activeCompany = overrideCompany !== null ? overrideCompany : filterCompany;
+      const collections = activeType !== 'all' ? typeToCollectionKey[activeType] : null;
+      // Scope search to the company's schemes — searchFormsPaginated filters
+      // results down to the supplied scheme set.
+      const { results, lastDocs: newLastDocs, hasMore } =
+        await staffService.searchFormsPaginated(term.trim(), 10, lastDocs, collections, getCompanyScope(activeCompany));
+      if (myCount !== searchCounterRef.current) return; // stale
+
+      const mapped = mapSearchResults(results);
+      searchPageCacheRef.current[page] = { results: mapped, lastDocs: newLastDocs, hasMore };
+      setSearchResults(mapped);
+      setSearchPage(page);
+      setSearchHasMore(hasMore);
+      setSearchLastDocs(newLastDocs);
+    } catch (err) {
+      console.error('Search failed:', err);
+      toast.error('Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSearchNextPage = () => {
+    if (!searchHasMore) return;
+    runSearch(searchQuery, searchPage + 1, searchLastDocs);
+  };
+
+  const handleSearchPrevPage = () => {
+    if (searchPage <= 1) return;
+    const cached = searchPageCacheRef.current[searchPage - 1];
+    if (cached) {
+      setSearchResults(cached.results);
+      setSearchPage(searchPage - 1);
+      setSearchHasMore(cached.hasMore);
+      setSearchLastDocs(cached.lastDocs);
+    }
+  };
+
+  const loadAllReports = async (resetPage = false, overrideFilter = null, overrideCompany = null, cursorOverride = null, targetPage = null, silent = false) => {
+    // Check page cache first (targetPage is set by pagination handlers)
+    if (targetPage && pageCacheRef.current[targetPage]) {
+      const cached = pageCacheRef.current[targetPage];
+      setReports(cached.data);
+      setCursors(cached.cursors);
+      setTypeCursor(cached.typeCursor);
+      setHasMore(cached.hasMore);
+      setCurrentPage(targetPage);
+      return;
+    }
+
+    try {
+      if (!silent) setLoading(true);
+
+      const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
+      const activeCompany = overrideCompany !== null ? overrideCompany : filterCompany;
+      const scope = getCompanyScope(activeCompany);
+      let rawForms;
+      let newCursors = {};
+      let newTypeCursor = null;
+      let newHasMore = true;
+
+      if (activeFilter === 'all') {
+        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
+        const result = await staffService.getAllFormsPaginated(
+          reportsPerPage,
+          effectiveCursors,
+          scope
+        );
+        rawForms = result.forms;
+        newCursors = result.cursors;
+        newHasMore = result.hasMore;
+        setCursors(newCursors);
+        setHasMore(newHasMore);
+      } else {
+        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
+        const serviceType = adminTypeToServiceType[activeFilter] || activeFilter;
+        const result = await staffService.getFormsByTypePaginated(
+          serviceType,
+          reportsPerPage,
+          effectiveTypeCursor,
+          scope
+        );
+        rawForms = result.forms;
+        newTypeCursor = result.lastDoc;
+        newHasMore = result.hasMore;
+        setTypeCursor(newTypeCursor);
+        setHasMore(newHasMore);
+      }
+
+      // Map forms to reports with display metadata
+      const mappedReports = rawForms.map(f => {
+        let type, icon, color;
+
+        if (f.type === 'CCTV Check Sheet') {
+          type = "CCTV Check";
+          icon = Camera;
+          color = "bg-purple-100 text-purple-600";
+        } else if (f.type === 'Incident Report') {
+          type = "Incident Report";
+          icon = FileText;
+          color = "bg-teal-100 text-teal-600";
+        } else if (f.type === 'Asset Damage') {
+          type = "Asset Damage";
+          icon = AlertTriangle;
+          color = "bg-orange-100 text-orange-600";
+        } else if (f.type === 'Daily Occurrence') {
+          type = "Daily Logs";
+          icon = Calendar;
+          color = "bg-blue-100 text-blue-600";
+        } else if (f.type === 'CCTV Faults') {
+          type = "CCTV Faults";
+          icon = Eye;
+          color = "bg-pink-100 text-pink-600";
+        }
+
+        return { ...f, type, icon, color };
+      });
+
+      // Exclude demo scheme (DMO1) forms (TP scope already excludes them; kept defensively)
+      const filteredReports = mappedReports.filter(report => {
+        if (report.schemeIds && Array.isArray(report.schemeIds)) {
+          return !report.schemeIds.every(id => id === DEMO_SCHEME_ID);
+        }
+        const schemeId = report.schemeId || report.scheme?.split(' ')[0];
+        return schemeId !== DEMO_SCHEME_ID;
+      });
+
+      setReports(filteredReports);
+
+      // Cache this page's data
+      const pageNum = targetPage || (resetPage ? 1 : currentPage);
+      pageCacheRef.current[pageNum] = {
+        data: filteredReports,
+        cursors: newCursors,
+        typeCursor: newTypeCursor,
+        hasMore: newHasMore,
+      };
+
+      if (resetPage) {
+        setCurrentPage(1);
+      }
+    } catch (error) {
+      console.error("Failed to load reports:", error);
+      toast.error("Failed to load reports");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTotalCount = async (company = filterCompany) => {
+    try {
+      const count = await staffService.getAllFormsCount(getCompanyScope(company));
+      setTotalCount(count);
+    } catch (error) {
+      console.warn('Could not load total count:', error);
+    }
+  };
+
+  const loadFormCounts = async (company = filterCompany) => {
+    try {
+      const counts = await staffService.getAllFormsCountByType(getCompanyScope(company));
+      setFormCounts(counts);
+    } catch (error) {
+      console.warn('Could not load form counts:', error);
+    }
+  };
+
+  const handleFilterChange = async (newType) => {
+    clearRestoreState();
+    setFilterType(newType);
+    setTypeCursor(null);
+    setCursors({});
+    pageCacheRef.current = {};
+    setCurrentPage(1);
+    if (searchQuery.trim()) {
+      searchPageCacheRef.current = {};
+      runSearch(searchQuery, 1, {}, newType, null);
+    } else {
+      loadAllReports(true, newType);
+    }
+    if (newType !== 'all') {
+      try {
+        const serviceType = adminTypeToServiceType[newType] || newType;
+        const count = await staffService.getFormCountForType(serviceType, getCompanyScope(filterCompany));
+        setTypeCount(count);
+      } catch {
+        setTypeCount(0);
+      }
+    }
+  };
+
+  const handleCompanyChange = (newCompany) => {
+    clearRestoreState();
+    setFilterCompany(newCompany);
+    setTypeCursor(null);
+    setCursors({});
+    pageCacheRef.current = {};
+    setCurrentPage(1);
+    // Counts are company-scoped, so refresh them when the company changes.
+    loadTotalCount(newCompany);
+    loadFormCounts(newCompany);
+    if (searchQuery.trim()) {
+      searchPageCacheRef.current = {};
+      runSearch(searchQuery, 1, {}, null, newCompany);
+    } else {
+      loadAllReports(true, null, newCompany);
+    }
+    if (filterType !== 'all') {
+      const serviceType = adminTypeToServiceType[filterType] || filterType;
+      staffService.getFormCountForType(serviceType, getCompanyScope(newCompany))
+        .then(setTypeCount)
+        .catch(() => setTypeCount(0));
+    }
+  };
+
+  const applyFilters = () => {
+    // Type and company filtering are handled server-side; text search uses Firestore query
+    setFilteredReports([...reports]);
+  };
+
+  const handleViewReport = (report) => {
+    _thirdPartyReportsRestore = { page: currentPage, filter: filterType, company: filterCompany, reports, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
+    // Reuse the admin staff-report detail routes; pass `from` so the detail
+    // page's back button returns here instead of the Staff Reports page.
+    const opts = { state: { from: '/dashboard/admin/thirdparty-reports' } };
+    if (report.type === "CCTV Check") {
+      navigate(`/dashboard/admin/staff-reports/cctv/${report.id}`, opts);
+    } else if (report.type === "Incident Report") {
+      navigate(`/dashboard/admin/staff-reports/incident/${report.id}`, opts);
+    } else if (report.type === "Asset Damage") {
+      navigate(`/dashboard/admin/staff-reports/asset/${report.id}`, opts);
+    } else if (report.type === "Daily Logs") {
+      navigate(`/dashboard/admin/staff-reports/daily/${report.id}`, opts);
+    }
+  };
+
+  const handleDownloadPDF = async (report) => {
+    try {
+      // Map display type to PDF generator type
+      const typeMap = {
+        "CCTV Check": "cctv-check",
+        "Incident Report": "incident",
+        "Asset Damage": "asset-damage",
+        "Daily Logs": "daily-occurrence",
+      };
+      const reportType = typeMap[report.type] || "incident";
+      await generateReportPDF(report, reportType);
+      toast.success("PDF downloaded successfully");
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
+
+  const isSearchMode = searchQuery.trim() !== '';
+
+  // Use Firestore search results when searching, otherwise use paginated page data
+  const currentReports = isSearchMode ? searchResults : filteredReports;
+  const activeCount = filterType === 'all' ? totalCount : typeCount;
+  const totalPages = Math.ceil(activeCount / reportsPerPage);
+
+  // If restored page exceeds actual total pages, reset to page 1
+  useEffect(() => {
+    if (!loading && totalPages > 0 && currentPage > totalPages) {
+      pageCacheRef.current = {};
+      _thirdPartyReportsRestore = null;
+      loadAllReports(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPages, loading]);
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    const atLastPage = totalPages > 0 && currentPage >= totalPages;
+    if (hasMore && !atLastPage) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      loadAllReports(false, null, null, null, nextPage);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      loadAllReports(false, null, null, null, prevPage);
+    }
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "N/A";
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getFormTypeIcon = (type) => {
+    switch (type) {
+      case "Incident Report":
+        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
+      case "CCTV Check":
+        return <Eye className="w-5 h-5 text-green-500" />;
+      case "Daily Logs":
+        return <Calendar className="w-5 h-5 text-blue-500" />;
+      case "Asset Damage":
+        return <FileText className="w-5 h-5 text-red-500" />;
+      default:
+        return <FileText className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  const getFormTypeBadge = (type) => {
+    const badges = {
+      "Incident Report": "badge-warning",
+      "Asset Damage": "badge-error",
+      "Daily Logs": "badge-info",
+      "CCTV Check": "badge-success",
+    };
+    return badges[type] || "badge-ghost";
+  };
+
+  // Get scheme(s) from form - handles different form structures
+  const getFormScheme = (report) => {
+    // For Daily Logs - has occurrences array with scheme in each
+    if (report.type === "Daily Logs" && report.occurrences) {
+      const schemes = [...new Set(report.occurrences.map((o) => o.scheme).filter(Boolean))];
+      if (schemes.length === 0) return "N/A";
+      if (schemes.length === 1) return schemes[0];
+      return schemes.join(", ");
+    }
+    // For CCTV Check - covers all schemes
+    if (report.type === "CCTV Check") {
+      return "All Schemes";
+    }
+    // For Incident Report and Asset Damage - single scheme field
+    return report.scheme || "N/A";
+  };
+
+  // Get the appropriate date from form
+  const getFormDate = (report) => {
+    // For Daily Logs (array-based) - use createdAt
+    if (report.type === "Daily Logs") {
+      if (report.createdAt) {
+        return formatDate(report.createdAt);
+      }
+      return "N/A";
+    }
+    // For other forms - use form.date if available, otherwise createdAt
+    if (report.date) {
+      return report.date;
+    }
+    // Fallback to createdAt
+    if (report.createdAt) {
+      return formatDate(report.createdAt);
+    }
+    return "N/A";
+  };
+
+  // Get the appropriate time from form
+  const getFormTime = (report) => {
+    // For Incident Reports - always use timeSpotted
+    if (report.type === "Incident Report" && report.timeSpotted) {
+      return report.timeSpotted;
+    }
+    // For Daily Logs (array-based) - use createdAt time
+    if (report.type === "Daily Logs") {
+      if (report.createdAt) {
+        const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+        return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      }
+      return "N/A";
+    }
+    // For other forms - use form.time if available, otherwise createdAt time
+    if (report.time) {
+      return report.time;
+    }
+    // Fallback to createdAt time
+    if (report.createdAt) {
+      const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
+      return date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    }
+    return "N/A";
+  };
+
+  // Handle delete report
+  const handleDeleteClick = (report) => {
+    setReportToDelete(report);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!reportToDelete) return;
+
+    setDeleting(true);
+    try {
+      // Map report type to collection name
+      const collectionMap = {
+        "CCTV Check": "cctvCheckForms",
+        "Incident Report": "incidentReports",
+        "Asset Damage": "assetDamageReports",
+        "Daily Logs": "dailyOccurrenceReports",
+      };
+      const collectionName = collectionMap[reportToDelete.type];
+
+      if (collectionName) {
+        await staffService.deleteReport(collectionName, reportToDelete.id);
+        toast.success("Report deleted successfully");
+        // Remove from local state
+        setReports((prev) => prev.filter((r) => r.id !== reportToDelete.id));
+      }
+    } catch (error) {
+      console.error("Failed to delete report:", error);
+      toast.error("Failed to delete report");
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
+      setReportToDelete(null);
+    }
+  };
+
+  // Statistics - all counts from aggregation queries (no per-page counting)
+  const stats = {
+    total: totalCount,
+    cctvCheck: formCounts.cctvCheckTotal,
+    incident: formCounts.incidentReportTotal,
+    assetDamage: formCounts.assetDamageTotal,
+    dailyLogs: formCounts.dailyLogsTotal,
+  };
+
+  return (
+    <AdminSidebarLayout>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Third Party Reports</h1>
+          <p className="text-gray-600">View and manage all submitted forms from third party staff</p>
+        </div>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Total Reports</p>
+                <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
+              </div>
+              <div className="bg-gray-100 p-3 rounded-lg">
+                <FileText className="w-6 h-6 text-gray-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">CCTV Checks</p>
+                <p className="text-3xl font-bold text-purple-600 mt-1">{stats.cctvCheck}</p>
+              </div>
+              <div className="bg-purple-100 p-3 rounded-lg">
+                <Camera className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Incidents</p>
+                <p className="text-3xl font-bold text-teal-600 mt-1">{stats.incident}</p>
+              </div>
+              <div className="bg-teal-100 p-3 rounded-lg">
+                <FileText className="w-6 h-6 text-teal-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Asset Damage</p>
+                <p className="text-3xl font-bold text-orange-600 mt-1">{stats.assetDamage}</p>
+              </div>
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Daily Logs</p>
+                <p className="text-3xl font-bold text-blue-600 mt-1">{stats.dailyLogs}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <Calendar className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by reference ID or staff name..."
+                value={searchQuery}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchQuery(value);
+                  if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                  if (!value.trim()) {
+                    setSearchResults([]);
+                    setSearchPage(1);
+                    setSearchHasMore(false);
+                    setSearchLastDocs({});
+                    searchPageCacheRef.current = {};
+                    setCurrentPage(1);
+                    setCursors({});
+                    setTypeCursor(null);
+                    pageCacheRef.current = {};
+                    loadAllReports(true, null, null, null, null, true);
+                    return;
+                  }
+                  searchDebounceRef.current = setTimeout(() => {
+                    searchPageCacheRef.current = {};
+                    runSearch(value, 1, {});
+                  }, 150);
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+
+            {/* Filter by Type */}
+            <select
+              value={filterType}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              className="select bg-white border-gray-300 rounded-lg w-full"
+            >
+              <option value="all">All Types</option>
+              <option value="CCTV Check">CCTV Check</option>
+              <option value="Incident Report">Incident Report</option>
+              <option value="Asset Damage">Asset Damage</option>
+              <option value="Daily Logs">Daily Logs</option>
+            </select>
+
+            {/* Filter by Company */}
+            <select
+              value={filterCompany}
+              onChange={(e) => handleCompanyChange(e.target.value)}
+              className="select bg-white border-gray-300 rounded-lg w-full"
+            >
+              <option value="all">All Companies</option>
+              {availableCompanies.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+            <Filter className="w-4 h-4" />
+            <span>
+              {isSearchMode
+                ? `Page ${searchPage} — ${searchResults.length} search result${searchResults.length !== 1 ? 's' : ''}`
+                : `Showing ${filteredReports.length} of ${activeCount} reports`}
+            </span>
+          </div>
+        </div>
+
+        {/* Reports Table */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          {loading || searchLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="loading loading-spinner loading-lg text-teal-500"></div>
+            </div>
+          ) : currentReports.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg">No reports found</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="table w-full">
+                  <thead className="bg-teal-500">
+                    <tr>
+                      <th className="text-left text-white">Type</th>
+                      <th className="text-left text-white">Reference ID</th>
+                      <th className="text-left text-white">Submitted By</th>
+                      <th className="text-left text-white">Scheme</th>
+                      <th className="text-left text-white">Date & Time</th>
+                      <th className="text-center text-white">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentReports.map((report) => (
+                      <tr key={report.id} className="hover:bg-gray-50">
+                        <td>
+                          <div className="flex items-center gap-2">
+                            {getFormTypeIcon(report.type)}
+                            <span className={`badge ${getFormTypeBadge(report.type)} badge-sm`}>
+                              {(report.type || '').toUpperCase()}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="font-mono text-sm font-semibold">
+                          <div>{report.referenceId || report.id.slice(0, 12)}</div>
+                          {report.type === "Incident Report" && report.incursion === "YES" && (
+                            <span className="badge badge-error badge-xs mt-1">Incursion</span>
+                          )}
+                        </td>
+                        <td className="text-sm">
+                          <div>
+                            <div className="text-gray-800">
+                              {report.submittedBy?.name || `${report.firstName || ""} ${report.lastName || ""}`.trim() || "N/A"}
+                            </div>
+                            {report.lastEditedBy && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                Edited by: {report.lastEditedBy?.name || "Unknown"}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="text-sm text-gray-600 max-w-xs truncate">
+                          {getFormScheme(report)}
+                        </td>
+                        <td className="text-sm">
+                          <div className="text-gray-800 font-medium">{getFormDate(report)}</div>
+                          <div className="text-gray-400">{getFormTime(report)}</div>
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleViewReport(report)}
+                              className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
+                              title="View"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadPDF(report)}
+                              className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
+                              title="Download PDF"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(report)}
+                              className="btn btn-sm btn-ghost text-red-600 hover:text-red-800"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Search pagination */}
+              {isSearchMode && (searchPage > 1 || searchHasMore) && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Page {searchPage} — {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSearchPrevPage}
+                      disabled={searchPage === 1}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-medium">Page {searchPage}</span>
+                    <button
+                      onClick={handleSearchNextPage}
+                      disabled={!searchHasMore}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {!isSearchMode && (currentPage > 1 || hasMore) && (
+                <div className="flex items-center justify-between p-4 border-t">
+                  <p className="text-sm text-gray-600">
+                    Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}{activeCount > 0 ? ` (${activeCount} total reports)` : ''}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={currentPage === 1}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-medium">
+                      Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}
+                    </span>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={!hasMore || (totalPages > 0 && currentPage >= totalPages)}
+                      className="btn btn-sm btn-outline"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Delete Report</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this {reportToDelete?.type}?
+              <br />
+              <span className="font-semibold text-gray-800">
+                Reference: {reportToDelete?.referenceId || reportToDelete?.id?.slice(0, 12)}
+              </span>
+              <br />
+              <span className="text-red-600 text-sm mt-2 block">
+                This action cannot be undone.
+              </span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setReportToDelete(null);
+                }}
+                className="btn btn-outline"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="btn bg-red-600 hover:bg-red-700 text-white border-none"
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminSidebarLayout>
+  );
+};
+
+export default ThirdPartyReportsPage;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Download, FileText, Calendar, User, MapPin, AlertTriangle } from 'lucide-react';
 import { staffService } from '../../services/staffService';
@@ -10,6 +10,9 @@ import chellanlogo from "../../assets/chellanpng.png";
 const IncidentReportDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
+  // Return to the page we came from (e.g. Third Party Reports); default to Staff Reports.
+  const backPath = location.state?.from || '/dashboard/admin/staff-reports';
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
 
@@ -26,12 +29,12 @@ const IncidentReportDetailPage = () => {
         setReport(foundReport);
       } else {
         toast.error('Report not found');
-        navigate('/dashboard/admin/staff-reports');
+        navigate(backPath);
       }
     } catch (error) {
       console.error('Failed to load report:', error);
       toast.error('Failed to load report');
-      navigate('/dashboard/admin/staff-reports');
+      navigate(backPath);
     } finally {
       setLoading(false);
     }
@@ -83,7 +86,7 @@ const IncidentReportDetailPage = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/dashboard/admin/staff-reports')}
+              onClick={() => navigate(backPath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-6 h-6 text-gray-600" />

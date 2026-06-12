@@ -49,6 +49,8 @@
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
   const StaffManagementPage = lazy(() => import("./pages/admin/StaffManagementPage"));
   const StaffReportsPage = lazy(() => import("./pages/admin/StaffReportsPage"));
+  const ThirdPartyReportsPage = lazy(() => import("./pages/admin/ThirdPartyReportsPage"));
+  const ThirdPartyChartsPage = lazy(() => import("./pages/admin/ThirdPartyChartsPage"));
   const ClientChartsPage = lazy(() => import("./pages/admin/ClientChartsPage"));
   const IncidentReportDetailPage = lazy(() => import("./pages/admin/IncidentReportDetailPage"));
   const CCTVCheckDetailPage = lazy(() => import("./pages/admin/CCTVCheckDetailPage"));
@@ -199,6 +201,24 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <ClientChartsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/thirdparty-reports"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <ThirdPartyReportsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/thirdparty-charts"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <ThirdPartyChartsPage />
                     </ProtectedRoute>
                   }
                 />

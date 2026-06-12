@@ -68,12 +68,26 @@ export const THIRD_PARTY_SCHEMES = [
     company: "WJ",
     cameras: [
       "All Working Correctly",
-      "WJ1 CAM 1",
-      "WJ1 CAM 2",
-      "WJ1 CAM 3",
-      "WJ1 CAM 4",
-      "WJ1 CAM 5",
-      "WJ1 CAM 6",
+      "CAM 1",
+      "CAM 2",
+      "CAM 3",
+      "CAM 4",
+      "CAM 5",
+      "CAM 6",
+      "CAM 7",
+      "CAM 8",
+      "CAM 9",
+      "CAM 10",
+      "CAM 11",
+      "CAM 12",
+      "CAM 13",
+      "CAM 14",
+      "CAM 15",
+      "CAM 16",
+      "CAM 17",
+      "CAM 18",
+      "CAM 19",
+      "CAM 20",
     ],
   },
   {
@@ -142,6 +156,12 @@ export const getInternalSchemeIds = () =>
 // from the cached non-demo totals when counting for real staff.
 export const getAllThirdPartySchemeIds = () =>
   THIRD_PARTY_SCHEMES.map((s) => s.id);
+
+// Unique third-party company names (e.g. ["WJ", "NewCo", "NewCo3"]).
+// Used by the admin Third Party Reports company filter.
+export const getThirdPartyCompanies = () => [
+  ...new Set(THIRD_PARTY_SCHEMES.map((s) => s.company)),
+];
 
 // Returns the scheme-ID array a *staff-side* viewer is scoped to for forms,
 // counts, search, and live feeds. (Admin views are intentionally unscoped and

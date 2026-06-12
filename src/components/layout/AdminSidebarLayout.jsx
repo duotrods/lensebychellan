@@ -15,6 +15,8 @@ import {
   PanelLeftOpen,
   Menu,
   Hash,
+  Building2,
+  PieChart,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -74,6 +76,16 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Client Charts",
       path: "/dashboard/admin/client-charts",
       icon: BarChart3,
+    },
+    {
+      name: "Third Party Reports",
+      path: "/dashboard/admin/thirdparty-reports",
+      icon: Building2,
+    },
+    {
+      name: "Third Party Charts",
+      path: "/dashboard/admin/thirdparty-charts",
+      icon: PieChart,
     },
   ];
 
