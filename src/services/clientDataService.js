@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
-import { CAMERA_OPTIONS_BY_SCHEME, THIRD_PARTY_SCHEMES } from "../utils/schemes";
+import { CAMERA_OPTIONS_BY_SCHEME } from "../utils/schemes";
 import { isVideoFile } from "../utils/fileType";
 
 class ClientDataService {
@@ -2286,11 +2286,7 @@ class ClientDataService {
     const now = Date.now();
 
     const cameraMap = {};
-    const tpScheme = THIRD_PARTY_SCHEMES.find((s) => s.id === schemeId);
-    const cameraList =
-      CAMERA_OPTIONS_BY_SCHEME[schemeId] ??
-      tpScheme?.cameras?.filter((c) => c !== "All Working Correctly") ??
-      [];
+    const cameraList = CAMERA_OPTIONS_BY_SCHEME[schemeId] ?? [];
     for (const cam of cameraList) {
       cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false };
     }

@@ -3,8 +3,8 @@ import importantImg from "../../assets/important.svg";
 
 const STORAGE_KEY = "hasSeenSecurityWarning";
 
-// Shown once per login to every authenticated user EXCEPT admin (incl. all
-// third-party roles). Mounted in ProtectedRoute at z-[60] so it sits above the
+// Shown once per login to every authenticated user EXCEPT admin. Mounted in
+// ProtectedRoute at z-[60] so it sits above the
 // other dashboard dialogs (NoticeBoard / CCTV reminder at z-50) and is the first
 // thing the user must acknowledge. The session flag is cleared on logout
 // (authService.signOut) so it reappears on the next login.

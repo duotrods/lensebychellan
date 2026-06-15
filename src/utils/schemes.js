@@ -54,166 +54,29 @@ export const SCHEMES = [
   },
 ];
 
-// Third-party subscriber schemes
-// Add a new entry here whenever you onboard a new third-party company or scheme.
-// - id: unique scheme ID baked into every invite code — must be consistent across all users on that scheme
-// - fullName: human-readable name shown in dropdowns and stored on user accounts
-// - company: used to group schemes in the dropdown — all schemes for the same company share this value
-// - cameras: list of camera names shown in the CCTV Check form for this scheme (update with real names before go-live)
-export const THIRD_PARTY_SCHEMES = [
-  //NewCo company
-  {
-    id: "A66-WJ",
-    fullName: "A66 - WJ Scheme 1",
-    company: "WJ",
-    cameras: [
-      "All Working Correctly",
-      "CAM 1",
-      "CAM 2",
-      "CAM 3",
-      "CAM 4",
-      "CAM 5",
-      "CAM 6",
-      "CAM 7",
-      "CAM 8",
-      "CAM 9",
-      "CAM 10",
-      "CAM 11",
-      "CAM 12",
-      "CAM 13",
-      "CAM 14",
-      "CAM 15",
-      "CAM 16",
-      "CAM 17",
-      "CAM 18",
-      "CAM 19",
-      "CAM 20",
-    ],
-  },
-  // {
-  //   id: "CO2",
-  //   fullName: "CO2 - Scheme 2",
-  //   company: "NewCo",
-  //   cameras: [
-  //     "All Working Correctly",
-  //     "CAM 1",
-  //     "CAM 2",
-  //     "CAM 3",
-  //     "CAM 4",
-  //     "CAM 5",
-  //   ],
-  // },
-  // {
-  //   id: "CO3",
-  //   fullName: "CO3 - Scheme 3",
-  //   company: "NewCo",
-  //   cameras: [
-  //     "All Working Correctly",
-  //     "CAM 1",
-  //     "CAM 2",
-  //     "CAM 3",
-  //     "CAM 4",
-  //     "CAM 5",
-  //   ],
-  // },
-  // //NewCo3 company
-  // {
-  //   id: "NEWCO2",
-  //   fullName: "NewCo - Scheme 2",
-  //   company: "NewCo3",
-  //   cameras: [
-  //     "All Working Correctly",
-  //     "CAM 1",
-  //     "CAM 2",
-  //     "CAM 3",
-  //     "CAM 4",
-  //     "CAM 5",
-  //   ],
-  // },
-];
-
-// Returns the third party scheme object if the given scheme ID belongs to a third party scheme,
-// or null if it is an internal/demo scheme.
-export const getThirdPartySchemeById = (id) => {
-  if (!id) return null;
-  return THIRD_PARTY_SCHEMES.find((s) => s.id === id) || null;
-};
-
-// Returns all scheme IDs belonging to a third-party company.
-// Used to scope data for TP Staff / LiveOp / CCTVOp (who see all company schemes).
-export const getSchemeIdsForCompany = (company) => {
-  if (!company) return null;
-  const ids = THIRD_PARTY_SCHEMES.filter((s) => s.company === company).map((s) => s.id);
-  return ids.length > 0 ? ids : null;
-};
-
-// All internal (non-demo, non-third-party) scheme IDs. Real LENSE staff are
-// scoped to these so third-party forms never leak into their dashboard/feeds.
+// All internal (non-demo) scheme IDs. Used to scope counts/feeds to real
+// schemes and exclude the demo scheme.
 export const getInternalSchemeIds = () =>
   SCHEMES.filter((s) => !s.isDemo).map((s) => s.id);
-
-// All third-party scheme IDs across every company. Used to subtract TP forms
-// from the cached non-demo totals when counting for real staff.
-export const getAllThirdPartySchemeIds = () =>
-  THIRD_PARTY_SCHEMES.map((s) => s.id);
-
-// Unique third-party company names (e.g. ["WJ", "NewCo", "NewCo3"]).
-// Used by the admin Third Party Reports company filter.
-export const getThirdPartyCompanies = () => [
-  ...new Set(THIRD_PARTY_SCHEMES.map((s) => s.company)),
-];
 
 // Returns the scheme-ID array a *staff-side* viewer is scoped to for forms,
 // counts, search, and live feeds. (Admin views are intentionally unscoped and
 // do not call this.)
 // - Demo users: only the demo scheme
-// - TP Staff/LiveOp/CCTVOp: all schemes belonging to their company
 // - Real staff: all internal (non-demo) schemes
 export const getViewerSchemeScope = (userProfile) => {
   if (!userProfile) return getInternalSchemeIds();
   if (isDemoUser(userProfile)) return [DEMO_SCHEME_ID];
-  const tpStaffRoles = [
-    "thirdpartystaff",
-    "thirdpartyliveoperator",
-    "thirdpartycctvoperator",
-  ];
-  if (tpStaffRoles.includes(userProfile.role)) {
-    const ids = userProfile.company
-      ? getSchemeIdsForCompany(userProfile.company)
-      : // Legacy fallback: accounts that still carry schemeIds/schemeId
-        userProfile.schemeIds ||
-        (userProfile.schemeId ? [userProfile.schemeId] : null);
-    return ids && ids.length > 0 ? ids : getInternalSchemeIds();
-  }
   return getInternalSchemeIds();
 };
 
 // Returns the filtered list of SCHEMES a user should see in form dropdowns.
 // - Demo users: only the demo scheme
-// - TP Staff/LiveOp/CCTVOp: all schemes belonging to their company (via userProfile.company)
-// - TP Client: only their assigned schemeIds array (admin-assigned)
-// - Internal staff: all non-demo schemes
+// - Everyone else: all non-demo schemes
 export const getSchemesForUser = (userProfile) => {
   if (!userProfile) return [];
   if (isDemoUser(userProfile)) {
     return SCHEMES.filter((s) => s.isDemo);
-  }
-  const tpStaffRoles = ["thirdpartystaff", "thirdpartyliveoperator", "thirdpartycctvoperator"];
-  if (tpStaffRoles.includes(userProfile.role)) {
-    if (userProfile.company) {
-      return THIRD_PARTY_SCHEMES.filter((s) => s.company === userProfile.company);
-    }
-    // Fallback: legacy accounts that still have schemeId
-    const assignedIds =
-      userProfile.schemeIds ||
-      (userProfile.schemeId ? [userProfile.schemeId] : []);
-    return THIRD_PARTY_SCHEMES.filter((s) => assignedIds.includes(s.id));
-  }
-  if (userProfile.role === "thirdpartyclient") {
-    const assignedIds =
-      userProfile.schemeIds ||
-      (userProfile.schemeId ? [userProfile.schemeId] : []);
-    return THIRD_PARTY_SCHEMES.filter((s) => assignedIds.includes(s.id));
   }
   return SCHEMES.filter((s) => !s.isDemo);
 };
@@ -225,11 +88,7 @@ export const getSchemeById = (id) => {
 
 // Helper function to get scheme by full name
 export const getSchemeByFullName = (fullName) => {
-  return (
-    SCHEMES.find((scheme) => scheme.fullName === fullName) ||
-    THIRD_PARTY_SCHEMES.find((scheme) => scheme.fullName === fullName) ||
-    null
-  );
+  return SCHEMES.find((scheme) => scheme.fullName === fullName) || null;
 };
 
 // Helper function to extract scheme ID from full name

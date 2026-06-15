@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
-import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
+import { SCHEMES } from "../../utils/schemes";
 import {
   Building2,
   Plus,
@@ -90,24 +90,15 @@ const SchemeAssignment = () => {
   const loadOverview = async () => {
     setOverviewLoading(true);
     try {
-      const [clientResult, liveOpResult, cctvOpResult,
-             tpOpResult, tpClientResult, tpLiveOpResult, tpCCTVOpResult] = await Promise.all([
+      const [clientResult, liveOpResult, cctvOpResult] = await Promise.all([
         firestoreService.getAllUsersPaginated(100, null, "client"),
         firestoreService.getAllUsersPaginated(100, null, "liveoperator"),
         firestoreService.getAllUsersPaginated(100, null, "cctvfaultoperator"),
-        firestoreService.getAllUsersPaginated(100, null, "thirdpartystaff"),
-        firestoreService.getAllUsersPaginated(100, null, "thirdpartyclient"),
-        firestoreService.getAllUsersPaginated(100, null, "thirdpartyliveoperator"),
-        firestoreService.getAllUsersPaginated(100, null, "thirdpartycctvoperator"),
       ]);
       setOverviewUsers([
         ...clientResult.users,
         ...liveOpResult.users,
         ...cctvOpResult.users,
-        ...tpOpResult.users,
-        ...tpClientResult.users,
-        ...tpLiveOpResult.users,
-        ...tpCCTVOpResult.users,
       ]);
     } catch (error) {
       console.error("Failed to load scheme overview:", error);
@@ -184,14 +175,8 @@ const SchemeAssignment = () => {
     }
   };
 
-  const isThirdPartyRole = (role) =>
-    ["thirdpartystaff", "thirdpartyclient", "thirdpartyliveoperator", "thirdpartycctvoperator"].includes(role);
-
   const handleSchemeSelect = (e) => {
-    const allSchemes = isThirdPartyRole(selectedUser?.role)
-      ? THIRD_PARTY_SCHEMES
-      : SCHEMES;
-    const selectedScheme = allSchemes.find((s) => s.id === e.target.value);
+    const selectedScheme = SCHEMES.find((s) => s.id === e.target.value);
     if (selectedScheme) {
       setFormData({ schemeId: selectedScheme.id, schemeName: selectedScheme.fullName });
     }
@@ -321,69 +306,11 @@ const SchemeAssignment = () => {
       {/* ── CLIENT ASSIGNMENTS TAB ── */}
       {(activeTab === "assignments" || activeTab === "cctv") && (
         <>
-          {/* Role filter toggle */}
-          <div className="flex gap-2 mb-5">
-            {activeTab === "assignments" ? (
-              <>
-                <button
-                  onClick={() => handleRoleFilterChange("client")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "client"
-                      ? "bg-teal-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  Clients
-                </button>
-                <button
-                  onClick={() => handleRoleFilterChange("thirdpartyclient")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "thirdpartyclient"
-                      ? "bg-violet-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  Third Party Clients
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => handleRoleFilterChange("cctvfaultoperator")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "cctvfaultoperator"
-                      ? "bg-orange-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <CameraOff className="w-4 h-4" />
-                  CCTV Operators
-                </button>
-                <button
-                  onClick={() => handleRoleFilterChange("thirdpartycctvoperator")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    roleFilter === "thirdpartycctvoperator"
-                      ? "bg-pink-500 text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <CameraOff className="w-4 h-4" />
-                  Third Party CCTV Operators
-                </button>
-              </>
-            )}
-          </div>
-
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
               <p className="text-sm text-gray-500 mb-1">
-                {roleFilter === "thirdpartyclient" ? "Total Third Party Clients"
-                  : roleFilter === "cctvfaultoperator" ? "Total CCTV Operators"
-                  : roleFilter === "thirdpartycctvoperator" ? "Total Third Party CCTV Operators"
-                  : "Total Clients"}
+                {roleFilter === "cctvfaultoperator" ? "Total CCTV Operators" : "Total Clients"}
               </p>
               <p className="text-2xl font-bold text-gray-800">{totalCount}</p>
             </div>
@@ -547,10 +474,7 @@ const SchemeAssignment = () => {
               <div className="flex items-center justify-between p-4 border-t">
                 <p className="text-sm text-gray-600">
                   Showing page {currentPage} of {totalPages} ({totalCount} total {
-                    roleFilter === "thirdpartyclient" ? "third party clients"
-                    : roleFilter === "cctvfaultoperator" ? "CCTV operators"
-                    : roleFilter === "thirdpartycctvoperator" ? "third party CCTV operators"
-                    : "clients"
+                    roleFilter === "cctvfaultoperator" ? "CCTV operators" : "clients"
                   })
                 </p>
                 <div className="flex items-center gap-2">
@@ -672,38 +596,15 @@ const SchemeAssignment = () => {
                   required
                 >
                   <option value="">Choose a scheme...</option>
-                  {isThirdPartyRole(selectedUser?.role) ? (
-                    Object.entries(
-                      THIRD_PARTY_SCHEMES.reduce((groups, s) => {
-                        const key = s.company || "Other";
-                        if (!groups[key]) groups[key] = [];
-                        groups[key].push(s);
-                        return groups;
-                      }, {})
-                    ).map(([company, schemes]) => (
-                      <optgroup key={company} label={company}>
-                        {schemes.map((scheme) => (
-                          <option
-                            key={scheme.id}
-                            value={scheme.id}
-                            disabled={selectedUser?.schemeIds?.includes(scheme.id)}
-                          >
-                            {scheme.fullName} ({scheme.id}){selectedUser?.schemeIds?.includes(scheme.id) ? " — Already assigned" : ""}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))
-                  ) : (
-                    SCHEMES.map((scheme) => (
-                      <option
-                        key={scheme.id}
-                        value={scheme.id}
-                        disabled={selectedUser?.schemeIds?.includes(scheme.id)}
-                      >
-                        {scheme.fullName}{selectedUser?.schemeIds?.includes(scheme.id) ? " (Already assigned)" : ""}
-                      </option>
-                    ))
-                  )}
+                  {SCHEMES.map((scheme) => (
+                    <option
+                      key={scheme.id}
+                      value={scheme.id}
+                      disabled={selectedUser?.schemeIds?.includes(scheme.id)}
+                    >
+                      {scheme.fullName}{selectedUser?.schemeIds?.includes(scheme.id) ? " (Already assigned)" : ""}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="flex gap-2 justify-end">

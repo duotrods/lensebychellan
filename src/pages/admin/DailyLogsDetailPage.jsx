@@ -12,7 +12,7 @@ const DailyLogsDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
-  // Return to the page we came from (e.g. Third Party Reports); default to Staff Reports.
+  // Return to the page we came from; default to Staff Reports.
   const backPath = location.state?.from || '/dashboard/admin/staff-reports';
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);

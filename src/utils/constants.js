@@ -4,11 +4,6 @@ export const USER_ROLES = {
   CLIENT: "client",
   LIVEOPERATOR: "liveoperator",
   CCTVOPERATOR: "cctvfaultoperator",
-  // Third-party subscriber roles
-  THIRDPARTYSTAFF: "thirdpartystaff",
-  THIRDPARTYCLIENT: "thirdpartyclient",
-  THIRDPARTYLIVEOPERATOR: "thirdpartyliveoperator",
-  THIRDPARTYCCTVOPERATOR: "thirdpartycctvoperator",
 };
 
 export const ROLE_LABELS = {
@@ -17,11 +12,6 @@ export const ROLE_LABELS = {
   client: "Client",
   liveoperator: "Live Operator",
   cctvfaultoperator: "CCTV Fault Operator",
-  // Third-party
-  thirdpartystaff: "Third Party Staff",
-  thirdpartyclient: "Third Party Client",
-  thirdpartyliveoperator: "Third Party Live Operator",
-  thirdpartycctvoperator: "Third Party CCTV Operator",
 };
 
 export const DASHBOARD_ROUTES = {
@@ -30,20 +20,11 @@ export const DASHBOARD_ROUTES = {
   client: "/dashboard/client",
   liveoperator: "/dashboard/liveoperator",
   cctvfaultoperator: "/dashboard/cctvoperator",
-  // Third-party
-  thirdpartystaff: "/dashboard/thirdparty/staff",
-  thirdpartyclient: "/dashboard/thirdparty/client",
-  thirdpartyliveoperator: "/dashboard/thirdparty/liveoperator",
-  thirdpartycctvoperator: "/dashboard/thirdparty/cctvoperator",
 };
 
 // Returns the base path for staff-dashboard-equivalent roles.
-// Used everywhere instead of hardcoding '/dashboard/staff' so that
-// third party operators navigate to their own routes correctly.
-export const getStaffBasePath = (role) =>
-  role === USER_ROLES.THIRDPARTYSTAFF
-    ? "/dashboard/thirdparty/staff"
-    : "/dashboard/staff";
+// Kept as a helper so callers don't hardcode '/dashboard/staff'.
+export const getStaffBasePath = () => "/dashboard/staff";
 
 
 export const AUTH_ERRORS = {

@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import lenselogo from "../assets/chellanpng.png";
-import { SCHEMES, THIRD_PARTY_SCHEMES } from "./schemes";
+import { SCHEMES } from "./schemes";
 
 // Cache for compressed logo to avoid re-processing
 let cachedCompressedLogo = null;
@@ -250,9 +250,7 @@ export const generateReportPDF = async (
   // For CCTV check reports: show filtered scheme if client view, otherwise "All Schemes"
   if (reportType === "cctv-check") {
     if (filterSchemeId) {
-      const schemeObj =
-        SCHEMES.find((s) => s.id === filterSchemeId) ||
-        THIRD_PARTY_SCHEMES.find((s) => s.id === filterSchemeId);
+      const schemeObj = SCHEMES.find((s) => s.id === filterSchemeId);
       const schemeName = schemeObj ? schemeObj.fullName : filterSchemeId;
       addField("Scheme/Location", schemeName);
     } else {

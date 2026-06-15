@@ -37,9 +37,8 @@ const NewStaffDashboard = () => {
   const navigate = useNavigate();
   const { userProfile, role } = useAuth();
   const basePath = getStaffBasePath(role);
-  // Scheme scope for this viewer: TP staff → their company schemes; real staff →
-  // all internal (non-demo, non-TP) schemes; demo → demo scheme. This keeps
-  // third-party forms out of the real-staff list, counts, and search.
+  // Scheme scope for this viewer: real staff → all internal (non-demo) schemes;
+  // demo → demo scheme. Scopes the list, counts, and search.
   const schemeScope = getViewerSchemeScope(userProfile);
   // Check if notice board has been shown in this session
   const [showNoticeBoard, setShowNoticeBoard] = useState(() => {

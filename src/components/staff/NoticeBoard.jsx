@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { staffService } from '../../services/staffService';
 import { useAuth } from '../../hooks/useAuth';
-import { isAnyThirdParty } from '../../utils/roleHelpers';
 
 const NoticeBoard = ({ isOpen, onClose }) => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { currentUser, userProfile, role } = useAuth();
-  const staffGroup = isAnyThirdParty(role) ? "thirdparty" : "internal";
+  const { currentUser, userProfile } = useAuth();
+  const staffGroup = "internal";
 
   useEffect(() => {
     if (isOpen && userProfile) {

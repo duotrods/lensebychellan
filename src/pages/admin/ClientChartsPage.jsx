@@ -123,7 +123,7 @@ const ClientChartsPage = () => {
 
   const loadFormCounts = async () => {
     try {
-      // Cards count internal schemes only — excludes third-party (and demo) data.
+      // Cards count internal schemes only — excludes demo data.
       const counts = await staffService.getAllFormsCountByType(getInternalSchemeIds());
       setFormCounts(counts);
     } catch (error) {

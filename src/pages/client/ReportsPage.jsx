@@ -30,8 +30,8 @@ let _reportsRestore = null;
 
 const ReportsPage = () => {
   const navigate = useNavigate();
-  const { userProfile, role } = useAuth();
-  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
+  const { userProfile } = useAuth();
+  const basePath = "/dashboard/client";
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

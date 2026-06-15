@@ -5,8 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
-import { isDemoUser, getSchemesForUser } from "../../utils/schemes";
-import { isAnyThirdParty } from "../../utils/roleHelpers";
+import { isDemoUser } from "../../utils/schemes";
 import { getStaffBasePath } from "../../utils/constants";
 
 import chellanlogo from "../../assets/chellanpng.png";
@@ -29,17 +28,6 @@ const CCTVCheckFormPage = () => {
   };
 
   const isDemo = isDemoUser(userProfile);
-  const isThirdParty = isAnyThirdParty(userProfile?.role);
-  const thirdPartySchemes = isThirdParty ? getSchemesForUser(userProfile) : [];
-
-  // Build dynamic initial state for third party scheme sections
-  const thirdPartyInitialState = thirdPartySchemes.reduce((acc, scheme) => {
-    acc[`tp_${scheme.id}_cameras`] = [];
-    acc[`tp_${scheme.id}_comments`] = "";
-    acc[`tp_${scheme.id}_blackspot`] = [];
-    acc[`tp_${scheme.id}_tssInformed`] = false;
-    return acc;
-  }, {});
 
   const [formData, setFormData] = useState({
     firstName: userProfile?.displayName || "", // Auto-fill full name
@@ -87,9 +75,6 @@ const CCTVCheckFormPage = () => {
     demoComments: "",
     demoBlackspot: false,
     demoTssInformed: false,
-
-    // Third party scheme sections (dynamic)
-    ...thirdPartyInitialState,
   });
 
   // Camera options for each section
@@ -337,10 +322,6 @@ const CCTVCheckFormPage = () => {
     });
   };
 
-  const handleTssChange = (section) => {
-    setFormData((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -418,7 +399,6 @@ const CCTVCheckFormPage = () => {
           demoComments: "",
           demoBlackspot: false,
           demoTssInformed: false,
-          ...thirdPartyInitialState,
         });
       }
     } catch (error) {
@@ -640,21 +620,6 @@ const CCTVCheckFormPage = () => {
                 "demoBlackspot",
                 "demoTssInformed",
               )}
-            </>
-          ) : isThirdParty ? (
-            <>
-              {thirdPartySchemes.map((scheme) => (
-                <div key={scheme.id}>
-                  {renderCheckboxSection(
-                    `${scheme.fullName} (only tick cameras that are not working correctly)`,
-                    `tp_${scheme.id}_cameras`,
-                    `tp_${scheme.id}_comments`,
-                    scheme.cameras || ["All Working Correctly", "CAM 1", "CAM 2", "CAM 3", "CAM 4", "CAM 5"],
-                    `tp_${scheme.id}_blackspot`,
-                    `tp_${scheme.id}_tssInformed`,
-                  )}
-                </div>
-              ))}
             </>
           ) : (
             <>

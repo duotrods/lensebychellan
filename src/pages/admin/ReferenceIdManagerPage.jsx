@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../config/firebase";
-import { THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 import { referenceIdService } from "../../services/referenceIdService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import { Hash, RotateCcw, Pencil, CheckCircle2, AlertTriangle } from "lucide-react";
@@ -22,13 +21,6 @@ function getCounterVariants(type) {
     { counterName: config.counterName,        label: "Real Staff",  suffix: "" },
     { counterName: `${config.counterName}_demo`, label: "Demo",     suffix: "-DEMO" },
   ];
-  THIRD_PARTY_SCHEMES.forEach((scheme) => {
-    variants.push({
-      counterName: `${config.counterName}_tp_${scheme.id}`,
-      label: `${scheme.company} (${scheme.id})`,
-      suffix: `-TP-${scheme.id}`,
-    });
-  });
   return variants;
 }
 

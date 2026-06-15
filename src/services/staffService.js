@@ -26,7 +26,6 @@ import {
   extractSchemeId,
   SCHEMES,
   DEMO_SCHEME_ID,
-  getThirdPartySchemeById,
   getInternalSchemeIds,
 } from "../utils/schemes";
 import { countVehicles, isPureIncident } from "../utils/incidentStats";
@@ -140,27 +139,6 @@ class StaffService {
         schemeIds.push("DMO1");
       }
 
-      // Check third party dynamic scheme sections (keys: tp_{schemeId}_cameras / tp_{schemeId}_comments)
-      const tpSchemeIds = Object.keys(formData)
-        .filter(
-          (k) =>
-            k.startsWith("tp_") &&
-            k.endsWith("_cameras") &&
-            formData[k]?.length > 0,
-        )
-        .map((k) => k.replace(/^tp_/, "").replace(/_cameras$/, ""));
-      const tpCommentIds = Object.keys(formData)
-        .filter(
-          (k) =>
-            k.startsWith("tp_") &&
-            k.endsWith("_comments") &&
-            formData[k]?.trim?.(),
-        )
-        .map((k) => k.replace(/^tp_/, "").replace(/_comments$/, ""));
-      [...new Set([...tpSchemeIds, ...tpCommentIds])].forEach((id) => {
-        if (!schemeIds.includes(id)) schemeIds.push(id);
-      });
-
       // If no data in any section (clean check - all cameras working),
       // include all real scheme IDs so every client can see the clean check form
       if (schemeIds.length === 0) {
@@ -173,21 +151,10 @@ class StaffService {
       // Check if this is a demo submission (only has DMO1 scheme)
       const isDemo = schemeIds.length === 1 && schemeIds[0] === DEMO_SCHEME_ID;
 
-      // Check if this is a third party submission (all schemeIds are third party schemes)
-      const tpSchemeId =
-        schemeIds.length > 0 &&
-        schemeIds.every((id) => getThirdPartySchemeById(id))
-          ? schemeIds[0]
-          : null;
-      const tpCompany = tpSchemeId
-        ? getThirdPartySchemeById(tpSchemeId)?.company || null
-        : null;
-
-      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
+      // Generate reference ID — separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "cctvCheck",
         isDemo,
-        tpCompany,
       );
 
       const formsRef = collection(db, "cctvCheckForms");
@@ -215,7 +182,7 @@ class StaffService {
         staffName: userName,
         description: `${userName} submitted CCTV Check Form ${referenceId}`,
         relatedFormId: docRef.id,
-        staffGroup: tpSchemeId ? "thirdparty" : "internal",
+        staffGroup: "internal",
       });
 
       return docRef.id;
@@ -498,16 +465,10 @@ class StaffService {
       // Check if this is a demo submission
       const isDemo = schemeId === DEMO_SCHEME_ID;
 
-      // Check if this is a third party submission
-      const tpScheme = getThirdPartySchemeById(schemeId);
-      const tpSchemeId = tpScheme ? schemeId : null;
-      const tpCompany = tpScheme?.company || null;
-
-      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
+      // Generate reference ID — separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "incident",
         isDemo,
-        tpCompany,
       );
 
       // Create the doc ref up-front so the report write and the scheme-stats
@@ -547,7 +508,7 @@ class StaffService {
         staffName: userName,
         description: `${userName} submitted Incident Report ${referenceId}`,
         relatedFormId: docRef.id,
-        staffGroup: tpSchemeId ? "thirdparty" : "internal",
+        staffGroup: "internal",
       });
 
       return { id: docRef.id, referenceId };
@@ -954,16 +915,10 @@ class StaffService {
       // Check if this is a demo submission
       const isDemo = schemeId === DEMO_SCHEME_ID;
 
-      // Check if this is a third party submission
-      const tpScheme = getThirdPartySchemeById(schemeId);
-      const tpSchemeId = tpScheme ? schemeId : null;
-      const tpCompany = tpScheme?.company || null;
-
-      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
+      // Generate reference ID — separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "assetDamage",
         isDemo,
-        tpCompany,
       );
 
       const reportsRef = collection(db, "assetDamageReports");
@@ -990,7 +945,7 @@ class StaffService {
         staffName: userName,
         description: `${userName} submitted Asset Damage Report ${referenceId}`,
         relatedFormId: docRef.id,
-        staffGroup: tpSchemeId ? "thirdparty" : "internal",
+        staffGroup: "internal",
       });
 
       return docRef.id;
@@ -1091,12 +1046,9 @@ class StaffService {
         ? extractSchemeId(formData.scheme)
         : null;
       const isDemo = schemeId === DEMO_SCHEME_ID;
-      // Isolated per-company counter for third party submissions
-      const tpCompany = getThirdPartySchemeById(schemeId)?.company || null;
       const referenceId = await referenceIdService.generateReferenceId(
         "cctvFaults",
         isDemo,
-        tpCompany,
       );
 
       const docRef = await addDoc(collection(db, "cctvFaultsReports"), {
@@ -1190,9 +1142,8 @@ class StaffService {
 
   // Real-time subscription to live CCTV faults, scoped to a viewer's scheme set.
   // schemeScope: array of scheme IDs the viewer may see (real staff → internal
-  // schemes; TP staff → company schemes; demo → demo scheme). Falls back to the
-  // internal schemes if none is supplied, so third-party faults never leak.
-  // One listener per scheme — avoids a composite index and the "in"-operator crash.
+  // schemes; demo → demo scheme). Falls back to the internal schemes if none is
+  // supplied. One listener per scheme — avoids a composite index and the "in"-operator crash.
   subscribeAllLiveCCTVFaults(callback, onError, schemeScope = null) {
     const scope =
       schemeScope && schemeScope.length > 0
@@ -1424,19 +1375,10 @@ class StaffService {
       }
 
       // No existing report found - create a new one
-      // Check if this is a third party submission
-      const tpScheme =
-        !isNewSubmissionDemo && newSubmissionSchemeId
-          ? getThirdPartySchemeById(newSubmissionSchemeId)
-          : null;
-      const tpSchemeId = tpScheme ? newSubmissionSchemeId : null;
-      const tpCompany = tpScheme?.company || null;
-
-      // Generate reference ID — isolated per-company counter for third party, separate demo counter, or real staff counter
+      // Generate reference ID — separate demo counter, or real staff counter
       const referenceId = await referenceIdService.generateReferenceId(
         "dailyOccurrence",
         isNewSubmissionDemo,
-        tpCompany,
       );
 
       // Extract unique schemeIds from all occurrences
@@ -1482,7 +1424,7 @@ class StaffService {
         staffName: userName,
         description: `${userName} submitted Daily Occurrence Report ${referenceId}`,
         relatedFormId: docRef.id,
-        staffGroup: tpSchemeId ? "thirdparty" : "internal",
+        staffGroup: "internal",
       });
 
       return { id: docRef.id, merged: false, referenceId };
@@ -2207,9 +2149,8 @@ class StaffService {
     if (!raw) return { results: [], lastDocs: {}, hasMore: false };
     if (raw.length > 100) return { results: [], lastDocs: {}, hasMore: false };
 
-    // Restrict results to the viewer's scheme scope (keeps third-party forms out
-    // of real-staff search, and vice-versa). A doc is in scope if its schemeId or
-    // any of its schemeIds falls within the scope set.
+    // Restrict results to the viewer's scheme scope. A doc is in scope if its
+    // schemeId or any of its schemeIds falls within the scope set.
     const scopeSet =
       schemeScope && schemeScope.length > 0 ? new Set(schemeScope) : null;
     const inScope = (doc) => {

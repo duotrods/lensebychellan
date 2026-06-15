@@ -18,8 +18,8 @@ import { generateReportPDF } from "../../utils/pdfGenerator";
 const CCTVCheckView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile, role } = useAuth();
-  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
+  const { userProfile } = useAuth();
+  const basePath = "/dashboard/client";
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
 

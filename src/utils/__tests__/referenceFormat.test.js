@@ -3,7 +3,6 @@ import {
   getReferenceConfig,
   getCounterName,
   formatReferenceId,
-  normalizeCompany,
 } from "../referenceFormat";
 
 describe("getReferenceConfig", () => {
@@ -29,31 +28,6 @@ describe("getCounterName", () => {
   it("uses a demo counter for demo submissions", () => {
     expect(getCounterName(config, { isDemo: true })).toBe("incidentReports_demo");
   });
-
-  it("uses an isolated counter per third-party company (normalized slug)", () => {
-    expect(getCounterName(config, { thirdPartyCompany: "NewCo" })).toBe(
-      "incidentReports_tp_NEWCO",
-    );
-  });
-
-  it("prefers the third-party counter over demo", () => {
-    expect(
-      getCounterName(config, { isDemo: true, thirdPartyCompany: "NewCo" }),
-    ).toBe("incidentReports_tp_NEWCO");
-  });
-});
-
-describe("normalizeCompany", () => {
-  it("uppercases and strips non-alphanumerics", () => {
-    expect(normalizeCompany("NewCo")).toBe("NEWCO");
-    expect(normalizeCompany("New Co 3")).toBe("NEWCO3");
-    expect(normalizeCompany("W&J")).toBe("WJ");
-  });
-
-  it("returns empty string for falsy input", () => {
-    expect(normalizeCompany(null)).toBe("");
-    expect(normalizeCompany(undefined)).toBe("");
-  });
 });
 
 describe("formatReferenceId", () => {
@@ -67,11 +41,5 @@ describe("formatReferenceId", () => {
 
   it("appends -DEMO for demo submissions", () => {
     expect(formatReferenceId(config, 3, { isDemo: true })).toBe("IN03-DEMO");
-  });
-
-  it("appends -TP-<COMPANY> for third-party submissions", () => {
-    expect(formatReferenceId(config, 3, { thirdPartyCompany: "NewCo" })).toBe(
-      "IN03-TP-NEWCO",
-    );
   });
 });

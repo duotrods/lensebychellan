@@ -55,33 +55,6 @@ const Dashboard = () => {
             />
           </CCTVOperatorSidebarLayout>
         );
-      case USER_ROLES.THIRDPARTYSTAFF:
-        return (
-          <StaffSidebarLayout basePath="/dashboard/thirdparty/staff">
-            <NewStaffDashboard />
-          </StaffSidebarLayout>
-        );
-      case USER_ROLES.THIRDPARTYCLIENT:
-        return (
-          <ClientSidebarLayout basePath="/dashboard/thirdparty/client">
-            <NewClientDashboard basePath="/dashboard/thirdparty/client" />
-          </ClientSidebarLayout>
-        );
-      case USER_ROLES.THIRDPARTYLIVEOPERATOR:
-        return (
-          <LiveOperatorSidebarLayout basePath="/dashboard/thirdparty/liveoperator">
-            <LiveOperatorDashboard />
-          </LiveOperatorSidebarLayout>
-        );
-      case USER_ROLES.THIRDPARTYCCTVOPERATOR:
-        return (
-          <CCTVOperatorSidebarLayout basePath="/dashboard/thirdparty/cctvoperator">
-            <LiveCameraFaultsPage
-              hideDashboardLink
-              faultBasePath="/dashboard/thirdparty/cctvoperator/cctv-fault"
-            />
-          </CCTVOperatorSidebarLayout>
-        );
       default:
         return <Navigate to="/signin" replace />;
     }

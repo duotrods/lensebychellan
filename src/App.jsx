@@ -49,8 +49,6 @@
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
   const StaffManagementPage = lazy(() => import("./pages/admin/StaffManagementPage"));
   const StaffReportsPage = lazy(() => import("./pages/admin/StaffReportsPage"));
-  const ThirdPartyReportsPage = lazy(() => import("./pages/admin/ThirdPartyReportsPage"));
-  const ThirdPartyChartsPage = lazy(() => import("./pages/admin/ThirdPartyChartsPage"));
   const ClientChartsPage = lazy(() => import("./pages/admin/ClientChartsPage"));
   const IncidentReportDetailPage = lazy(() => import("./pages/admin/IncidentReportDetailPage"));
   const CCTVCheckDetailPage = lazy(() => import("./pages/admin/CCTVCheckDetailPage"));
@@ -201,24 +199,6 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <ClientChartsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/dashboard/admin/thirdparty-reports"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <ThirdPartyReportsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/dashboard/admin/thirdparty-charts"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <ThirdPartyChartsPage />
                     </ProtectedRoute>
                   }
                 />
@@ -514,246 +494,6 @@
                   }
                 />
 
-                {/* Third Party Operator Routes */}
-                <Route
-                  path="/dashboard/thirdparty/staff"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/forms"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <FormsSelectionPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/forms/cctv-check"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <CCTVCheckFormPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/forms/incident-report"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <IncidentReportFormPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/forms/daily-occurence"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <DailyOccurrenceFormPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/forms/cctv-faults"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <CCTVFaultsFormPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/cctv-faults"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <CCTVFaultsLivePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/reports/incident/:id"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <IncidentReportView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/reports/cctv-check/:id"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <CCTVCheckView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/reports/daily-logs/:id"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <DailyOccurrenceView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/staff/reports/cctv-faults/:id"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYSTAFF]}
-                    >
-                      <CCTVFaultsView />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Third Party Client Routes */}
-                <Route
-                  path="/dashboard/thirdparty/client"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/analytics"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <AnalyticsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/reports"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ReportsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/live-incidents"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientLiveIncidentsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/live-camera-faults"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientLiveCameraFaultsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/incident/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientIncidentReportView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/cctv-faults"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientCCTVFaultsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/cctv-fault/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientCCTVFaultView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/cctv-recordings"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <CCTVRecordingsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/reports/incident/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientIncidentReportView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/reports/daily-occurrence/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientDailyOccurrenceView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/reports/cctv-check/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientCCTVCheckView />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/reports/cctv-faults/:id"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <ClientCCTVFaultView />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Third Party Live Operator Routes */}
-                <Route
-                  path="/dashboard/thirdparty/liveoperator"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYLIVEOPERATOR]}
-                    >
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/liveoperator/incident/:id"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYLIVEOPERATOR]}
-                    >
-                      <LiveOperatorIncidentDetailPage />
-                    </ProtectedRoute>
-                  }
-                />
-
                 {/* Client routes */}
                 <Route
                   path="/dashboard/client/cctv-uptime"
@@ -765,27 +505,9 @@
                 />
 
                 <Route
-                  path="/dashboard/thirdparty/client/cctv-uptime"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <CCTVUptimePage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
                   path="/dashboard/client/documents"
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
-                      <DocumentsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/dashboard/thirdparty/client/documents"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
                       <DocumentsPage />
                     </ProtectedRoute>
                   }
@@ -807,28 +529,6 @@
                   element={
                     <ProtectedRoute>
                       <UnauthorizedPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Third Party CCTV Operator Routes */}
-                <Route
-                  path="/dashboard/thirdparty/cctvoperator"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYCCTVOPERATOR]}
-                    >
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/cctvoperator/cctv-fault/:id"
-                  element={
-                    <ProtectedRoute
-                      allowedRoles={[USER_ROLES.THIRDPARTYCCTVOPERATOR]}
-                    >
-                      <ClientCCTVFaultView />
                     </ProtectedRoute>
                   }
                 />

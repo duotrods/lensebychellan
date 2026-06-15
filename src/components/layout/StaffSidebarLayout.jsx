@@ -22,11 +22,10 @@ import CCTVCheckReminder from "../staff/CCTVCheckReminder";
 import { useCCTVReminder } from "../../hooks/useCCTVReminder";
 import { isDemoUser, getViewerSchemeScope } from "../../utils/schemes";
 import { getStaffBasePath } from "../../utils/constants";
-import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
 const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) => {
-  const { userProfile, role } = useAuth();
+  const { userProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [formsOpen, setFormsOpen] = useState(() =>
@@ -49,7 +48,7 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
         staffId: userProfile?.uid,
         staffName: userProfile?.displayName || "Staff",
         type: "logout_note",
-        staffGroup: isAnyThirdParty(role) ? "thirdparty" : "internal",
+        staffGroup: "internal",
       });
     }
     await authService.signOut();
@@ -88,16 +87,11 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
       icon: CameraOff,
       liveCount: liveFaults.length,
     },
-    // Documents is internal-staff only — third-party staff don't have it.
-    ...(isAnyThirdParty(role)
-      ? []
-      : [
-          {
-            name: "Documents",
-            path: `${basePath}/documents`,
-            icon: FolderOpen,
-          },
-        ]),
+    {
+      name: "Documents",
+      path: `${basePath}/documents`,
+      icon: FolderOpen,
+    },
   ];
 
   return (
@@ -298,10 +292,10 @@ const StaffSidebarLayout = ({ children, basePath: basePathProp }) => {
   const { userProfile, role } = useAuth();
   // Derive the base path from role when not explicitly provided, so pages that
   // render this layout without a basePath (e.g. StaffDocumentsPage) still link
-  // third-party staff to their own /dashboard/thirdparty/staff/* routes.
+  // to the staff dashboard routes.
   const basePath = basePathProp ?? getStaffBasePath(role);
-  // Real staff → internal schemes; TP staff → their company schemes; demo → demo.
-  // Scopes the live CCTV faults feed so third-party faults never leak to real staff.
+  // Scopes the live CCTV faults feed to the viewer's schemes
+  // (real staff → internal schemes; demo → demo scheme).
   const schemeScope = getViewerSchemeScope(userProfile);
   return (
     <StaffCCTVFaultsProvider schemeScope={schemeScope}>

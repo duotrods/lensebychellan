@@ -19,7 +19,7 @@ import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import SchemeSwitcher from "../client/SchemeSwitcher";
 import { isDemoUser } from "../../utils/schemes";
-import { DASHBOARD_ROUTES, USER_ROLES } from "../../utils/constants";
+import { DASHBOARD_ROUTES } from "../../utils/constants";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 
 const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
@@ -68,16 +68,11 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       path: `${basePath}/cctv-uptime`,
       icon: MonitorCheck,
     },
-    // Documents is internal-client only — third-party clients don't have it.
-    ...(role === USER_ROLES.THIRDPARTYCLIENT
-      ? []
-      : [
-          {
-            name: "Documents",
-            path: `${basePath}/documents`,
-            icon: FolderOpen,
-          },
-        ]),
+    {
+      name: "Documents",
+      path: `${basePath}/documents`,
+      icon: FolderOpen,
+    },
   ];
 
   return (

@@ -6,7 +6,6 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { isDemoUser, getSchemesForUser } from "../../utils/schemes";
-import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { getStaffBasePath } from "../../utils/constants";
 
 import chellanlogo from "../../assets/chellanpng.png"
@@ -19,9 +18,8 @@ const DailyOccurrenceFormPage = () => {
   const editId = searchParams.get("edit");
   const [loading, setLoading] = useState(false);
 
-  const isThirdParty = isAnyThirdParty(userProfile?.role);
   const availableSchemes = getSchemesForUser(userProfile);
-  const singleScheme = isThirdParty && availableSchemes.length === 1 ? availableSchemes[0] : null;
+  const singleScheme = null;
 
   // Helper function to format date as DD/MM/YYYY
   const formatDateToBritish = (date) => {
@@ -282,7 +280,7 @@ const DailyOccurrenceFormPage = () => {
                         required
                       >
                         <option value="">Please Select</option>
-                        {!isDemoUser(userProfile) && !isThirdParty && (
+                        {!isDemoUser(userProfile) && (
                           <option value="All Schemes">All Schemes</option>
                         )}
                         {availableSchemes.map((scheme) => (

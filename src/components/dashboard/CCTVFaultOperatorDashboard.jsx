@@ -20,7 +20,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { USER_ROLES } from "../../utils/constants";
-import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
+import { SCHEMES } from "../../utils/schemes";
 import { clientDataService } from "../../services/clientDataService";
 import { toast } from "react-hot-toast";
 
@@ -212,8 +212,7 @@ const LiveCameraFaultsPage = ({
               {operatorSchemeIds
                 ? operatorSchemeIds
                     .map((id) => {
-                      const s =
-                        [...SCHEMES, ...THIRD_PARTY_SCHEMES].find((s) => s.id === id);
+                      const s = SCHEMES.find((s) => s.id === id);
                       return s ? s.name : id;
                     })
                     .join(", ")

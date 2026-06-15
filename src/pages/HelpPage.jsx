@@ -12,10 +12,6 @@ const layouts = {
   client: ClientSidebarLayout,
   cctvfaultoperator: CCTVOperatorSidebarLayout,
   liveoperator: LiveOperatorSidebarLayout,
-  thirdpartystaff: StaffSidebarLayout,
-  thirdpartyclient: ClientSidebarLayout,
-  thirdpartyliveoperator: LiveOperatorSidebarLayout,
-  thirdpartycctvoperator: CCTVOperatorSidebarLayout,
 };
 
 const roleBasePaths = {
@@ -24,10 +20,6 @@ const roleBasePaths = {
   client: "/dashboard/client",
   cctvfaultoperator: "/dashboard/cctvoperator",
   liveoperator: "/dashboard/liveoperator",
-  thirdpartystaff: "/dashboard/thirdparty/staff",
-  thirdpartyclient: "/dashboard/thirdparty/client",
-  thirdpartyliveoperator: "/dashboard/thirdparty/liveoperator",
-  thirdpartycctvoperator: "/dashboard/thirdparty/cctvoperator",
 };
 
 const HelpPage = () => {

@@ -9,8 +9,8 @@ import { SCHEMES } from "../../utils/schemes";
 
 const LiveIncidentsPage = () => {
   const navigate = useNavigate();
-  const { userProfile, role } = useAuth();
-  const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
+  const { userProfile } = useAuth();
+  const basePath = "/dashboard/client";
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
   const getActiveSchemeName = () => {

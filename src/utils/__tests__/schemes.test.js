@@ -3,7 +3,6 @@ import {
   extractSchemeId,
   isDemoUser,
   isDemoScheme,
-  getThirdPartySchemeById,
   DEMO_SCHEME_ID,
 } from "../schemes";
 
@@ -38,15 +37,9 @@ describe("isDemoUser", () => {
   });
 });
 
-describe("isDemoScheme / getThirdPartySchemeById", () => {
+describe("isDemoScheme", () => {
   it("identifies the demo scheme id", () => {
     expect(isDemoScheme(DEMO_SCHEME_ID)).toBe(true);
     expect(isDemoScheme("A417")).toBe(false);
-  });
-
-  it("returns a third-party scheme object or null", () => {
-    expect(getThirdPartySchemeById("CO2")).toMatchObject({ id: "CO2" });
-    expect(getThirdPartySchemeById("A417")).toBeNull();
-    expect(getThirdPartySchemeById(null)).toBeNull();
   });
 });

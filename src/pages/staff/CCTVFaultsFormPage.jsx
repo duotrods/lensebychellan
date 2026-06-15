@@ -6,7 +6,6 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { getSchemesForUser, CAMERA_OPTIONS_BY_SCHEME, extractSchemeId } from "../../utils/schemes";
-import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { getStaffBasePath } from "../../utils/constants";
 
 import chellanlogo from "../../assets/chellanpng.png";
@@ -29,9 +28,8 @@ const CCTVFaultsFormPage = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const isThirdParty = isAnyThirdParty(userProfile?.role);
   const availableSchemes = getSchemesForUser(userProfile);
-  const singleScheme = isThirdParty && availableSchemes.length === 1 ? availableSchemes[0] : null;
+  const singleScheme = null;
 
   const [formData, setFormData] = useState({
     fullName: userProfile?.displayName || "",
