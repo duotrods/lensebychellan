@@ -166,7 +166,7 @@ const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
     if (userProfile?.activeSchemeName) {
       return userProfile.activeSchemeName;
     }
-
+/////
     // If we have an activeSchemeId but no activeSchemeName, look it up
     if (userProfile?.activeSchemeId) {
       const activeSchemeObj = SCHEMES.find(

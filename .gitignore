@@ -19,6 +19,7 @@ dist-ssr
 
 # Firebase Admin Service Account Key (NEVER COMMIT THIS!)
 service-account-key.json
+service-account-new.json
 
 
 # Claude AI brain/memory files (local only, never commit)
