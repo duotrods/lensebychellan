@@ -187,10 +187,18 @@ const SchemeAssignment = () => {
   const isThirdPartyRole = (role) =>
     ["thirdpartystaff", "thirdpartyclient", "thirdpartyliveoperator", "thirdpartycctvoperator"].includes(role);
 
+  // Internal clients may also be assigned third-party schemes so they can view that scheme's reports.
+  const canAssignTpSchemes = (role) => role === "client" || isThirdPartyRole(role);
+
   const handleSchemeSelect = (e) => {
-    const allSchemes = isThirdPartyRole(selectedUser?.role)
-      ? THIRD_PARTY_SCHEMES
-      : SCHEMES;
+    let allSchemes;
+    if (isThirdPartyRole(selectedUser?.role)) {
+      allSchemes = THIRD_PARTY_SCHEMES;
+    } else if (canAssignTpSchemes(selectedUser?.role)) {
+      allSchemes = [...SCHEMES, ...THIRD_PARTY_SCHEMES];
+    } else {
+      allSchemes = SCHEMES;
+    }
     const selectedScheme = allSchemes.find((s) => s.id === e.target.value);
     if (selectedScheme) {
       setFormData({ schemeId: selectedScheme.id, schemeName: selectedScheme.fullName });
@@ -672,7 +680,19 @@ const SchemeAssignment = () => {
                   required
                 >
                   <option value="">Choose a scheme...</option>
-                  {isThirdPartyRole(selectedUser?.role) ? (
+                  {/* Internal schemes — shown for everyone except third-party roles */}
+                  {!isThirdPartyRole(selectedUser?.role) &&
+                    SCHEMES.map((scheme) => (
+                      <option
+                        key={scheme.id}
+                        value={scheme.id}
+                        disabled={selectedUser?.schemeIds?.includes(scheme.id)}
+                      >
+                        {scheme.fullName}{selectedUser?.schemeIds?.includes(scheme.id) ? " (Already assigned)" : ""}
+                      </option>
+                    ))}
+                  {/* Third-party schemes — for third-party roles and internal clients */}
+                  {canAssignTpSchemes(selectedUser?.role) &&
                     Object.entries(
                       THIRD_PARTY_SCHEMES.reduce((groups, s) => {
                         const key = s.company || "Other";
@@ -692,18 +712,7 @@ const SchemeAssignment = () => {
                           </option>
                         ))}
                       </optgroup>
-                    ))
-                  ) : (
-                    SCHEMES.map((scheme) => (
-                      <option
-                        key={scheme.id}
-                        value={scheme.id}
-                        disabled={selectedUser?.schemeIds?.includes(scheme.id)}
-                      >
-                        {scheme.fullName}{selectedUser?.schemeIds?.includes(scheme.id) ? " (Already assigned)" : ""}
-                      </option>
-                    ))
-                  )}
+                    ))}
                 </select>
               </div>
               <div className="flex gap-2 justify-end">
