@@ -17,7 +17,7 @@ import {
   CheckCircle,
   MessageSquare,
 } from "lucide-react";
-import { SCHEMES } from "../../utils/schemes";
+import { getActiveSchemeName } from "../../utils/schemes";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 
 const formatNoteTime = (addedAt) => {
@@ -65,15 +65,6 @@ const CCTVFaultsPage = () => {
   const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
-
-  const getActiveSchemeName = () => {
-    if (userProfile?.activeSchemeName) return userProfile.activeSchemeName;
-    if (userProfile?.activeSchemeId) {
-      const found = SCHEMES.find((s) => s.id === userProfile.activeSchemeId);
-      if (found) return found.fullName;
-    }
-    return userProfile?.schemeName;
-  };
 
   const { faults: liveFaults, loading: liveLoading } =
     useLiveCCTVFaults(schemeId);
@@ -137,9 +128,11 @@ const CCTVFaultsPage = () => {
         <div className="mb-8 bg-white rounded-xl text-center p-6 shadow-sm">
           <h4 className="font-bold text-gray-800">
             <span className="font-semibold text-brand-400">
-              {schemeId} ({getActiveSchemeName()})
+              {schemeId}
             </span>{" "}
-            CCTV Faults
+             <span className="font-semibold text-gray-800">
+              CCTV Faults
+            </span>
           </h4>
           <p className="text-gray-500">
             Monitor live and resolved camera faults for your scheme

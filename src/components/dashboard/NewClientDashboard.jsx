@@ -29,7 +29,7 @@ import {
   Clock,
   TrendingUp,
 } from "lucide-react";
-import { SCHEMES } from "../../utils/schemes";
+import { getActiveSchemeName } from "../../utils/schemes";
 import DrillDownSidebar from "./DrillDownSidebar";
 import { DateRangePicker } from "react-date-range";
 import "react-date-range/dist/styles.css"; // main css file
@@ -159,27 +159,6 @@ const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Get the active scheme name for display
-  const getActiveSchemeName = () => {
-    // If activeSchemeName is set, use it
-    if (userProfile?.activeSchemeName) {
-      return userProfile.activeSchemeName;
-    }
-/////
-    // If we have an activeSchemeId but no activeSchemeName, look it up
-    if (userProfile?.activeSchemeId) {
-      const activeSchemeObj = SCHEMES.find(
-        (s) => s.id === userProfile.activeSchemeId,
-      );
-      if (activeSchemeObj) {
-        return activeSchemeObj.fullName;
-      }
-    }
-
-    // Fall back to the default scheme name
-    return userProfile?.schemeName;
-  };
 
   const getActiveSchemeId = () => {
     return userProfile?.activeSchemeId || userProfile?.schemeId;
@@ -512,7 +491,7 @@ const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
 
       pdf.setFontSize(11);
       pdf.setFont("helvetica", "normal");
-      pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName()}`, 15, 19);
+      pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
 
       // Date range and stats - right side
       const dateRangeText = `${dateRange[0].startDate.toLocaleDateString("en-GB")} - ${dateRange[0].endDate.toLocaleDateString("en-GB")}`;
@@ -545,7 +524,7 @@ const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
           pdf.text("Dashboard Report", 15, 12);
           pdf.setFontSize(11);
           pdf.setFont("helvetica", "normal");
-          pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName()}`, 15, 19);
+          pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
           pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
           pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
 
@@ -618,8 +597,8 @@ const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
           <h3 className="text-3xl font-bold text-gray-800">
             Welcome back, {userProfile?.displayName}!
           </h3>
-          <p className="text-gray-600 mt-2">
-            {getActiveSchemeId()} - {getActiveSchemeName()}
+          <p className="text-brand-500 mt-2 font-bold">
+           {getActiveSchemeName(userProfile)}
           </p>
         </div>
 
