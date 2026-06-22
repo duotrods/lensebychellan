@@ -45,6 +45,7 @@
   const BackfillVehicleStatsPage = lazy(() => import("./pages/admin/BackfillVehicleStatsPage"));
   const BackfillHasVideoPage = lazy(() => import("./pages/admin/BackfillHasVideoPage"));
   const BackfillCollectionStatsPage = lazy(() => import("./pages/admin/BackfillCollectionStatsPage"));
+  const BackfillCctvSchemeIdsPage = lazy(() => import("./pages/admin/BackfillCctvSchemeIdsPage"));
   const ReferenceIdManagerPage = lazy(() => import("./pages/admin/ReferenceIdManagerPage"));
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
   const StaffManagementPage = lazy(() => import("./pages/admin/StaffManagementPage"));
@@ -156,6 +157,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <BackfillCollectionStatsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/backfill-cctv-scheme-ids"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <BackfillCctvSchemeIdsPage />
                     </ProtectedRoute>
                   }
                 />

@@ -30,6 +30,7 @@ import {
   getInternalSchemeIds,
 } from "../utils/schemes";
 import { countVehicles, isPureIncident } from "../utils/incidentStats";
+import { deriveCCTVSchemeIds } from "../utils/cctvSchemeIds";
 import { isVideoFile } from "../utils/fileType";
 
 class StaffService {
@@ -81,91 +82,10 @@ class StaffService {
 
   async submitCCTVCheckForm(formData, userId, userName) {
     try {
-      // Dynamically determine which schemes have data (issues or comments)
-      const schemeIds = [];
-
-      // Check A417 section
-      const hasA417Data =
-        (formData.a417Cameras && formData.a417Cameras.length > 0) ||
-        (formData.a417Comments && formData.a417Comments.trim() !== "");
-      if (hasA417Data) {
-        schemeIds.push("A417");
-      }
-
-      // Check A11/A47 Kier/Core section
-      const hasKierCoreData =
-        (formData.kierCore && formData.kierCore.length > 0) ||
-        (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
-      if (hasKierCoreData) {
-        schemeIds.push("A47");
-      }
-
-      // Check M3 Jct 9 section
-      const hasM3Data =
-        (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
-        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
-      if (hasM3Data) {
-        schemeIds.push("M3");
-      }
-
-      // Check A452 HS2 section
-      const hasA452Data =
-        (formData.A452 && formData.A452.length > 0) ||
-        (formData.A452Comments && formData.A452Comments.trim() !== "");
-      if (hasA452Data) {
-        schemeIds.push("A452");
-      }
-
-      // Check Costain - GC section
-      const hasCostainData =
-        (formData.Costain && formData.Costain.length > 0) ||
-        (formData.CostainComments && formData.CostainComments.trim() !== "");
-      if (hasCostainData) {
-        schemeIds.push("Gallows");
-      }
-
-      // Check Costain Simister Island section
-      const hasCSIData =
-        (formData.csi && formData.csi.length > 0) ||
-        (formData.csiComments && formData.csiComments.trim() !== "");
-      if (hasCSIData) {
-        schemeIds.push("SimisterIsland");
-      }
-
-      // Check Demo section
-      const hasDemoData =
-        (formData.demoCameras && formData.demoCameras.length > 0) ||
-        (formData.demoComments && formData.demoComments.trim() !== "");
-      if (hasDemoData) {
-        schemeIds.push("DMO1");
-      }
-
-      // Check third party dynamic scheme sections (keys: tp_{schemeId}_cameras / tp_{schemeId}_comments)
-      const tpSchemeIds = Object.keys(formData)
-        .filter(
-          (k) =>
-            k.startsWith("tp_") &&
-            k.endsWith("_cameras") &&
-            formData[k]?.length > 0,
-        )
-        .map((k) => k.replace(/^tp_/, "").replace(/_cameras$/, ""));
-      const tpCommentIds = Object.keys(formData)
-        .filter(
-          (k) =>
-            k.startsWith("tp_") &&
-            k.endsWith("_comments") &&
-            formData[k]?.trim?.(),
-        )
-        .map((k) => k.replace(/^tp_/, "").replace(/_comments$/, ""));
-      [...new Set([...tpSchemeIds, ...tpCommentIds])].forEach((id) => {
-        if (!schemeIds.includes(id)) schemeIds.push(id);
-      });
-
-      // If no data in any section (clean check - all cameras working),
-      // include all real scheme IDs so every client can see the clean check form
-      if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3", "Gallows", "SimisterIsland");
-      }
+      // Determine which schemes this form belongs to (see deriveCCTVSchemeIds).
+      // A clean third-party check stays scoped to its TP schemes, so it never
+      // leaks onto the internal dashboard.
+      const schemeIds = deriveCCTVSchemeIds(formData);
 
       // Use the first scheme as the primary schemeId for backward compatibility
       const schemeId = schemeIds[0];
@@ -312,70 +232,10 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy,
       });
 
-      // Dynamically determine which schemes have data (issues or comments)
-      const schemeIds = [];
-
-      // Check A417 section
-      const hasA417Data =
-        (formData.a417Cameras && formData.a417Cameras.length > 0) ||
-        (formData.a417Comments && formData.a417Comments.trim() !== "");
-      if (hasA417Data) {
-        schemeIds.push("A417");
-      }
-
-      // Check A11/A47 Kier/Core section
-      const hasKierCoreData =
-        (formData.kierCore && formData.kierCore.length > 0) ||
-        (formData.kierCoreComments && formData.kierCoreComments.trim() !== "");
-      if (hasKierCoreData) {
-        schemeIds.push("A47");
-      }
-
-      // Check M3 Jct 9 section
-      const hasM3Data =
-        (formData.m3Jct9 && formData.m3Jct9.length > 0) ||
-        (formData.m3Jct9Comments && formData.m3Jct9Comments.trim() !== "");
-      if (hasM3Data) {
-        schemeIds.push("M3");
-      }
-
-      // Check A452 HS2 section
-      const hasA452Data =
-        (formData.A452 && formData.A452.length > 0) ||
-        (formData.A452Comments && formData.A452Comments.trim() !== "");
-      if (hasA452Data) {
-        schemeIds.push("A452");
-      }
-
-      // Check Costain - GC section
-      const hasCostainData =
-        (formData.Costain && formData.Costain.length > 0) ||
-        (formData.CostainComments && formData.CostainComments.trim() !== "");
-      if (hasCostainData) {
-        schemeIds.push("Gallows");
-      }
-
-      // Check Costain Simister Island section
-      const hasCSIData =
-        (formData.csi && formData.csi.length > 0) ||
-        (formData.csiComments && formData.csiComments.trim() !== "");
-      if (hasCSIData) {
-        schemeIds.push("SimisterIsland");
-      }
-
-      // Check Demo section
-      const hasDemoData =
-        (formData.demoCameras && formData.demoCameras.length > 0) ||
-        (formData.demoComments && formData.demoComments.trim() !== "");
-      if (hasDemoData) {
-        schemeIds.push("DMO1");
-      }
-
-      // If no data in any section (clean check - all cameras working),
-      // include all real scheme IDs so every client can see the clean check form
-      if (schemeIds.length === 0) {
-        schemeIds.push("A417", "A47", "M3", "Gallows", "SimisterIsland");
-      }
+      // Re-derive which schemes this form belongs to from the edited data.
+      // Uses the same logic as submit (incl. third-party sections) so an edit
+      // never strips a third-party check's scheme IDs or remaps it to internal.
+      const schemeIds = deriveCCTVSchemeIds(formData);
 
       // Use the first scheme as the primary schemeId for backward compatibility
       const schemeId = schemeIds[0];
