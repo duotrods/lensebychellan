@@ -82,10 +82,14 @@ class StaffService {
 
   async submitCCTVCheckForm(formData, userId, userName) {
     try {
-      // Determine which schemes this form belongs to (see deriveCCTVSchemeIds).
-      // A clean third-party check stays scoped to its TP schemes, so it never
-      // leaks onto the internal dashboard.
-      const schemeIds = deriveCCTVSchemeIds(formData);
+      // Determine which schemes this form belongs to. The certification form
+      // supplies the submitter's scheme scope explicitly; fall back to deriving
+      // from legacy per-scheme data. Either way a third-party check stays scoped
+      // to its TP schemes, so it never leaks onto the internal dashboard.
+      const schemeIds =
+        Array.isArray(formData.schemeIds) && formData.schemeIds.length > 0
+          ? formData.schemeIds
+          : deriveCCTVSchemeIds(formData);
 
       // Use the first scheme as the primary schemeId for backward compatibility
       const schemeId = schemeIds[0];
@@ -232,10 +236,13 @@ class StaffService {
         previousSubmittedBy: currentData.submittedBy,
       });
 
-      // Re-derive which schemes this form belongs to from the edited data.
-      // Uses the same logic as submit (incl. third-party sections) so an edit
-      // never strips a third-party check's scheme IDs or remaps it to internal.
-      const schemeIds = deriveCCTVSchemeIds(formData);
+      // Re-derive which schemes this form belongs to. Prefer the explicitly
+      // supplied scope (certification form); otherwise derive from legacy
+      // per-scheme data so an edit never strips a third-party check's scheme IDs.
+      const schemeIds =
+        Array.isArray(formData.schemeIds) && formData.schemeIds.length > 0
+          ? formData.schemeIds
+          : deriveCCTVSchemeIds(formData);
 
       // Use the first scheme as the primary schemeId for backward compatibility
       const schemeId = schemeIds[0];

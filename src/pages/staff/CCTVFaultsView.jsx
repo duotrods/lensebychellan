@@ -242,6 +242,34 @@ const CCTVFaultsView = () => {
                   </p>
                 </div>
               </div>
+
+              <div className="flex items-start gap-3">
+                <Camera className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <label className="text-sm font-semibold text-gray-500">Blackspot Camera</label>
+                  <p className="text-gray-800 mt-0.5">
+                    {fault.blackspotCamera === undefined
+                      ? 'N/A'
+                      : fault.blackspotCamera
+                        ? 'Yes'
+                        : 'No'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Radio className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <label className="text-sm font-semibold text-gray-500">TSS Informed</label>
+                  <p className="text-gray-800 mt-0.5">
+                    {fault.tssInformed === undefined
+                      ? 'N/A'
+                      : fault.tssInformed
+                        ? 'Yes'
+                        : 'No'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

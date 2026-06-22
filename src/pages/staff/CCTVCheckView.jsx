@@ -317,7 +317,21 @@ const CCTVCheckView = () => {
             </div>
           </div>
 
-          {/* Camera Sections */}
+          {/* Certification (new-style checks) */}
+          {form.certified && (
+            <div className="p-6 bg-green-50 rounded-xl border border-green-200">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="w-5 h-5 shrink-0" />
+                <span className="font-semibold">
+                  {form.certificationText ||
+                    "I certify that a full CCTV check of all schemes has been completed."}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Camera Sections (legacy detailed checks) */}
+          {!form.certified && (
           <div className="space-y-6">
             {/* Third-party scheme sections */}
             {THIRD_PARTY_SCHEMES.map((scheme) => {
@@ -376,6 +390,7 @@ const CCTVCheckView = () => {
               form.csiTssInformed,
             )}
           </div>
+          )}
 
           {/* Metadata */}
           <div className="border-t pt-4">

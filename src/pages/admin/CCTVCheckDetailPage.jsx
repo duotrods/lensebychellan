@@ -187,6 +187,21 @@ const CCTVCheckDetailPage = () => {
             </div>
           )}
 
+          {/* Certification (new-style checks) */}
+          {report.certified && (
+            <div className="mb-8 pb-8 border-b">
+              <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg">
+                <Check className="w-5 h-5 text-green-600 shrink-0" />
+                <span className="font-medium text-green-800">
+                  {report.certificationText ||
+                    'I certify that a full CCTV check of all schemes has been completed.'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Camera Sections + Summary (legacy detailed checks) */}
+          {!report.certified && (<>
           {/* A417 Section */}
           {renderCameraSection(
             'A417 - Missing Link Cameras',
@@ -290,6 +305,7 @@ const CCTVCheckDetailPage = () => {
               })()}
             </div>
           </div>
+          </>)}
 
           {/* Submission Information */}
           <div className="bg-gray-50 rounded-lg p-6">

@@ -428,6 +428,17 @@ export const generateReportPDF = async (
         addField("Checked By", report.firstName);
       }
 
+      // New-style certification check: just the certification statement.
+      if (report.certified) {
+        addField(
+          "Certification",
+          report.certificationText ||
+            "I certify that a full CCTV check of all schemes has been completed.",
+          true,
+        );
+        break;
+      }
+
       // A417 Section - only show if no filter OR filter matches A417
       if (
         (!filterSchemeId || filterSchemeId === "A417") &&

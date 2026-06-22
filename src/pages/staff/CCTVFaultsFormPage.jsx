@@ -39,6 +39,8 @@ const CCTVFaultsFormPage = () => {
     time: new Date().toTimeString().slice(0, 5),
     scheme: singleScheme ? singleScheme.fullName : "",
     camera: "",
+    blackspotCamera: "", // "yes" | "no" — required
+    tssInformed: "", // "yes" | "no" — required
   });
 
   const handleChange = (e) => {
@@ -68,6 +70,18 @@ const CCTVFaultsFormPage = () => {
           time: report.time || "",
           scheme: report.scheme || "",
           camera: report.camera || "",
+          blackspotCamera:
+            report.blackspotCamera === true
+              ? "yes"
+              : report.blackspotCamera === false
+                ? "no"
+                : "",
+          tssInformed:
+            report.tssInformed === true
+              ? "yes"
+              : report.tssInformed === false
+                ? "no"
+                : "",
         });
         setReportMeta({
           status: report.status || "live",
@@ -110,7 +124,13 @@ const CCTVFaultsFormPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.scheme || !formData.camera || !formData.fullName) {
+    if (
+      !formData.scheme ||
+      !formData.camera ||
+      !formData.fullName ||
+      !formData.blackspotCamera ||
+      !formData.tssInformed
+    ) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -118,6 +138,8 @@ const CCTVFaultsFormPage = () => {
     const trimmedData = {
       ...formData,
       fullName: formData.fullName.trim(),
+      blackspotCamera: formData.blackspotCamera === "yes",
+      tssInformed: formData.tssInformed === "yes",
     };
 
     setLoading(true);
@@ -144,6 +166,8 @@ const CCTVFaultsFormPage = () => {
           time: new Date().toTimeString().slice(0, 5),
           scheme: singleScheme ? singleScheme.fullName : "",
           camera: "",
+          blackspotCamera: "",
+          tssInformed: "",
         });
       }
     } catch (error) {
@@ -338,6 +362,74 @@ const CCTVFaultsFormPage = () => {
                   <option key={cam} value={cam}>{cam}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-10 pt-2">
+            {/* Blackspot Camera */}
+            <div>
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  Blackspot Camera? <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="blackspotCamera"
+                    value="yes"
+                    checked={formData.blackspotCamera === "yes"}
+                    onChange={handleChange}
+                    className="radio radio-sm radio-neutral"
+                  />
+                  <span className="text-sm text-gray-700 font-semibold">Yes</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="blackspotCamera"
+                    value="no"
+                    checked={formData.blackspotCamera === "no"}
+                    onChange={handleChange}
+                    className="radio radio-sm radio-neutral"
+                  />
+                  <span className="text-sm text-gray-700 font-semibold">No</span>
+                </label>
+              </div>
+            </div>
+
+            {/* TSS Informed */}
+            <div>
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  TSS Informed? <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tssInformed"
+                    value="yes"
+                    checked={formData.tssInformed === "yes"}
+                    onChange={handleChange}
+                    className="radio radio-sm radio-neutral"
+                  />
+                  <span className="text-sm text-gray-700 font-semibold">Yes</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tssInformed"
+                    value="no"
+                    checked={formData.tssInformed === "no"}
+                    onChange={handleChange}
+                    className="radio radio-sm radio-neutral"
+                  />
+                  <span className="text-sm text-gray-700 font-semibold">No</span>
+                </label>
+              </div>
             </div>
           </div>
 
