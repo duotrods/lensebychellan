@@ -16,7 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { SCHEMES } from "../../utils/schemes";
+import { getActiveSchemeName } from "../../utils/schemes";
 import { isVideoFile, isImageFile } from "../../utils/fileType";
 
 const CCTVRecordingsPage = () => {
@@ -184,18 +184,6 @@ const CCTVRecordingsPage = () => {
     return video?.downloadUrl || null;
   };
 
-  // Get the active scheme name for display
-  const getActiveSchemeName = () => {
-    if (userProfile?.activeSchemeName) return userProfile.activeSchemeName;
-    if (userProfile?.activeSchemeId) {
-      const activeSchemeObj = SCHEMES.find(
-        (s) => s.id === userProfile.activeSchemeId,
-      );
-      if (activeSchemeObj) return activeSchemeObj.fullName;
-    }
-    return userProfile?.schemeName;
-  };
-
   return (
     <ClientSidebarLayout>
       <div className="p-6">
@@ -203,7 +191,7 @@ const CCTVRecordingsPage = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800">CCTV Recordings</h1>
           <p className="text-gray-600 mt-2">
-            Access and manage CCTV footage for {getActiveSchemeName()}
+            Access and manage CCTV footage for <span className="font-semibold text-brand-400">{getActiveSchemeName(userProfile)}</span>
           </p>
         </div>
 

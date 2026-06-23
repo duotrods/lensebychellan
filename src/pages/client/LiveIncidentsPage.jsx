@@ -5,7 +5,7 @@ import { useLiveIncidents, usePaginatedCompletedIncidents } from '../../hooks/us
 import { Eye, Download, Radio, CheckCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
-import { SCHEMES } from "../../utils/schemes";
+import { getActiveSchemeName } from "../../utils/schemes";
 
 const LiveIncidentsPage = () => {
   const navigate = useNavigate();
@@ -13,23 +13,6 @@ const LiveIncidentsPage = () => {
   const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
 
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
-  const getActiveSchemeName = () => {
-      // If activeSchemeName is set, use it
-      if (userProfile?.activeSchemeName) {
-        return userProfile.activeSchemeName;
-      }
-  
-      // If we have an activeSchemeId but no activeSchemeName, look it up
-      if (userProfile?.activeSchemeId) {
-        const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
-        if (activeSchemeObj) {
-          return activeSchemeObj.fullName;
-        }
-      }
-  
-      // Fall back to the default scheme name
-      return userProfile?.schemeName;
-    };
 
   // Real-time subscription for LIVE incidents only (instant updates)
   const { liveIncidents, loading: liveLoading } = useLiveIncidents(schemeId);
@@ -128,9 +111,14 @@ const LiveIncidentsPage = () => {
       ) : (
           <>
             <div className="mb-8 bg-white rounded-xl text-center p-6 shadow-sm">
-          <h4 className=" font-bold text-gray-800">
-               <span className="font-semibold text-brand-400">{schemeId} ({getActiveSchemeName()})</span> Live Incidents 
-            </h4>
+         <h4 className="font-bold text-gray-800">
+            <span className="font-semibold text-brand-400">
+              {schemeId}
+            </span>{" "}
+             <span className="font-semibold text-gray-800">
+              Live Incidents
+            </span>
+          </h4>
           <p className="text-gray-500">You can monitor here your live incidents and completed incidents </p>
          
       </div>

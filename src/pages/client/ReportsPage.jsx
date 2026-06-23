@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
-import { SCHEMES } from "../../utils/schemes";
+import { getActiveSchemeName } from "../../utils/schemes";
 import ReportStatsCards from "../../components/client/reports/ReportStatsCards";
 import ReportDetailModal from "../../components/client/reports/ReportDetailModal";
 import {
@@ -398,14 +398,7 @@ const ReportsPage = () => {
 
     // For daily occurrence reports, check if any occurrence matches the client's scheme
     if (report.reportType === "daily-occurrence" && report.occurrences) {
-      let activeSchemeName =
-        userProfile?.activeSchemeName || userProfile?.schemeName;
-      if (!userProfile?.activeSchemeName && userProfile?.activeSchemeId) {
-        const activeSchemeObj = SCHEMES.find(
-          (s) => s.id === userProfile.activeSchemeId,
-        );
-        if (activeSchemeObj) activeSchemeName = activeSchemeObj.fullName;
-      }
+      const activeSchemeName = getActiveSchemeName(userProfile);
       const hasMatchingOccurrence = report.occurrences.some(
         (occurrence) =>
           occurrence.scheme === activeSchemeName ||
@@ -541,26 +534,6 @@ const ReportsPage = () => {
     incidentAssetDamage: reportTypeCounts.incidentAssetDamage,
   };
 
-  // Get the active scheme name for display
-  const getActiveSchemeName = () => {
-    // If activeSchemeName is set, use it
-    if (userProfile?.activeSchemeName) {
-      return userProfile.activeSchemeName;
-    }
-
-    // If we have an activeSchemeId but no activeSchemeName, look it up
-    if (userProfile?.activeSchemeId) {
-      const activeSchemeObj = SCHEMES.find(
-        (s) => s.id === userProfile.activeSchemeId,
-      );
-      if (activeSchemeObj) {
-        return activeSchemeObj.fullName;
-      }
-    }
-
-    // Fall back to the default scheme name
-    return userProfile?.schemeName;
-  };
 
   const handleApplyDateFilter = () => {
     if (!dateFilter.startDate || !dateFilter.endDate) {
@@ -601,7 +574,7 @@ const ReportsPage = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Reports</h1>
           <p className="text-gray-600 mt-2">
-            View and manage all reports for {getActiveSchemeName()}
+            View and manage all reports for <span className="font-semibold text-brand-400">{getActiveSchemeName(userProfile)}</span>
           </p>
         </div>
 

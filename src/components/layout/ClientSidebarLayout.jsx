@@ -154,8 +154,8 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
             </Link>
           ))}
 
-          {/* Coming soon items */}
-          {[
+          {/* Coming soon items — hidden for third-party clients */}
+          {role !== USER_ROLES.THIRDPARTYCLIENT && [
             { name: "Lense Assist", icon: Sparkles },
           ].map((item) => (
             <div

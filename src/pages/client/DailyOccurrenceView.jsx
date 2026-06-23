@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { clientDataService } from '../../services/clientDataService';
 import ClientSidebarLayout from '../../components/layout/ClientSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
-import { SCHEMES } from '../../utils/schemes';
+import { getActiveSchemeName } from '../../utils/schemes';
 
 const DailyOccurrenceView = () => {
   const { id } = useParams();
@@ -28,17 +28,8 @@ const DailyOccurrenceView = () => {
       const foundReport = allReports.find(r => r.id === id && r.reportType === 'daily-occurrence');
 
       if (foundReport) {
-        // Filter occurrences to only show those matching the client's scheme
-        // Get the active scheme name - if activeSchemeName is not set, look it up from the scheme ID
-        let activeSchemeName = userProfile.activeSchemeName || userProfile.schemeName;
-
-        // If we have an activeSchemeId but no activeSchemeName, look it up
-        if (!userProfile.activeSchemeName && userProfile.activeSchemeId) {
-          const activeSchemeObj = SCHEMES.find(s => s.id === userProfile.activeSchemeId);
-          if (activeSchemeObj) {
-            activeSchemeName = activeSchemeObj.fullName;
-          }
-        }
+        // Filter occurrences to only show those matching the client's active scheme
+        const activeSchemeName = getActiveSchemeName(userProfile);
 
         const filteredOccurrences = foundReport.occurrences?.filter(occurrence => {
           return occurrence.scheme === activeSchemeName || occurrence.scheme === 'All Schemes';

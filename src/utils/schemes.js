@@ -242,6 +242,24 @@ export const extractSchemeId = (fullName) => {
   return scheme ? scheme.id : fullName.split(" ")[0]; // Fallback to first word
 };
 
+// Resolve the human-readable name for a user's active scheme.
+// Order: per-scheme map (correct source, always matches active scheme) →
+// static lookup across internal AND third-party schemes → legacy single-value fields.
+// Replaces the buggy local copies that preferred the stale `activeSchemeName`
+// field (never updated on scheme switch) and only searched internal SCHEMES.
+export const getActiveSchemeName = (userProfile) => {
+  if (!userProfile) return "";
+  const activeId = userProfile.activeSchemeId || userProfile.schemeId;
+  if (activeId && userProfile.schemeNames?.[activeId]) {
+    return userProfile.schemeNames[activeId];
+  }
+  if (activeId) {
+    const scheme = getSchemeById(activeId) || getThirdPartySchemeById(activeId);
+    if (scheme) return scheme.fullName;
+  }
+  return userProfile.activeSchemeName || userProfile.schemeName || "";
+};
+
 // Helper function to check if a user is a demo account
 export const isDemoUser = (userProfile) => {
   if (!userProfile) return false;
