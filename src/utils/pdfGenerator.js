@@ -152,6 +152,7 @@ export const generateReportPDF = async (
     "asset-damage": "Asset Damage Report",
     "daily-occurrence": "Daily Occurrence Report",
     "cctv-check": "CCTV Check Report",
+    "cctv-faults": "CCTV Fault Report",
   };
 
   // Title with background
@@ -709,6 +710,41 @@ export const generateReportPDF = async (
         yPosition += 3;
       }
       break;
+
+    case "cctv-faults": {
+      if (report.camera) addField("Camera", report.camera, true);
+      addField("Blackspot Camera", report.blackspotCamera ? "Yes" : "No");
+      addField("TSS Informed", report.tssInformed ? "Yes" : "No");
+      addField("Client Acknowledged", report.clientAcknowledged ? "Yes" : "No");
+      if (report.completedBy?.name)
+        addField("Completed By", report.completedBy.name);
+
+      if (report.comments && report.comments.trim() !== "") {
+        yPosition += 3;
+        addSectionHeader("FAULT DESCRIPTION");
+        addField("Description", report.comments);
+      }
+
+      const notes = report.clientNotes?.length
+        ? report.clientNotes
+        : report.clientNote
+          ? [{ text: report.clientNote, authorName: "Operator" }]
+          : [];
+      if (notes.length > 0) {
+        yPosition += 3;
+        addSectionHeader("NOTES");
+        notes.forEach((n) => {
+          const who =
+            n.authorName ||
+            (n.authorRole === "cctvfaultoperator" ? "Operator" : "Staff");
+          const when = n.addedAt
+            ? ` (${new Date(n.addedAt).toLocaleString("en-GB")})`
+            : "";
+          addField(`${who}${when}`, n.text);
+        });
+      }
+      break;
+    }
   }
 
   // Report Information Section (Status and Submitter)

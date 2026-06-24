@@ -14,6 +14,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import { generateReportPDF } from "../../utils/pdfGenerator";
+import { getThirdPartySchemeById } from "../../utils/schemes";
 
 const CCTVCheckView = () => {
   const { id } = useParams();
@@ -327,6 +328,20 @@ const CCTVCheckView = () => {
             {(() => {
               const currentSchemeId =
                 userProfile?.activeSchemeId || userProfile?.schemeId;
+
+              // Third-party scheme: data is stored under tp_<id>_* keys.
+              // Mirror the staff view — cameras + comments only (blackspot/TSS
+              // moved to CCTV Faults).
+              const tpScheme = getThirdPartySchemeById(currentSchemeId);
+              if (tpScheme && form.schemeIds?.includes(currentSchemeId)) {
+                return renderCameraSection(
+                  tpScheme.shortName || tpScheme.fullName,
+                  form[`tp_${currentSchemeId}_cameras`],
+                  form[`tp_${currentSchemeId}_comments`],
+                  null,
+                  null,
+                );
+              }
 
               // Show only the section matching the current active scheme
               if (

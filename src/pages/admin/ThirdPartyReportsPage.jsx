@@ -396,6 +396,7 @@ const ThirdPartyReportsPage = () => {
       // Map display type to PDF generator type
       const typeMap = {
         "CCTV Check": "cctv-check",
+        "CCTV Faults": "cctv-faults",
         "Incident Report": "incident",
         "Asset Damage": "asset-damage",
         "Daily Logs": "daily-occurrence",
