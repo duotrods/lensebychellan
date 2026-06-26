@@ -324,9 +324,9 @@ const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
 
   const statsCards = [
     {
-      title: "Total Incidents",
+      title: "Incidents",
       value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
-      text: "Total incidents excluding Free Recovery, Drive off and Incursions.",
+      text: "Incidents excluding Free Recovery, Drive off and Incursions.",
       icon: AlertTriangle,
       color: "text-orange-500",
       bgColor: "bg-orange-50",
