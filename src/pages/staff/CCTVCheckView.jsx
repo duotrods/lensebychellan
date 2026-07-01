@@ -4,7 +4,6 @@ import { toast } from "react-hot-toast";
 import {
   ArrowLeft,
   Edit,
-  Trash2,
   CheckCircle,
   XCircle,
   Download,
@@ -19,7 +18,7 @@ import { THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 const CCTVCheckView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile, role } = useAuth();
+  const { role } = useAuth();
   const basePath = getStaffBasePath(role);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,29 +50,6 @@ const CCTVCheckView = () => {
 
   const handleEdit = () => {
     navigate(`${basePath}/forms/cctv-check?edit=${id}`);
-  };
-
-  const handleDelete = async () => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete this CCTV Check Form? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await staffService.deleteCCTVCheckForm(
-        id,
-        userProfile.uid,
-        userProfile.displayName,
-      );
-      toast.success("CCTV Check Form deleted successfully");
-      navigate(basePath);
-    } catch (error) {
-      console.error("Failed to delete form:", error);
-      toast.error("Failed to delete form");
-    }
   };
 
   const handleDownloadPDF = async () => {
@@ -263,13 +239,6 @@ const CCTVCheckView = () => {
             >
               <Edit className="w-4 h-4" />
               Edit
-            </button>
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
             </button>
           </div>
         </div>

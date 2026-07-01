@@ -3,8 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import {
   ArrowLeft,
-  Edit,
-  Trash2,
   CheckCircle,
   XCircle,
   Download,
@@ -256,12 +254,6 @@ const CCTVCheckView = () => {
             >
               <Download className="w-4 h-4" />
               PDF
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-              Edit
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-              Delete
             </button>
           </div>
         </div>

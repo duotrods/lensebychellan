@@ -443,6 +443,54 @@ class ClientDataService {
     }
   }
 
+  // Get documents (files + live links) shared by staff for the client's scheme
+  async getDocuments(schemeId, limitCount = 100) {
+    try {
+      const documentsRef = collection(db, "documents");
+      const schemeFilter = schemeId
+        ? [where("schemeIds", "array-contains", schemeId)]
+        : [];
+
+      const q = query(
+        documentsRef,
+        ...schemeFilter,
+        orderBy("uploadedAt", "desc"),
+        limit(limitCount),
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((doc) => doc.deleted !== true);
+    } catch (error) {
+      // Fall back to legacy single-schemeId docs if the array index is missing
+      if (
+        error.code === "failed-precondition" ||
+        error.message?.includes("index")
+      ) {
+        console.warn("Index not available for documents, using fallback");
+        const fallbackFilters = schemeId
+          ? [where("schemeId", "==", schemeId)]
+          : [];
+        const simpleQuery = query(
+          collection(db, "documents"),
+          ...fallbackFilters,
+          limit(200),
+        );
+        const snapshot = await getDocs(simpleQuery);
+        return snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((doc) => doc.deleted !== true)
+          .sort(
+            (a, b) =>
+              (b.uploadedAt?.seconds || 0) - (a.uploadedAt?.seconds || 0),
+          );
+      }
+      console.error("Failed to get documents:", error);
+      return [];
+    }
+  }
+
   // Get total count of COMPLETED CCTV fault reports for a scheme (1 aggregate read)
   async getCCTVFaultsCount(schemeId) {
     try {

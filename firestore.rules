@@ -326,6 +326,35 @@ service cloud.firestore {
       );
     }
 
+    // Documents (staff share files / live links with clients, scheme-scoped)
+    match /documents/{documentId} {
+      allow create: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
+      );
+
+      allow get: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'thirdpartystaff' ||
+        ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.scheme)
+        ))
+      );
+
+      allow list: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client' ||
+        getUserRole() == 'thirdpartystaff' ||
+        getUserRole() == 'thirdpartyclient'
+      );
+
+      allow update, delete: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
+      );
+    }
+
     // Activities (for notice board)
     match /activities/{activityId} {
       allow create: if isVerified() && (

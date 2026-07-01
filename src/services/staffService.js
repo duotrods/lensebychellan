@@ -810,6 +810,77 @@ class StaffService {
   }
 
   // ============================================
+  // DOCUMENTS (staff share files / live links with clients, scheme-scoped)
+  // ============================================
+
+  async submitDocument(docData, userId, userName) {
+    try {
+      // Extract schemeId from scheme field (full scheme name)
+      const schemeId = docData.scheme ? extractSchemeId(docData.scheme) : null;
+
+      const documentsRef = collection(db, "documents");
+      const docRef = await addDoc(documentsRef, {
+        ...docData,
+        ...(schemeId && {
+          schemeId, // Keep for backward compatibility
+          schemeIds: [schemeId], // New array format for multi-scheme support
+        }),
+        uploadedBy: {
+          userId,
+          name: userName,
+        },
+        uploadedAt: serverTimestamp(),
+      });
+
+      // Log activity
+      await this.logActivity({
+        type: "document_upload",
+        staffId: userId,
+        staffName: userName,
+        description: `${userName} added document "${docData.title}" for ${docData.scheme}`,
+        relatedDocumentId: docRef.id,
+      });
+
+      return docRef.id;
+    } catch (error) {
+      console.error("Failed to submit document:", error);
+      throw error;
+    }
+  }
+
+  async getDocuments(limitCount = 100) {
+    try {
+      const documentsRef = collection(db, "documents");
+      const q = query(
+        documentsRef,
+        orderBy("uploadedAt", "desc"),
+        limit(limitCount),
+      );
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((doc) => doc.deleted !== true);
+    } catch (error) {
+      console.error("Failed to get documents:", error);
+      return [];
+    }
+  }
+
+  async deleteDocument(documentId) {
+    try {
+      const documentRef = doc(db, "documents", documentId);
+      await updateDoc(documentRef, {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+      throw error;
+    }
+  }
+
+  // ============================================
   // ASSET DAMAGE REPORTS
   // ============================================
 
