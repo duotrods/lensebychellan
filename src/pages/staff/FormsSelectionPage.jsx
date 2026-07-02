@@ -38,7 +38,7 @@ const FormsSelectionPage = () => {
 
   return (
     <StaffSidebarLayout basePath={basePath}>
-      <div className="max-w-6xl mx-auto">
+      <div>
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
