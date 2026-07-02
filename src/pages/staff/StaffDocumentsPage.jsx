@@ -17,14 +17,12 @@ import {
   FolderOpen,
   Clock,
   User,
-  Trash2,
   X,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { isDemoUser, DEMO_SCHEME_ID, SCHEMES } from "../../utils/schemes";
 import {
   DOCUMENT_CATEGORIES,
-  isAllowedEmbedUrl,
   getDocumentType,
   formatFileSize,
   formatDocumentDate,
@@ -79,21 +77,16 @@ const StaffDocumentsPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
 
-  // Add mode: "file" (upload to R2) or "embed" (online live link)
-  const [addMode, setAddMode] = useState("file");
   const [submitting, setSubmitting] = useState(false);
 
-  // Shared metadata
+  // Metadata
   const [scheme, setScheme] = useState("");
   const [category, setCategory] = useState(DOCUMENT_CATEGORIES[0]);
   const [title, setTitle] = useState("");
 
-  // File mode
+  // File upload
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-
-  // Embed mode
-  const [embedUrl, setEmbedUrl] = useState("");
 
   const schemeOptions = SCHEMES.filter((s) =>
     isDemoUser(userProfile) ? s.isDemo : !s.isDemo,
@@ -126,7 +119,6 @@ const StaffDocumentsPage = () => {
   const resetForm = () => {
     setTitle("");
     setSelectedFile(null);
-    setEmbedUrl("");
     // keep scheme + category selected for quick consecutive adds
   };
 
@@ -164,63 +156,41 @@ const StaffDocumentsPage = () => {
       return;
     }
 
+    if (!selectedFile) {
+      toast.error("Please select a file");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      if (addMode === "file") {
-        if (!selectedFile) {
-          toast.error("Please select a file");
-          setSubmitting(false);
-          return;
-        }
-        const key = `documents/${userProfile.uid}/${Date.now()}_${selectedFile.name}`;
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        await r2Client.send(
-          new PutObjectCommand({
-            Bucket: import.meta.env.VITE_R2_BUCKET,
-            Key: key,
-            Body: new Uint8Array(arrayBuffer),
-            ContentType: selectedFile.type || "application/octet-stream",
-          }),
-        );
-        const publicUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${key}`;
+      const key = `documents/${userProfile.uid}/${Date.now()}_${selectedFile.name}`;
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: import.meta.env.VITE_R2_BUCKET,
+          Key: key,
+          Body: new Uint8Array(arrayBuffer),
+          ContentType: selectedFile.type || "application/octet-stream",
+        }),
+      );
+      const publicUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${key}`;
 
-        await staffService.submitDocument(
-          {
-            kind: "file",
-            title: title.trim(),
-            category,
-            scheme,
-            fileName: selectedFile.name,
-            fileUrl: key,
-            downloadUrl: publicUrl,
-            fileSize: selectedFile.size,
-            fileType: selectedFile.type || "application/octet-stream",
-          },
-          userProfile.uid,
-          userProfile.displayName,
-        );
-        toast.success("Document uploaded");
-      } else {
-        if (!isAllowedEmbedUrl(embedUrl)) {
-          toast.error(
-            "Enter a valid Excel Online / OneDrive / SharePoint embed link (https)",
-          );
-          setSubmitting(false);
-          return;
-        }
-        await staffService.submitDocument(
-          {
-            kind: "embed",
-            title: title.trim(),
-            category,
-            scheme,
-            embedUrl: embedUrl.trim(),
-          },
-          userProfile.uid,
-          userProfile.displayName,
-        );
-        toast.success("Online document added");
-      }
+      await staffService.submitDocument(
+        {
+          kind: "file",
+          title: title.trim(),
+          category,
+          scheme,
+          fileName: selectedFile.name,
+          fileUrl: key,
+          downloadUrl: publicUrl,
+          fileSize: selectedFile.size,
+          fileType: selectedFile.type || "application/octet-stream",
+        },
+        userProfile.uid,
+        userProfile.displayName,
+      );
+      toast.success("Document uploaded");
 
       resetForm();
       loadDocuments();
@@ -229,19 +199,6 @@ const StaffDocumentsPage = () => {
       toast.error("Failed to add document");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (doc) => {
-    if (!window.confirm(`Delete "${doc.title}"? Clients will no longer see it.`))
-      return;
-    try {
-      await staffService.deleteDocument(doc.id);
-      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
-      toast.success("Document deleted");
-    } catch (error) {
-      console.error("Failed to delete document:", error);
-      toast.error("Failed to delete document");
     }
   };
 
@@ -261,37 +218,12 @@ const StaffDocumentsPage = () => {
         <div className="mb-6">
           <h3 className="text-3xl font-bold text-gray-800 mb-2">Documents</h3>
           <p className="text-gray-600">
-            Upload files or add live online documents for a scheme — only that
-            scheme's clients will see them.
+            Upload files for a scheme — only that scheme's clients will see them.
           </p>
         </div>
 
         {/* Add panel */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-          {/* Mode toggle */}
-          <div className="inline-flex rounded-lg bg-gray-100 p-1 mb-5">
-            <button
-              onClick={() => setAddMode("file")}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                addMode === "file"
-                  ? "bg-white text-teal-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Upload file
-            </button>
-            {/* <button
-              onClick={() => setAddMode("embed")}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                addMode === "embed"
-                  ? "bg-white text-teal-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Add online document
-            </button> */}
-          </div>
-
           {/* Scheme + category + title */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
@@ -348,8 +280,7 @@ const StaffDocumentsPage = () => {
           </div>
 
           <div className="min-h-[188px]">
-          {addMode === "file" ? (
-            selectedFile ? (
+          {selectedFile ? (
               <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3 mb-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <FileIcon
@@ -405,30 +336,7 @@ const StaffDocumentsPage = () => {
                   onChange={handleFileSelect}
                 />
               </label>
-            )
-          ) : (
-            <div className="mb-4">
-              <label className="label">
-                <span className="label-text font-semibold mb-2">
-                  Embed link <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <input
-                type="url"
-                value={embedUrl}
-                onChange={(e) => setEmbedUrl(e.target.value)}
-                placeholder="https://onedrive.live.com/embed?..."
-                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-              />
-              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-                In Excel Online / OneDrive, open the spreadsheet →{" "}
-                <span className="font-medium">File → Share → Embed</span>, then
-                copy the <span className="font-medium">src</span> link and paste
-                it here. Clients always see the latest live version — you never
-                need to re-upload after editing.
-              </p>
-            </div>
-          )}
+            )}
           </div>
 
           <button
@@ -436,11 +344,7 @@ const StaffDocumentsPage = () => {
             disabled={submitting}
             className="px-5 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-60"
           >
-            {submitting
-              ? "Saving…"
-              : addMode === "file"
-                ? "Upload document"
-                : "Add online document"}
+            {submitting ? "Saving…" : "Upload document"}
           </button>
         </div>
 
@@ -569,13 +473,6 @@ const StaffDocumentsPage = () => {
                               Download
                             </a>
                           )}
-                          <button
-                            onClick={() => handleDelete(doc)}
-                            className="inline-flex items-center p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         </div>
                       </td>
                     </tr>
