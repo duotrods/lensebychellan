@@ -9,7 +9,9 @@ import {
   Link2,
   Search,
   FolderOpen,
-  Trash2,
+  Filter,
+  User,
+  Clock,
   X,
   Plus,
 } from "lucide-react";
@@ -79,6 +81,7 @@ const StaffDocumentsPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Shared metadata
@@ -102,7 +105,8 @@ const StaffDocumentsPage = () => {
   // Close the drawer on Escape.
   useEffect(() => {
     if (!drawerOpen) return;
-    const onKey = (e) => e.key === "Escape" && !submitting && setDrawerOpen(false);
+    const onKey = (e) =>
+      e.key === "Escape" && !submitting && setDrawerOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen, submitting]);
@@ -169,16 +173,6 @@ const StaffDocumentsPage = () => {
       return;
     }
 
-    if (!selectedFile) {
-      toast.error("Please select a file");
-      return;
-    }
-
-    if (!selectedFile) {
-      toast.error("Please select a file");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const key = `documents/${userProfile.uid}/${Date.now()}_${selectedFile.name}`;
@@ -234,139 +228,20 @@ const StaffDocumentsPage = () => {
     <StaffSidebarLayout>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h3 className="text-3xl font-bold text-gray-800 mb-2">Documents</h3>
-          <p className="text-gray-600">
-            Upload files for a scheme — only that scheme's clients will see them.
-          </p>
-        </div>
-
-        {/* Add panel */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-          {/* Scheme + category + title */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-                Scheme <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={scheme}
-                onChange={(e) => setScheme(e.target.value)}
-                className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
-                required
-              >
-                <option value="">Select a scheme</option>
-                {schemeOptions.map((s) => (
-                  <option key={s.id} value={s.fullName}>
-                    {s.fullName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
-              >
-                {DOCUMENT_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Monthly incident summary"
-              className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
-            />
+            <h3 className="text-3xl font-bold text-gray-800 mb-2">Documents</h3>
+            <p className="text-gray-600">
+              Upload files for a scheme — only that scheme's clients will see
+              them.
+            </p>
           </div>
-
-          <div className="min-h-[188px]">
-          {selectedFile ? (
-              <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3 mb-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <TypeTag
-                    size="lg"
-                    type={getDocumentType({
-                      kind: "file",
-                      fileName: selectedFile.name,
-                      fileType: selectedFile.type,
-                    })}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">
-                      {selectedFile.name}
-                    </p>
-                    <p className="text-xs text-gray-400 tabular-nums">
-                      {formatFileSize(selectedFile.size)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedFile(null)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 shrink-0"
-                  aria-label="Remove file"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <label
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                className={`flex flex-col items-center justify-center gap-1.5 border border-dashed rounded-lg px-6 py-9 cursor-pointer transition-colors ${
-                  isDragging
-                    ? "border-teal-400 bg-teal-50/60"
-                    : "border-gray-300 hover:border-teal-400 hover:bg-gray-50"
-                }`}
-              >
-                <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                <p className="text-sm font-medium text-gray-700">
-                  Drop a file, or click to browse
-                </p>
-                <p className="text-xs text-gray-400">
-                  PDF, Excel, Word or images — up to 50MB
-                </p>
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </label>
-            )}
-          </div>
-
-        <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-end gap-3">
           <button
-            onClick={() => setDrawerOpen(false)}
-            disabled={submitting}
-            className="h-10 px-4 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50 transition-colors"
+            onClick={() => setDrawerOpen(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors shrink-0"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="inline-flex items-center gap-2 h-10 px-5 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 disabled:opacity-60 transition-colors"
-          >
-            {submitting ? "Saving…" : "Upload document"}
+            <Plus className="w-4 h-4" />
+            New document
           </button>
         </div>
 
@@ -439,7 +314,7 @@ const StaffDocumentsPage = () => {
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <FileIcon type={type} className="w-8 h-8 shrink-0" />
+                          <TypeTag type={type} />
                           <div className="min-w-0">
                             <span className="text-sm font-medium text-gray-800 leading-snug block">
                               {doc.title}
@@ -453,7 +328,7 @@ const StaffDocumentsPage = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 hidden md:table-cell">
-                        <CategoryBadge category={doc.category} />
+                        <CategoryLabel category={doc.category} />
                       </td>
                       <td className="px-4 py-4 hidden lg:table-cell">
                         <span className="text-sm text-gray-500">
@@ -505,6 +380,159 @@ const StaffDocumentsPage = () => {
           )}
         </div>
       </div>
+
+      {/* Add document drawer */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => !submitting && setDrawerOpen(false)}
+          />
+          <div className="relative ml-auto h-full w-full max-w-md bg-white shadow-xl flex flex-col">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h4 className="text-lg font-semibold text-gray-800">
+                New document
+              </h4>
+              <button
+                onClick={() => !submitting && setDrawerOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Drawer body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                    Scheme <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={scheme}
+                    onChange={(e) => setScheme(e.target.value)}
+                    className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
+                    required
+                  >
+                    <option value="">Select a scheme</option>
+                    {schemeOptions.map((s) => (
+                      <option key={s.id} value={s.fullName}>
+                        {s.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
+                  >
+                    {DOCUMENT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Monthly incident summary"
+                  className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
+                />
+              </div>
+
+              {selectedFile ? (
+                <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <TypeTag
+                      size="lg"
+                      type={getDocumentType({
+                        kind: "file",
+                        fileName: selectedFile.name,
+                        fileType: selectedFile.type,
+                      })}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">
+                        {selectedFile.name}
+                      </p>
+                      <p className="text-xs text-gray-400 tabular-nums">
+                        {formatFileSize(selectedFile.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedFile(null)}
+                    className="p-1.5 text-gray-400 hover:text-red-500 shrink-0"
+                    aria-label="Remove file"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={`flex flex-col items-center justify-center gap-1.5 border border-dashed rounded-lg px-6 py-9 cursor-pointer transition-colors ${
+                    isDragging
+                      ? "border-teal-400 bg-teal-50/60"
+                      : "border-gray-300 hover:border-teal-400 hover:bg-gray-50"
+                  }`}
+                >
+                  <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                  <p className="text-sm font-medium text-gray-700">
+                    Drop a file, or click to browse
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    PDF, Excel, Word or images — up to 50MB
+                  </p>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Drawer footer */}
+            <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setDrawerOpen(false)}
+                disabled={submitting}
+                className="h-10 px-4 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 h-10 px-5 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 disabled:opacity-60 transition-colors"
+              >
+                {submitting ? "Saving…" : "Upload document"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </StaffSidebarLayout>
   );
 };
