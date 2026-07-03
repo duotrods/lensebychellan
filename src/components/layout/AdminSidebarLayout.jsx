@@ -17,6 +17,7 @@ import {
   Hash,
   Building2,
   PieChart,
+  FolderOpen,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -71,6 +72,11 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Staff Reports",
       path: "/dashboard/admin/staff-reports",
       icon: FileText,
+    },
+    {
+      name: "Documents",
+      path: "/dashboard/admin/documents",
+      icon: FolderOpen,
     },
     {
       name: "Client Charts",
