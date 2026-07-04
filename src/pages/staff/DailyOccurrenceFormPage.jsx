@@ -207,9 +207,9 @@ const DailyOccurrenceFormPage = () => {
           >
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h3 className="text-2xl font-bold text-gray-800">
+          <h2 className="text-2xl font-bold text-gray-800">
             {editId ? "Edit Daily Occurrence Sheet" : "Daily Occurrence Sheet"}
-          </h3>
+          </h2>
         </div>
 
         {/* Form */}

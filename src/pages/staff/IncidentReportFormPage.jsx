@@ -1625,13 +1625,13 @@ const IncidentReportFormPage = () => {
           >
             <ArrowLeft className="w-6 h-6 text-gray-600" />
           </button>
-          <h3 className="text-2xl font-bold text-gray-800">
+          <h2 className="text-2xl font-bold text-gray-800">
             {editId
               ? isEditingLiveIncident
                 ? "Complete Live Incident"
                 : "Edit Incident Report"
               : "Incident Report Log"}
-          </h3>
+          </h2>
         </div>
 
         {/* Render appropriate step */}

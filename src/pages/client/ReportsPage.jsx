@@ -585,7 +585,7 @@ const ReportsPage = () => {
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             {/* Search */}
             <div className="w-full md:w-72 relative shrink-0">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search by reference ID or staff name..."

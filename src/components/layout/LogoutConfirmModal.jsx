@@ -22,17 +22,17 @@ const LogoutConfirmModal = ({ onConfirm, onCancel, noteEnabled = false }) => {
         </div>
 
         {/* Text */}
-        <h2 className="text-lg font-bold text-gray-800 text-center mb-1">
+        <h2 className="text-gray-800 text-center mb-1">
           Sign out?
         </h2>
-        <p className="text-sm text-gray-500 text-center mb-4">
+        <p className="text-sm text-gray-500 text-center mb-6">
           Are you sure you want to log out of your account?
         </p>
 
         {/* Optional handover note (staff only) */}
         {noteEnabled && (
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
               Handover note <span className="text-gray-400 font-normal">(optional)</span>
             </label>
             <textarea

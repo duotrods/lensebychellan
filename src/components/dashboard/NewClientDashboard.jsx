@@ -1,1056 +1,1080 @@
-/* eslint-disable no-constant-binary-expression */
-import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../../hooks/useAuth";
-import { useLiveIncidents } from "../../hooks/useLiveIncidents";
-import { useLiveCCTVFaults } from "../../hooks/useCCTVFaults";
-import { clientDataService } from "../../services/clientDataService";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  AlertTriangle,
-  Calendar,
-  Download,
-  Radio,
-  Eye,
-  CameraOff,
-  Wrench,
-  ShieldAlert,
-  TriangleAlert,
-  Clock,
-  TrendingUp,
-} from "lucide-react";
-import { getActiveSchemeName } from "../../utils/schemes";
-import DrillDownSidebar from "./DrillDownSidebar";
-import { DateRangePicker } from "react-date-range";
-import "react-date-range/dist/styles.css"; // main css file
-import "react-date-range/dist/theme/default.css"; // theme css file
-import { addDays } from "date-fns";
-import { jsPDF } from "jspdf";
-import toast from "react-hot-toast";
+  /* eslint-disable no-constant-binary-expression */
+  import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
+  import { useNavigate } from "react-router-dom";
+  import { useQuery } from "@tanstack/react-query";
+  import { useAuth } from "../../hooks/useAuth";
+  import { useLiveIncidents } from "../../hooks/useLiveIncidents";
+  import { useLiveCCTVFaults } from "../../hooks/useCCTVFaults";
+  import { clientDataService } from "../../services/clientDataService";
+  import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+  } from "recharts";
+  import {
+    AlertTriangle,
+    Calendar,
+    Download,
+    Radio,
+    Eye,
+    CameraOff,
+    Wrench,
+    ShieldAlert,
+    TriangleAlert,
+    Clock,
+    TrendingUp,
+    TrendingDown,
+    TimerReset,
+    CarFront,
+    Cctv,
+  } from "lucide-react";
+  import { getActiveSchemeName } from "../../utils/schemes";
+  import DrillDownSidebar from "./DrillDownSidebar";
+  import { DateRangePicker } from "react-date-range";
+  import "react-date-range/dist/styles.css"; // main css file
+  import "react-date-range/dist/theme/default.css"; // theme css file
+  import { addDays } from "date-fns";
+  import { jsPDF } from "jspdf";
+  import toast from "react-hot-toast";
 
-const commonChartProps = {
-  cartesianGrid: { strokeDasharray: "3 3", stroke: "#17af93" },
-  xAxis: { tick: { fontSize: 13 } },
-  yAxis: { tick: { fontSize: 13 } },
-  tooltip: {
-    contentStyle: {
-      backgroundColor: "#fff",
-      border: "1px solid #17af93",
-      borderRadius: "8px",
+  const commonChartProps = {
+    cartesianGrid: { strokeDasharray: "3 3", stroke: "#17af93" },
+    xAxis: { tick: { fontSize: 13 } },
+    yAxis: { tick: { fontSize: 13 } },
+    tooltip: {
+      contentStyle: {
+        backgroundColor: "#fff",
+        border: "1px solid #17af93",
+        borderRadius: "8px",
+      },
+      labelStyle: { fontWeight: "bold" },
     },
-    labelStyle: { fontWeight: "bold" },
-  },
-  legend: { wrapperStyle: { paddingTop: "20px" } },
-  bar: { fill: "#17af93", radius: [8, 8, 0, 0] },
-};
-
-const ChartCard = memo(
-  ({ title, children, fullWidth = false, height = 380 }) => (
-    <div
-      className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? "col-span-full" : ""}`}
-      onMouseDown={(e) => e.preventDefault()}
-    >
-      <h5 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">
-        {title}
-      </h5>
-      <ResponsiveContainer width="100%" height={height}>
-        {children}
-      </ResponsiveContainer>
-    </div>
-  ),
-);
-
-const fmtDowntime = (mins) => {
-  if (!mins) return "0m";
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-};
-
-const transformDataForChart = (dataObj, filterUnknown = true) => {
-  if (!dataObj) return [];
-  return Object.entries(dataObj)
-    .filter(([name, count]) => {
-      if (
-        filterUnknown &&
-        (name === "Unknown" || name === "" || name === "undefined")
-      )
-        return false;
-      return count > 0;
-    })
-    .map(([name, count]) => ({ name, Number: count }))
-    .sort((a, b) => b.Number - a.Number);
-};
-
-const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
-  const navigate = useNavigate();
-  const { userProfile } = useAuth();
-  const datePickerRef = useRef(null);
-  const dashboardRef = useRef(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [drillDown, setDrillDown] = useState(null); // { title, incidents }
-
-  const openDrillDown = useCallback((data) => {
-    const sorted = [...data.incidents].sort((a, b) => {
-      const aTime =
-        a.createdAt?.seconds ?? a.createdAt?.toMillis?.() / 1000 ?? 0;
-      const bTime =
-        b.createdAt?.seconds ?? b.createdAt?.toMillis?.() / 1000 ?? 0;
-      return bTime - aTime;
-    });
-    setDrillDown({ ...data, incidents: sorted });
-  }, []);
-  const closeDrillDown = useCallback(() => setDrillDown(null), []);
-
-  const getScroller = () => document.getElementById("client-main-scroll");
-
-  const navigateToReport = (id) => {
-    const scroller = getScroller();
-    sessionStorage.setItem(
-      "clientDashboardDrillDown",
-      JSON.stringify(drillDown),
-    );
-    sessionStorage.setItem(
-      "clientDashboardScroll",
-      String(scroller ? scroller.scrollTop : 0),
-    );
-    setDrillDown(null);
-    navigate(`${basePath}/reports/incident/${id}`);
+    legend: { wrapperStyle: { paddingTop: "20px" } },
+    bar: { fill: "#17af93", radius: [8, 8, 0, 0] },
   };
 
-  // Set default date range to last 30 days
-  const [dateRange, setDateRange] = useState([
-    {
-      startDate: addDays(new Date(), -30),
-      endDate: new Date(),
-      key: "selection",
-    },
-  ]);
+  const ChartCard = memo(
+    ({ title, children, fullWidth = false, height = 380 }) => (
+      <div
+        className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? "col-span-full" : ""}`}
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        <h5 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">
+          {title}
+        </h5>
+        <ResponsiveContainer width="100%" height={height}>
+          {children}
+        </ResponsiveContainer>
+      </div>
+    ),
+  );
 
-  const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+  const fmtDowntime = (mins) => {
+    if (!mins) return "0m";
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
 
-  // Convert date range to string format for queries
-  const startDate = dateRange[0].startDate.toISOString().split("T")[0];
-  const endDate = dateRange[0].endDate.toISOString().split("T")[0];
+  const transformDataForChart = (dataObj, filterUnknown = true) => {
+    if (!dataObj) return [];
+    return Object.entries(dataObj)
+      .filter(([name, count]) => {
+        if (
+          filterUnknown &&
+          (name === "Unknown" || name === "" || name === "undefined")
+        )
+          return false;
+        return count > 0;
+      })
+      .map(([name, count]) => ({ name, Number: count }))
+      .sort((a, b) => b.Number - a.Number);
+  };
 
-  // Close date picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        datePickerRef.current &&
-        !datePickerRef.current.contains(event.target)
-      ) {
-        setShowDatePicker(false);
+  const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
+    const navigate = useNavigate();
+    const { userProfile } = useAuth();
+    const datePickerRef = useRef(null);
+    const dashboardRef = useRef(null);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [drillDown, setDrillDown] = useState(null); // { title, incidents }
+
+    const openDrillDown = useCallback((data) => {
+      const sorted = [...data.incidents].sort((a, b) => {
+        const aTime =
+          a.createdAt?.seconds ?? a.createdAt?.toMillis?.() / 1000 ?? 0;
+        const bTime =
+          b.createdAt?.seconds ?? b.createdAt?.toMillis?.() / 1000 ?? 0;
+        return bTime - aTime;
+      });
+      setDrillDown({ ...data, incidents: sorted });
+    }, []);
+    const closeDrillDown = useCallback(() => setDrillDown(null), []);
+
+    const getScroller = () => document.getElementById("client-main-scroll");
+
+    const navigateToReport = (id) => {
+      const scroller = getScroller();
+      sessionStorage.setItem(
+        "clientDashboardDrillDown",
+        JSON.stringify(drillDown),
+      );
+      sessionStorage.setItem(
+        "clientDashboardScroll",
+        String(scroller ? scroller.scrollTop : 0),
+      );
+      setDrillDown(null);
+      navigate(`${basePath}/reports/incident/${id}`);
+    };
+
+    // Set default date range to last 30 days
+    const [dateRange, setDateRange] = useState([
+      {
+        startDate: addDays(new Date(), -30),
+        endDate: new Date(),
+        key: "selection",
+      },
+    ]);
+
+    const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+
+    // Convert date range to string format for queries
+    const startDate = dateRange[0].startDate.toISOString().split("T")[0];
+    const endDate = dateRange[0].endDate.toISOString().split("T")[0];
+
+    // Close date picker when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (
+          datePickerRef.current &&
+          !datePickerRef.current.contains(event.target)
+        ) {
+          setShowDatePicker(false);
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const getActiveSchemeId = () => {
+      return userProfile?.activeSchemeId || userProfile?.schemeId;
+    };
+
+    // Cached query for stats
+    const { data: stats, isLoading: statsLoading } = useQuery({
+      queryKey: ["schemeStats", schemeId, startDate, endDate],
+      queryFn: () =>
+        clientDataService.getSchemeStatsByDateRange(schemeId, startDate, endDate),
+      enabled: !!schemeId && !!startDate && !!endDate,
+    });
+
+    // Cached query for uptime
+    const { data: uptimeData, isLoading: uptimeLoading } = useQuery({
+      queryKey: ["cctvUptime", schemeId],
+      queryFn: () => clientDataService.getCCTVUptimeData(schemeId, 30),
+      enabled: !!schemeId,
+    });
+
+    // Cached query for time series
+    const { data: timeSeriesData = [], isLoading: timeSeriesLoading } = useQuery({
+      queryKey: ["timeSeriesData", schemeId, startDate, endDate],
+      queryFn: () =>
+        clientDataService.getTimeSeriesDataByDateRange(
+          schemeId,
+          startDate,
+          endDate,
+        ),
+      enabled: !!schemeId && !!startDate && !!endDate,
+    });
+
+    // Real-time subscription for live incidents (no polling - only charges when data changes)
+    const { liveIncidents, loading: liveIncidentsLoading } =
+      useLiveIncidents(schemeId);
+
+    // Real-time subscription for CCTV fault reports
+    const { faults: liveCCTVFaults, loading: cctvFaultsLoading } =
+      useLiveCCTVFaults(schemeId);
+
+    const loading = statsLoading || uptimeLoading || timeSeriesLoading;
+
+    // Reopen sidebar and restore scroll when coming back from a report view
+    useEffect(() => {
+      const savedDrillDown = sessionStorage.getItem("clientDashboardDrillDown");
+      const savedScroll = sessionStorage.getItem("clientDashboardScroll");
+      if (!savedDrillDown) return;
+      sessionStorage.removeItem("clientDashboardDrillDown");
+      sessionStorage.removeItem("clientDashboardScroll");
+      setDrillDown(JSON.parse(savedDrillDown));
+      if (savedScroll) {
+        const pos = parseInt(savedScroll, 10);
+        const scroller = getScroller();
+        if (!scroller) return;
+        // Keep setting scrollTop on every scroll event until user scrolls manually
+        const enforce = () => {
+          scroller.scrollTop = pos;
+        };
+        scroller.addEventListener("scroll", enforce);
+        scroller.scrollTop = pos;
+        // Stop enforcing after 1s (enough for all re-renders to settle)
+        const timer = setTimeout(
+          () => scroller.removeEventListener("scroll", enforce),
+          1000,
+        );
+        return () => {
+          clearTimeout(timer);
+          scroller.removeEventListener("scroll", enforce);
+        };
+      }
+    }, []);
+
+    const incidents = useMemo(() => stats?.incidents || [], [stats]);
+
+    const {
+      faultData,
+      incidentTypeData,
+      vehiclesDispatchedData,
+      spottedByData,
+      laneAffectedData,
+      timeToRecoverData,
+      trafficConditionsData,
+      timeToSiteData,
+      trackData,
+      emergencyServicesData,
+      vehicleTypeData,
+      incursionsData,
+    } = useMemo(
+      () => ({
+        faultData: transformDataForChart(stats?.faultTypes),
+        incidentTypeData: transformDataForChart(stats?.incidentsByType),
+        vehiclesDispatchedData: transformDataForChart(
+          stats?.vehicleTypesDispatched,
+        ),
+        spottedByData: transformDataForChart(stats?.spottedBy),
+        laneAffectedData: transformDataForChart(stats?.incidentsByLane),
+        timeToRecoverData: transformDataForChart(stats?.timeToRecover, false),
+        trafficConditionsData: transformDataForChart(stats?.trafficConditions),
+        timeToSiteData: transformDataForChart(stats?.timeToSite, false),
+        trackData: transformDataForChart(stats?.trackOfIncident),
+        emergencyServicesData: transformDataForChart(stats?.emergencyServices),
+        vehicleTypeData: transformDataForChart(stats?.vehicleTypes),
+        incursionsData: [{ name: "Incursions", Number: stats?.incursions || 0 }],
+      }),
+      [stats],
+    );
+
+    const handleBarClick = useCallback(
+      (chartType, label) => {
+        if (!label || !incidents.length) return;
+        let filtered = [];
+        if (chartType === "incidentType")
+          filtered = incidents.filter((i) => i.incidentType === label);
+        else if (chartType === "fault")
+          filtered = incidents.filter((i) => i.fault === label);
+        else if (chartType === "reportedBy")
+          filtered = incidents.filter((i) => i.reportedBy === label);
+        else if (chartType === "affectedLanes")
+          filtered = incidents.filter((i) => i.affectedLanes?.includes(label));
+        else if (chartType === "trafficConditions")
+          filtered = incidents.filter((i) => i.trafficConditions === label);
+        else if (chartType === "track")
+          filtered = incidents.filter((i) => i.track === label);
+        else if (chartType === "emergencyServices")
+          filtered = incidents.filter((i) =>
+            i.emergencyServices?.includes(label),
+          );
+        else if (chartType === "vehicleTypes")
+          filtered = incidents.filter((i) =>
+            i.vehicles?.some((v) => v.type === label),
+          );
+        else if (chartType === "vehicleTypesDispatched") {
+          const key = label.toLowerCase();
+          filtered = incidents.filter((i) => i.recoveryRequested?.[key] > 0);
+        } else if (chartType === "timeToRecover") {
+          filtered = incidents.filter((i) => {
+            const m = parseInt(i.timeOnsiteToCleared?.match(/(\d+)/)?.[1]);
+            if (isNaN(m)) return false;
+            if (label === "0-15") return m <= 15;
+            if (label === "16-30") return m >= 16 && m <= 30;
+            if (label === "31-45") return m >= 31 && m <= 45;
+            if (label === "46-60") return m >= 46 && m <= 60;
+            if (label === "60+") return m > 60;
+            return false;
+          });
+        } else if (chartType === "timeToSite") {
+          filtered = incidents.filter((i) => {
+            const m = parseInt(i.timeSpottedToOn?.match(/(\d+)/)?.[1]);
+            if (isNaN(m)) return false;
+            if (label === "0-5") return m <= 5;
+            if (label === "6-10") return m >= 6 && m <= 10;
+            if (label === "11-15") return m >= 11 && m <= 15;
+            if (label === "16-20") return m >= 16 && m <= 20;
+            if (label === "20+") return m > 20;
+            return false;
+          });
+        } else if (chartType === "incursions")
+          filtered = incidents.filter((i) => i.incursion === "YES");
+        if (filtered.length) openDrillDown({ title: label, incidents: filtered });
+      },
+      [incidents, openDrillDown],
+    );
+
+    const statsCards = [
+      {
+        title: "Incidents",
+        value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
+        text: "Incidents excluding Free Recovery, Drive off and Incursions.",
+        icon: AlertTriangle,
+        color: "text-white",
+        bgColor: "bg-linear-to-b from-orange-400 to-orange-500",
+        filter: () =>
+          incidents.filter(
+            (i) =>
+              i.incidentType !== "Free Recovery" &&
+              i.incidentType !== "Drive Off" &&
+              i.incursion !== "YES",
+          ),
+      },
+      {
+        title: "Asset Damage",
+        value: loading ? "..." : (stats?.assetDamage || 0).toString(),
+        text: "Incidents with reported asset or property damage.",
+        icon: ShieldAlert,
+        color: "text-white",
+        bgColor: "bg-linear-to-b from-pink-500 to-pink-600",
+        filter: () =>
+          incidents.filter(
+            (i) =>
+              i.propertyDamage === true ||
+              i.propertyDamage === "yes" ||
+              i.propertyDamage === "Yes",
+          ),
+      },
+      {
+        title: "Free Recovery",
+        value: loading
+          ? "..."
+          : (
+              (Number(stats?.incidentsByType?.["Free Recovery"]) || 0) +
+              (Number(stats?.incidentsByType?.["Drive Off"]) || 0)
+            ).toString(),
+        text: "Total number of free recovery incidents within the scheme.",
+        icon: Wrench,
+        color: "text-white",
+        bgColor: "bg-linear-to-b from-sky-500 to-sky-600",
+        filter: () =>
+          incidents.filter(
+            (i) =>
+              i.incidentType === "Free Recovery" ||
+              i.incidentType === "Drive Off",
+          ),
+      },
+      {
+        title: "Incursions",
+        value: loading
+          ? "..."
+          : (
+              (stats?.incursions || 0) +
+              (stats?.incidentsByType?.["Incursion"] || 0)
+            ).toString(),
+        text: "Total number of incursions recorded within the scheme.",
+        icon: CarFront,
+        color: "text-white",
+        bgColor: "bg-linear-to-b from-purple-500 to-purple-600",
+        filter: () =>
+          incidents.filter(
+            (i) => i.incursion === "YES" || i.incidentType === "Incursion",
+          ),
+      },
+    ];
+
+    // Helper function to draw a bar chart in PDF
+    const drawBarChart = (pdf, data, title, x, y, width, height) => {
+      if (!data || data.length === 0) return;
+
+      // Draw chart background
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(x, y, width, height, "F");
+      pdf.setDrawColor(229, 231, 235);
+      pdf.rect(x, y, width, height, "S");
+
+      // Draw title at the top with better positioning
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(31, 41, 55);
+      pdf.text(title, x + width / 2, y + 6, { align: "center" });
+
+      // Adjusted margins - less bottom margin since labels are closer
+      const margin = { top: 12, right: 10, bottom: 18, left: 10 };
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+
+      // Calculate max value - ensure it's at least 1 to avoid division by zero
+      const maxValue = Math.max(...data.map((d) => d.Number), 1);
+      const barWidth = (chartWidth / data.length) * 0.7;
+      const gap = (chartWidth / data.length) * 0.3;
+
+      // Draw bars
+      data.forEach((item, index) => {
+        const barHeight = (item.Number / maxValue) * chartHeight;
+        const barX = x + margin.left + index * (barWidth + gap);
+        const barY = y + margin.top + chartHeight - barHeight;
+
+        // Only draw bar if height is valid and greater than 0
+        if (
+          barHeight > 0 &&
+          !isNaN(barHeight) &&
+          !isNaN(barX) &&
+          !isNaN(barY) &&
+          barWidth > 0
+        ) {
+          // Draw bar - use regular rect if height is too small for rounded corners
+          pdf.setFillColor(23, 175, 147); // Teal color
+          if (barHeight >= 4) {
+            pdf.roundedRect(barX, barY, barWidth, barHeight, 2, 2, "F");
+          } else {
+            pdf.rect(barX, barY, barWidth, barHeight, "F");
+          }
+        }
+
+        // Draw value on top of bar
+        pdf.setFontSize(8);
+        pdf.setTextColor(31, 41, 55);
+        const valueY =
+          barHeight > 0 ? barY - 2 : y + margin.top + chartHeight - 2;
+        pdf.text(String(item.Number), barX + barWidth / 2, valueY, {
+          align: "center",
+        });
+
+        // Draw label below bar - much closer now
+        pdf.setFontSize(7);
+        pdf.setTextColor(107, 114, 128);
+        const label =
+          item.name.length > 12 ? item.name.substring(0, 12) + "..." : item.name;
+        const labelY = y + margin.top + chartHeight + 5; // Just 5mm below the chart area
+        pdf.text(label, barX + barWidth / 2, labelY, {
+          align: "center",
+          maxWidth: barWidth,
+        });
+      });
+    };
+
+    // Export dashboard as PDF
+    const handleExportPDF = async () => {
+      setIsExporting(true);
+      toast.loading("Generating PDF...", { id: "export-pdf" });
+
+      try {
+        // Create PDF in landscape orientation with compression enabled
+        const pdf = new jsPDF({
+          orientation: "l",
+          unit: "mm",
+          format: "a4",
+          compress: true,
+        });
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+        // Add header to the PDF
+        const headerHeight = 25;
+        pdf.setFillColor(23, 175, 147); // Teal color
+        pdf.rect(0, 0, pdfWidth, headerHeight, "F");
+
+        // Header text - left side
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(18);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Dashboard Report", 15, 12);
+
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
+
+        // Date range and stats - right side
+        const dateRangeText = `${dateRange[0].startDate.toLocaleDateString("en-GB")} - ${dateRange[0].endDate.toLocaleDateString("en-GB")}`;
+        pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
+
+        const statsText = `Total Incidents: ${stats?.totalIncidents || 0} | Vehicles Dispatched: ${stats?.vehiclesDispatched || 0} | Free Recovery: ${(Number(stats?.incidentsByType?.["Free Recovery"]) || 0)}`;
+        pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
+
+        // Content area
+        const contentStartY = headerHeight + 10;
+        const chartWidth = (pdfWidth - 30) / 2; // 2 columns with margins
+        const chartHeight = 60;
+        const chartGap = 10;
+
+        let currentY = contentStartY;
+        let currentX = 15;
+        let chartCount = 0;
+
+        // Helper to add new page if needed
+        const checkNewPage = () => {
+          if (currentY + chartHeight > pdfHeight - 10) {
+            pdf.addPage();
+
+            // Add header to new page
+            pdf.setFillColor(23, 175, 147);
+            pdf.rect(0, 0, pdfWidth, headerHeight, "F");
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(18);
+            pdf.setFont("helvetica", "bold");
+            pdf.text("Dashboard Report", 15, 12);
+            pdf.setFontSize(11);
+            pdf.setFont("helvetica", "normal");
+            pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
+            pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
+            pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
+
+            currentY = contentStartY;
+            currentX = 15;
+            chartCount = 0;
+          }
+        };
+
+        // Draw all charts in 2-column layout
+        const charts = [
+          { data: timeToSiteData, title: "Time to Site (mins)" },
+          { data: timeToRecoverData, title: "Time to Recover (mins)" },
+          { data: faultData, title: "Fault" },
+          { data: incidentTypeData, title: "Incident Type" },
+          { data: vehiclesDispatchedData, title: "Vehicles Dispatched" },
+          { data: spottedByData, title: "Spotted By" },
+          { data: laneAffectedData, title: "Lane Affected" },
+          { data: trafficConditionsData, title: "Traffic Conditions" },
+          { data: emergencyServicesData, title: "Emergency Services Attended" },
+          { data: trackData, title: "Track of Incident" },
+          { data: vehicleTypeData, title: "Vehicle Type" },
+          { data: incursionsData, title: "Incursions" },
+        ];
+
+        charts.forEach((chart) => {
+          if (chart.data && chart.data.length > 0) {
+            checkNewPage();
+
+            drawBarChart(
+              pdf,
+              chart.data,
+              chart.title,
+              currentX,
+              currentY,
+              chartWidth - 5,
+              chartHeight,
+            );
+
+            chartCount++;
+            if (chartCount % 2 === 0) {
+              // Move to next row
+              currentY += chartHeight + chartGap;
+              currentX = 15;
+            } else {
+              // Move to next column
+              currentX = 15 + chartWidth + 5;
+            }
+          }
+        });
+
+        // Save the PDF
+        const fileName = `dashboard_${getActiveSchemeId()}_${startDate}_to_${endDate}.pdf`;
+        pdf.save(fileName);
+
+        toast.success("Dashboard exported successfully!", { id: "export-pdf" });
+      } catch (error) {
+        console.error("Failed to export PDF:", error);
+        toast.error("Failed to export dashboard", { id: "export-pdf" });
+      } finally {
+        setIsExporting(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    return (
+      <div className="max-w-[1600px] mx-auto px-4">
+        {/* Header with Date Filter */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">
+              Welcome back, {userProfile?.displayName}!
+            </h1>
+            <p className="text-brand-500 text-sm mt-2 font-semibold">
+            {getActiveSchemeName(userProfile)}
+            </p>
+          </div>
 
-  const getActiveSchemeId = () => {
-    return userProfile?.activeSchemeId || userProfile?.schemeId;
-  };
-
-  // Cached query for stats
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["schemeStats", schemeId, startDate, endDate],
-    queryFn: () =>
-      clientDataService.getSchemeStatsByDateRange(schemeId, startDate, endDate),
-    enabled: !!schemeId && !!startDate && !!endDate,
-  });
-
-  // Cached query for uptime
-  const { data: uptimeData, isLoading: uptimeLoading } = useQuery({
-    queryKey: ["cctvUptime", schemeId],
-    queryFn: () => clientDataService.getCCTVUptimeData(schemeId, 30),
-    enabled: !!schemeId,
-  });
-
-  // Cached query for time series
-  const { data: timeSeriesData = [], isLoading: timeSeriesLoading } = useQuery({
-    queryKey: ["timeSeriesData", schemeId, startDate, endDate],
-    queryFn: () =>
-      clientDataService.getTimeSeriesDataByDateRange(
-        schemeId,
-        startDate,
-        endDate,
-      ),
-    enabled: !!schemeId && !!startDate && !!endDate,
-  });
-
-  // Real-time subscription for live incidents (no polling - only charges when data changes)
-  const { liveIncidents, loading: liveIncidentsLoading } =
-    useLiveIncidents(schemeId);
-
-  // Real-time subscription for CCTV fault reports
-  const { faults: liveCCTVFaults, loading: cctvFaultsLoading } =
-    useLiveCCTVFaults(schemeId);
-
-  const loading = statsLoading || uptimeLoading || timeSeriesLoading;
-
-  // Reopen sidebar and restore scroll when coming back from a report view
-  useEffect(() => {
-    const savedDrillDown = sessionStorage.getItem("clientDashboardDrillDown");
-    const savedScroll = sessionStorage.getItem("clientDashboardScroll");
-    if (!savedDrillDown) return;
-    sessionStorage.removeItem("clientDashboardDrillDown");
-    sessionStorage.removeItem("clientDashboardScroll");
-    setDrillDown(JSON.parse(savedDrillDown));
-    if (savedScroll) {
-      const pos = parseInt(savedScroll, 10);
-      const scroller = getScroller();
-      if (!scroller) return;
-      // Keep setting scrollTop on every scroll event until user scrolls manually
-      const enforce = () => {
-        scroller.scrollTop = pos;
-      };
-      scroller.addEventListener("scroll", enforce);
-      scroller.scrollTop = pos;
-      // Stop enforcing after 1s (enough for all re-renders to settle)
-      const timer = setTimeout(
-        () => scroller.removeEventListener("scroll", enforce),
-        1000,
-      );
-      return () => {
-        clearTimeout(timer);
-        scroller.removeEventListener("scroll", enforce);
-      };
-    }
-  }, []);
-
-  const incidents = useMemo(() => stats?.incidents || [], [stats]);
-
-  const {
-    faultData,
-    incidentTypeData,
-    vehiclesDispatchedData,
-    spottedByData,
-    laneAffectedData,
-    timeToRecoverData,
-    trafficConditionsData,
-    timeToSiteData,
-    trackData,
-    emergencyServicesData,
-    vehicleTypeData,
-    incursionsData,
-  } = useMemo(
-    () => ({
-      faultData: transformDataForChart(stats?.faultTypes),
-      incidentTypeData: transformDataForChart(stats?.incidentsByType),
-      vehiclesDispatchedData: transformDataForChart(
-        stats?.vehicleTypesDispatched,
-      ),
-      spottedByData: transformDataForChart(stats?.spottedBy),
-      laneAffectedData: transformDataForChart(stats?.incidentsByLane),
-      timeToRecoverData: transformDataForChart(stats?.timeToRecover, false),
-      trafficConditionsData: transformDataForChart(stats?.trafficConditions),
-      timeToSiteData: transformDataForChart(stats?.timeToSite, false),
-      trackData: transformDataForChart(stats?.trackOfIncident),
-      emergencyServicesData: transformDataForChart(stats?.emergencyServices),
-      vehicleTypeData: transformDataForChart(stats?.vehicleTypes),
-      incursionsData: [{ name: "Incursions", Number: stats?.incursions || 0 }],
-    }),
-    [stats],
-  );
-
-  const handleBarClick = useCallback(
-    (chartType, label) => {
-      if (!label || !incidents.length) return;
-      let filtered = [];
-      if (chartType === "incidentType")
-        filtered = incidents.filter((i) => i.incidentType === label);
-      else if (chartType === "fault")
-        filtered = incidents.filter((i) => i.fault === label);
-      else if (chartType === "reportedBy")
-        filtered = incidents.filter((i) => i.reportedBy === label);
-      else if (chartType === "affectedLanes")
-        filtered = incidents.filter((i) => i.affectedLanes?.includes(label));
-      else if (chartType === "trafficConditions")
-        filtered = incidents.filter((i) => i.trafficConditions === label);
-      else if (chartType === "track")
-        filtered = incidents.filter((i) => i.track === label);
-      else if (chartType === "emergencyServices")
-        filtered = incidents.filter((i) =>
-          i.emergencyServices?.includes(label),
-        );
-      else if (chartType === "vehicleTypes")
-        filtered = incidents.filter((i) =>
-          i.vehicles?.some((v) => v.type === label),
-        );
-      else if (chartType === "vehicleTypesDispatched") {
-        const key = label.toLowerCase();
-        filtered = incidents.filter((i) => i.recoveryRequested?.[key] > 0);
-      } else if (chartType === "timeToRecover") {
-        filtered = incidents.filter((i) => {
-          const m = parseInt(i.timeOnsiteToCleared?.match(/(\d+)/)?.[1]);
-          if (isNaN(m)) return false;
-          if (label === "0-15") return m <= 15;
-          if (label === "16-30") return m >= 16 && m <= 30;
-          if (label === "31-45") return m >= 31 && m <= 45;
-          if (label === "46-60") return m >= 46 && m <= 60;
-          if (label === "60+") return m > 60;
-          return false;
-        });
-      } else if (chartType === "timeToSite") {
-        filtered = incidents.filter((i) => {
-          const m = parseInt(i.timeSpottedToOn?.match(/(\d+)/)?.[1]);
-          if (isNaN(m)) return false;
-          if (label === "0-5") return m <= 5;
-          if (label === "6-10") return m >= 6 && m <= 10;
-          if (label === "11-15") return m >= 11 && m <= 15;
-          if (label === "16-20") return m >= 16 && m <= 20;
-          if (label === "20+") return m > 20;
-          return false;
-        });
-      } else if (chartType === "incursions")
-        filtered = incidents.filter((i) => i.incursion === "YES");
-      if (filtered.length) openDrillDown({ title: label, incidents: filtered });
-    },
-    [incidents, openDrillDown],
-  );
-
-  const statsCards = [
-    {
-      title: "Incidents",
-      value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
-      text: "Incidents excluding Free Recovery, Drive off and Incursions.",
-      icon: AlertTriangle,
-      color: "text-orange-500",
-      bgColor: "bg-orange-50",
-      filter: () =>
-        incidents.filter(
-          (i) =>
-            i.incidentType !== "Free Recovery" &&
-            i.incidentType !== "Drive Off" &&
-            i.incursion !== "YES",
-        ),
-    },
-    {
-      title: "Asset Damage",
-      value: loading ? "..." : (stats?.assetDamage || 0).toString(),
-      text: "Total number of incidents with reported asset or property damage.",
-      icon: TriangleAlert,
-      color: "text-yellow-500",
-      bgColor: "bg-yellow-50",
-      filter: () =>
-        incidents.filter(
-          (i) =>
-            i.propertyDamage === true ||
-            i.propertyDamage === "yes" ||
-            i.propertyDamage === "Yes",
-        ),
-    },
-    {
-      title: "Free Recovery",
-      value: loading
-        ? "..."
-        : (
-            (Number(stats?.incidentsByType?.["Free Recovery"]) || 0) +
-            (Number(stats?.incidentsByType?.["Drive Off"]) || 0)
-          ).toString(),
-      text: "Total number of free recovery incidents within the scheme.",
-      icon: Wrench,
-      color: "text-green-500",
-      bgColor: "bg-green-50",
-      filter: () =>
-        incidents.filter(
-          (i) =>
-            i.incidentType === "Free Recovery" ||
-            i.incidentType === "Drive Off",
-        ),
-    },
-    {
-      title: "Incursions",
-      value: loading
-        ? "..."
-        : (
-            (stats?.incursions || 0) +
-            (stats?.incidentsByType?.["Incursion"] || 0)
-          ).toString(),
-      text: "Total number of incursions recorded within the scheme.",
-      icon: ShieldAlert,
-      color: "text-red-500",
-      bgColor: "bg-red-50",
-      filter: () =>
-        incidents.filter(
-          (i) => i.incursion === "YES" || i.incidentType === "Incursion",
-        ),
-    },
-  ];
-
-  // Helper function to draw a bar chart in PDF
-  const drawBarChart = (pdf, data, title, x, y, width, height) => {
-    if (!data || data.length === 0) return;
-
-    // Draw chart background
-    pdf.setFillColor(255, 255, 255);
-    pdf.rect(x, y, width, height, "F");
-    pdf.setDrawColor(229, 231, 235);
-    pdf.rect(x, y, width, height, "S");
-
-    // Draw title at the top with better positioning
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(31, 41, 55);
-    pdf.text(title, x + width / 2, y + 6, { align: "center" });
-
-    // Adjusted margins - less bottom margin since labels are closer
-    const margin = { top: 12, right: 10, bottom: 18, left: 10 };
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
-
-    // Calculate max value - ensure it's at least 1 to avoid division by zero
-    const maxValue = Math.max(...data.map((d) => d.Number), 1);
-    const barWidth = (chartWidth / data.length) * 0.7;
-    const gap = (chartWidth / data.length) * 0.3;
-
-    // Draw bars
-    data.forEach((item, index) => {
-      const barHeight = (item.Number / maxValue) * chartHeight;
-      const barX = x + margin.left + index * (barWidth + gap);
-      const barY = y + margin.top + chartHeight - barHeight;
-
-      // Only draw bar if height is valid and greater than 0
-      if (
-        barHeight > 0 &&
-        !isNaN(barHeight) &&
-        !isNaN(barX) &&
-        !isNaN(barY) &&
-        barWidth > 0
-      ) {
-        // Draw bar - use regular rect if height is too small for rounded corners
-        pdf.setFillColor(23, 175, 147); // Teal color
-        if (barHeight >= 4) {
-          pdf.roundedRect(barX, barY, barWidth, barHeight, 2, 2, "F");
-        } else {
-          pdf.rect(barX, barY, barWidth, barHeight, "F");
-        }
-      }
-
-      // Draw value on top of bar
-      pdf.setFontSize(8);
-      pdf.setTextColor(31, 41, 55);
-      const valueY =
-        barHeight > 0 ? barY - 2 : y + margin.top + chartHeight - 2;
-      pdf.text(String(item.Number), barX + barWidth / 2, valueY, {
-        align: "center",
-      });
-
-      // Draw label below bar - much closer now
-      pdf.setFontSize(7);
-      pdf.setTextColor(107, 114, 128);
-      const label =
-        item.name.length > 12 ? item.name.substring(0, 12) + "..." : item.name;
-      const labelY = y + margin.top + chartHeight + 5; // Just 5mm below the chart area
-      pdf.text(label, barX + barWidth / 2, labelY, {
-        align: "center",
-        maxWidth: barWidth,
-      });
-    });
-  };
-
-  // Export dashboard as PDF
-  const handleExportPDF = async () => {
-    setIsExporting(true);
-    toast.loading("Generating PDF...", { id: "export-pdf" });
-
-    try {
-      // Create PDF in landscape orientation with compression enabled
-      const pdf = new jsPDF({
-        orientation: "l",
-        unit: "mm",
-        format: "a4",
-        compress: true,
-      });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      // Add header to the PDF
-      const headerHeight = 25;
-      pdf.setFillColor(23, 175, 147); // Teal color
-      pdf.rect(0, 0, pdfWidth, headerHeight, "F");
-
-      // Header text - left side
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(18);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("Dashboard Report", 15, 12);
-
-      pdf.setFontSize(11);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
-
-      // Date range and stats - right side
-      const dateRangeText = `${dateRange[0].startDate.toLocaleDateString("en-GB")} - ${dateRange[0].endDate.toLocaleDateString("en-GB")}`;
-      pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
-
-      const statsText = `Total Incidents: ${stats?.totalIncidents || 0} | Vehicles Dispatched: ${stats?.vehiclesDispatched || 0} | Free Recovery: ${(Number(stats?.incidentsByType?.["Free Recovery"]) || 0)}`;
-      pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
-
-      // Content area
-      const contentStartY = headerHeight + 10;
-      const chartWidth = (pdfWidth - 30) / 2; // 2 columns with margins
-      const chartHeight = 60;
-      const chartGap = 10;
-
-      let currentY = contentStartY;
-      let currentX = 15;
-      let chartCount = 0;
-
-      // Helper to add new page if needed
-      const checkNewPage = () => {
-        if (currentY + chartHeight > pdfHeight - 10) {
-          pdf.addPage();
-
-          // Add header to new page
-          pdf.setFillColor(23, 175, 147);
-          pdf.rect(0, 0, pdfWidth, headerHeight, "F");
-          pdf.setTextColor(255, 255, 255);
-          pdf.setFontSize(18);
-          pdf.setFont("helvetica", "bold");
-          pdf.text("Dashboard Report", 15, 12);
-          pdf.setFontSize(11);
-          pdf.setFont("helvetica", "normal");
-          pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
-          pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
-          pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
-
-          currentY = contentStartY;
-          currentX = 15;
-          chartCount = 0;
-        }
-      };
-
-      // Draw all charts in 2-column layout
-      const charts = [
-        { data: timeToSiteData, title: "Time to Site (mins)" },
-        { data: timeToRecoverData, title: "Time to Recover (mins)" },
-        { data: faultData, title: "Fault" },
-        { data: incidentTypeData, title: "Incident Type" },
-        { data: vehiclesDispatchedData, title: "Vehicles Dispatched" },
-        { data: spottedByData, title: "Spotted By" },
-        { data: laneAffectedData, title: "Lane Affected" },
-        { data: trafficConditionsData, title: "Traffic Conditions" },
-        { data: emergencyServicesData, title: "Emergency Services Attended" },
-        { data: trackData, title: "Track of Incident" },
-        { data: vehicleTypeData, title: "Vehicle Type" },
-        { data: incursionsData, title: "Incursions" },
-      ];
-
-      charts.forEach((chart) => {
-        if (chart.data && chart.data.length > 0) {
-          checkNewPage();
-
-          drawBarChart(
-            pdf,
-            chart.data,
-            chart.title,
-            currentX,
-            currentY,
-            chartWidth - 5,
-            chartHeight,
-          );
-
-          chartCount++;
-          if (chartCount % 2 === 0) {
-            // Move to next row
-            currentY += chartHeight + chartGap;
-            currentX = 15;
-          } else {
-            // Move to next column
-            currentX = 15 + chartWidth + 5;
-          }
-        }
-      });
-
-      // Save the PDF
-      const fileName = `dashboard_${getActiveSchemeId()}_${startDate}_to_${endDate}.pdf`;
-      pdf.save(fileName);
-
-      toast.success("Dashboard exported successfully!", { id: "export-pdf" });
-    } catch (error) {
-      console.error("Failed to export PDF:", error);
-      toast.error("Failed to export dashboard", { id: "export-pdf" });
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  return (
-    <div className="max-w-[1600px] mx-auto px-4">
-      {/* Header with Date Filter */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h3 className="text-3xl font-bold text-gray-800">
-            Welcome back, {userProfile?.displayName}!
-          </h3>
-          <p className="text-brand-500 mt-2 font-bold">
-           {getActiveSchemeName(userProfile)}
-          </p>
-        </div>
-
-        {/* Date Range Filter and Export Button */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleExportPDF}
-            disabled={isExporting || loading}
-            className="flex items-center gap-2 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-teal-600 hover:shadow-md transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            <Download className="w-5 h-5" />
-            <span className="font-medium">Export Charts</span>
-          </button>
-
-          <div className="relative" ref={datePickerRef}>
+          {/* Date Range Filter and Export Button */}
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowDatePicker(!showDatePicker)}
-              className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              onClick={handleExportPDF}
+              disabled={isExporting || loading}
+              className="flex items-center gap-2 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-teal-600 hover:shadow-md transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              <Calendar className="w-5 h-5 text-teal-600" />
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-gray-700">
-                  {dateRange[0].startDate.toLocaleDateString("en-GB")}
-                </span>
-                <span className="text-gray-400">→</span>
-                <span className="font-medium text-gray-700">
-                  {dateRange[0].endDate.toLocaleDateString("en-GB")}
-                </span>
-              </div>
+              <Download className="w-4 h-4" />
+              <span className="">Export Charts</span>
             </button>
 
-            {showDatePicker && (
-              <div className="absolute right-0 top-full mt-2 z-50 shadow-xl rounded-lg overflow-hidden border border-gray-200">
-                <DateRangePicker
-                  ranges={dateRange}
-                  onChange={(item) => setDateRange([item.selection])}
-                  moveRangeOnFirstSelection={false}
-                  months={2}
-                  direction="horizontal"
-                  showDateDisplay={false}
-                  rangeColors={["#17af93"]}
-                />
-              </div>
-            )}
+            <div className="relative" ref={datePickerRef}>
+              <button
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              >
+                <Calendar className="w-4 h-4 text-teal-600" />
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium text-gray-700">
+                    {dateRange[0].startDate.toLocaleDateString("en-GB")}
+                  </span>
+                  <span className="text-gray-400">→</span>
+                  <span className="font-medium text-gray-700">
+                    {dateRange[0].endDate.toLocaleDateString("en-GB")}
+                  </span>
+                </div>
+              </button>
+
+              {showDatePicker && (
+                <div className="absolute right-0 top-full mt-2 z-50 shadow-xl rounded-lg overflow-hidden border border-gray-200">
+                  <DateRangePicker
+                    ranges={dateRange}
+                    onChange={(item) => setDateRange([item.selection])}
+                    moveRangeOnFirstSelection={false}
+                    months={2}
+                    direction="horizontal"
+                    showDateDisplay={false}
+                    rangeColors={["#17af93"]}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {statsCards.map((stat, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
-            onClick={() => {
-              const filtered = stat.filter();
-              if (filtered.length)
-                openDrillDown({ title: stat.title, incidents: filtered });
-            }}
-          >
-            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-              <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                <stat.icon className={`w-8 h-8 ${stat.color}`} />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          {statsCards.map((stat, index) => (
+            <div
+              key={index}
+              className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => {
+                const filtered = stat.filter();
+                if (filtered.length)
+                  openDrillDown({ title: stat.title, incidents: filtered });
+              }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-3 rounded-lg ${stat.bgColor}`}>
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <div>
+                  <h5 className="font-bold! text-gray-800">{stat.title}</h5>
+                  <p className="text-xs font-medium text-gray-400">
+                    {stat.text}
+                  </p>
+                </div>
               </div>
-              <h6 className="font-semibold text-gray-500 mb-1">{stat.title}</h6>
+              <span className="text-3xl font-bold text-gray-800 pl-1">
+                {stat.value}
+              </span>
             </div>
-            <span className="text-2xl font-bold text-gray-800 pl-2">
-              {stat.value}
+          ))}
+        </div>
+
+        {/* Metric Cards Row 2 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-lg bg-linear-to-b from-teal-400 to-teal-500">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h5 className="font-bold! text-gray-800">Avg Time to Site</h5>
+                <p className="text-xs font-medium text-gray-400">
+                  Average response time from incident spotted to unit on site.
+                </p>
+              </div>
+            </div>
+            <span className="text-2xl font-bold text-gray-800">
+              {loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`}
             </span>
-            <p className="text-sm text-gray-500 mt-2">{stat.text}</p>
           </div>
-        ))}
-      </div>
 
-      {/* Metric Cards Row 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-teal-50">
-              <Clock className="w-8 h-8 text-teal-500" />
+          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-lg bg-linear-to-b from-blue-400 to-blue-500">
+                <TimerReset className="w-6 h-6 text-white " />
+              </div>
+              <div>
+                <h5 className="font-bold! text-gray-800">Avg Time to Recover</h5>
+                <p className="text-xs font-medium text-gray-400">
+                  Average time from unit on site to incident cleared.
+                </p>
+              </div>
             </div>
-            <h6 className="font-semibold text-gray-500 mb-1">Avg Time to Site</h6>
+            <span className="text-2xl font-bold text-gray-800">
+              {loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`}
+            </span>
           </div>
-          <span className="text-2xl font-bold text-gray-800 pl-2">
-            {loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`}
-          </span>
-          <p className="text-sm text-gray-500 mt-2">Average response time from incident spotted to unit on site.</p>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-blue-50">
-              <Wrench className="w-8 h-8 text-blue-500" />
+          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`p-3 rounded-lg ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "bg-linear-to-b from-red-400 to-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "bg-linear-to-b from-amber-400 to-amber-500" : "bg-linear-to-b from-green-400 to-green-500"}`}>
+                <TrendingUp className={`w-6 h-6 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "text-white" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "text-white" : "text-white"}`} />
+              </div>
+              <div>
+                <h5 className="font-bold! text-gray-800">Avg Camera Uptime</h5>
+                <p className="text-xs font-medium text-gray-400">
+                  Average camera uptime across the scheme (last 30 days).
+                </p>
+              </div>
             </div>
-            <h6 className="font-semibold text-gray-500 mb-1">Avg Time to Recover</h6>
+            <span className="text-2xl font-bold text-gray-800">
+              {uptimeLoading ? "..." : `${uptimeData?.totals?.avgUptimePct ?? "100.0"}%`}
+            </span>
           </div>
-          <span className="text-2xl font-bold text-gray-800 pl-2">
-            {loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`}
-          </span>
-          <p className="text-sm text-gray-500 mt-2">Average time from unit on site to incident cleared.</p>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-            <div className={`p-3 rounded-lg ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "bg-red-50" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "bg-amber-50" : "bg-green-50"}`}>
-              <TrendingUp className={`w-8 h-8 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "text-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "text-amber-500" : "text-green-500"}`} />
+          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 rounded-lg bg-linear-to-b from-rose-500 to-rose-600">
+                <TrendingDown className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h5 className="font-bold! text-gray-800">Avg Camera Downtime</h5>
+                <p className="text-xs font-medium text-gray-400">
+                  Average camera downtime across the scheme (last 30 days).
+                </p>
+              </div>
             </div>
-            <h6 className="font-semibold text-gray-500 mb-1">Avg Camera Uptime</h6>
+            <span className="text-2xl font-bold text-gray-800">
+              {uptimeLoading ? "..." : `${(100 - parseFloat(uptimeData?.totals?.avgUptimePct ?? 100)).toFixed(1)}%`}
+            </span>
           </div>
-          <span className="text-2xl font-bold text-gray-800 pl-2">
-            {uptimeLoading ? "..." : `${uptimeData?.totals?.avgUptimePct ?? "100.0"}%`}
-          </span>
-          <p className="text-sm text-gray-500 mt-2">Average camera uptime across the scheme (last 30 days).</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-            <div className="p-3 rounded-lg bg-red-50">
-              <CameraOff className="w-8 h-8 text-red-500" />
-            </div>
-            <h6 className="font-semibold text-gray-500 mb-1">Avg Camera Downtime</h6>
+        {loading ? (
+          <div className="flex justify-center items-center h-96">
+            <span className="loading loading-spinner loading-lg text-teal-500"></span>
           </div>
-          <span className="text-2xl font-bold text-gray-800 pl-2">
-            {uptimeLoading ? "..." : `${(100 - parseFloat(uptimeData?.totals?.avgUptimePct ?? 100)).toFixed(1)}%`}
-          </span>
-          <p className="text-sm text-gray-500 mt-2">Average camera downtime across the scheme (last 30 days).</p>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center items-center h-96">
-          <span className="loading loading-spinner loading-lg text-teal-500"></span>
-        </div>
-      ) : (
-        <div ref={dashboardRef}>
-          {/* Live Incidents Link Card */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-            <div
-              onClick={() => navigate(`${basePath}/live-incidents`)}
-              className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
-            >
-              <div className=" px-6 py-4 flex items-center gap-3">
-                <div className="w-10 h-10rounded-full flex items-center justify-center">
-                  <Radio className="w-6 h-6 text-red-500" />
+        ) : (
+          <div ref={dashboardRef}>
+            {/* Live Incidents Link Card */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+              <div
+                onClick={() => navigate(`${basePath}/live-incidents`)}
+                className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+              >
+                <div className=" px-6 py-4 flex items-center gap-3">
+                  <div className="w-10 h-10rounded-full flex items-center justify-center">
+                    <Radio className="w-6 h-6 text-red-500" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-semibold text-xl">Live Incidents</span>
+                    <p className="text-xs font-medium text-gray-400">
+                      View and monitor live incidents for your scheme
+                    </p>
+                  </div>
+                  {liveIncidentsLoading ? (
+                    <span className="loading loading-spinner loading-sm text-white"></span>
+                  ) : (
+                    <span className="bg-red-500 text-white px-4 py-1 rounded-full text-md font-semibold">
+                      {liveIncidents.length} Active
+                    </span>
+                  )}
+                  <Eye className="w-6 h-6 text-red-500" />
                 </div>
-                <div className="flex-1">
-                  <span className="font-semibold text-xl">Live Incidents</span>
-                  <p className=" text-sm">
-                    View and monitor live incidents for your scheme
-                  </p>
+              </div>
+
+              <div
+                onClick={() => navigate(`${basePath}/cctv-faults`)}
+                className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+              >
+                <div className=" px-6 py-4 flex items-center gap-3">
+                  <div className="w-10 h-10rounded-full flex items-center justify-center">
+                    <Cctv className="w-6 h-6 text-red-500" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-semibold text-xl">
+                      Live Camera Fault
+                    </span>
+                    <p className="text-xs font-medium text-gray-400">
+                      View and monitor live camera fault for your scheme
+                    </p>
+                  </div>
+                  {cctvFaultsLoading ? (
+                    <span className="loading loading-spinner loading-sm text-white"></span>
+                  ) : (
+                    <span className="bg-red-500 text-white px-4 py-1 rounded-full text-md font-semibold">
+                      {liveCCTVFaults.length} Fault
+                    </span>
+                  )}
+                  <Eye className="w-6 h-6 text-red-500" />
                 </div>
-                {liveIncidentsLoading ? (
-                  <span className="loading loading-spinner loading-sm text-white"></span>
-                ) : (
-                  <span className="bg-red-500 text-white px-4 py-2 rounded-full text-lg font-bold">
-                    {liveIncidents.length} Active
-                  </span>
-                )}
-                <Eye className="w-6 h-6 text-red-500" />
               </div>
             </div>
 
-            <div
-              onClick={() => navigate(`${basePath}/cctv-faults`)}
-              className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
-            >
-              <div className=" px-6 py-4 flex items-center gap-3">
-                <div className="w-10 h-10rounded-full flex items-center justify-center">
-                  <CameraOff className="w-6 h-6 text-red-500" />
-                </div>
-                <div className="flex-1">
-                  <span className="font-semibold text-xl">
-                    Live Camera Fault
-                  </span>
-                  <p className=" text-sm">
-                    View and monitor live camera fault for your scheme
-                  </p>
-                </div>
-                {cctvFaultsLoading ? (
-                  <span className="loading loading-spinner loading-sm text-white"></span>
-                ) : (
-                  <span className="bg-red-500 text-white px-4 py-2 rounded-full text-lg font-bold">
-                    {liveCCTVFaults.length} Fault
-                  </span>
-                )}
-                <Eye className="w-6 h-6 text-red-500" />
-              </div>
+            {/* All Charts in 2 Column Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              <ChartCard title="Time to Site (mins)">
+                <BarChart
+                  data={timeToSiteData}
+                  onClick={(d) =>
+                    d?.activeLabel && handleBarClick("timeToSite", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Time to recover (mins)">
+                <BarChart
+                  data={timeToRecoverData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("timeToRecover", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Fault">
+                <BarChart
+                  data={faultData}
+                  margin={{ top: 0, right: 0, left: -20, bottom: 10 }}
+                  onClick={(d) =>
+                    d?.activeLabel && handleBarClick("fault", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis
+                    dataKey="name"
+                    {...commonChartProps.xAxis}
+                    {...(faultData.length >= 7 && {
+                      angle: -45,
+                      textAnchor: "end",
+                      interval: 0,
+                      height: 60,
+                    })}
+                  />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Incident Type">
+                <BarChart
+                  data={incidentTypeData}
+                  margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("incidentType", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Vehicles Dispatched">
+                <BarChart
+                  data={vehiclesDispatchedData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("vehicleTypesDispatched", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Spotted By">
+                <BarChart
+                  data={spottedByData}
+                  onClick={(d) =>
+                    d?.activeLabel && handleBarClick("reportedBy", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Lane Affected">
+                <BarChart
+                  data={laneAffectedData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("affectedLanes", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Traffic Conditions">
+                <BarChart
+                  data={trafficConditionsData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("trafficConditions", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Emergency Services Attended">
+                <BarChart
+                  data={emergencyServicesData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("emergencyServices", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Track of Incident">
+                <BarChart
+                  data={trackData}
+                  onClick={(d) =>
+                    d?.activeLabel && handleBarClick("track", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Vehicle Type">
+                <BarChart
+                  data={vehicleTypeData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("vehicleTypes", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" {...commonChartProps.xAxis} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Incursions">
+                <BarChart
+                  data={incursionsData}
+                  onClick={(d) =>
+                    d?.activeLabel && handleBarClick("incursions", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+            </div>
+
+            {/* Full Width: Incidents Over Time */}
+            <div className="mb-8">
+              <ChartCard title="Incidents Over Time" fullWidth height={350}>
+                <BarChart
+                  data={
+                    timeSeriesData.length > 0
+                      ? timeSeriesData.map((d) => ({ ...d, Number: d.count }))
+                      : [{ name: "No Data", Number: 0 }]
+                  }
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#17af93" />
+                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                  <YAxis tick={{ fontSize: 13 }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #17af93",
+                      borderRadius: "8px",
+                    }}
+                    labelStyle={{ fontWeight: "bold" }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: "20px" }} />
+                  <Bar dataKey="Number" fill="#17af93" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ChartCard>
             </div>
           </div>
+        )}
 
-          {/* All Charts in 2 Column Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <ChartCard title="Time to Site (mins)">
-              <BarChart
-                data={timeToSiteData}
-                onClick={(d) =>
-                  d?.activeLabel && handleBarClick("timeToSite", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
+        {/* Drill-down sidebar — rendered in a portal so it never affects page scroll */}
+        <DrillDownSidebar
+          drillDown={drillDown}
+          onClose={closeDrillDown}
+          onNavigate={navigateToReport}
+        />
+      </div>
+    );
+  };
 
-            <ChartCard title="Time to recover (mins)">
-              <BarChart
-                data={timeToRecoverData}
-                onClick={(d) =>
-                  d?.activeLabel &&
-                  handleBarClick("timeToRecover", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Fault">
-              <BarChart
-                data={faultData}
-                margin={{ top: 0, right: 0, left: -20, bottom: 10 }}
-                onClick={(d) =>
-                  d?.activeLabel && handleBarClick("fault", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis
-                  dataKey="name"
-                  {...commonChartProps.xAxis}
-                  {...(faultData.length >= 7 && {
-                    angle: -45,
-                    textAnchor: "end",
-                    interval: 0,
-                    height: 60,
-                  })}
-                />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Incident Type">
-              <BarChart
-                data={incidentTypeData}
-                margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
-                onClick={(d) =>
-                  d?.activeLabel &&
-                  handleBarClick("incidentType", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Vehicles Dispatched">
-              <BarChart
-                data={vehiclesDispatchedData}
-                onClick={(d) =>
-                  d?.activeLabel &&
-                  handleBarClick("vehicleTypesDispatched", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Spotted By">
-              <BarChart
-                data={spottedByData}
-                onClick={(d) =>
-                  d?.activeLabel && handleBarClick("reportedBy", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Lane Affected">
-              <BarChart
-                data={laneAffectedData}
-                onClick={(d) =>
-                  d?.activeLabel &&
-                  handleBarClick("affectedLanes", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Traffic Conditions">
-              <BarChart
-                data={trafficConditionsData}
-                onClick={(d) =>
-                  d?.activeLabel &&
-                  handleBarClick("trafficConditions", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Emergency Services Attended">
-              <BarChart
-                data={emergencyServicesData}
-                onClick={(d) =>
-                  d?.activeLabel &&
-                  handleBarClick("emergencyServices", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Track of Incident">
-              <BarChart
-                data={trackData}
-                onClick={(d) =>
-                  d?.activeLabel && handleBarClick("track", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Vehicle Type">
-              <BarChart
-                data={vehicleTypeData}
-                onClick={(d) =>
-                  d?.activeLabel &&
-                  handleBarClick("vehicleTypes", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" {...commonChartProps.xAxis} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-
-            <ChartCard title="Incursions">
-              <BarChart
-                data={incursionsData}
-                onClick={(d) =>
-                  d?.activeLabel && handleBarClick("incursions", d.activeLabel)
-                }
-                style={{ cursor: "pointer" }}
-              >
-                <CartesianGrid {...commonChartProps.cartesianGrid} />
-                <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-                <YAxis {...commonChartProps.yAxis} />
-                <Tooltip {...commonChartProps.tooltip} />
-                <Legend {...commonChartProps.legend} />
-                <Bar dataKey="Number" {...commonChartProps.bar} />
-              </BarChart>
-            </ChartCard>
-          </div>
-
-          {/* Full Width: Incidents Over Time */}
-          <div className="mb-8">
-            <ChartCard title="Incidents Over Time" fullWidth height={350}>
-              <BarChart
-                data={
-                  timeSeriesData.length > 0
-                    ? timeSeriesData.map((d) => ({ ...d, Number: d.count }))
-                    : [{ name: "No Data", Number: 0 }]
-                }
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#17af93" />
-                <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-                <YAxis tick={{ fontSize: 13 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #17af93",
-                    borderRadius: "8px",
-                  }}
-                  labelStyle={{ fontWeight: "bold" }}
-                />
-                <Legend wrapperStyle={{ paddingTop: "20px" }} />
-                <Bar dataKey="Number" fill="#17af93" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ChartCard>
-          </div>
-        </div>
-      )}
-
-      {/* Drill-down sidebar — rendered in a portal so it never affects page scroll */}
-      <DrillDownSidebar
-        drillDown={drillDown}
-        onClose={closeDrillDown}
-        onNavigate={navigateToReport}
-      />
-    </div>
-  );
-};
-
-export default NewClientDashboard;
+  export default NewClientDashboard;

@@ -142,15 +142,17 @@ const SignUpForm = () => {
 
   return (
     <div className="w-full max-w-md p-6 sm:p-8 bg-white rounded-xl shadow-lg">
-      <h3>Create Account</h3>
-      <p className="mb-6 font-medium label label-text">
-        Let's create your account for LENSE.
+      <h2 className="text-gray-700 mb-1">
+        Create Account
+      </h2>
+      <p className="text-sm text-gray-500 mb-6">
+        Let's create your account for <span className="font-semibold text-brand-500">LENSE.</span>
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="form-control">
           <label className="label">
-            <span className="label-text font-semibold mb-2">Full Name</span>
+            <span className="label-text text-sm font-semibold mb-2">Full Name</span>
           </label>
           <input
             type="text"
@@ -165,7 +167,7 @@ const SignUpForm = () => {
 
         <div className="form-control">
           <label className="label">
-            <span className="label-text font-semibold mb-2">Email</span>
+            <span className="label-text text-sm font-semibold mb-2">Email</span>
           </label>
           <input
             type="email"
@@ -179,7 +181,7 @@ const SignUpForm = () => {
 
         <div className="form-control">
           <label className="label">
-            <span className="label-text font-semibold mb-2">Password</span>
+            <span className="label-text text-sm font-semibold mb-2">Password</span>
           </label>
           <div className="relative">
             <input
@@ -194,7 +196,7 @@ const SignUpForm = () => {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-600 transition-colors"
               tabIndex={-1}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -204,7 +206,7 @@ const SignUpForm = () => {
 
         <div className="form-control">
           <label className="label">
-            <span className="label-text font-semibold mb-2">
+            <span className="label-text text-sm font-semibold mb-2">
               Confirm Password
             </span>
           </label>
@@ -220,7 +222,7 @@ const SignUpForm = () => {
             <button
               type="button"
               onClick={() => setShowConfirmPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-600 transition-colors"
               tabIndex={-1}
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -230,7 +232,7 @@ const SignUpForm = () => {
 
         <div className="form-control">
           <label className="label">
-            <span className="label-text font-semibold mb-2">I am a:</span>
+            <span className="label-text text-sm font-semibold mb-2">I am a:</span>
           </label>
           <select
             name="role"
@@ -271,7 +273,7 @@ const SignUpForm = () => {
         {/* Access Code — label and placeholder differ per role */}
         <div className="form-control">
           <label className="label">
-            <span className="label-text font-semibold mb-2">
+            <span className="label-text text-sm font-semibold mb-2">
               {getCodeLabel(formData.role)}
             </span>
           </label>
@@ -285,7 +287,7 @@ const SignUpForm = () => {
             required
           />
           <label className="label">
-            <span className="label-text-alt text-gray-500">
+            <span className="label-text-alt text-sm text-gray-500">
               Enter the access code provided by your administrator
             </span>
           </label>
@@ -294,7 +296,7 @@ const SignUpForm = () => {
         {formData.role === USER_ROLES.CLIENT && (
           <div className="form-control">
             <label className="label">
-              <span className="label-text font-semibold mb-2">
+              <span className="label-text text-sm font-semibold mb-2">
                 Company Name
               </span>
             </label>
@@ -312,7 +314,7 @@ const SignUpForm = () => {
 
         <div className="form-control">
           <label className="label">
-            <span className="label-text font-semibold mb-2">
+            <span className="label-text text-sm font-semibold mb-2">
               Phone Number (Optional)
             </span>
           </label>
@@ -321,7 +323,7 @@ const SignUpForm = () => {
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100"
+            className="input  w-full bg-white border-gray-300 rounded-lg hover:bg-gray-100 mb-4"
             maxLength={20}
           />
         </div>
@@ -339,7 +341,7 @@ const SignUpForm = () => {
         Already have an account?{" "}
         <Link
           to="/signin"
-          className="text-brand-500 hover:text-brand-600 font-semibold"
+          className="text-brand-500 hover:text-brand-600 font-semibold!"
         >
           Sign In
         </Link>

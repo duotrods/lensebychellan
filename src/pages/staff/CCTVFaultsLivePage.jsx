@@ -160,11 +160,8 @@ const CCTVFaultsLivePageInner = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-            <CameraOff className="w-5 h-5 text-red-500" />
-          </div>
           <div>
-            <h3 className="text-2xl font-bold text-gray-800">Live CCTV Faults</h3>
+            <h2 className="text-2xl font-bold text-gray-800">Live CCTV Faults</h2>
             <p className="text-sm text-gray-500">
               Real-time feed — faults waiting to be resolved
             </p>

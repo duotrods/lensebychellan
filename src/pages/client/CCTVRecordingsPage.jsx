@@ -200,7 +200,7 @@ const CCTVRecordingsPage = () => {
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search — now includes reference ID */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search by reference ID, camera, description..."

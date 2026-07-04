@@ -226,11 +226,11 @@ const StaffDocumentsPage = () => {
 
   return (
     <StaffSidebarLayout>
-      <div className="max-w-6xl mx-auto">
+      <div>
         {/* Header */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-3xl font-bold text-gray-800 mb-2">Documents</h3>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Documents</h2>
             <p className="text-gray-600">
               Upload files for a scheme — only that scheme's clients will see
               them.
