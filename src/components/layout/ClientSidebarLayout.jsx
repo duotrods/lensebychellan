@@ -14,6 +14,7 @@ import {
   MonitorCheck,
   FolderOpen,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -30,6 +31,11 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+
+  const toggleGroup = (label) => {
+    setCollapsedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
 
   // Close mobile sidebar on route change
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
@@ -46,38 +52,52 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
-  const navItems = [
+  const navGroups = [
     {
-      name: "Dashboard",
-      path: basePath,
-      icon: LayoutDashboard,
-      exact: true,
+      label: "CCTV Dashboard",
+      items: [
+        {
+          name: "Dashboard",
+          path: basePath,
+          icon: LayoutDashboard,
+          exact: true,
+        },
+        {
+          name: "Reports",
+          path: `${basePath}/reports`,
+          icon: FileText,
+        },
+        {
+          name: "CCTV Recordings",
+          path: `${basePath}/cctv-recordings`,
+          icon: Video,
+        },
+        {
+          name: "CCTV Uptime",
+          path: `${basePath}/cctv-uptime`,
+          icon: MonitorCheck,
+        },
+        // Documents is internal-client only — third-party clients don't have it.
+        ...(role === USER_ROLES.THIRDPARTYCLIENT
+          ? []
+          : [
+              {
+                name: "Documents",
+                path: `${basePath}/documents`,
+                icon: FolderOpen,
+              },
+            ]),
+      ],
     },
     {
-      name: "Reports",
-      path: `${basePath}/reports`,
-      icon: FileText,
+      label: "Recovery Dashboard",
+      items: [],
+      // Coming soon items — hidden for third-party clients.
+      comingSoon:
+        role === USER_ROLES.THIRDPARTYCLIENT
+          ? []
+          : [{ name: "Lense Assist", icon: Sparkles }],
     },
-    {
-      name: "CCTV Recordings",
-      path: `${basePath}/cctv-recordings`,
-      icon: Video,
-    },
-    {
-      name: "CCTV Uptime",
-      path: `${basePath}/cctv-uptime`,
-      icon: MonitorCheck,
-    },
-    // Documents is internal-client only — third-party clients don't have it.
-    ...(role === USER_ROLES.THIRDPARTYCLIENT
-      ? []
-      : [
-          {
-            name: "Documents",
-            path: `${basePath}/documents`,
-            icon: FolderOpen,
-          },
-        ]),
   ];
 
   return (
@@ -137,43 +157,74 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 px-2 py-6 space-y-2 overflow-y-auto">
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.path}
-              title={collapsed ? item.name : undefined}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                isActive(item.path, item.exact)
-                  ? "bg-teal-500 text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              } ${collapsed ? 'justify-center' : ''}`}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {!collapsed && <span className="font-medium">{item.name}</span>}
-            </Link>
-          ))}
+        <nav className="flex-1 px-2 py-6 space-y-6 overflow-y-auto">
+          {navGroups.map((group) => {
+            const comingSoon = group.comingSoon ?? [];
+            if (group.items.length === 0 && comingSoon.length === 0) return null;
 
-          {/* Coming soon items — hidden for third-party clients */}
-          {role !== USER_ROLES.THIRDPARTYCLIENT && [
-            { name: "Lense Assist", icon: Sparkles },
-          ].map((item) => (
-            <div
-              key={item.name}
-              title={collapsed ? `${item.name} — Coming soon` : undefined}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : ''}`}
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              {!collapsed && (
-                <>
-                  <span className="font-medium flex-1">{item.name}</span>
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
-                    Soon
-                  </span>
-                </>
-              )}
-            </div>
-          ))}
+            // Group collapse is a sidebar-expanded-only affordance — icon-only mode always shows everything.
+            const isGroupCollapsed = !collapsed && collapsedGroups[group.label];
+
+            return (
+              <div key={group.label}>
+                {!collapsed && (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.label)}
+                    className="w-full flex items-center justify-between px-3 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide hover:text-gray-600 transition-colors"
+                  >
+                    <span>{group.label}</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 shrink-0 transition-transform ${isGroupCollapsed ? '-rotate-90' : ''}`}
+                    />
+                  </button>
+                )}
+                <div
+                  className={`grid transition-all duration-200 ease-in-out ${
+                    isGroupCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="space-y-2">
+                      {group.items.map((item) => (
+                        <Link
+                          key={item.name}
+                          to={item.path}
+                          title={collapsed ? item.name : undefined}
+                          className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                            isActive(item.path, item.exact)
+                              ? "bg-teal-500 text-white"
+                              : "text-gray-700 hover:bg-gray-100"
+                          } ${collapsed ? 'justify-center' : ''}`}
+                        >
+                          <item.icon className="w-5 h-5 shrink-0" />
+                          {!collapsed && <span className="font-medium">{item.name}</span>}
+                        </Link>
+                      ))}
+
+                      {comingSoon.map((item) => (
+                        <div
+                          key={item.name}
+                          title={collapsed ? `${item.name} — Coming soon` : undefined}
+                          className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : ''}`}
+                        >
+                          <item.icon className="w-5 h-5 shrink-0" />
+                          {!collapsed && (
+                            <>
+                              <span className="font-medium flex-1">{item.name}</span>
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
+                                Soon
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         {/* Scheme Switcher - only when expanded */}
