@@ -145,7 +145,7 @@ const DocumentsPage = () => {
 
   return (
     <ClientSidebarLayout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-[1600px] mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">

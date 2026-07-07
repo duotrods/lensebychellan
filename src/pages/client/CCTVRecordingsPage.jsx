@@ -186,7 +186,7 @@ const CCTVRecordingsPage = () => {
 
   return (
     <ClientSidebarLayout>
-      <div className="p-6">
+      <div className="max-w-[1600px] mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800">CCTV Recordings</h1>
