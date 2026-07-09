@@ -15,6 +15,9 @@ import {
   FolderOpen,
   Sparkles,
   ChevronDown,
+  Clapperboard,
+  TrafficCone,
+  Signpost,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -22,6 +25,42 @@ import SchemeSwitcher from "../client/SchemeSwitcher";
 import { isDemoUser } from "../../utils/schemes";
 import { DASHBOARD_ROUTES, USER_ROLES } from "../../utils/constants";
 import LogoutConfirmModal from "./LogoutConfirmModal";
+
+// Nav groups start collapsed by default; only labels present (and true) here are expanded.
+// Persisted so a group a client opens stays open across a full page refresh.
+const SIDEBAR_EXPANDED_GROUPS_KEY = "client_sidebar_expanded_groups";
+
+// A real, clickable nav row — used both inside collapsible groups and standalone.
+const NavLinkItem = ({ item, collapsed, active }) => (
+  <Link
+    to={item.path}
+    title={collapsed ? item.name : undefined}
+    className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+      active ? "bg-teal-500 text-white" : "text-gray-700 hover:bg-gray-100"
+    } ${collapsed ? 'justify-center' : ''}`}
+  >
+    <item.icon className="w-5 h-5 shrink-0" />
+    {!collapsed && <span className="font-medium">{item.name}</span>}
+  </Link>
+);
+
+// A greyed-out, non-clickable "coming soon" row — used both inside collapsible groups and standalone.
+const ComingSoonItem = ({ item, collapsed }) => (
+  <div
+    title={collapsed ? `${item.name} — Coming soon` : undefined}
+    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : ''}`}
+  >
+    <item.icon className="w-5 h-5 shrink-0" />
+    {!collapsed && (
+      <>
+        <span className="font-medium flex-1">{item.name}</span>
+        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
+          Soon
+        </span>
+      </>
+    )}
+  </div>
+);
 
 const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const { userProfile, role } = useAuth();
@@ -31,19 +70,6 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState({});
-
-  const toggleGroup = (label) => {
-    setCollapsedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
-  };
-
-  // Close mobile sidebar on route change
-  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
-
-  const handleSignOut = async () => {
-    await authService.signOut();
-    navigate("/");
-  };
 
   const isActive = (path, exact = false) => {
     if (exact) {
@@ -77,16 +103,6 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
           path: `${basePath}/cctv-uptime`,
           icon: MonitorCheck,
         },
-        // Documents is internal-client only — third-party clients don't have it.
-        ...(role === USER_ROLES.THIRDPARTYCLIENT
-          ? []
-          : [
-              {
-                name: "Documents",
-                path: `${basePath}/documents`,
-                icon: FolderOpen,
-              },
-            ]),
       ],
     },
     {
@@ -96,9 +112,84 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       comingSoon:
         role === USER_ROLES.THIRDPARTYCLIENT
           ? []
-          : [{ name: "Lense Assist", icon: Sparkles }],
+          : [
+              { name: "Dashboard", icon: LayoutDashboard },
+              { name: "Reports", icon: FileText },
+            ],
+    },
+    {
+      label: "Media Dashboard",
+      items: [],
+      comingSoon:
+        role === USER_ROLES.THIRDPARTYCLIENT
+          ? []
+          : [{ name: "Dashboard", icon: Clapperboard }],
+    },
+    {
+      label: "TM Dashboard",
+      items: [],
+      comingSoon:
+        role === USER_ROLES.THIRDPARTYCLIENT
+          ? []
+          : [{ name: "Dashboard", icon: TrafficCone }],
+    },
+    {
+      label: "VMS Dashboard",
+      items: [],
+      comingSoon:
+        role === USER_ROLES.THIRDPARTYCLIENT
+          ? []
+          : [{ name: "Dashboard", icon: Signpost }],
     },
   ];
+
+  // Ungrouped nav entries — rendered after all groups, with no collapsible header/chevron.
+  const standaloneItems =
+    role === USER_ROLES.THIRDPARTYCLIENT
+      ? []
+      : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: FolderOpen }];
+
+  const standaloneComingSoon =
+    role === USER_ROLES.THIRDPARTYCLIENT ? [] : [{ name: "Lense Assist", icon: Sparkles }];
+
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    let persisted = {};
+    try {
+      persisted = JSON.parse(localStorage.getItem(SIDEBAR_EXPANDED_GROUPS_KEY)) ?? {};
+    } catch {
+      persisted = {};
+    }
+    // First time a group is seen (no explicit saved preference), auto-expand it
+    // if it contains the page the user is currently on.
+    const withActiveDefault = { ...persisted };
+    navGroups.forEach((group) => {
+      if (withActiveDefault[group.label] === undefined) {
+        const hasActiveItem = group.items.some((item) => isActive(item.path, item.exact));
+        if (hasActiveItem) withActiveDefault[group.label] = true;
+      }
+    });
+    return withActiveDefault;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_EXPANDED_GROUPS_KEY, JSON.stringify(expandedGroups));
+    } catch {
+      // localStorage unavailable (e.g. private browsing) — state just won't persist.
+    }
+  }, [expandedGroups]);
+
+  const toggleGroup = (label) => {
+    setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  // Close mobile sidebar on route change
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  const handleSignOut = async () => {
+    await authService.signOut();
+    navigate("/");
+  };
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -163,7 +254,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
             if (group.items.length === 0 && comingSoon.length === 0) return null;
 
             // Group collapse is a sidebar-expanded-only affordance — icon-only mode always shows everything.
-            const isGroupCollapsed = !collapsed && collapsedGroups[group.label];
+            const isGroupCollapsed = !collapsed && !expandedGroups[group.label];
 
             return (
               <div key={group.label}>
@@ -187,37 +278,16 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                   <div className="overflow-hidden">
                     <div className="space-y-2">
                       {group.items.map((item) => (
-                        <Link
+                        <NavLinkItem
                           key={item.name}
-                          to={item.path}
-                          title={collapsed ? item.name : undefined}
-                          className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                            isActive(item.path, item.exact)
-                              ? "bg-teal-500 text-white"
-                              : "text-gray-700 hover:bg-gray-100"
-                          } ${collapsed ? 'justify-center' : ''}`}
-                        >
-                          <item.icon className="w-5 h-5 shrink-0" />
-                          {!collapsed && <span className="font-medium">{item.name}</span>}
-                        </Link>
+                          item={item}
+                          collapsed={collapsed}
+                          active={isActive(item.path, item.exact)}
+                        />
                       ))}
 
                       {comingSoon.map((item) => (
-                        <div
-                          key={item.name}
-                          title={collapsed ? `${item.name} — Coming soon` : undefined}
-                          className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : ''}`}
-                        >
-                          <item.icon className="w-5 h-5 shrink-0" />
-                          {!collapsed && (
-                            <>
-                              <span className="font-medium flex-1">{item.name}</span>
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
-                                Soon
-                              </span>
-                            </>
-                          )}
-                        </div>
+                        <ComingSoonItem key={item.name} item={item} collapsed={collapsed} />
                       ))}
                     </div>
                   </div>
@@ -225,6 +295,23 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
               </div>
             );
           })}
+
+          {/* Ungrouped entries — always visible, no collapsible header */}
+          {(standaloneItems.length > 0 || standaloneComingSoon.length > 0) && (
+            <div className="space-y-2">
+              {standaloneItems.map((item) => (
+                <NavLinkItem
+                  key={item.name}
+                  item={item}
+                  collapsed={collapsed}
+                  active={isActive(item.path, item.exact)}
+                />
+              ))}
+              {standaloneComingSoon.map((item) => (
+                <ComingSoonItem key={item.name} item={item} collapsed={collapsed} />
+              ))}
+            </div>
+          )}
         </nav>
 
         {/* Scheme Switcher - only when expanded */}
