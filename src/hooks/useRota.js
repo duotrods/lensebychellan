@@ -72,7 +72,13 @@ export function useRotaShifts(periodStart, periodEnd) {
       (docs) => {
         const map = {};
         docs.forEach((s) => {
-          map[`${s.staffId}__${s.date}`] = { type: s.type, hours: s.hours };
+          map[`${s.staffId}__${s.date}`] = {
+            type: s.type,
+            hours: s.hours,
+            // status only meaningful for holidays; missing => treat as approved (legacy).
+            status: s.status ?? null,
+            updatedBy: s.updatedBy ?? null,
+          };
         });
         setShifts(map);
         setLoading(false);
@@ -87,4 +93,31 @@ export function useRotaShifts(periodStart, periodEnd) {
   }, [startKey, endKey]);
 
   return { shifts, loading, error };
+}
+
+// Admin-facing: all holiday shifts still awaiting approval, across every period
+// (not scoped to the visible range) so pending requests are never missed.
+// Returns [{ staffId, date, ... }] sorted by date ascending.
+export function usePendingHolidays() {
+  const [pending, setPending] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const unsubscribe = rotaService.subscribeToPendingHolidays(
+      (docs) => {
+        setPending([...docs].sort((a, b) => a.date.localeCompare(b.date)));
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error in pending holidays subscription:", err);
+        setError(err);
+        setLoading(false);
+      },
+    );
+    return () => unsubscribe?.();
+  }, []);
+
+  return { pending, loading, error };
 }

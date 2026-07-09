@@ -17,7 +17,19 @@ export function addDays(date, n) {
 }
 
 export function fmt(date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+// Parses a "YYYY-MM-DD" string into a local-midnight Date, the inverse of fmt().
+// Using `new Date(dateStr)` instead would parse as UTC, which silently shifts
+// the calendar date by a day for anyone outside UTC — that's what caused bank
+// holidays and pay-period boundaries to line up with the wrong day.
+export function parseDateStr(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
 }
 
 export function isSameDay(a, b) {
@@ -82,7 +94,7 @@ export function splitShiftAcrossDates(dateStr, shift) {
     const secondLeg = Math.max(0, hours - 6);
     if (firstLeg > 0) portions.push({ date: dateStr, hours: firstLeg });
     if (secondLeg > 0) {
-      const nextDate = fmt(addDays(new Date(dateStr), 1));
+      const nextDate = fmt(addDays(parseDateStr(dateStr), 1));
       portions.push({ date: nextDate, hours: secondLeg });
     }
   }
@@ -96,7 +108,7 @@ export function rateForDate(bankHolidays, dateStr) {
   return { multiplier: 1.5, label: "bank holiday" };
 }
 
-// staff: [{id, name}], shifts: { [`${staffId}__${date}`]: {type, hours} }
+// staff: [{id, name}], shifts: { [`${staffId}__${date}`]: {type, hours, status} }
 export function tallyForPeriod(staff, shifts, bankHolidays, period) {
   const rows = staff.map((p) => ({
     id: p.id,
@@ -117,18 +129,23 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period) {
     if (!row) return;
     const shift = shifts[key];
     if (shift.type === "holiday") {
-      const d = new Date(dateStr);
-      if (d >= period.start && d <= period.end) row.holidayDays += 1;
+      // Only approved holidays count toward the tally. Pending requests
+      // (awaiting admin approval) are excluded; legacy holidays without a
+      // status are treated as approved.
+      if (shift.status !== "pending") {
+        const d = parseDateStr(dateStr);
+        if (d >= period.start && d <= period.end) row.holidayDays += 1;
+      }
       return;
     }
     if (shift.type === "sick") {
-      const d = new Date(dateStr);
+      const d = parseDateStr(dateStr);
       if (d >= period.start && d <= period.end) row.sickDays += 1;
       return;
     }
     const portions = splitShiftAcrossDates(dateStr, shift);
     portions.forEach((p) => {
-      const pd = new Date(p.date);
+      const pd = parseDateStr(p.date);
       if (pd < period.start || pd > period.end) return;
       const rate = rateForDate(bankHolidays, p.date);
       row.totalHours += p.hours;

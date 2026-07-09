@@ -8,11 +8,9 @@ const HoursPayTally = ({
   shifts,
   bankHolidays,
   period,
-  periodAnchor,
   onPrevPeriod,
   onNextPeriod,
   onToday,
-  onPickDate,
   customRange,
   onRangeChange,
   onClearRange,
@@ -41,11 +39,9 @@ const HoursPayTally = ({
         <div className="flex items-center gap-2 flex-wrap">
           <RotaPeriodNav
             period={period}
-            periodAnchor={periodAnchor}
             onPrevPeriod={onPrevPeriod}
             onNextPeriod={onNextPeriod}
             onToday={onToday}
-            onPickDate={onPickDate}
           />
           <RotaRangeFilter
             period={period}

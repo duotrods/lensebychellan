@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, Check, Ban, Clock } from "lucide-react";
+import { parseDateStr } from "../../utils/rota";
 
 const OPTIONS = [
   { value: "day", label: "Day — starts 06:00", dot: "bg-yellow-400" },
@@ -11,8 +12,8 @@ const OPTIONS = [
 
 const QUICK_HOURS = [4, 6, 8, 10, 12];
 
-// pendingCell: { staffName, dateStr, existing: {type, hours} | null }
-const ShiftModal = ({ pendingCell, onSave, onClose }) => {
+// pendingCell: { staffName, dateStr, existing: {type, hours, status} | null }
+const ShiftModal = ({ pendingCell, onSave, onClose, canApprove = false, onApprove, onReject }) => {
   const [type, setType] = useState(pendingCell?.existing?.type ?? null);
   const [hours, setHours] = useState(pendingCell?.existing?.hours || 12);
 
@@ -23,8 +24,10 @@ const ShiftModal = ({ pendingCell, onSave, onClose }) => {
 
   if (!pendingCell) return null;
 
-  const dateObj = new Date(pendingCell.dateStr);
+  const dateObj = parseDateStr(pendingCell.dateStr);
   const showHours = type === "day" || type === "night";
+  const isPendingHoliday =
+    pendingCell.existing?.type === "holiday" && pendingCell.existing?.status === "pending";
 
   const handleSave = () => {
     if (!type) {
@@ -65,6 +68,37 @@ const ShiftModal = ({ pendingCell, onSave, onClose }) => {
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {isPendingHoliday && (
+          <div className="mt-4 p-3 rounded-lg bg-gray-50 border-[1.5px] border-gray-200">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+              <Clock className="w-3.5 h-3.5" />
+              Holiday requested — pending approval
+            </p>
+            {canApprove ? (
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => onApprove?.()}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-red-500 text-white font-semibold text-sm py-2 rounded-lg hover:bg-red-600"
+                >
+                  <Check className="w-4 h-4" /> Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReject?.()}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-white border-[1.5px] border-gray-300 text-gray-600 font-semibold text-sm py-2 rounded-lg hover:border-gray-400"
+                >
+                  <Ban className="w-4 h-4" /> Reject
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-400 mt-1">
+                Awaiting admin approval. You can clear this request below.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col gap-2 mt-4">
           {OPTIONS.map((opt) => (

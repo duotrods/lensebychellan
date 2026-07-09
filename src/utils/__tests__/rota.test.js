@@ -5,7 +5,46 @@ import {
   splitShiftAcrossDates,
   rateForDate,
   tallyForPeriod,
+  fmt,
+  parseDateStr,
 } from "../rota";
+
+// Regression coverage for a timezone bug: fmt() used to go through
+// toISOString() (UTC), which shifts the calendar date back by a day for any
+// timezone ahead of UTC (e.g. BST, or Asia/Manila). That made bank holidays
+// and grid cells resolve to the wrong date depending on where the browser
+// was running. Run `TZ=Asia/Manila npx vitest run` (or any UTC+ zone) to see
+// these fail on the old implementation.
+describe("fmt / parseDateStr", () => {
+  it("round-trips a local date without shifting to a different calendar day", () => {
+    const d = new Date(2026, 6, 10); // 10 Jul 2026, local midnight
+    expect(fmt(d)).toBe("2026-07-10");
+    expect(parseDateStr(fmt(d))).toEqual(d);
+  });
+});
+
+describe("tallyForPeriod (timezone regression)", () => {
+  const staff = [{ id: "s1", name: "Dave" }];
+  const period = getPayPeriod(new Date(2026, 5, 30)); // 28 Jun - 27 Jul 2026
+  const bankHolidays = [{ date: "2026-07-10", name: "Test BH", type: "standard" }];
+
+  it("applies the bank holiday rate on the date it was actually saved as", () => {
+    const shifts = { "s1__2026-07-10": { type: "day", hours: 12 } };
+    const [row] = tallyForPeriod(staff, shifts, bankHolidays, period);
+    expect(row.bh).toBe(12);
+    expect(row.standard).toBe(0);
+  });
+
+  it("includes shifts and holiday days on the last day of the pay period (27th)", () => {
+    const shifts = {
+      "s1__2026-07-27": { type: "day", hours: 12 },
+      "s1__2026-07-26": { type: "holiday", hours: 0, status: "approved" },
+    };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.totalHours).toBe(12);
+    expect(row.holidayDays).toBe(1);
+  });
+});
 
 describe("getPayPeriod", () => {
   it("returns 28th-of-this-month to 27th-of-next-month when anchor is on/after the 28th", () => {
@@ -113,6 +152,16 @@ describe("tallyForPeriod", () => {
     expect(row.holidayDays).toBe(1);
     expect(row.sickDays).toBe(1);
     expect(row.totalHours).toBe(0);
+  });
+
+  it("counts approved and legacy holidays but excludes pending requests", () => {
+    const shifts = {
+      "s1__2026-03-05": { type: "holiday", hours: 0, status: "approved" },
+      "s1__2026-03-06": { type: "holiday", hours: 0 }, // legacy: no status => approved
+      "s1__2026-03-07": { type: "holiday", hours: 0, status: "pending" }, // awaiting approval
+    };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.holidayDays).toBe(2);
   });
 
   it("ignores shift portions that fall outside the requested pay period", () => {

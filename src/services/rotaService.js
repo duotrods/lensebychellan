@@ -6,6 +6,7 @@ import {
   onSnapshot,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   addDoc,
   getDocs,
@@ -82,15 +83,42 @@ class RotaService {
     );
   }
 
-  async setShift(staffId, dateStr, { type, hours }, updatedBy) {
+  async setShift(staffId, dateStr, { type, hours, status }, updatedBy) {
     return setDoc(doc(db, "rotaShifts", `${staffId}_${dateStr}`), {
       staffId,
       date: dateStr,
       type,
       hours,
+      // status only carried for holidays (pending/approved); omitted otherwise.
+      ...(status ? { status } : {}),
       updatedAt: serverTimestamp(),
       updatedBy: updatedBy ?? null,
     });
+  }
+
+  // Admin action: approve a pending holiday so it renders as an approved (red) holiday.
+  async approveHoliday(staffId, dateStr, approvedBy) {
+    return updateDoc(doc(db, "rotaShifts", `${staffId}_${dateStr}`), {
+      status: "approved",
+      approvedBy: approvedBy ?? null,
+      approvedAt: serverTimestamp(),
+    });
+  }
+
+  // Admin-facing: live feed of holiday shifts still awaiting approval (all dates).
+  subscribeToPendingHolidays(callback, onError) {
+    const q = query(
+      collection(db, "rotaShifts"),
+      where("type", "==", "holiday"),
+      where("status", "==", "pending"),
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        callback(snapshot.docs.map((d) => d.data()));
+      },
+      (error) => onError?.(error),
+    );
   }
 
   async clearShift(staffId, dateStr) {

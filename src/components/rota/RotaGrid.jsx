@@ -14,25 +14,34 @@ const PILL_STYLES = {
   day: "bg-yellow-100 border-2 border-yellow-400 text-yellow-800",
   night: "bg-blue-100 border-2 border-blue-500 text-blue-800",
   holiday: "bg-red-100 border-2 border-red-400 text-red-800",
+  // Holiday requested by staff, awaiting admin approval.
+  holidayPending: "bg-gray-100 border-2 border-gray-400 text-gray-500",
   sick: "bg-green-100 border-2 border-green-500 text-green-800",
   off: "border-2 border-dashed border-gray-200 text-gray-300",
 };
 
-const PILL_LABEL = { day: "D", night: "N", holiday: "Hol", sick: "Sick" };
+const PILL_LABEL = { day: "D", night: "N", holiday: "Hol", holidayPending: "Hol*", sick: "Sick" };
+
+// A holiday with an explicit "pending" status is awaiting approval; anything else
+// (approved, or legacy holidays without a status) renders as an approved red holiday.
+const isPendingHoliday = (shift) =>
+  shift?.type === "holiday" && shift?.status === "pending";
 
 const ShiftPill = ({ shift, canEdit, onClick }) => {
-  const type = shift?.type && PILL_STYLES[shift.type] ? shift.type : "off";
+  let styleKey = shift?.type && PILL_STYLES[shift.type] ? shift.type : "off";
+  if (isPendingHoliday(shift)) styleKey = "holidayPending";
   return (
     <button
       type="button"
       disabled={!canEdit}
       onClick={onClick}
-      className={`w-full min-h-[38px] rounded-lg flex flex-col items-center justify-center text-[11px] font-bold transition-colors ${PILL_STYLES[type]} ${
+      title={styleKey === "holidayPending" ? "Holiday — pending approval" : undefined}
+      className={`w-full min-h-[38px] rounded-lg flex flex-col items-center justify-center text-[11px] font-bold transition-colors ${PILL_STYLES[styleKey]} ${
         canEdit ? "cursor-pointer hover:border-teal-400" : "cursor-default"
       }`}
     >
-      {type === "off" ? "–" : PILL_LABEL[type]}
-      {(type === "day" || type === "night") && (
+      {styleKey === "off" ? "–" : PILL_LABEL[styleKey]}
+      {(styleKey === "day" || styleKey === "night") && (
         <span className="text-[10px] font-semibold opacity-75 mt-0.5">{shift.hours}h</span>
       )}
     </button>
@@ -63,11 +72,9 @@ const RotaGrid = ({
   shifts,
   bankHolidays,
   period,
-  periodAnchor,
   onPrevPeriod,
   onNextPeriod,
   onToday,
-  onPickDate,
   customRange,
   onRangeChange,
   onClearRange,
@@ -112,11 +119,9 @@ const RotaGrid = ({
         <div className="flex items-center gap-2 flex-wrap">
           <RotaPeriodNav
             period={period}
-            periodAnchor={periodAnchor}
             onPrevPeriod={onPrevPeriod}
             onNextPeriod={onNextPeriod}
             onToday={onToday}
-            onPickDate={onPickDate}
           />
           <RotaRangeFilter
             period={period}
@@ -214,6 +219,9 @@ const RotaGrid = ({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded bg-red-100 border-2 border-red-400" /> Holiday
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded bg-gray-100 border-2 border-gray-400" /> Holiday (pending)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded bg-green-100 border-2 border-green-500" /> Sick

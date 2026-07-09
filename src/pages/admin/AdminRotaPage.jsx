@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { CalendarDays, Wallet, Users, CalendarPlus } from "lucide-react";
+import { CalendarDays, Wallet, Users, CalendarPlus, Clock } from "lucide-react";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import RotaGrid from "../../components/rota/RotaGrid";
 import ShiftModal from "../../components/rota/ShiftModal";
@@ -8,7 +8,12 @@ import HoursPayTally from "../../components/rota/HoursPayTally";
 import RotaTeamManager from "../../components/admin/RotaTeamManager";
 import RotaBankHolidaysManager from "../../components/admin/RotaBankHolidaysManager";
 import { useAuth } from "../../hooks/useAuth";
-import { useRotaStaff, useBankHolidays, useRotaShifts } from "../../hooks/useRota";
+import {
+  useRotaStaff,
+  useBankHolidays,
+  useRotaShifts,
+  usePendingHolidays,
+} from "../../hooks/useRota";
 import { rotaService } from "../../services/rotaService";
 import {
   addDays,
@@ -37,6 +42,7 @@ const AdminRotaPage = () => {
   const { staff, loading: staffLoading } = useRotaStaff();
   const { bankHolidays, loading: bankHolidaysLoading } = useBankHolidays();
   const { shifts } = useRotaShifts(period.start, period.end);
+  const { pending: pendingHolidays } = usePendingHolidays();
 
   // Changing periods invalidates any sub-range filter from the previous period.
   const goPrevPeriod = () => {
@@ -50,10 +56,6 @@ const AdminRotaPage = () => {
   const goToday = () => {
     setCustomRange(null);
     setPeriodAnchor(new Date());
-  };
-  const handlePickDate = (date) => {
-    setCustomRange(null);
-    setPeriodAnchor(date);
   };
 
   const handleCellClick = (staffId, dateStr) => {
@@ -71,6 +73,14 @@ const AdminRotaPage = () => {
     try {
       if (value.type === "off") {
         await rotaService.clearShift(staffId, dateStr);
+      } else if (value.type === "holiday") {
+        // Admins are the approvers, so holidays they set are approved immediately.
+        await rotaService.setShift(
+          staffId,
+          dateStr,
+          { ...value, status: "approved" },
+          currentUser?.uid,
+        );
       } else {
         await rotaService.setShift(staffId, dateStr, value, currentUser?.uid);
       }
@@ -79,6 +89,38 @@ const AdminRotaPage = () => {
     } finally {
       setPendingCell(null);
     }
+  };
+
+  const handleApproveHoliday = async () => {
+    const { staffId, dateStr } = pendingCell;
+    try {
+      await rotaService.approveHoliday(staffId, dateStr, currentUser?.uid);
+      toast.success("Holiday approved");
+    } catch (error) {
+      toast.error(error.message || "Failed to approve holiday");
+    } finally {
+      setPendingCell(null);
+    }
+  };
+
+  const handleRejectHoliday = async () => {
+    const { staffId, dateStr } = pendingCell;
+    try {
+      await rotaService.clearShift(staffId, dateStr);
+      toast.success("Holiday request rejected");
+    } catch (error) {
+      toast.error(error.message || "Failed to reject holiday");
+    } finally {
+      setPendingCell(null);
+    }
+  };
+
+  // Jump the grid to the earliest pending request so it's visible for approval.
+  const goToEarliestPending = () => {
+    if (pendingHolidays.length === 0) return;
+    setCustomRange(null);
+    setPeriodAnchor(new Date(pendingHolidays[0].date));
+    setActiveTab("rota");
   };
 
   const handleDownloadRotaCsv = () => {
@@ -111,6 +153,11 @@ const AdminRotaPage = () => {
             >
               <Icon className="w-4 h-4" />
               {label}
+              {key === "rota" && pendingHolidays.length > 0 && (
+                <span className="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[11px] font-bold">
+                  {pendingHolidays.length}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -119,16 +166,26 @@ const AdminRotaPage = () => {
       <div className="p-6">
         {activeTab === "rota" && (
           <>
+            {pendingHolidays.length > 0 && (
+              <button
+                type="button"
+                onClick={goToEarliestPending}
+                className="w-full mb-4 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100"
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                {pendingHolidays.length} holiday{" "}
+                {pendingHolidays.length === 1 ? "request" : "requests"} awaiting approval — click to
+                view the earliest.
+              </button>
+            )}
             <RotaGrid
               staff={staff}
               shifts={shifts}
               bankHolidays={bankHolidays}
               period={period}
-              periodAnchor={periodAnchor}
               onPrevPeriod={goPrevPeriod}
               onNextPeriod={goNextPeriod}
               onToday={goToday}
-              onPickDate={handlePickDate}
               customRange={customRange}
               onRangeChange={setCustomRange}
               onClearRange={() => setCustomRange(null)}
@@ -140,6 +197,9 @@ const AdminRotaPage = () => {
               pendingCell={pendingCell}
               onSave={handleSaveShift}
               onClose={() => setPendingCell(null)}
+              canApprove
+              onApprove={handleApproveHoliday}
+              onReject={handleRejectHoliday}
             />
           </>
         )}
@@ -150,11 +210,9 @@ const AdminRotaPage = () => {
             shifts={shifts}
             bankHolidays={bankHolidays}
             period={period}
-            periodAnchor={periodAnchor}
             onPrevPeriod={goPrevPeriod}
             onNextPeriod={goNextPeriod}
             onToday={goToday}
-            onPickDate={handlePickDate}
             customRange={customRange}
             onRangeChange={setCustomRange}
             onClearRange={() => setCustomRange(null)}

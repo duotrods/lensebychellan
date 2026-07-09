@@ -47,10 +47,6 @@ const StaffRotaPage = () => {
     setCustomRange(null);
     setPeriodAnchor(new Date());
   };
-  const handlePickDate = (date) => {
-    setCustomRange(null);
-    setPeriodAnchor(date);
-  };
 
   const handleCellClick = (staffId, dateStr) => {
     const person = staff.find((p) => p.id === staffId);
@@ -67,6 +63,14 @@ const StaffRotaPage = () => {
     try {
       if (value.type === "off") {
         await rotaService.clearShift(staffId, dateStr);
+      } else if (value.type === "holiday") {
+        // Staff holidays start as a request awaiting admin approval.
+        await rotaService.setShift(
+          staffId,
+          dateStr,
+          { ...value, status: "pending" },
+          currentUser?.uid,
+        );
       } else {
         await rotaService.setShift(staffId, dateStr, value, currentUser?.uid);
       }
@@ -120,11 +124,9 @@ const StaffRotaPage = () => {
               shifts={shifts}
               bankHolidays={bankHolidays}
               period={period}
-              periodAnchor={periodAnchor}
               onPrevPeriod={goPrevPeriod}
               onNextPeriod={goNextPeriod}
               onToday={goToday}
-              onPickDate={handlePickDate}
               customRange={customRange}
               onRangeChange={setCustomRange}
               onClearRange={() => setCustomRange(null)}
@@ -146,11 +148,9 @@ const StaffRotaPage = () => {
             shifts={shifts}
             bankHolidays={bankHolidays}
             period={period}
-            periodAnchor={periodAnchor}
             onPrevPeriod={goPrevPeriod}
             onNextPeriod={goNextPeriod}
             onToday={goToday}
-            onPickDate={handlePickDate}
             customRange={customRange}
             onRangeChange={setCustomRange}
             onClearRange={() => setCustomRange(null)}

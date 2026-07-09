@@ -386,8 +386,19 @@ service cloud.firestore {
       allow write: if isVerified() && getUserRole() == 'admin';
     }
     match /rotaShifts/{shiftId} {
-      allow read, write: if isVerified() && (
+      allow read: if isVerified() && (
         getUserRole() == 'admin' || getUserRole() == 'staff'
+      );
+      // Clearing/rejecting a shift is open to staff and admin.
+      allow delete: if isVerified() && (
+        getUserRole() == 'admin' || getUserRole() == 'staff'
+      );
+      // Only admins may mark a holiday as approved; staff writes are limited to
+      // non-approved states (e.g. a pending holiday request or a normal shift).
+      allow create, update: if isVerified() && (
+        getUserRole() == 'admin' ||
+        (getUserRole() == 'staff' &&
+          request.resource.data.get('status', 'pending') != 'approved')
       );
     }
     match /rotaBankHolidays/{holidayId} {
