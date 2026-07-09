@@ -15,6 +15,7 @@ import {
   PanelLeftOpen,
   Menu,
   FolderOpen,
+  CalendarDays,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -88,7 +89,7 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
       icon: CameraOff,
       liveCount: liveFaults.length,
     },
-    // Documents is internal-staff only — third-party staff don't have it.
+    // Documents and Staff Rota are internal-staff only — third-party staff don't have them.
     ...(isAnyThirdParty(role)
       ? []
       : [
@@ -96,6 +97,11 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
             name: "Documents",
             path: `${basePath}/documents`,
             icon: FolderOpen,
+          },
+          {
+            name: "Staff Rota",
+            path: `${basePath}/rota`,
+            icon: CalendarDays,
           },
         ]),
   ];

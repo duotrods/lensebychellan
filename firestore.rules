@@ -377,6 +377,26 @@ service cloud.firestore {
       );
     }
 
+    // Staff Rota — admin + internal staff only. Third-party staff and all
+    // client roles have no access at all (not even read).
+    match /rotaStaff/{staffId} {
+      allow read: if isVerified() && (
+        getUserRole() == 'admin' || getUserRole() == 'staff'
+      );
+      allow write: if isVerified() && getUserRole() == 'admin';
+    }
+    match /rotaShifts/{shiftId} {
+      allow read, write: if isVerified() && (
+        getUserRole() == 'admin' || getUserRole() == 'staff'
+      );
+    }
+    match /rotaBankHolidays/{holidayId} {
+      allow read: if isVerified() && (
+        getUserRole() == 'admin' || getUserRole() == 'staff'
+      );
+      allow write: if isVerified() && getUserRole() == 'admin';
+    }
+
     // Audit Logs
     match /auditLogs/{logId} {
       allow create: if isVerified() && getUserRole() == 'admin';

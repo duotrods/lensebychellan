@@ -18,6 +18,7 @@ import {
   Building2,
   PieChart,
   FolderOpen,
+  CalendarDays,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -67,6 +68,11 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Staff Management",
       path: "/dashboard/admin/staff-management",
       icon: Users,
+    },
+    {
+      name: "Staff Rota",
+      path: "/dashboard/admin/rota",
+      icon: CalendarDays,
     },
     {
       name: "Staff Reports",

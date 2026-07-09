@@ -49,6 +49,7 @@
   const ReferenceIdManagerPage = lazy(() => import("./pages/admin/ReferenceIdManagerPage"));
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
   const StaffManagementPage = lazy(() => import("./pages/admin/StaffManagementPage"));
+  const AdminRotaPage = lazy(() => import("./pages/admin/AdminRotaPage"));
   const StaffReportsPage = lazy(() => import("./pages/admin/StaffReportsPage"));
   const AdminDocumentsPage = lazy(() => import("./pages/admin/AdminDocumentsPage"));
   const ThirdPartyReportsPage = lazy(() => import("./pages/admin/ThirdPartyReportsPage"));
@@ -75,6 +76,7 @@
   const CCTVUptimePage = lazy(() => import("./pages/client/CCTVUptimePage"));
   const DocumentsPage = lazy(() => import("./pages/client/DocumentsPage"));
   const StaffDocumentsPage = lazy(() => import("./pages/staff/StaffDocumentsPage"));
+  const StaffRotaPage = lazy(() => import("./pages/staff/StaffRotaPage"));
   const HelpPage = lazy(() => import("./pages/HelpPage"));
   const UnauthorizedPage = lazy(() => import("./pages/UnauthorizedPage"));
 
@@ -194,6 +196,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <StaffManagementPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/rota"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <AdminRotaPage />
                     </ProtectedRoute>
                   }
                 />
@@ -350,6 +361,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                       <StaffDocumentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/staff/rota"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                      <StaffRotaPage />
                     </ProtectedRoute>
                   }
                 />
