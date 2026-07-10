@@ -31,12 +31,13 @@ import LogoutConfirmModal from "./LogoutConfirmModal";
 const SIDEBAR_EXPANDED_GROUPS_KEY = "client_sidebar_expanded_groups";
 
 // A real, clickable nav row — used both inside collapsible groups and standalone.
-const NavLinkItem = ({ item, collapsed, active }) => (
+// textClassName lets a standalone item (e.g. Scheme Documents) opt into darker text.
+const NavLinkItem = ({ item, collapsed, active, textClassName = "text-gray-700" }) => (
   <Link
     to={item.path}
     title={collapsed ? item.name : undefined}
     className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-      active ? "bg-teal-500 text-white" : "text-gray-700 hover:bg-gray-100"
+      active ? "bg-teal-500 text-white" : `${textClassName} hover:bg-gray-100`
     } ${collapsed ? 'justify-center' : ''}`}
   >
     <item.icon className="w-5 h-5 shrink-0" />
@@ -147,7 +148,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const standaloneItems =
     role === USER_ROLES.THIRDPARTYCLIENT
       ? []
-      : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: FolderOpen }];
+      : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: FolderOpen, emphasize: true }];
 
   const standaloneComingSoon =
     role === USER_ROLES.THIRDPARTYCLIENT ? [] : [{ name: "Lense Assist", icon: Sparkles }];
@@ -262,7 +263,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.label)}
-                    className="w-full flex items-center justify-between px-3 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide hover:text-gray-600 transition-colors"
+                    className="w-full flex items-center justify-between px-3 mb-2 text-[11px] font-semibold text-gray-700 uppercase tracking-wide hover:text-gray-900 transition-colors"
                   >
                     <span>{group.label}</span>
                     <ChevronDown
@@ -305,6 +306,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                   item={item}
                   collapsed={collapsed}
                   active={isActive(item.path, item.exact)}
+                  textClassName={item.emphasize ? "text-gray-900" : undefined}
                 />
               ))}
               {standaloneComingSoon.map((item) => (
