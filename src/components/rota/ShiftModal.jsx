@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Check, Ban, Clock } from "lucide-react";
+import { X, Check, Ban, Clock, CopyPlus } from "lucide-react";
 import { parseDateStr } from "../../utils/rota";
 
 const OPTIONS = [
@@ -13,13 +13,26 @@ const OPTIONS = [
 const QUICK_HOURS = [4, 6, 8, 10, 12];
 
 // pendingCell: { staffName, dateStr, existing: {type, hours, status} | null }
-const ShiftModal = ({ pendingCell, onSave, onClose, canApprove = false, onApprove, onReject }) => {
+// duplicateDateOptions: [{ dateStr, label }] — other dates this period eligible to
+// also receive the same shift (already excludes the edited date and any date that
+// already has a shift for this staff member).
+const ShiftModal = ({
+  pendingCell,
+  onSave,
+  onClose,
+  canApprove = false,
+  onApprove,
+  onReject,
+  duplicateDateOptions = [],
+}) => {
   const [type, setType] = useState(pendingCell?.existing?.type ?? null);
   const [hours, setHours] = useState(pendingCell?.existing?.hours || 12);
+  const [selectedDuplicates, setSelectedDuplicates] = useState([]);
 
   useEffect(() => {
     setType(pendingCell?.existing?.type ?? null);
     setHours(pendingCell?.existing?.hours || 12);
+    setSelectedDuplicates([]);
   }, [pendingCell]);
 
   if (!pendingCell) return null;
@@ -28,6 +41,14 @@ const ShiftModal = ({ pendingCell, onSave, onClose, canApprove = false, onApprov
   const showHours = type === "day" || type === "night";
   const isPendingHoliday =
     pendingCell.existing?.type === "holiday" && pendingCell.existing?.status === "pending";
+  const showDuplicate =
+    type && type !== "off" && duplicateDateOptions.length > 0;
+
+  const toggleDuplicate = (dateStr) => {
+    setSelectedDuplicates((prev) =>
+      prev.includes(dateStr) ? prev.filter((d) => d !== dateStr) : [...prev, dateStr],
+    );
+  };
 
   const handleSave = () => {
     if (!type) {
@@ -37,10 +58,10 @@ const ShiftModal = ({ pendingCell, onSave, onClose, canApprove = false, onApprov
     if (type === "off") {
       onSave({ type: "off" });
     } else if (type === "holiday" || type === "sick") {
-      onSave({ type, hours: 0 });
+      onSave({ type, hours: 0, duplicateDates: selectedDuplicates });
     } else {
       const clamped = Math.max(0.5, Math.min(24, Number(hours) || 12));
-      onSave({ type, hours: clamped });
+      onSave({ type, hours: clamped, duplicateDates: selectedDuplicates });
     }
   };
 
@@ -50,7 +71,7 @@ const ShiftModal = ({ pendingCell, onSave, onClose, canApprove = false, onApprov
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl p-5 w-[300px] shadow-2xl"
+        className="bg-white rounded-2xl p-5 w-[340px] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
@@ -156,13 +177,58 @@ const ShiftModal = ({ pendingCell, onSave, onClose, canApprove = false, onApprov
           </div>
         </div>
 
+        {showDuplicate && (
+          <div className="flex flex-col gap-2 mt-3 p-3 rounded-lg bg-gray-50 border-[1.5px] border-gray-200">
+            <div className="flex items-center justify-between gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                <CopyPlus className="w-3.5 h-3.5 shrink-0" />
+                <span>Also apply to other dates</span>
+              </label>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedDuplicates(duplicateDateOptions.map((o) => o.dateStr))
+                  }
+                  className="text-[11px] font-semibold text-teal-600 hover:text-teal-700 whitespace-nowrap"
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDuplicates([])}
+                  className="text-[11px] font-semibold text-gray-400 hover:text-gray-600 whitespace-nowrap"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 max-h-[150px] overflow-y-auto pr-1">
+              {duplicateDateOptions.map((opt) => (
+                <label
+                  key={opt.dateStr}
+                  className="flex items-center gap-2 text-xs text-gray-600 py-1 px-1.5 rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedDuplicates.includes(opt.dateStr)}
+                    onChange={() => toggleDuplicate(opt.dateStr)}
+                    className="accent-teal-500"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 mt-4">
           <button
             type="button"
             onClick={handleSave}
             className="flex-1 justify-center bg-teal-500 text-white font-semibold text-sm py-2.5 rounded-lg hover:bg-teal-600"
           >
-            Save
+            Save{selectedDuplicates.length > 0 ? ` (+${selectedDuplicates.length} dates)` : ""}
           </button>
         </div>
         <button

@@ -77,6 +77,21 @@ export function eachDate(start, end) {
   return out;
 }
 
+// Dates in the period eligible for "duplicate this shift" — excludes the date
+// being edited and any date that already has a shift for this staff member.
+// shifts: { [`${staffId}__${date}`]: {...} }
+export function datesAvailableForDuplicate(period, shifts, staffId, excludeDateStr) {
+  return eachDate(period.start, period.end)
+    .filter((d) => {
+      const dateStr = fmt(d);
+      return dateStr !== excludeDateStr && !shifts[`${staffId}__${dateStr}`];
+    })
+    .map((d) => ({
+      dateStr: fmt(d),
+      label: `${dayLabel(d)} ${d.getDate()} ${monthLabel(d)}`,
+    }));
+}
+
 /*
  A shift's hours are split across calendar dates as actually worked:
  - Day shift: starts 06:00, all hours fall on the same date.

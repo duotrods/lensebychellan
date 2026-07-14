@@ -1,4 +1,22 @@
-import { Download } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
+import { Download, GripHorizontal } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import RotaPeriodNav from "./RotaPeriodNav";
 import RotaRangeFilter from "./RotaRangeFilter";
 import {
@@ -67,6 +85,88 @@ const StaffingBadges = ({ counts, expectedPerShift }) => (
   </div>
 );
 
+// A staff column header. Draggable (with a grip handle) only when canReorder is true —
+// useSortable is always called (Rules of Hooks) but its listeners/attributes are only
+// applied when dragging is actually enabled, so it renders as a plain header otherwise.
+const StaffColumnHeader = ({ staffMember, canReorder }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: staffMember.id,
+    disabled: !canReorder,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className={`px-2 py-2 font-semibold text-center min-w-[76px] ${
+        isDragging ? "opacity-50 bg-teal-50" : ""
+      } ${canReorder ? "cursor-grab active:cursor-grabbing select-none" : ""}`}
+      {...(canReorder ? attributes : {})}
+      {...(canReorder ? listeners : {})}
+    >
+      <span className="inline-flex items-center justify-center gap-1">
+        {canReorder && <GripHorizontal className="w-3 h-3 text-gray-300 shrink-0" />}
+        {staffMember.name}
+      </span>
+    </th>
+  );
+};
+
+// Merges multiple refs (e.g. a draggable ref and a droppable ref) onto one DOM node —
+// the standard dnd-kit pattern for a node that's both a drag source and a drop target.
+function useCombinedRefs(...refs) {
+  return useCallback(
+    (node) => {
+      refs.forEach((ref) => {
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    refs,
+  );
+}
+
+// A shift cell that's both a drag source (if it holds a real shift) and a drop
+// target — dragging a shift onto another staff member's cell on the same date
+// duplicates it there. canDuplicate mirrors canEdit; disabled otherwise so the
+// cell behaves exactly as it does today (click to open ShiftModal only).
+const DraggableShiftCell = ({ staffId, dateStr, shift, canEdit, canDuplicate, onClick }) => {
+  const hasShift = Boolean(shift?.type) && shift.type !== "off";
+  const dragDropId = `${staffId}__${dateStr}`;
+  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+    id: dragDropId,
+    data: { staffId, dateStr, shift },
+    disabled: !canDuplicate || !hasShift,
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: dragDropId,
+    data: { staffId, dateStr },
+    disabled: !canDuplicate,
+  });
+  const setRefs = useCombinedRefs(setDragRef, setDropRef);
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <td
+      ref={setRefs}
+      style={style}
+      className={`p-1 text-center align-middle relative ${
+        isOver ? "bg-teal-50 ring-2 ring-inset ring-teal-300 rounded-lg" : ""
+      } ${isDragging ? "opacity-40" : ""}`}
+      {...(canDuplicate && hasShift ? attributes : {})}
+      {...(canDuplicate && hasShift ? listeners : {})}
+    >
+      <ShiftPill shift={shift} canEdit={canEdit} onClick={onClick} />
+    </td>
+  );
+};
+
 const RotaGrid = ({
   staff,
   shifts,
@@ -82,16 +182,80 @@ const RotaGrid = ({
   onCellClick,
   onDownloadCsv,
   expectedPerShift = 3,
+  canReorderStaff = false,
+  onReorderStaff,
+  onDuplicateShift,
 }) => {
   const days = customRange
     ? eachDate(customRange.start, customRange.end)
     : eachDate(period.start, period.end);
   const today = new Date();
 
+  // Local, optimistic column order — updated instantly on drop, ahead of the
+  // Firestore round-trip. Resynced whenever the staff prop changes (e.g. someone
+  // adds/removes a staff member elsewhere), preserving the current local order
+  // for ids that still exist and appending any new ones.
+  const [orderedStaff, setOrderedStaff] = useState(staff);
+  useEffect(() => {
+    setOrderedStaff((prev) => {
+      const prevIds = new Set(prev.map((p) => p.id));
+      const staffIds = new Set(staff.map((p) => p.id));
+      const kept = prev.filter((p) => staffIds.has(p.id)).map((p) => staff.find((s) => s.id === p.id));
+      const added = staff.filter((p) => !prevIds.has(p.id));
+      return [...kept, ...added];
+    });
+  }, [staff]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = orderedStaff.findIndex((p) => p.id === active.id);
+    const newIndex = orderedStaff.findIndex((p) => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(orderedStaff, oldIndex, newIndex);
+    setOrderedStaff(newOrder);
+    onReorderStaff?.(newOrder.map((p) => p.id));
+  };
+
+  // Dragging a shift onto another cell duplicates it there — either sideways onto
+  // another staff member (same date) or up/down onto a different date (same staff
+  // member). A diagonal drop (different staff AND different date) is rejected, as
+  // is dropping back onto the cell it came from. Validation is local (no network
+  // round-trip), so it's checked and toasted here; only a valid drop calls up to
+  // the page to persist it.
+  const handleShiftDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    const source = active.data.current;
+    const target = over.data.current;
+    if (!source?.shift || !target) return;
+    const sameStaff = source.staffId === target.staffId;
+    const sameDate = source.dateStr === target.dateStr;
+    if (sameStaff && sameDate) return; // dropped back onto itself
+    if (!sameStaff && !sameDate) {
+      toast.error("Drag onto the same date (another staff member) or the same staff member (another date)");
+      return;
+    }
+    if (shifts[`${target.staffId}__${target.dateStr}`]) {
+      if (sameStaff) {
+        toast.error("That date already has a shift");
+      } else {
+        const targetName = orderedStaff.find((p) => p.id === target.staffId)?.name ?? "This staff member";
+        toast.error(`${targetName} already has a shift on this date`);
+      }
+      return;
+    }
+    onDuplicateShift?.(source.staffId, target.staffId, target.dateStr, source.shift);
+  };
+
   const staffingCounts = (dateStr) => {
     let day = 0;
     let night = 0;
-    staff.forEach((p) => {
+    orderedStaff.forEach((p) => {
       const s = shifts[`${p.id}__${dateStr}`];
       if (s?.type === "day") day++;
       if (s?.type === "night") night++;
@@ -141,7 +305,7 @@ const RotaGrid = ({
       </div>
 
       <div className="overflow-x-auto">
-        {staff.length === 0 ? (
+        {orderedStaff.length === 0 ? (
           <div className="py-16 text-center text-gray-400 text-sm">
             No staff on the roster yet.
           </div>
@@ -152,13 +316,29 @@ const RotaGrid = ({
                 <th className="sticky left-0 z-10 bg-gray-50 text-left px-4 py-2 font-semibold min-w-[150px]">
                   Date
                 </th>
-                {staff.map((p) => (
-                  <th key={p.id} className="px-2 py-2 font-semibold text-center min-w-[76px]">
-                    {p.name}
-                  </th>
-                ))}
+                {canReorderStaff ? (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={orderedStaff.map((p) => p.id)}
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      {orderedStaff.map((p) => (
+                        <StaffColumnHeader key={p.id} staffMember={p} canReorder />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  orderedStaff.map((p) => (
+                    <StaffColumnHeader key={p.id} staffMember={p} canReorder={false} />
+                  ))
+                )}
               </tr>
             </thead>
+            <DndContext sensors={sensors} onDragEnd={handleShiftDragEnd}>
             <tbody className="divide-y divide-gray-100">
               {days.map((d) => {
                 const dStr = fmt(d);
@@ -190,22 +370,25 @@ const RotaGrid = ({
                       )}
                       <StaffingBadges counts={counts} expectedPerShift={expectedPerShift} />
                     </td>
-                    {staff.map((p) => {
+                    {orderedStaff.map((p) => {
                       const shift = shifts[`${p.id}__${dStr}`];
                       return (
-                        <td key={p.id} className="p-1 text-center align-middle">
-                          <ShiftPill
-                            shift={shift}
-                            canEdit={canEdit}
-                            onClick={() => onCellClick(p.id, dStr)}
-                          />
-                        </td>
+                        <DraggableShiftCell
+                          key={p.id}
+                          staffId={p.id}
+                          dateStr={dStr}
+                          shift={shift}
+                          canEdit={canEdit}
+                          canDuplicate={canEdit}
+                          onClick={() => onCellClick(p.id, dStr)}
+                        />
                       );
                     })}
                   </tr>
                 );
               })}
             </tbody>
+            </DndContext>
           </table>
         )}
       </div>

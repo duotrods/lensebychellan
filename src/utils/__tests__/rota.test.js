@@ -7,6 +7,7 @@ import {
   tallyForPeriod,
   fmt,
   parseDateStr,
+  datesAvailableForDuplicate,
 } from "../rota";
 
 // Regression coverage for a timezone bug: fmt() used to go through
@@ -43,6 +44,39 @@ describe("tallyForPeriod (timezone regression)", () => {
     const [row] = tallyForPeriod(staff, shifts, [], period);
     expect(row.totalHours).toBe(12);
     expect(row.holidayDays).toBe(1);
+  });
+});
+
+describe("datesAvailableForDuplicate", () => {
+  const period = getPayPeriod(new Date(2026, 2, 15)); // 28 Feb - 27 Mar 2026
+
+  it("excludes the date being edited", () => {
+    const options = datesAvailableForDuplicate(period, {}, "s1", "2026-03-05");
+    expect(options.find((o) => o.dateStr === "2026-03-05")).toBeUndefined();
+  });
+
+  it("excludes dates that already have a shift for this staff member", () => {
+    const shifts = { "s1__2026-03-06": { type: "day", hours: 12 } };
+    const options = datesAvailableForDuplicate(period, shifts, "s1", "2026-03-05");
+    expect(options.find((o) => o.dateStr === "2026-03-06")).toBeUndefined();
+  });
+
+  it("includes dates that have a shift for a different staff member", () => {
+    const shifts = { "s2__2026-03-06": { type: "day", hours: 12 } };
+    const options = datesAvailableForDuplicate(period, shifts, "s1", "2026-03-05");
+    expect(options.find((o) => o.dateStr === "2026-03-06")).toBeDefined();
+  });
+
+  it("only returns dates within the period", () => {
+    const options = datesAvailableForDuplicate(period, {}, "s1", "2026-03-05");
+    expect(options.every((o) => o.dateStr >= "2026-02-28" && o.dateStr <= "2026-03-27")).toBe(true);
+    expect(options.length).toBe(28 - 1); // full period minus the excluded date
+  });
+
+  it("labels each date with weekday, day, and month", () => {
+    const options = datesAvailableForDuplicate(period, {}, "s1", "2026-03-05");
+    const mar10 = options.find((o) => o.dateStr === "2026-03-10");
+    expect(mar10.label).toBe("Tue 10 Mar");
   });
 });
 

@@ -18,7 +18,7 @@ import { db } from "../config/firebase";
 class RotaService {
   // ---- Staff roster ----
   subscribeToStaff(callback, onError) {
-    const q = query(collection(db, "rotaStaff"), orderBy("name"));
+    const q = query(collection(db, "rotaStaff"), orderBy("sortOrder"));
     return onSnapshot(
       q,
       (snapshot) => {
@@ -31,8 +31,36 @@ class RotaService {
   async addStaffMember(name) {
     return addDoc(collection(db, "rotaStaff"), {
       name,
+      sortOrder: Date.now(),
       createdAt: serverTimestamp(),
     });
+  }
+
+  // Admin-only: persist a new column order after a drag-to-reorder.
+  // Writes sequential sortOrder values (spaced out for future headroom).
+  async reorderStaff(orderedStaffIds) {
+    const batch = writeBatch(db);
+    orderedStaffIds.forEach((staffId, index) => {
+      batch.update(doc(db, "rotaStaff", staffId), { sortOrder: index * 1000 });
+    });
+    return batch.commit();
+  }
+
+  // One-time, idempotent migration: any rotaStaff doc missing `sortOrder`
+  // (pre-dating the reorder feature) gets one assigned, preserving today's
+  // alphabetical order as the starting point. Firestore's orderBy silently
+  // omits documents missing the ordered field, so this must run before
+  // subscribeToStaff's orderBy("sortOrder") query is relied upon.
+  async ensureStaffSortOrder() {
+    const q = query(collection(db, "rotaStaff"), orderBy("name"));
+    const snapshot = await getDocs(q);
+    const missing = snapshot.docs.filter((d) => d.data().sortOrder === undefined);
+    if (missing.length === 0) return;
+    const batch = writeBatch(db);
+    missing.forEach((d, index) => {
+      batch.update(d.ref, { sortOrder: index * 1000 });
+    });
+    return batch.commit();
   }
 
   async removeStaffMember(staffId) {
@@ -94,6 +122,24 @@ class RotaService {
       updatedAt: serverTimestamp(),
       updatedBy: updatedBy ?? null,
     });
+  }
+
+  // Duplicate the same shift value across multiple dates for one staff member
+  // in a single atomic write (used by ShiftModal's "also apply to other dates").
+  async setShiftBulk(staffId, dateStrs, { type, hours, status }, updatedBy) {
+    const batch = writeBatch(db);
+    dateStrs.forEach((dateStr) => {
+      batch.set(doc(db, "rotaShifts", `${staffId}_${dateStr}`), {
+        staffId,
+        date: dateStr,
+        type,
+        hours,
+        ...(status ? { status } : {}),
+        updatedAt: serverTimestamp(),
+        updatedBy: updatedBy ?? null,
+      });
+    });
+    return batch.commit();
   }
 
   // Admin action: approve a pending holiday so it renders as an approved (red) holiday.

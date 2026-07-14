@@ -12,6 +12,7 @@ import {
   addDays,
   buildRotaCsvRows,
   buildTallyCsvRows,
+  datesAvailableForDuplicate,
   downloadCsv,
   fmt,
   getPayPeriod,
@@ -60,24 +61,42 @@ const StaffRotaPage = () => {
 
   const handleSaveShift = async (value) => {
     const { staffId, dateStr } = pendingCell;
+    const { duplicateDates, ...shiftValue } = value;
     try {
-      if (value.type === "off") {
+      if (shiftValue.type === "off") {
         await rotaService.clearShift(staffId, dateStr);
-      } else if (value.type === "holiday") {
-        // Staff holidays start as a request awaiting admin approval.
-        await rotaService.setShift(
-          staffId,
-          dateStr,
-          { ...value, status: "pending" },
-          currentUser?.uid,
-        );
       } else {
-        await rotaService.setShift(staffId, dateStr, value, currentUser?.uid);
+        // Staff holidays start as a request awaiting admin approval.
+        const valueWithStatus =
+          shiftValue.type === "holiday" ? { ...shiftValue, status: "pending" } : shiftValue;
+        await rotaService.setShift(staffId, dateStr, valueWithStatus, currentUser?.uid);
+        if (duplicateDates?.length) {
+          await rotaService.setShiftBulk(staffId, duplicateDates, valueWithStatus, currentUser?.uid);
+          toast.success(`Shift saved to ${1 + duplicateDates.length} dates`);
+        }
       }
     } catch (error) {
       toast.error(error.message || "Failed to save shift");
     } finally {
       setPendingCell(null);
+    }
+  };
+
+  // Drag-to-duplicate: copy a shift onto another cell — sideways onto a
+  // different staff member (same date) or up/down onto a different date (same
+  // staff member). RotaGrid already validates locally (same-date-or-same-staff,
+  // no conflict) before calling this — this only needs to persist it with the
+  // right approval status.
+  const handleDuplicateShift = async (sourceStaffId, targetStaffId, dateStr, shift) => {
+    try {
+      const value =
+        shift.type === "holiday"
+          ? { type: "holiday", hours: 0, status: "pending" }
+          : { type: shift.type, hours: shift.hours };
+      await rotaService.setShift(targetStaffId, dateStr, value, currentUser?.uid);
+      toast.success("Shift duplicated");
+    } catch (error) {
+      toast.error(error.message || "Failed to duplicate shift");
     }
   };
 
@@ -133,11 +152,17 @@ const StaffRotaPage = () => {
               canEdit
               onCellClick={handleCellClick}
               onDownloadCsv={handleDownloadRotaCsv}
+              onDuplicateShift={handleDuplicateShift}
             />
             <ShiftModal
               pendingCell={pendingCell}
               onSave={handleSaveShift}
               onClose={() => setPendingCell(null)}
+              duplicateDateOptions={
+                pendingCell
+                  ? datesAvailableForDuplicate(period, shifts, pendingCell.staffId, pendingCell.dateStr)
+                  : []
+              }
             />
           </>
         )}

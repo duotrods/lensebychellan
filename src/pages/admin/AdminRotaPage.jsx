@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { CalendarDays, Wallet, Users, CalendarPlus, Clock } from "lucide-react";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
@@ -19,6 +19,7 @@ import {
   addDays,
   buildRotaCsvRows,
   buildTallyCsvRows,
+  datesAvailableForDuplicate,
   downloadCsv,
   fmt,
   getPayPeriod,
@@ -43,6 +44,24 @@ const AdminRotaPage = () => {
   const { bankHolidays, loading: bankHolidaysLoading } = useBankHolidays();
   const { shifts } = useRotaShifts(period.start, period.end);
   const { pending: pendingHolidays } = usePendingHolidays();
+
+  // One-time, idempotent backfill so pre-existing staff (added before the
+  // drag-to-reorder feature) get a sortOrder and don't disappear once
+  // subscribeToStaff switches to orderBy("sortOrder"). Admin-only by design —
+  // this write would be rejected by firestore.rules from a staff session.
+  useEffect(() => {
+    rotaService.ensureStaffSortOrder().catch((error) => {
+      console.error("Failed to backfill staff sort order:", error);
+    });
+  }, []);
+
+  const handleReorderStaff = async (orderedStaffIds) => {
+    try {
+      await rotaService.reorderStaff(orderedStaffIds);
+    } catch (error) {
+      toast.error(error.message || "Failed to save new staff order");
+    }
+  };
 
   // Changing periods invalidates any sub-range filter from the previous period.
   const goPrevPeriod = () => {
@@ -70,24 +89,42 @@ const AdminRotaPage = () => {
 
   const handleSaveShift = async (value) => {
     const { staffId, dateStr } = pendingCell;
+    const { duplicateDates, ...shiftValue } = value;
     try {
-      if (value.type === "off") {
+      if (shiftValue.type === "off") {
         await rotaService.clearShift(staffId, dateStr);
-      } else if (value.type === "holiday") {
-        // Admins are the approvers, so holidays they set are approved immediately.
-        await rotaService.setShift(
-          staffId,
-          dateStr,
-          { ...value, status: "approved" },
-          currentUser?.uid,
-        );
       } else {
-        await rotaService.setShift(staffId, dateStr, value, currentUser?.uid);
+        // Admins are the approvers, so holidays they set are approved immediately.
+        const valueWithStatus =
+          shiftValue.type === "holiday" ? { ...shiftValue, status: "approved" } : shiftValue;
+        await rotaService.setShift(staffId, dateStr, valueWithStatus, currentUser?.uid);
+        if (duplicateDates?.length) {
+          await rotaService.setShiftBulk(staffId, duplicateDates, valueWithStatus, currentUser?.uid);
+          toast.success(`Shift saved to ${1 + duplicateDates.length} dates`);
+        }
       }
     } catch (error) {
       toast.error(error.message || "Failed to save shift");
     } finally {
       setPendingCell(null);
+    }
+  };
+
+  // Drag-to-duplicate: copy a shift onto another cell — sideways onto a
+  // different staff member (same date) or up/down onto a different date (same
+  // staff member). RotaGrid already validates locally (same-date-or-same-staff,
+  // no conflict) before calling this — this only needs to persist it with the
+  // right approval status.
+  const handleDuplicateShift = async (sourceStaffId, targetStaffId, dateStr, shift) => {
+    try {
+      const value =
+        shift.type === "holiday"
+          ? { type: "holiday", hours: 0, status: "approved" }
+          : { type: shift.type, hours: shift.hours };
+      await rotaService.setShift(targetStaffId, dateStr, value, currentUser?.uid);
+      toast.success("Shift duplicated");
+    } catch (error) {
+      toast.error(error.message || "Failed to duplicate shift");
     }
   };
 
@@ -192,6 +229,9 @@ const AdminRotaPage = () => {
               canEdit
               onCellClick={handleCellClick}
               onDownloadCsv={handleDownloadRotaCsv}
+              canReorderStaff
+              onReorderStaff={handleReorderStaff}
+              onDuplicateShift={handleDuplicateShift}
             />
             <ShiftModal
               pendingCell={pendingCell}
@@ -200,6 +240,11 @@ const AdminRotaPage = () => {
               canApprove
               onApprove={handleApproveHoliday}
               onReject={handleRejectHoliday}
+              duplicateDateOptions={
+                pendingCell
+                  ? datesAvailableForDuplicate(period, shifts, pendingCell.staffId, pendingCell.dateStr)
+                  : []
+              }
             />
           </>
         )}
