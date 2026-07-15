@@ -15,4 +15,5 @@ export const isPureIncident = (formData) =>
   formData.incidentType !== "Free Recovery" &&
   formData.incidentType !== "Drive Off" &&
   formData.incursion !== "YES" &&
+  formData.incursionToGainAdvantage !== "YES" &&
   !formData.propertyDamage;

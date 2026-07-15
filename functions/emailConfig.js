@@ -4,7 +4,8 @@
  * Update these addresses when contacts change.
  */
 
-// Per-scheme recipients for incident alert emails (incursion YES or asset damage).
+// Per-scheme recipients for incident alert emails (incursion YES, incursion to
+// gain advantage YES, or asset damage).
 // Key matches the scheme's fullName as stored in Firestore reports.
 
 // const INCIDENT_ALERT_RECIPIENTS = {

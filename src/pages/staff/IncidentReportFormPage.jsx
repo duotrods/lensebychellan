@@ -53,6 +53,7 @@ const IncidentReportFormPage = () => {
     nhLog: "",
     collarNumber: "",
     incursion: "NO",
+    incursionToGainAdvantage: "NO",
     reportedBy: "",
     cameraNumber: "",
     trafficConditions: "",
@@ -98,6 +99,7 @@ const IncidentReportFormPage = () => {
           nhLog: report.nhLog || "",
           collarNumber: report.collarNumber || "",
           incursion: report.incursion || "NO",
+          incursionToGainAdvantage: report.incursionToGainAdvantage || "NO",
           reportedBy: report.reportedBy || "",
           cameraNumber: report.cameraNumber || "",
           trafficConditions: report.trafficConditions || "",
@@ -306,6 +308,7 @@ const IncidentReportFormPage = () => {
         nhLog: "",
         collarNumber: "",
         incursion: "NO",
+        incursionToGainAdvantage: "NO",
         reportedBy: "",
         cameraNumber: "",
         trafficConditions: "",
@@ -487,6 +490,7 @@ const IncidentReportFormPage = () => {
           nhLog: "",
           collarNumber: "",
           incursion: "NO",
+          incursionToGainAdvantage: "NO",
           reportedBy: "",
           cameraNumber: "",
           trafficConditions: "",
@@ -930,8 +934,8 @@ const IncidentReportFormPage = () => {
         </div>
       </div>
 
-      {/* Incursion + Asset Damage */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Incursion + Incursion to Gain Advantage + Asset Damage */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
           <label className="label">
             <span className="label-text font-semibold mb-2">
@@ -956,6 +960,38 @@ const IncidentReportFormPage = () => {
                 name="incursion"
                 value="NO"
                 checked={formData.incursion === "NO"}
+                onChange={handleChange}
+                className="radio radio-accent"
+              />
+              <span>NO</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label className="label">
+            <span className="label-text font-semibold mb-2">
+              Incursion to Gain Advantage?
+            </span>
+          </label>
+          <div className="flex gap-6">
+            <label className="cursor-pointer flex items-center gap-2">
+              <input
+                type="radio"
+                name="incursionToGainAdvantage"
+                value="YES"
+                checked={formData.incursionToGainAdvantage === "YES"}
+                onChange={handleChange}
+                className="radio radio-accent"
+              />
+              <span>YES</span>
+            </label>
+            <label className="cursor-pointer flex items-center gap-2">
+              <input
+                type="radio"
+                name="incursionToGainAdvantage"
+                value="NO"
+                checked={formData.incursionToGainAdvantage === "NO"}
                 onChange={handleChange}
                 className="radio radio-accent"
               />

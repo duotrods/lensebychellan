@@ -7,6 +7,7 @@ import {
   CameraOff,
   Car,
   Hammer,
+  TriangleAlert,
 } from "lucide-react";
 
 // The two rows of clickable summary cards at the top of the Reports page.
@@ -87,6 +88,13 @@ const ReportStatsCards = ({ reportStats, onCardClick }) => (
         label="Asset Damage"
         value={reportStats.incidentAssetDamage}
         onClick={() => onCardClick("incident", "asset-damage")}
+      />
+      <Card
+        icon={<TriangleAlert className="w-3.5 h-3.5 text-amber-500" />}
+        hoverBorder="hover:border-amber-500"
+        label="Incursion to Gain Advantage"
+        value={reportStats.incursionToGainAdvantage}
+        onClick={() => onCardClick("incident", "gain-advantage")}
       />
     </div>
   </>

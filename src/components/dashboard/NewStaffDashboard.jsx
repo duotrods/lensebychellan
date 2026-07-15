@@ -741,6 +741,12 @@
                                     Incursion
                                   </span>
                                 )}
+                              {form.type === "Incident Report" &&
+                                form.incursionToGainAdvantage === "YES" && (
+                                  <span className="badge badge-warning badge-xs mt-1">
+                                    Gain Advantage
+                                  </span>
+                                )}
                             </td>
                             <td className="text-sm">
                               <div>

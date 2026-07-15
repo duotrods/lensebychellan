@@ -333,6 +333,17 @@ const ThirdPartyChartsPage = () => {
     return Object.entries(incursionCounts).map(([name, Number]) => ({ name, Number }));
   };
 
+  const getIncursionToGainAdvantageData = () => {
+    const incidents = getIncidentReports();
+    const counts = { YES: 0, NO: 0 };
+    incidents.forEach(report => {
+      if (report.incursionToGainAdvantage) {
+        counts[report.incursionToGainAdvantage] = (counts[report.incursionToGainAdvantage] || 0) + 1;
+      }
+    });
+    return Object.entries(counts).map(([name, Number]) => ({ name, Number }));
+  };
+
   const getTimeSeriesData = () => {
     const incidents = getIncidentReports();
     const monthlyCounts = {};
@@ -478,6 +489,7 @@ const ThirdPartyChartsPage = () => {
         { data: trackData, title: 'Track of Incident' },
         { data: vehicleTypeData, title: 'Vehicle Type' },
         { data: incursionsData, title: 'Incursions' },
+        { data: incursionToGainAdvantageData, title: 'Incursion to Gain Advantage' },
       ];
 
       charts.forEach((chart) => {
@@ -533,6 +545,7 @@ const ThirdPartyChartsPage = () => {
   const trackData = getTrackData();
   const vehicleTypeData = getVehicleTypeData();
   const incursionsData = getIncursionsData();
+  const incursionToGainAdvantageData = getIncursionToGainAdvantageData();
   const timeSeriesData = getTimeSeriesData();
 
   return (
@@ -818,6 +831,18 @@ const ThirdPartyChartsPage = () => {
               {/* Chart 12: Incursions */}
               <ChartCard title="Incursions">
                 <BarChart data={incursionsData.length > 0 ? incursionsData : [{ name: "No Data", Number: 0 }]}>
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              {/* Chart 13: Incursion to Gain Advantage */}
+              <ChartCard title="Incursion to Gain Advantage">
+                <BarChart data={incursionToGainAdvantageData.length > 0 ? incursionToGainAdvantageData : [{ name: "No Data", Number: 0 }]}>
                   <CartesianGrid {...commonChartProps.cartesianGrid} />
                   <XAxis dataKey="name" tick={{ fontSize: 13 }} />
                   <YAxis {...commonChartProps.yAxis} />

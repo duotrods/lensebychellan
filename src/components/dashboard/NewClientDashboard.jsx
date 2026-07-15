@@ -250,6 +250,7 @@
       emergencyServicesData,
       vehicleTypeData,
       incursionsData,
+      incursionToGainAdvantageData,
     } = useMemo(
       () => ({
         faultData: transformDataForChart(stats?.faultTypes),
@@ -266,6 +267,12 @@
         emergencyServicesData: transformDataForChart(stats?.emergencyServices),
         vehicleTypeData: transformDataForChart(stats?.vehicleTypes),
         incursionsData: [{ name: "Incursions", Number: stats?.incursions || 0 }],
+        incursionToGainAdvantageData: [
+          {
+            name: "Incursion to Gain Advantage",
+            Number: stats?.incursionToGainAdvantage || 0,
+          },
+        ],
       }),
       [stats],
     );
@@ -321,6 +328,8 @@
           });
         } else if (chartType === "incursions")
           filtered = incidents.filter((i) => i.incursion === "YES");
+        else if (chartType === "incursionToGainAdvantage")
+          filtered = incidents.filter((i) => i.incursionToGainAdvantage === "YES");
         if (filtered.length) openDrillDown({ title: label, incidents: filtered });
       },
       [incidents, openDrillDown],
@@ -339,7 +348,8 @@
             (i) =>
               i.incidentType !== "Free Recovery" &&
               i.incidentType !== "Drive Off" &&
-              i.incursion !== "YES",
+              i.incursion !== "YES" &&
+              i.incursionToGainAdvantage !== "YES",
           ),
       },
       {
@@ -392,6 +402,16 @@
           incidents.filter(
             (i) => i.incursion === "YES" || i.incidentType === "Incursion",
           ),
+      },
+      {
+        title: "Incursion to Gain Advantage",
+        value: loading ? "..." : (stats?.incursionToGainAdvantage || 0).toString(),
+        text: "Total number of incursions to gain advantage recorded within the scheme.",
+        icon: TriangleAlert,
+        color: "text-white",
+        bgColor: "bg-linear-to-b from-amber-500 to-amber-600",
+        filter: () =>
+          incidents.filter((i) => i.incursionToGainAdvantage === "YES"),
       },
     ];
 
@@ -552,6 +572,7 @@
           { data: trackData, title: "Track of Incident" },
           { data: vehicleTypeData, title: "Vehicle Type" },
           { data: incursionsData, title: "Incursions" },
+          { data: incursionToGainAdvantageData, title: "Incursion to Gain Advantage" },
         ];
 
         charts.forEach((chart) => {
@@ -1025,6 +1046,24 @@
                   data={incursionsData}
                   onClick={(d) =>
                     d?.activeLabel && handleBarClick("incursions", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard>
+
+              <ChartCard title="Incursion to Gain Advantage">
+                <BarChart
+                  data={incursionToGainAdvantageData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("incursionToGainAdvantage", d.activeLabel)
                   }
                   style={{ cursor: "pointer" }}
                 >

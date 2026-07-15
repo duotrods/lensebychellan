@@ -130,6 +130,7 @@ const ReportsPage = () => {
     freeRecovery: 0,
     driveOff: 0,
     incursions: 0,
+    incursionToGainAdvantage: 0,
     vehiclesDispatched: 0,
     incidentAssetDamage: 0,
     total: 0,
@@ -287,17 +288,19 @@ const ReportsPage = () => {
         const extraWhere =
           activeSub === "incursion"
             ? { field: "incursion", op: "==", value: "YES" }
-            : activeSub === "free-recovery"
-              ? {
-                  field: "incidentType",
-                  op: "in",
-                  value: ["Free Recovery", "Drive Off"],
-                }
-              : activeSub === "asset-damage"
-                ? { field: "propertyDamage", op: "==", value: true }
-                : activeSub === "pure"
-                  ? { field: "isPureIncident", op: "==", value: true }
-                  : null;
+            : activeSub === "gain-advantage"
+              ? { field: "incursionToGainAdvantage", op: "==", value: "YES" }
+              : activeSub === "free-recovery"
+                ? {
+                    field: "incidentType",
+                    op: "in",
+                    value: ["Free Recovery", "Drive Off"],
+                  }
+                : activeSub === "asset-damage"
+                  ? { field: "propertyDamage", op: "==", value: true }
+                  : activeSub === "pure"
+                    ? { field: "isPureIncident", op: "==", value: true }
+                    : null;
         const result = await clientDataService.getReportsByTypePaginated(
           activeScheme,
           activeFilter,
@@ -388,6 +391,9 @@ const ReportsPage = () => {
     if (subFilter === "incursion" && report.reportType === "incident") {
       return matchesSearch && report.incursion === "YES";
     }
+    if (subFilter === "gain-advantage" && report.reportType === "incident") {
+      return matchesSearch && report.incursionToGainAdvantage === "YES";
+    }
     if (subFilter === "asset-damage" && report.reportType === "incident") {
       return matchesSearch && report.propertyDamage === true;
     }
@@ -414,6 +420,8 @@ const ReportsPage = () => {
   const getActiveCount = () => {
     if (filterType === "incident" && subFilter === "incursion")
       return reportTypeCounts.incursions;
+    if (filterType === "incident" && subFilter === "gain-advantage")
+      return reportTypeCounts.incursionToGainAdvantage;
     if (filterType === "incident" && subFilter === "free-recovery")
       return (
         (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0)
@@ -530,6 +538,7 @@ const ReportsPage = () => {
     freeRecovery:
       (reportTypeCounts.freeRecovery || 0) + (reportTypeCounts.driveOff || 0),
     incursions: reportTypeCounts.incursions,
+    incursionToGainAdvantage: reportTypeCounts.incursionToGainAdvantage,
     vehiclesDispatched: reportTypeCounts.vehiclesDispatched,
     incidentAssetDamage: reportTypeCounts.incidentAssetDamage,
   };
@@ -748,6 +757,12 @@ const ReportsPage = () => {
                             report.incursion === "YES" && (
                               <span className="badge badge-error badge-xs mt-1">
                                 Incursion
+                              </span>
+                            )}
+                          {report.reportType === "incident" &&
+                            report.incursionToGainAdvantage === "YES" && (
+                              <span className="badge badge-warning badge-xs mt-1">
+                                Gain Advantage
                               </span>
                             )}
                         </td>

@@ -44,4 +44,10 @@ describe("isPureIncident", () => {
       isPureIncident({ incidentType: "Breakdown", propertyDamage: true }),
     ).toBe(false);
   });
+
+  it("is false when there is an incursion to gain advantage", () => {
+    expect(
+      isPureIncident({ incidentType: "Breakdown", incursionToGainAdvantage: "YES" }),
+    ).toBe(false);
+  });
 });

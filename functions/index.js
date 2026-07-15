@@ -179,6 +179,10 @@ function generateIncidentPDF(report) {
     if (report.nhLog) addField("NH Log", report.nhLog);
     if (report.collarNumber) addField("Collar Number", report.collarNumber);
     addField("Incursion", report.incursion || "NO");
+    addField(
+      "Incursion to Gain Advantage",
+      report.incursionToGainAdvantage || "NO",
+    );
     addField("Asset Damage?", report.propertyDamage ? "Yes" : "No");
     if (report.propertyDamage && report.assetType)
       addField("Asset Type", report.assetType);
@@ -304,8 +308,9 @@ function getRecipientsForScheme(scheme) {
 
 /**
  * Callable function to send alert emails when an incident report contains
- * an incursion (YES) or asset damage. Includes a PDF attachment matching the
- * frontend report layout. Recipients are hardcoded per scheme, server-side only.
+ * an incursion (YES), an incursion to gain advantage (YES), or asset damage.
+ * Includes a PDF attachment matching the frontend report layout. Recipients
+ * are hardcoded per scheme, server-side only.
  */
 exports.sendIncidentAlertNotification = onCall(
   { secrets: [smtpPass] },
@@ -324,9 +329,11 @@ exports.sendIncidentAlertNotification = onCall(
     }
 
     const hasIncursion = reportData.incursion === "YES";
+    const hasIncursionToGainAdvantage =
+      reportData.incursionToGainAdvantage === "YES";
     const hasAssetDamage = reportData.propertyDamage === true;
 
-    if (!hasIncursion && !hasAssetDamage) {
+    if (!hasIncursion && !hasIncursionToGainAdvantage && !hasAssetDamage) {
       return {
         success: true,
         message: "No alert triggers present",
@@ -336,6 +343,7 @@ exports.sendIncidentAlertNotification = onCall(
 
     const triggers = [];
     if (hasIncursion) triggers.push("Incursion");
+    if (hasIncursionToGainAdvantage) triggers.push("Incursion to Gain Advantage");
     if (hasAssetDamage) triggers.push("Asset Damage");
     const triggerLabel = triggers.join(" & ");
 
@@ -383,6 +391,7 @@ exports.sendIncidentAlertNotification = onCall(
             <strong style="color: #991b1b;">Triggers:</strong>
             <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #991b1b;">
               ${hasIncursion ? "<li>Incursion: YES</li>" : ""}
+              ${hasIncursionToGainAdvantage ? "<li>Incursion to Gain Advantage: YES</li>" : ""}
               ${hasAssetDamage ? `<li>Asset Damage: ${reportData.assetType || "N/A"} — ${reportData.damageType || "N/A"}</li>` : ""}
             </ul>
           </div>

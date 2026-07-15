@@ -810,7 +810,10 @@ class ClientDataService {
       // Calculate statistics
       const stats = {
         totalIncidents: incidents.filter(
-          (i) => i.incidentType !== "Free Recovery" && i.incursion !== "YES",
+          (i) =>
+            i.incidentType !== "Free Recovery" &&
+            i.incursion !== "YES" &&
+            i.incursionToGainAdvantage !== "YES",
         ).length,
         incidentsByType: this.groupByField(incidents, "incidentType"),
         incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"), // Array field
@@ -831,6 +834,9 @@ class ClientDataService {
         ), // Time from on site to cleared (pre-calculated)
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"), // Time from spotted to on site (pre-calculated)
         incursions: incidents.filter((i) => i.incursion === "YES").length, // Check for 'YES' string
+        incursionToGainAdvantage: incidents.filter(
+          (i) => i.incursionToGainAdvantage === "YES",
+        ).length,
         assetDamage: incidents.filter(
           (i) =>
             i.propertyDamage === true ||
@@ -1264,7 +1270,8 @@ class ClientDataService {
           (i) =>
             i.incidentType !== "Free Recovery" &&
             i.incidentType !== "Drive Off" &&
-            i.incursion !== "YES",
+            i.incursion !== "YES" &&
+            i.incursionToGainAdvantage !== "YES",
         ).length,
         incidentsByType: this.groupByField(incidents, "incidentType"),
         incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"),
@@ -1285,6 +1292,9 @@ class ClientDataService {
         ),
         timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"),
         incursions: incidents.filter((i) => i.incursion === "YES").length,
+        incursionToGainAdvantage: incidents.filter(
+          (i) => i.incursionToGainAdvantage === "YES",
+        ).length,
         assetDamage: incidents.filter(
           (i) =>
             i.propertyDamage === true ||
@@ -1876,6 +1886,7 @@ class ClientDataService {
         freeRecoveryCount,
         driveOffCount,
         incursionsCount,
+        incursionToGainAdvantageCount,
         vehiclesDispatchedCount,
         incidentAssetDamageCount,
         pureIncidentCount,
@@ -1906,6 +1917,13 @@ class ClientDataService {
           "YES",
           dateRange,
         ),
+        this.getCollectionCountWithFilter(
+          "incidentReports",
+          schemeId,
+          "incursionToGainAdvantage",
+          "YES",
+          dateRange,
+        ),
         this.getVehiclesDispatchedCount(schemeId),
         this.getCollectionCountWithFilter(
           "incidentReports",
@@ -1927,6 +1945,7 @@ class ClientDataService {
         freeRecovery: freeRecoveryCount,
         driveOff: driveOffCount,
         incursions: incursionsCount,
+        incursionToGainAdvantage: incursionToGainAdvantageCount,
         vehiclesDispatched: vehiclesDispatchedCount,
         incidentAssetDamage: incidentAssetDamageCount,
         total:
@@ -1944,6 +1963,7 @@ class ClientDataService {
         freeRecovery: 0,
         driveOff: 0,
         incursions: 0,
+        incursionToGainAdvantage: 0,
         vehiclesDispatched: 0,
         incidentAssetDamage: 0,
         total: 0,
