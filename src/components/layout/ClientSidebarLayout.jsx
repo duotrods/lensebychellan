@@ -15,9 +15,10 @@ import {
   FolderOpen,
   Sparkles,
   ChevronDown,
-  Clapperboard,
   TrafficCone,
   Signpost,
+  Camera,
+  Car,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -120,11 +121,21 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
     },
     {
       label: "Media Dashboard",
-      items: [],
-      comingSoon:
+      items:
         role === USER_ROLES.THIRDPARTYCLIENT
           ? []
-          : [{ name: "Dashboard", icon: Clapperboard }],
+          : [
+              {
+                name: "Body Cam",
+                path: `${basePath}/body-cam`,
+                icon: Camera,
+              },
+              {
+                name: "Dash Cam",
+                path: `${basePath}/dash-cam`,
+                icon: Car,
+              },
+            ],
     },
     {
       label: "TM Dashboard",

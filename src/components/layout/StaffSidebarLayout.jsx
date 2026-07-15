@@ -16,6 +16,8 @@ import {
   Menu,
   FolderOpen,
   CalendarDays,
+  Camera,
+  Car,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -89,7 +91,7 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
       icon: CameraOff,
       liveCount: liveFaults.length,
     },
-    // Documents and Staff Rota are internal-staff only — third-party staff don't have them.
+    // Documents, Staff Rota, Body Cam and Dash Cam uploads are internal-staff only — third-party staff don't have them.
     ...(isAnyThirdParty(role)
       ? []
       : [
@@ -102,6 +104,16 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
             name: "Staff Rota",
             path: `${basePath}/rota`,
             icon: CalendarDays,
+          },
+          {
+            name: "Body Cam Upload",
+            path: `${basePath}/body-cam-upload`,
+            icon: Camera,
+          },
+          {
+            name: "Dash Cam Upload",
+            path: `${basePath}/dash-cam-upload`,
+            icon: Car,
           },
         ]),
   ];

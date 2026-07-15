@@ -77,6 +77,10 @@
   const DocumentsPage = lazy(() => import("./pages/client/DocumentsPage"));
   const StaffDocumentsPage = lazy(() => import("./pages/staff/StaffDocumentsPage"));
   const StaffRotaPage = lazy(() => import("./pages/staff/StaffRotaPage"));
+  const BodyCamUploadPage = lazy(() => import("./pages/staff/BodyCamUploadPage"));
+  const DashCamUploadPage = lazy(() => import("./pages/staff/DashCamUploadPage"));
+  const BodyCamPage = lazy(() => import("./pages/client/BodyCamPage"));
+  const DashCamPage = lazy(() => import("./pages/client/DashCamPage"));
   const HelpPage = lazy(() => import("./pages/HelpPage"));
   const UnauthorizedPage = lazy(() => import("./pages/UnauthorizedPage"));
 
@@ -370,6 +374,24 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                       <StaffRotaPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/staff/body-cam-upload"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                      <BodyCamUploadPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/staff/dash-cam-upload"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
+                      <DashCamUploadPage />
                     </ProtectedRoute>
                   }
                 />
@@ -827,6 +849,24 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
                       <DocumentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/client/body-cam"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                      <BodyCamPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/client/dash-cam"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
+                      <DashCamPage />
                     </ProtectedRoute>
                   }
                 />
