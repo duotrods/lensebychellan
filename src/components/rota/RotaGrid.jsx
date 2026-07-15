@@ -92,6 +92,7 @@ const StaffColumnHeader = ({ staffMember, canReorder }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: staffMember.id,
     disabled: !canReorder,
+    data: { type: "header" },
   });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -101,8 +102,8 @@ const StaffColumnHeader = ({ staffMember, canReorder }) => {
     <th
       ref={setNodeRef}
       style={style}
-      className={`px-2 py-2 font-semibold text-center min-w-[76px] ${
-        isDragging ? "opacity-50 bg-teal-50" : ""
+      className={`sticky top-0 z-10 px-2 py-2 font-semibold text-center min-w-[76px] ${
+        isDragging ? "opacity-50 bg-teal-50" : "bg-gray-50"
       } ${canReorder ? "cursor-grab active:cursor-grabbing select-none" : ""}`}
       {...(canReorder ? attributes : {})}
       {...(canReorder ? listeners : {})}
@@ -139,7 +140,7 @@ const DraggableShiftCell = ({ staffId, dateStr, shift, canEdit, canDuplicate, on
   const dragDropId = `${staffId}__${dateStr}`;
   const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
     id: dragDropId,
-    data: { staffId, dateStr, shift },
+    data: { type: "shift", staffId, dateStr, shift },
     disabled: !canDuplicate || !hasShift,
   });
   const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -252,6 +253,20 @@ const RotaGrid = ({
     onDuplicateShift?.(source.staffId, target.staffId, target.dateStr, source.shift);
   };
 
+  // A single DndContext handles both drag types (column reorder and shift
+  // duplicate) — DndContext must live outside the <table> entirely, since it
+  // renders its own hidden accessibility <div>, which is invalid HTML directly
+  // inside <tr>/<tbody> and causes the browser to silently restructure the DOM
+  // (breaking sticky positioning along with it). One context, dispatched by
+  // the dragged item's tagged data.type, avoids needing a second one.
+  const handleCombinedDragEnd = (event) => {
+    if (event.active.data.current?.type === "shift") {
+      handleShiftDragEnd(event);
+    } else {
+      handleDragEnd(event);
+    }
+  };
+
   const staffingCounts = (dateStr) => {
     let day = 0;
     let night = 0;
@@ -264,7 +279,7 @@ const RotaGrid = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow overflow-hidden">
+    <div className="bg-white rounded-xl shadow">
       <div className="px-6 py-4 border-b flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-base font-semibold text-gray-800">Monthly rota</h2>
@@ -310,27 +325,26 @@ const RotaGrid = ({
             No staff on the roster yet.
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleCombinedDragEnd}
+          >
+          <table className="w-full text-sm border-separate border-spacing-0">
             <thead>
               <tr className="border-b bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
-                <th className="sticky left-0 z-10 bg-gray-50 text-left px-4 py-2 font-semibold min-w-[150px]">
+                <th className="sticky top-0 left-0 z-20 bg-gray-50 text-left px-4 py-2 font-semibold min-w-[150px]">
                   Date
                 </th>
                 {canReorderStaff ? (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
+                  <SortableContext
+                    items={orderedStaff.map((p) => p.id)}
+                    strategy={horizontalListSortingStrategy}
                   >
-                    <SortableContext
-                      items={orderedStaff.map((p) => p.id)}
-                      strategy={horizontalListSortingStrategy}
-                    >
-                      {orderedStaff.map((p) => (
-                        <StaffColumnHeader key={p.id} staffMember={p} canReorder />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
+                    {orderedStaff.map((p) => (
+                      <StaffColumnHeader key={p.id} staffMember={p} canReorder />
+                    ))}
+                  </SortableContext>
                 ) : (
                   orderedStaff.map((p) => (
                     <StaffColumnHeader key={p.id} staffMember={p} canReorder={false} />
@@ -338,7 +352,6 @@ const RotaGrid = ({
                 )}
               </tr>
             </thead>
-            <DndContext sensors={sensors} onDragEnd={handleShiftDragEnd}>
             <tbody className="divide-y divide-gray-100">
               {days.map((d) => {
                 const dStr = fmt(d);
@@ -388,8 +401,8 @@ const RotaGrid = ({
                 );
               })}
             </tbody>
-            </DndContext>
           </table>
+          </DndContext>
         )}
       </div>
 
