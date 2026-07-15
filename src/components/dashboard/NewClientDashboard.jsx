@@ -32,6 +32,8 @@
     TimerReset,
     CarFront,
     Cctv,
+    VenusAndMars,
+    Car,
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
   import DrillDownSidebar from "./DrillDownSidebar";
@@ -339,7 +341,7 @@
       {
         title: "Incidents",
         value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
-        text: "Incidents excluding Free Recovery, Drive off and Incursions.",
+        text: "Excluding Free Recovery, Drive off and Incursions.",
         icon: AlertTriangle,
         color: "text-white",
         bgColor: "bg-linear-to-b from-orange-400 to-orange-500",
@@ -375,7 +377,7 @@
               (Number(stats?.incidentsByType?.["Free Recovery"]) || 0) +
               (Number(stats?.incidentsByType?.["Drive Off"]) || 0)
             ).toString(),
-        text: "Total number of free recovery incidents within the scheme.",
+        text: "Total number of free recovery incidents.",
         icon: Wrench,
         color: "text-white",
         bgColor: "bg-linear-to-b from-sky-500 to-sky-600",
@@ -394,7 +396,7 @@
               (stats?.incursions || 0) +
               (stats?.incidentsByType?.["Incursion"] || 0)
             ).toString(),
-        text: "Total number of incursions recorded within the scheme.",
+        text: "Total number of incursions recorded.",
         icon: CarFront,
         color: "text-white",
         bgColor: "bg-linear-to-b from-purple-500 to-purple-600",
@@ -404,12 +406,12 @@
           ),
       },
       {
-        title: "Incursion to Gain Advantage",
+        title: "Incursion (G.A)",
         value: loading ? "..." : (stats?.incursionToGainAdvantage || 0).toString(),
-        text: "Total number of incursions to gain advantage recorded within the scheme.",
-        icon: TriangleAlert,
+        text: "Total number of incursions to gain advantage.",
+        icon: Car,
         color: "text-white",
-        bgColor: "bg-linear-to-b from-amber-500 to-amber-600",
+        bgColor: "bg-linear-to-b from-lime-500 to-lime-600",
         filter: () =>
           incidents.filter((i) => i.incursionToGainAdvantage === "YES"),
       },
@@ -673,7 +675,7 @@
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
           {statsCards.map((stat, index) => (
             <div
               key={index}
@@ -684,13 +686,13 @@
                   openDrillDown({ title: stat.title, incidents: filtered });
               }}
             >
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-2 mb-4">
                 <div className={`p-3 rounded-lg ${stat.bgColor}`}>
                   <stat.icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
                 <div>
                   <h5 className="font-bold! text-gray-800">{stat.title}</h5>
-                  <p className="text-xs font-medium text-gray-400">
+                  <p className="text-[11px] font-medium text-gray-400">
                     {stat.text}
                   </p>
                 </div>
@@ -1058,6 +1060,27 @@
                 </BarChart>
               </ChartCard>
 
+              {/* <ChartCard title="Incursion to Gain Advantage">
+                <BarChart
+                  data={incursionToGainAdvantageData}
+                  onClick={(d) =>
+                    d?.activeLabel &&
+                    handleBarClick("incursionToGainAdvantage", d.activeLabel)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
+                  <CartesianGrid {...commonChartProps.cartesianGrid} />
+                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
+                  <YAxis {...commonChartProps.yAxis} />
+                  <Tooltip {...commonChartProps.tooltip} />
+                  <Legend {...commonChartProps.legend} />
+                  <Bar dataKey="Number" {...commonChartProps.bar} />
+                </BarChart>
+              </ChartCard> */}
+            </div>
+
+            {/* Full Width: Incidents Over Time */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <ChartCard title="Incursion to Gain Advantage">
                 <BarChart
                   data={incursionToGainAdvantageData}
@@ -1075,11 +1098,8 @@
                   <Bar dataKey="Number" {...commonChartProps.bar} />
                 </BarChart>
               </ChartCard>
-            </div>
 
-            {/* Full Width: Incidents Over Time */}
-            <div className="mb-8">
-              <ChartCard title="Incidents Over Time" fullWidth height={350}>
+              <ChartCard title="Incidents Over Time" >
                 <BarChart
                   data={
                     timeSeriesData.length > 0
