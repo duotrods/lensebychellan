@@ -1,58 +1,68 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
-import { Users, RefreshCw, User, Archive, ArchiveRestore, Mail, Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import { RefreshCw, User, Archive, ArchiveRestore, Mail, Shield, ChevronLeft, ChevronRight, Building2, Handshake } from "lucide-react";
+
+const ROLE_TABS = [
+  { key: "staff", label: "Internal Staff", icon: Building2 },
+  { key: "thirdpartystaff", label: "Third Party Staff", icon: Handshake },
+];
+
+const usersPerPage = 10;
 
 const StaffManagement = () => {
   const { userProfile } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [roleTab, setRoleTab] = useState("staff");
   const [filterStatus, setFilterStatus] = useState("all"); // all, active, archived
-  const [lastDoc, setLastDoc] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 10;
+
+  // Cursor for each page, per role tab: cursors[role][i] is the lastDoc needed
+  // to fetch page i + 1. cursors[role][0] is always null (start of the list).
+  const cursorsRef = useRef({ staff: [null], thirdpartystaff: [null] });
+
+  const usersQuery = useQuery({
+    queryKey: ["staffUsers", roleTab, currentPage],
+    queryFn: () => {
+      const cursor = cursorsRef.current[roleTab][currentPage - 1] ?? null;
+      return firestoreService.getAllUsersPaginated(usersPerPage, cursor, roleTab);
+    },
+  });
+
+  const countsQuery = useQuery({
+    queryKey: ["staffUserCounts"],
+    queryFn: () => firestoreService.getUsersCountByRole(),
+  });
+
+  // Remember the cursor for the next page once this page's data arrives
+  useEffect(() => {
+    if (usersQuery.data?.lastDoc) {
+      cursorsRef.current[roleTab][currentPage] = usersQuery.data.lastDoc;
+    }
+  }, [usersQuery.data, roleTab, currentPage]);
 
   useEffect(() => {
-    loadUsers(true);
-    loadTotalCount();
-  }, []);
-
-  const loadUsers = async (resetPage = false) => {
-    setLoading(true);
-    try {
-      // Use server-side pagination - only fetch 10 staff users
-      const result = await firestoreService.getAllUsersPaginated(
-        usersPerPage,
-        resetPage ? null : lastDoc,
-        'staff' // Filter for staff role only
-      );
-
-      setUsers(result.users);
-      setLastDoc(result.lastDoc);
-      setHasMore(result.hasMore);
-
-      if (resetPage) {
-        setCurrentPage(1);
-      }
-    } catch (error) {
-      console.error('Failed to load users:', error);
+    if (usersQuery.isError) {
+      console.error("Failed to load users:", usersQuery.error);
       toast.error("Failed to load staff users");
-    } finally {
-      setLoading(false);
     }
+  }, [usersQuery.isError, usersQuery.error]);
+
+  const users = usersQuery.data?.users ?? [];
+  const hasMore = usersQuery.data?.hasMore ?? false;
+  const loading = usersQuery.isFetching || countsQuery.isFetching;
+  const totalCount = countsQuery.data?.[roleTab] ?? 0;
+
+  const handleRoleTabChange = (key) => {
+    if (key === roleTab) return;
+    setRoleTab(key);
+    setCurrentPage(1);
   };
 
-  // Load total count of staff users using aggregation - 1 read
-  const loadTotalCount = async () => {
-    try {
-      const counts = await firestoreService.getUsersCountByRole();
-      setTotalCount(counts.staff);
-    } catch (error) {
-      console.warn('Could not load total count:', error);
-    }
+  const handleRefresh = () => {
+    usersQuery.refetch();
+    countsQuery.refetch();
   };
 
   const handleArchiveUser = async (user) => {
@@ -60,16 +70,13 @@ const StaffManagement = () => {
       return;
     }
 
-    setLoading(true);
     try {
       await firestoreService.archiveUser(user.uid, userProfile.uid);
       toast.success(`User ${user.displayName} archived successfully`);
-      loadUsers();
+      usersQuery.refetch();
     } catch (error) {
       console.error('Failed to archive user:', error);
       toast.error(error.message || "Failed to archive user");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -78,16 +85,13 @@ const StaffManagement = () => {
       return;
     }
 
-    setLoading(true);
     try {
       await firestoreService.unarchiveUser(user.uid, userProfile.uid);
       toast.success(`User ${user.displayName} unarchived successfully`);
-      loadUsers();
+      usersQuery.refetch();
     } catch (error) {
       console.error('Failed to unarchive user:', error);
       toast.error(error.message || "Failed to unarchive user");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -110,14 +114,12 @@ const StaffManagement = () => {
   const handleNextPage = () => {
     if (hasMore) {
       setCurrentPage(prev => prev + 1);
-      loadUsers(false);
     }
   };
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1);
-      loadUsers(true); // Reset to refetch from start
     }
   };
 
@@ -133,7 +135,7 @@ const StaffManagement = () => {
           </p>
         </div>
         <button
-          onClick={loadUsers}
+          onClick={handleRefresh}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
         >
@@ -142,10 +144,30 @@ const StaffManagement = () => {
         </button>
       </div>
 
+      {/* Role tabs */}
+      <div className="flex gap-2 mb-6">
+        {ROLE_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => handleRoleTabChange(key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              roleTab === key
+                ? "bg-teal-500 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {label} ({countsQuery.data?.[key] ?? "…"})
+          </button>
+        ))}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Total Staff</p>
+          <p className="text-sm text-gray-500 mb-1">
+            Total {roleTab === "staff" ? "Internal" : "Third Party"} Staff
+          </p>
           <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
@@ -237,10 +259,10 @@ const StaffManagement = () => {
                       <User className="w-12 h-12 text-gray-300 mb-2" />
                       <p className="text-gray-500">
                         {filterStatus === "archived"
-                          ? "No archived staff users"
+                          ? `No archived ${roleTab === "staff" ? "internal" : "third-party"} staff users`
                           : filterStatus === "active"
-                          ? "No active staff users"
-                          : "No staff users found"}
+                          ? `No active ${roleTab === "staff" ? "internal" : "third-party"} staff users`
+                          : `No ${roleTab === "staff" ? "internal" : "third-party"} staff users found`}
                       </p>
                     </div>
                   </td>
@@ -327,7 +349,7 @@ const StaffManagement = () => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between p-4 border-t">
             <p className="text-sm text-gray-600">
-              Showing page {currentPage} of {totalPages} ({totalCount} total staff)
+              Showing page {currentPage} of {totalPages} ({totalCount} total {roleTab === "staff" ? "internal" : "third-party"} staff)
             </p>
             <div className="flex items-center gap-2">
               <button

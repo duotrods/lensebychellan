@@ -243,17 +243,19 @@ class FirestoreService {
   async getUsersCountByRole() {
     try {
       const usersRef = collection(db, 'users');
-      const [totalSnap, staffSnap, clientSnap, cctvSnap] = await Promise.all([
+      const [totalSnap, staffSnap, clientSnap, cctvSnap, thirdPartyStaffSnap] = await Promise.all([
         getCountFromServer(query(usersRef)),
         getCountFromServer(query(usersRef, where('role', '==', 'staff'))),
         getCountFromServer(query(usersRef, where('role', '==', 'client'))),
         getCountFromServer(query(usersRef, where('role', '==', 'cctvfaultoperator'))),
+        getCountFromServer(query(usersRef, where('role', '==', 'thirdpartystaff'))),
       ]);
       return {
         total: totalSnap.data().count,
         staff: staffSnap.data().count,
         client: clientSnap.data().count,
         cctvfaultoperator: cctvSnap.data().count,
+        thirdpartystaff: thirdPartyStaffSnap.data().count,
       };
     } catch (error) {
       throw new AppError('Failed to count users by role', 'firestore/read-error', error);
