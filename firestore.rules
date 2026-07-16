@@ -326,6 +326,54 @@ service cloud.firestore {
       );
     }
 
+    // Body Cam Uploads (internal staff/client only — no third-party access)
+    match /bodyCamUploads/{uploadId} {
+      allow create: if isVerified() && getUserRole() == 'staff';
+
+      allow get: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.schemeId)
+        ))
+      );
+
+      allow list: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client'
+      );
+
+      allow update, delete: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'admin'
+      );
+    }
+
+    // Dash Cam Uploads (internal staff/client only — no third-party access)
+    match /dashCamUploads/{uploadId} {
+      allow create: if isVerified() && getUserRole() == 'staff';
+
+      allow get: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' && (
+          hasSchemeAccess(resource.data.schemeIds) ||
+          hasOldSchemeAccess(resource.data.schemeId)
+        ))
+      );
+
+      allow list: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'client'
+      );
+
+      allow update, delete: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'admin'
+      );
+    }
+
     // Documents (staff share files / live links with clients, scheme-scoped)
     match /documents/{documentId} {
       allow create: if isVerified() && (

@@ -268,12 +268,9 @@
         trackData: transformDataForChart(stats?.trackOfIncident),
         emergencyServicesData: transformDataForChart(stats?.emergencyServices),
         vehicleTypeData: transformDataForChart(stats?.vehicleTypes),
-        incursionsData: [{ name: "Incursions", Number: stats?.incursions || 0 }],
-        incursionToGainAdvantageData: [
-          {
-            name: "Incursion to Gain Advantage",
-            Number: stats?.incursionToGainAdvantage || 0,
-          },
+        incursionsData: [
+          { name: "Incursions", Number: stats?.incursions || 0 },
+          { name: "Incursion to Gain Advantage", Number: (stats?.incursionToGainAdvantage || 0)},
         ],
       }),
       [stats],
@@ -1060,45 +1057,11 @@
                 </BarChart>
               </ChartCard>
 
-              {/* <ChartCard title="Incursion to Gain Advantage">
-                <BarChart
-                  data={incursionToGainAdvantageData}
-                  onClick={(d) =>
-                    d?.activeLabel &&
-                    handleBarClick("incursionToGainAdvantage", d.activeLabel)
-                  }
-                  style={{ cursor: "pointer" }}
-                >
-                  <CartesianGrid {...commonChartProps.cartesianGrid} />
-                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-                  <YAxis {...commonChartProps.yAxis} />
-                  <Tooltip {...commonChartProps.tooltip} />
-                  <Legend {...commonChartProps.legend} />
-                  <Bar dataKey="Number" {...commonChartProps.bar} />
-                </BarChart>
-              </ChartCard> */}
+              
             </div>
 
             {/* Full Width: Incidents Over Time */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              <ChartCard title="Incursion to Gain Advantage">
-                <BarChart
-                  data={incursionToGainAdvantageData}
-                  onClick={(d) =>
-                    d?.activeLabel &&
-                    handleBarClick("incursionToGainAdvantage", d.activeLabel)
-                  }
-                  style={{ cursor: "pointer" }}
-                >
-                  <CartesianGrid {...commonChartProps.cartesianGrid} />
-                  <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-                  <YAxis {...commonChartProps.yAxis} />
-                  <Tooltip {...commonChartProps.tooltip} />
-                  <Legend {...commonChartProps.legend} />
-                  <Bar dataKey="Number" {...commonChartProps.bar} />
-                </BarChart>
-              </ChartCard>
-
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-8">
               <ChartCard title="Incidents Over Time" >
                 <BarChart
                   data={
