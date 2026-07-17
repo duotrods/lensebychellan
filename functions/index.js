@@ -332,8 +332,9 @@ exports.sendIncidentAlertNotification = onCall(
     const hasIncursionToGainAdvantage =
       reportData.incursionToGainAdvantage === "YES";
     const hasAssetDamage = reportData.propertyDamage === true;
+    const incursionEscalated = hasIncursion && hasIncursionToGainAdvantage;
 
-    if (!hasIncursion && !hasIncursionToGainAdvantage && !hasAssetDamage) {
+    if (!incursionEscalated && !hasAssetDamage) {
       return {
         success: true,
         message: "No alert triggers present",
@@ -342,8 +343,7 @@ exports.sendIncidentAlertNotification = onCall(
     }
 
     const triggers = [];
-    if (hasIncursion) triggers.push("Incursion");
-    if (hasIncursionToGainAdvantage) triggers.push("Incursion to Gain Advantage");
+    if (incursionEscalated) triggers.push("Incursion", "Incursion to Gain Advantage");
     if (hasAssetDamage) triggers.push("Asset Damage");
     const triggerLabel = triggers.join(" & ");
 
