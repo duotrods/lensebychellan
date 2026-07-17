@@ -9,6 +9,9 @@
   import {
     BarChart,
     Bar,
+    PieChart,
+    Pie,
+    Cell,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -34,6 +37,8 @@
     Cctv,
     VenusAndMars,
     Car,
+    BarChart3,
+    PieChart as PieChartIcon,
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
   import DrillDownSidebar from "./DrillDownSidebar";
@@ -60,20 +65,80 @@
     bar: { fill: "#17af93", radius: [8, 8, 0, 0] },
   };
 
+  const PIE_COLORS = [
+    "#2a78d6", "#008300", "#e87ba4", "#eda100",
+    "#1baf7a", "#eb6834", "#4a3aa7", "#e34948",
+  ];
+
   const ChartCard = memo(
-    ({ title, children, fullWidth = false, height = 380 }) => (
-      <div
-        className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? "col-span-full" : ""}`}
-        onMouseDown={(e) => e.preventDefault()}
-      >
-        <h5 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">
-          {title}
-        </h5>
-        <ResponsiveContainer width="100%" height={height}>
-          {children}
-        </ResponsiveContainer>
-      </div>
-    ),
+    ({ title, children, data, onSliceClick, fullWidth = false, height = 380 }) => {
+      const [type, setType] = useState("bar");
+      const canTogglePie = Array.isArray(data);
+
+      return (
+        <div
+          className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? "col-span-full" : ""}`}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <div className="flex items-center justify-between mb-6 border-b pb-3">
+            <h5 className="text-xl font-bold text-gray-800">{title}</h5>
+            {canTogglePie && (
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setType("bar")}
+                  title="Bar chart"
+                  className={`p-1.5 rounded-md transition-colors ${
+                    type === "bar"
+                      ? "bg-teal-500 text-white"
+                      : "bg-gray-100 text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("pie")}
+                  title="Pie chart"
+                  className={`p-1.5 rounded-md transition-colors ${
+                    type === "pie"
+                      ? "bg-teal-500 text-white"
+                      : "bg-gray-100 text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <PieChartIcon className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={height}>
+            {canTogglePie && type === "pie" ? (
+              <PieChart>
+                <Pie
+                  data={data}
+                  dataKey="Number"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={Math.min(height, 380) / 2 - 40}
+                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  onClick={(entry) => onSliceClick?.(entry.name)}
+                  style={{ cursor: onSliceClick ? "pointer" : "default" }}
+                >
+                  {data.map((entry, i) => (
+                    <Cell key={entry.name} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip {...commonChartProps.tooltip} />
+                <Legend {...commonChartProps.legend} />
+              </PieChart>
+            ) : (
+              children
+            )}
+          </ResponsiveContainer>
+        </div>
+      );
+    },
   );
 
   const fmtDowntime = (mins) => {
@@ -835,7 +900,11 @@
 
             {/* All Charts in 2 Column Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              <ChartCard title="Time to Site (mins)">
+              <ChartCard
+                title="Time to Site (mins)"
+                data={timeToSiteData}
+                onSliceClick={(label) => handleBarClick("timeToSite", label)}
+              >
                 <BarChart
                   data={timeToSiteData}
                   onClick={(d) =>
@@ -852,7 +921,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Time to recover (mins)">
+              <ChartCard
+                title="Time to recover (mins)"
+                data={timeToRecoverData}
+                onSliceClick={(label) => handleBarClick("timeToRecover", label)}
+              >
                 <BarChart
                   data={timeToRecoverData}
                   onClick={(d) =>
@@ -870,7 +943,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Fault">
+              <ChartCard
+                title="Fault"
+                data={faultData}
+                onSliceClick={(label) => handleBarClick("fault", label)}
+              >
                 <BarChart
                   data={faultData}
                   margin={{ top: 0, right: 0, left: -20, bottom: 10 }}
@@ -897,7 +974,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Incident Type">
+              <ChartCard
+                title="Incident Type"
+                data={incidentTypeData}
+                onSliceClick={(label) => handleBarClick("incidentType", label)}
+              >
                 <BarChart
                   data={incidentTypeData}
                   margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
@@ -916,7 +997,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Vehicles Dispatched">
+              <ChartCard
+                title="Vehicles Dispatched"
+                data={vehiclesDispatchedData}
+                onSliceClick={(label) => handleBarClick("vehicleTypesDispatched", label)}
+              >
                 <BarChart
                   data={vehiclesDispatchedData}
                   onClick={(d) =>
@@ -934,7 +1019,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Spotted By">
+              <ChartCard
+                title="Spotted By"
+                data={spottedByData}
+                onSliceClick={(label) => handleBarClick("reportedBy", label)}
+              >
                 <BarChart
                   data={spottedByData}
                   onClick={(d) =>
@@ -951,7 +1040,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Lane Affected">
+              <ChartCard
+                title="Lane Affected"
+                data={laneAffectedData}
+                onSliceClick={(label) => handleBarClick("affectedLanes", label)}
+              >
                 <BarChart
                   data={laneAffectedData}
                   onClick={(d) =>
@@ -969,7 +1062,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Traffic Conditions">
+              <ChartCard
+                title="Traffic Conditions"
+                data={trafficConditionsData}
+                onSliceClick={(label) => handleBarClick("trafficConditions", label)}
+              >
                 <BarChart
                   data={trafficConditionsData}
                   onClick={(d) =>
@@ -987,7 +1084,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Emergency Services Attended">
+              <ChartCard
+                title="Emergency Services Attended"
+                data={emergencyServicesData}
+                onSliceClick={(label) => handleBarClick("emergencyServices", label)}
+              >
                 <BarChart
                   data={emergencyServicesData}
                   onClick={(d) =>
@@ -1005,7 +1106,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Track of Incident">
+              <ChartCard
+                title="Track of Incident"
+                data={trackData}
+                onSliceClick={(label) => handleBarClick("track", label)}
+              >
                 <BarChart
                   data={trackData}
                   onClick={(d) =>
@@ -1022,7 +1127,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Vehicle Type">
+              <ChartCard
+                title="Vehicle Type"
+                data={vehicleTypeData}
+                onSliceClick={(label) => handleBarClick("vehicleTypes", label)}
+              >
                 <BarChart
                   data={vehicleTypeData}
                   onClick={(d) =>
@@ -1040,7 +1149,11 @@
                 </BarChart>
               </ChartCard>
 
-              <ChartCard title="Incursions">
+              <ChartCard
+                title="Incursions"
+                data={incursionsData}
+                onSliceClick={(label) => handleBarClick("incursions", label)}
+              >
                 <BarChart
                   data={incursionsData}
                   onClick={(d) =>

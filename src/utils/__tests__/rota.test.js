@@ -124,6 +124,19 @@ describe("splitShiftAcrossDates", () => {
     expect(splitShiftAcrossDates("2026-03-10", { type: "sick", hours: 0 })).toEqual([]);
     expect(splitShiftAcrossDates("2026-03-10", { type: "off", hours: 0 })).toEqual([]);
   });
+
+  it("keeps an offsite day shift entirely on the same date", () => {
+    expect(splitShiftAcrossDates("2026-03-10", { type: "offsite-day", hours: 12 })).toEqual([
+      { date: "2026-03-10", hours: 12 },
+    ]);
+  });
+
+  it("splits a 12h offsite night shift 6h on the start date, 6h on the next date", () => {
+    expect(splitShiftAcrossDates("2026-03-10", { type: "offsite-night", hours: 12 })).toEqual([
+      { date: "2026-03-10", hours: 6 },
+      { date: "2026-03-11", hours: 6 },
+    ]);
+  });
 });
 
 describe("rateForDate", () => {

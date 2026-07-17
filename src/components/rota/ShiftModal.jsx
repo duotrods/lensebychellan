@@ -5,10 +5,14 @@ import { parseDateStr } from "../../utils/rota";
 const OPTIONS = [
   { value: "day", label: "Day — starts 06:00", dot: "bg-yellow-400" },
   { value: "night", label: "Night — starts 18:00", dot: "bg-blue-500" },
+  { value: "offsite-day", label: "Offsite Day — starts 06:00", dot: "bg-orange-400" },
+  { value: "offsite-night", label: "Offsite Night — starts 18:00", dot: "bg-indigo-500" },
   { value: "holiday", label: "Holiday", dot: "bg-red-400" },
   { value: "sick", label: "Sick", dot: "bg-green-500" },
   { value: "off", label: "Off / clear", dot: "bg-gray-300" },
 ];
+
+const HOURLY_TYPES = ["day", "night", "offsite-day", "offsite-night"];
 
 const QUICK_HOURS = [4, 6, 8, 10, 12];
 
@@ -38,7 +42,7 @@ const ShiftModal = ({
   if (!pendingCell) return null;
 
   const dateObj = parseDateStr(pendingCell.dateStr);
-  const showHours = type === "day" || type === "night";
+  const showHours = HOURLY_TYPES.includes(type);
   const isPendingHoliday =
     pendingCell.existing?.type === "holiday" && pendingCell.existing?.status === "pending";
   const showDuplicate =

@@ -102,9 +102,9 @@ export function splitShiftAcrossDates(dateStr, shift) {
   const portions = [];
   if (shift.type === "holiday" || shift.type === "off" || shift.type === "sick") return portions;
   const hours = Number(shift.hours) || 0;
-  if (shift.type === "day") {
+  if (shift.type === "day" || shift.type === "offsite-day") {
     portions.push({ date: dateStr, hours });
-  } else if (shift.type === "night") {
+  } else if (shift.type === "night" || shift.type === "offsite-night") {
     const firstLeg = Math.min(hours, 6);
     const secondLeg = Math.max(0, hours - 6);
     if (firstLeg > 0) portions.push({ date: dateStr, hours: firstLeg });
@@ -177,6 +177,8 @@ export function shiftCellText(shift) {
   if (!shift || shift.type === "off") return "";
   if (shift.type === "day") return `Day ${shift.hours}h (from 06:00)`;
   if (shift.type === "night") return `Night ${shift.hours}h (from 18:00)`;
+  if (shift.type === "offsite-day") return `Offsite Day ${shift.hours}h (from 06:00)`;
+  if (shift.type === "offsite-night") return `Offsite Night ${shift.hours}h (from 18:00)`;
   if (shift.type === "holiday") return "Holiday";
   if (shift.type === "sick") return "Sick";
   return "";

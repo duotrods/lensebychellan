@@ -31,6 +31,8 @@ import {
 const PILL_STYLES = {
   day: "bg-yellow-100 border-2 border-yellow-400 text-yellow-800",
   night: "bg-blue-100 border-2 border-blue-500 text-blue-800",
+  "offsite-day": "bg-orange-100 border-2 border-orange-400 text-orange-800",
+  "offsite-night": "bg-indigo-100 border-2 border-indigo-500 text-indigo-800",
   holiday: "bg-red-100 border-2 border-red-400 text-red-800",
   // Holiday requested by staff, awaiting admin approval.
   holidayPending: "bg-gray-100 border-2 border-gray-400 text-gray-500",
@@ -38,7 +40,17 @@ const PILL_STYLES = {
   off: "border-2 border-dashed border-gray-200 text-gray-300",
 };
 
-const PILL_LABEL = { day: "D", night: "N", holiday: "Hol", holidayPending: "Hol*", sick: "Sick" };
+const PILL_LABEL = {
+  day: "D",
+  night: "N",
+  "offsite-day": "OD",
+  "offsite-night": "ON",
+  holiday: "Hol",
+  holidayPending: "Hol*",
+  sick: "Sick",
+};
+
+const HOURLY_TYPES = ["day", "night", "offsite-day", "offsite-night"];
 
 // A holiday with an explicit "pending" status is awaiting approval; anything else
 // (approved, or legacy holidays without a status) renders as an approved red holiday.
@@ -59,7 +71,7 @@ const ShiftPill = ({ shift, canEdit, onClick }) => {
       }`}
     >
       {styleKey === "off" ? "–" : PILL_LABEL[styleKey]}
-      {(styleKey === "day" || styleKey === "night") && (
+      {HOURLY_TYPES.includes(styleKey) && (
         <span className="text-[10px] font-semibold opacity-75 mt-0.5">{shift.hours}h</span>
       )}
     </button>
@@ -272,8 +284,8 @@ const RotaGrid = ({
     let night = 0;
     orderedStaff.forEach((p) => {
       const s = shifts[`${p.id}__${dateStr}`];
-      if (s?.type === "day") day++;
-      if (s?.type === "night") night++;
+      if (s?.type === "day" || s?.type === "offsite-day") day++;
+      if (s?.type === "night" || s?.type === "offsite-night") night++;
     });
     return { day, night };
   };
@@ -412,6 +424,12 @@ const RotaGrid = ({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded bg-blue-100 border-2 border-blue-500" /> Night shift
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded bg-orange-100 border-2 border-orange-400" /> Offsite day
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded bg-indigo-100 border-2 border-indigo-500" /> Offsite night
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded bg-red-100 border-2 border-red-400" /> Holiday
