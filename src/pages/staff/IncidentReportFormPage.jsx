@@ -148,7 +148,13 @@ const IncidentReportFormPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "incursion" && value === "NO"
+        ? { incursionToGainAdvantage: "NO" }
+        : {}),
+    }));
   };
 
   const handleCheckbox = (field, value) => {
@@ -970,29 +976,47 @@ const IncidentReportFormPage = () => {
 
         <div>
           <label className="label">
-            <span className="label-text font-semibold mb-2">
+            <span
+              className={`label-text font-semibold mb-2 ${
+                formData.incursion !== "YES" ? "text-gray-400" : ""
+              }`}
+            >
               Incursion to Gain Advantage?
             </span>
           </label>
           <div className="flex gap-6">
-            <label className="cursor-pointer flex items-center gap-2">
+            <label
+              className={`flex items-center gap-2 ${
+                formData.incursion !== "YES"
+                  ? "cursor-not-allowed text-gray-400"
+                  : "cursor-pointer"
+              }`}
+            >
               <input
                 type="radio"
                 name="incursionToGainAdvantage"
                 value="YES"
                 checked={formData.incursionToGainAdvantage === "YES"}
                 onChange={handleChange}
+                disabled={formData.incursion !== "YES"}
                 className="radio radio-accent"
               />
               <span>YES</span>
             </label>
-            <label className="cursor-pointer flex items-center gap-2">
+            <label
+              className={`flex items-center gap-2 ${
+                formData.incursion !== "YES"
+                  ? "cursor-not-allowed text-gray-400"
+                  : "cursor-pointer"
+              }`}
+            >
               <input
                 type="radio"
                 name="incursionToGainAdvantage"
                 value="NO"
                 checked={formData.incursionToGainAdvantage === "NO"}
                 onChange={handleChange}
+                disabled={formData.incursion !== "YES"}
                 className="radio radio-accent"
               />
               <span>NO</span>

@@ -810,6 +810,164 @@ class StaffService {
   }
 
   // ============================================
+  // BODY CAM UPLOADS
+  // ============================================
+
+  async submitBodyCamUpload(uploadData, userId, userName) {
+    try {
+      const schemeId = uploadData.scheme
+        ? extractSchemeId(uploadData.scheme)
+        : null;
+
+      const uploadsRef = collection(db, "bodyCamUploads");
+      const docRef = await addDoc(uploadsRef, {
+        ...uploadData,
+        ...(schemeId && {
+          schemeId,
+          schemeIds: [schemeId],
+        }),
+        submittedBy: userName,
+        uploadedBy: {
+          userId,
+          name: userName,
+        },
+        uploadedAt: serverTimestamp(),
+      });
+
+      await this.logActivity({
+        type: "bodycam_upload",
+        staffId: userId,
+        staffName: userName,
+        description: `${userName} uploaded body cam footage for ${uploadData.scheme}`,
+        relatedUploadId: docRef.id,
+      });
+
+      return docRef.id;
+    } catch (error) {
+      console.error("Failed to submit body cam upload:", error);
+      throw error;
+    }
+  }
+
+  async getBodyCamUploads(userId = null, limitCount = 50) {
+    try {
+      const uploadsRef = collection(db, "bodyCamUploads");
+      let q;
+
+      if (userId) {
+        q = query(
+          uploadsRef,
+          where("uploadedBy.userId", "==", userId),
+          orderBy("uploadedAt", "desc"),
+          limit(limitCount),
+        );
+      } else {
+        q = query(uploadsRef, orderBy("uploadedAt", "desc"), limit(limitCount));
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((doc) => doc.deleted !== true);
+    } catch (error) {
+      console.error("Failed to get body cam uploads:", error);
+      return [];
+    }
+  }
+
+  async deleteBodyCamUpload(uploadId) {
+    try {
+      const uploadRef = doc(db, "bodyCamUploads", uploadId);
+      await updateDoc(uploadRef, {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Failed to delete body cam upload:", error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // DASH CAM UPLOADS
+  // ============================================
+
+  async submitDashCamUpload(uploadData, userId, userName) {
+    try {
+      const schemeId = uploadData.scheme
+        ? extractSchemeId(uploadData.scheme)
+        : null;
+
+      const uploadsRef = collection(db, "dashCamUploads");
+      const docRef = await addDoc(uploadsRef, {
+        ...uploadData,
+        ...(schemeId && {
+          schemeId,
+          schemeIds: [schemeId],
+        }),
+        submittedBy: userName,
+        uploadedBy: {
+          userId,
+          name: userName,
+        },
+        uploadedAt: serverTimestamp(),
+      });
+
+      await this.logActivity({
+        type: "dashcam_upload",
+        staffId: userId,
+        staffName: userName,
+        description: `${userName} uploaded dash cam footage for ${uploadData.scheme}`,
+        relatedUploadId: docRef.id,
+      });
+
+      return docRef.id;
+    } catch (error) {
+      console.error("Failed to submit dash cam upload:", error);
+      throw error;
+    }
+  }
+
+  async getDashCamUploads(userId = null, limitCount = 50) {
+    try {
+      const uploadsRef = collection(db, "dashCamUploads");
+      let q;
+
+      if (userId) {
+        q = query(
+          uploadsRef,
+          where("uploadedBy.userId", "==", userId),
+          orderBy("uploadedAt", "desc"),
+          limit(limitCount),
+        );
+      } else {
+        q = query(uploadsRef, orderBy("uploadedAt", "desc"), limit(limitCount));
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((doc) => doc.deleted !== true);
+    } catch (error) {
+      console.error("Failed to get dash cam uploads:", error);
+      return [];
+    }
+  }
+
+  async deleteDashCamUpload(uploadId) {
+    try {
+      const uploadRef = doc(db, "dashCamUploads", uploadId);
+      await updateDoc(uploadRef, {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error("Failed to delete dash cam upload:", error);
+      throw error;
+    }
+  }
+
+  // ============================================
   // DOCUMENTS (staff share files / live links with clients, scheme-scoped)
   // ============================================
 

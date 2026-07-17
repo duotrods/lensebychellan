@@ -148,11 +148,8 @@ const DocumentsPage = () => {
       <div className="max-w-[1600px] mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-1">
-            <FolderOpen className="w-7 h-7 text-teal-600" />
-            <h1 className="text-2xl font-bold text-gray-800">Documents</h1>
-          </div>
-          <p className="text-gray-500 ml-10">
+          <h1 className="text-2xl font-bold text-gray-800">Documents</h1>
+          <p className="text-gray-500">
             Reports, spreadsheets and files shared with you by Chellan. Live
             online documents always show the latest version.
           </p>
