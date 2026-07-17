@@ -47,22 +47,25 @@ const NavLinkItem = ({ item, collapsed, active, textClassName = "text-gray-700" 
 );
 
 // A greyed-out, non-clickable "coming soon" row — used both inside collapsible groups and standalone.
-const ComingSoonItem = ({ item, collapsed }) => (
-  <div
-    title={collapsed ? `${item.name} — Coming soon` : undefined}
-    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : ''}`}
-  >
-    <item.icon className="w-5 h-5 shrink-0" />
-    {!collapsed && (
-      <>
-        <span className="font-medium flex-1">{item.name}</span>
+const ComingSoonItem = ({ item, collapsed, showIcon = true, showName = false }) => {
+  // Icon-less rows have nothing to show in icon-only (collapsed) mode.
+  if (collapsed && !showIcon) return null;
+
+  return (
+    <div
+      title={`${item.name} — Coming soon`}
+      className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : showIcon || showName ? 'justify-between' : 'justify-start'}`}
+    >
+      {showIcon && <item.icon className="w-5 h-5 shrink-0" />}
+      {!collapsed && showName && <span className="font-medium flex-1">{item.name}</span>}
+      {!collapsed && (
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
           Soon
         </span>
-      </>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
+};
 
 const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const { userProfile, role } = useAuth();
@@ -116,7 +119,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
           ? []
           : [
               { name: "Dashboard", icon: LayoutDashboard },
-              { name: "Reports", icon: FileText },
+              // { name: "Reports", icon: FileText },
             ],
     },
     {
@@ -264,6 +267,9 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
           {navGroups.map((group) => {
             const comingSoon = group.comingSoon ?? [];
             if (group.items.length === 0 && comingSoon.length === 0) return null;
+            // Icon-less coming-soon rows render nothing while collapsed — skip the
+            // group wrapper too, or it leaves an empty space-y-6 gap in its place.
+            if (collapsed && group.items.length === 0) return null;
 
             // Group collapse is a sidebar-expanded-only affordance — icon-only mode always shows everything.
             const isGroupCollapsed = !collapsed && !expandedGroups[group.label];
@@ -274,7 +280,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.label)}
-                    className="w-full flex items-center justify-between px-3 mb-2 text-[11px] font-semibold text-gray-700 uppercase tracking-wide hover:text-gray-900 transition-colors"
+                    className="w-full flex items-center justify-between px-3 mb-2 text-sm font-semibold text-gray-700 uppercase tracking-wide hover:text-gray-900 transition-colors"
                   >
                     <span>{group.label}</span>
                     <ChevronDown
@@ -299,7 +305,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                       ))}
 
                       {comingSoon.map((item) => (
-                        <ComingSoonItem key={item.name} item={item} collapsed={collapsed} />
+                        <ComingSoonItem key={item.name} item={item} collapsed={collapsed} showIcon={false} />
                       ))}
                     </div>
                   </div>
@@ -321,7 +327,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                 />
               ))}
               {standaloneComingSoon.map((item) => (
-                <ComingSoonItem key={item.name} item={item} collapsed={collapsed} />
+                <ComingSoonItem key={item.name} item={item} collapsed={collapsed} showName />
               ))}
             </div>
           )}
