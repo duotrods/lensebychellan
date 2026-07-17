@@ -497,12 +497,12 @@ const DashCamUploadPage = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            <button
+                            {/* <button
                               onClick={() => handleDeleteUpload(upload.id)}
                               className="btn btn-sm btn-outline text-red-500 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4" />
-                            </button>
+                            </button> */}
                           </div>
                         </td>
                       </tr>
