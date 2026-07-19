@@ -36,12 +36,19 @@ const ReportStatsCards = ({ reportStats, onCardClick }) => (
         value={reportStats.total}
         onClick={() => onCardClick("all")}
       />
-      <Card
+      {/* <Card
         icon={<Calendar className="w-3.5 h-3.5 text-blue-500" />}
         hoverBorder="hover:border-blue-500"
         label="Daily Logs"
         value={reportStats.dailyOccurrence}
         onClick={() => onCardClick("daily-occurrence")}
+      /> */}
+      <Card
+        icon={<TriangleAlert className="w-3.5 h-3.5 text-amber-500" />}
+        hoverBorder="hover:border-amber-500"
+        label="Incursion to Gain Advantage"
+        value={reportStats.incursionToGainAdvantage}
+        onClick={() => onCardClick("incident", "gain-advantage")}
       />
       <Card
         icon={<AlertTriangle className="w-3.5 h-3.5 text-orange-500" />}
@@ -88,13 +95,6 @@ const ReportStatsCards = ({ reportStats, onCardClick }) => (
         label="Asset Damage"
         value={reportStats.incidentAssetDamage}
         onClick={() => onCardClick("incident", "asset-damage")}
-      />
-      <Card
-        icon={<TriangleAlert className="w-3.5 h-3.5 text-amber-500" />}
-        hoverBorder="hover:border-amber-500"
-        label="Incursion to Gain Advantage"
-        value={reportStats.incursionToGainAdvantage}
-        onClick={() => onCardClick("incident", "gain-advantage")}
       />
     </div>
   </>

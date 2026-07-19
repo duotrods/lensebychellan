@@ -704,7 +704,7 @@ const ReportsPage = () => {
               >
                 <option value="all">All Types</option>
                 <option value="incident">Incident Reports</option>
-                <option value="daily-occurrence">Daily Occurrence</option>
+                {/* <option value="daily-occurrence">Daily Occurrence</option> */}
                 <option value="cctv-check">CCTV Checks</option>
                 <option value="cctv-faults">CCTV Faults</option>
               </select>
