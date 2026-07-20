@@ -198,7 +198,7 @@ const StaffReportsPage = () => {
 
       const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
       const activeScheme = overrideScheme !== null ? overrideScheme : filterScheme;
-      const schemeId = activeScheme !== 'all' ? activeScheme : null;
+      const schemeId = activeScheme !== 'all' ? [activeScheme] : null;
       let rawForms;
       let newCursors = {};
       let newTypeCursor = null;

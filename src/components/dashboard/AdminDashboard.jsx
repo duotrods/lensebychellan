@@ -3,111 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { firestoreService } from '../../services/firestoreService';
 import { useAuth } from '../../hooks/useAuth';
-import { Key, Users, UserCog, Trash2 } from 'lucide-react';
+import { Key, Users, UserCog, Trash2, LayoutDashboard, LogIn } from 'lucide-react';
+import StaffManagement from '../admin/StaffManagement';
+import LoginLogs from '../admin/LoginLogs';
 
-const AdminDashboard = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [lastDoc, setLastDoc] = useState(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [promoteModal, setPromoteModal] = useState({ isOpen: false, user: null });
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
-  const [actionLoading, setActionLoading] = useState(false);
-  const [roleCounts, setRoleCounts] = useState({ total: 0, staff: 0, client: 0 });
-  const usersPerPage = 10;
-  const { userProfile } = useAuth();
+const TABS = [
+  { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'logs', label: 'Login Logs', icon: LogIn },
+];
+
+// Inner tabs nested under Overview, below the stat cards.
+const OVERVIEW_SECTIONS = [
+  { key: 'staff', label: 'Staff Management', icon: Users },
+  { key: 'other', label: 'Other Users', icon: UserCog },
+];
+
+// Roles already covered by the Staff Management tab — excluded from "Other Users".
+const STAFF_TAB_ROLES = ['staff', 'thirdpartystaff', 'admin'];
+
+const OverviewTab = ({ userProfile, roleCounts }) => {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    loadUsers();
-    loadRoleCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage]);
-
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      const { users: paginatedUsers, total, lastDoc: lastVisible, hasMore: more } =
-        await firestoreService.getUsersPaginated(usersPerPage, currentPage > 1 ? lastDoc : null);
-
-      setUsers(paginatedUsers);
-      setTotalUsers(total);
-      setLastDoc(lastVisible);
-      setHasMore(more);
-    } catch (error) {
-      console.error('Failed to load users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadRoleCounts = async () => {
-    try {
-      const counts = await firestoreService.getUsersCountByRole();
-      setRoleCounts(counts);
-    } catch (error) {
-      console.warn('Could not load role counts:', error);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (hasMore) {
-      setCurrentPage(prev => prev + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(prev => prev - 1);
-      setLastDoc(null); // Reset for previous page
-    }
-  };
-
-  const handlePromoteToAdmin = async () => {
-    if (!promoteModal.user) return;
-
-    try {
-      setActionLoading(true);
-      await firestoreService.promoteToAdmin(promoteModal.user.uid, userProfile.uid);
-      toast.success(`${promoteModal.user.displayName} has been promoted to admin`);
-      setPromoteModal({ isOpen: false, user: null });
-      await loadUsers(); // Reload users to reflect changes
-    } catch (error) {
-      console.error('Failed to promote user:', error);
-      toast.error(error.message || 'Failed to promote user');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!deleteModal.user) return;
-
-    try {
-      setActionLoading(true);
-      await firestoreService.deleteUser(deleteModal.user.uid, userProfile.uid);
-      toast.success(`${deleteModal.user.displayName} has been deleted from the system`);
-      setDeleteModal({ isOpen: false, user: null });
-      await loadUsers(); // Reload users to reflect changes
-    } catch (error) {
-      console.error('Failed to delete user:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        cause: error.cause
-      });
-      toast.error(error.message || 'Failed to delete user');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const totalPages = Math.ceil(totalUsers / usersPerPage);
+  const [section, setSection] = useState('staff');
 
   return (
-    <div>
+    <>
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h2>Admin Dashboard</h2>
@@ -148,15 +67,120 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="p-5">
-          <h5>User Management</h5>
-        </div>
+      {/* Sub-tabs: Staff Management / Other Users */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex gap-1">
+          {OVERVIEW_SECTIONS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSection(key)}
+              className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${
+                section === key
+                  ? 'border-teal-500 text-teal-600 bg-teal-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
+      {section === 'staff' && <StaffManagement />}
+      {section === 'other' && <OtherUsersTab userProfile={userProfile} roleCounts={roleCounts} />}
+    </>
+  );
+};
+
+// Every non-admin, non-staff, non-third-party-staff user — the roles Staff
+// Management's tabs don't cover. Delete only; archive's "can't log in"
+// semantics were written for staff accounts and haven't been reviewed here.
+const OtherUsersTab = ({ userProfile, roleCounts }) => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastDoc, setLastDoc] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
+  const [actionLoading, setActionLoading] = useState(false);
+  const usersPerPage = 10;
+
+  const otherTotal = Math.max(
+    0,
+    (roleCounts.total || 0) - (roleCounts.staff || 0) - (roleCounts.thirdpartystaff || 0),
+  );
+
+  const loadUsers = async (cursor = null, page = 1) => {
+    try {
+      setLoading(true);
+      const { users: fetched, lastDoc: lastVisible, hasMore: more } =
+        await firestoreService.getUsersPaginated(usersPerPage, cursor);
+      const filtered = fetched.filter((u) => !STAFF_TAB_ROLES.includes(u.role));
+      setUsers(filtered);
+      setLastDoc(lastVisible);
+      setHasMore(more);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Failed to load other users:', error);
+      toast.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const handleNextPage = () => {
+    if (hasMore) loadUsers(lastDoc, currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) loadUsers(null, 1); // cursor pagination only supports forward — reload from start
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteModal.user) return;
+
+    try {
+      setActionLoading(true);
+      await firestoreService.deleteUser(deleteModal.user.uid, userProfile.uid);
+      toast.success(`${deleteModal.user.displayName} has been deleted from the system`);
+      setDeleteModal({ isOpen: false, user: null });
+      loadUsers();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      toast.error(error.message || 'Failed to delete user');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-2xl font-bold text-gray-800">Other Users</h3>
+          <p className="text-gray-600 mt-1">
+            Clients, live operators, CCTV fault operators, and third-party accounts
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <p className="text-sm text-gray-500 mb-1">Total Other Users</p>
+        <p className="text-2xl font-bold text-gray-800">{otherTotal}</p>
+      </div>
+
+      <div className="bg-white rounded-xl shadow overflow-hidden">
         {loading ? (
           <div className="p-14 text-center">
             <span className="loading loading-spinner text-brand-500"></span>
           </div>
+        ) : users.length === 0 ? (
+          <div className="p-14 text-center text-gray-400">No other users found</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">
@@ -171,17 +195,12 @@ const AdminDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {users.map(user => (
+                {users.map((user) => (
                   <tr key={user.uid}>
                     <td>{user.displayName}</td>
                     <td>{user.email}</td>
                     <td>
-                      <span className={`badge ${
-                        user.role === 'admin' ? 'badge-error' :
-                        user.role === 'staff' ? 'badge-warning' : 'badge-info'
-                      }`}>
-                        {user.role}
-                      </span> 
+                      <span className="badge badge-info">{user.role}</span>
                     </td>
                     <td>{user.company || '-'}</td>
                     <td>
@@ -193,18 +212,7 @@ const AdminDashboard = () => {
                     </td>
                     <td>
                       <div className="flex items-center justify-center gap-2">
-                        {/* Only show promote button for staff users */}
-                        {/* {user.role === 'staff' && user.uid !== userProfile?.uid && (
-                          <button
-                            onClick={() => setPromoteModal({ isOpen: true, user })}
-                            className="btn btn-sm btn-info text-white"
-                            title="Promote to Admin"
-                          >
-                            <UserCog className="w-4 h-4" />
-                          </button>
-                        )} */}
-                        {/* Show delete button for non-admin users (staff and client) */}
-                        {user.role !== 'admin' && user.uid !== userProfile?.uid && (
+                        {user.uid !== userProfile?.uid ? (
                           <button
                             onClick={() => setDeleteModal({ isOpen: true, user })}
                             className="btn btn-sm btn-error text-white"
@@ -212,9 +220,7 @@ const AdminDashboard = () => {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                        )}
-                        {/* Show nothing if it's current user or admin */}
-                        {(user.uid === userProfile?.uid || (user.role === 'admin' && user.uid !== userProfile?.uid)) && (
+                        ) : (
                           <span className="text-xs text-gray-400">-</span>
                         )}
                       </div>
@@ -226,12 +232,9 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Pagination Controls */}
         {!loading && users.length > 0 && (
           <div className="p-4 mt-6 border-t border-gray-300 flex justify-between items-center">
-            <div className="text-sm text-gray-600">
-              Showing page {currentPage} of {totalPages} ({totalUsers} total users)
-            </div>
+            <div className="text-sm text-gray-600">Page {currentPage}</div>
             <div className="flex gap-2">
               <button
                 onClick={handlePrevPage}
@@ -260,48 +263,6 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* Promote to Admin Modal */}
-      {promoteModal.isOpen && (
-        <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg mb-4">Promote to Admin</h3>
-            <p className="py-4">
-              Are you sure you want to promote <strong>{promoteModal.user?.displayName}</strong> to admin?
-            </p>
-            <p className="text-sm text-gray-500 mb-4">
-              This user will have full administrative privileges including managing users, access codes, and scheme assignments.
-            </p>
-            <div className="modal-action">
-              <button
-                onClick={() => setPromoteModal({ isOpen: false, user: null })}
-                className="btn"
-                disabled={actionLoading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePromoteToAdmin}
-                className="btn btn-info text-white"
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <>
-                    <span className="loading loading-spinner loading-sm"></span>
-                    Promoting...
-                  </>
-                ) : (
-                  <>
-                    <UserCog className="w-4 h-4" />
-                    Promote to Admin
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete User Modal */}
       {deleteModal.isOpen && (
         <div className="modal modal-open">
           <div className="modal-box">
@@ -346,6 +307,54 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const AdminDashboard = () => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [roleCounts, setRoleCounts] = useState({ total: 0, staff: 0, client: 0, thirdpartystaff: 0 });
+  const { userProfile } = useAuth();
+
+  useEffect(() => {
+    loadRoleCounts();
+  }, []);
+
+  const loadRoleCounts = async () => {
+    try {
+      const counts = await firestoreService.getUsersCountByRole();
+      setRoleCounts(counts);
+    } catch (error) {
+      console.warn('Could not load role counts:', error);
+    }
+  };
+
+  return (
+    <div>
+      {/* Tab bar */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex gap-1">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${
+                activeTab === key
+                  ? 'border-teal-500 text-teal-600 bg-teal-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {activeTab === 'overview' && (
+        <OverviewTab userProfile={userProfile} roleCounts={roleCounts} />
+      )}
+      {activeTab === 'logs' && <LoginLogs />}
     </div>
   );
 };

@@ -7,6 +7,8 @@ const nodemailer = require("nodemailer");
 const PDFDocument = require("pdfkit");
 const {
   INCIDENT_ALERT_RECIPIENTS,
+  AVERA_REPORT_SCHEMES,
+  AVERA_REPORT_RECIPIENT,
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
@@ -333,8 +335,11 @@ exports.sendIncidentAlertNotification = onCall(
       reportData.incursionToGainAdvantage === "YES";
     const hasAssetDamage = reportData.propertyDamage === true;
     const incursionEscalated = hasIncursion && hasIncursionToGainAdvantage;
+    const scheme = reportData.scheme || "Unknown Scheme";
+    const averaTrigger =
+      reportData.reportedBy === "Avera" && AVERA_REPORT_SCHEMES.includes(scheme);
 
-    if (!incursionEscalated && !hasAssetDamage) {
+    if (!incursionEscalated && !hasAssetDamage && !averaTrigger) {
       return {
         success: true,
         message: "No alert triggers present",
@@ -345,21 +350,10 @@ exports.sendIncidentAlertNotification = onCall(
     const triggers = [];
     if (incursionEscalated) triggers.push("Incursion", "Incursion to Gain Advantage");
     if (hasAssetDamage) triggers.push("Asset Damage");
+    if (averaTrigger) triggers.push("Avera Report");
     const triggerLabel = triggers.join(" & ");
 
-    const scheme = reportData.scheme || "Unknown Scheme";
-    const recipients = getRecipientsForScheme(scheme);
-
-    if (recipients.length === 0) {
-      console.log(`No recipients configured for scheme: ${scheme}`);
-      return {
-        success: true,
-        message: "No recipients configured for this scheme",
-        emailsSent: 0,
-      };
-    }
-
-    // Generate PDF attachment
+    // Generate the PDF once — shared by both trigger blocks below.
     const pdfBuffer = await generateIncidentPDF({
       ...reportData,
       submittedBy: reportData.submittedBy || request.auth.token?.name || "N/A",
@@ -377,13 +371,31 @@ exports.sendIncidentAlertNotification = onCall(
       ? `${BASE_URL}/dashboard/client/reports/incident/${reportData.id}`
       : null;
 
-    const subject = `${isUpdate ? "[UPDATED] " : ""}ALERT: ${triggerLabel} — ${scheme} — ${reportData.referenceId || "New Report"}`;
+    const pdfFilename = `incident-report-${reportData.referenceId || Date.now()}.pdf`;
 
-    const htmlContent = `
+    let alertRecipients = [];
+    let alertEmailsSent = 0;
+    const alertTriggerLabel = [
+      incursionEscalated ? "Incursion & Incursion to Gain Advantage" : null,
+      hasAssetDamage ? "Asset Damage" : null,
+    ]
+      .filter(Boolean)
+      .join(" & ");
+
+    // Block A — existing incursion / asset-damage alert to scheme recipients.
+    if (incursionEscalated || hasAssetDamage) {
+      alertRecipients = getRecipientsForScheme(scheme);
+
+      if (alertRecipients.length === 0) {
+        console.log(`No recipients configured for scheme: ${scheme}`);
+      } else {
+        const subject = `${isUpdate ? "[UPDATED] " : ""}ALERT: ${alertTriggerLabel} — ${scheme} — ${reportData.referenceId || "New Report"}`;
+
+        const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
           <h1 style="margin: 0;">Incident Alert</h1>
-          <p style="margin: 5px 0 0 0; font-size: 16px;">${triggerLabel} Reported</p>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">${alertTriggerLabel} Reported</p>
         </div>
 
         <div style="padding: 20px; background-color: #f9fafb;">
@@ -468,15 +480,108 @@ exports.sendIncidentAlertNotification = onCall(
       </div>
     `;
 
-    const pdfFilename = `incident-report-${reportData.referenceId || Date.now()}.pdf`;
+        const emailPromises = alertRecipients.map((recipient) =>
+          transporter
+            .sendMail({
+              from: SMTP_SENDER,
+              to: recipient,
+              subject,
+              html: htmlContent,
+              attachments: [
+                {
+                  filename: pdfFilename,
+                  content: pdfBuffer,
+                  contentType: "application/pdf",
+                },
+              ],
+            })
+            .then(() => {
+              console.log(`Incident alert sent to ${recipient} (${scheme})`);
+            })
+            .catch((err) => {
+              console.error(`Failed to send incident alert to ${recipient}:`, err);
+            }),
+        );
 
-    const emailPromises = recipients.map((recipient) =>
-      transporter
-        .sendMail({
+        await Promise.all(emailPromises);
+        alertEmailsSent = alertRecipients.length;
+      }
+    }
+
+    // Block B — dedicated "Avera" report email, independent of the alert above.
+    let averaEmailsSent = 0;
+    if (averaTrigger) {
+      const averaSubject = `${isUpdate ? "[UPDATED] " : ""}Incident Report (Reported by Avera) — ${scheme} — ${reportData.referenceId || "New Report"}`;
+
+      const averaHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">New Incident Report</h1>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">Reported by Avera — ${scheme}</p>
+        </div>
+
+        <div style="padding: 20px; background-color: #f9fafb;">
+          <h2 style="color: #374151; border-bottom: 2px solid #00BAA8; padding-bottom: 10px;">
+            Incident Details
+          </h2>
+
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
+              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Marker Post:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.markerPost || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Type:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.incidentType || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy || "N/A"}</td>
+            </tr>
+          </table>
+
+          ${reportLink ? `
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${reportLink}"
+               style="background-color: #00BAA8; color: white; padding: 12px 28px;
+                      text-decoration: none; border-radius: 6px; font-weight: bold;
+                      font-size: 14px; display: inline-block;">
+              View Full Report
+            </a>
+            <p style="margin-top: 8px; color: #6b7280; font-size: 12px;">
+              You may need to log in to view the report.
+            </p>
+          </div>` : ""}
+
+          <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">
+            The full incident report is attached as a PDF.
+          </p>
+        </div>
+
+        <div style="background-color: #374151; color: white; padding: 15px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">This is an automated notification from LENSE by Chellan</p>
+        </div>
+      </div>
+    `;
+
+      try {
+        await transporter.sendMail({
           from: SMTP_SENDER,
-          to: recipient,
-          subject,
-          html: htmlContent,
+          to: AVERA_REPORT_RECIPIENT,
+          subject: averaSubject,
+          html: averaHtml,
           attachments: [
             {
               filename: pdfFilename,
@@ -484,16 +589,13 @@ exports.sendIncidentAlertNotification = onCall(
               contentType: "application/pdf",
             },
           ],
-        })
-        .then(() => {
-          console.log(`Incident alert sent to ${recipient} (${scheme})`);
-        })
-        .catch((err) => {
-          console.error(`Failed to send incident alert to ${recipient}:`, err);
-        }),
-    );
-
-    await Promise.all(emailPromises);
+        });
+        averaEmailsSent = 1;
+        console.log(`Avera report email sent to ${AVERA_REPORT_RECIPIENT} (${scheme})`);
+      } catch (err) {
+        console.error("Failed to send Avera report email:", err);
+      }
+    }
 
     await admin
       .firestore()
@@ -504,7 +606,10 @@ exports.sendIncidentAlertNotification = onCall(
         referenceId: reportData.referenceId || null,
         scheme,
         triggers,
-        recipients,
+        recipients: [
+          ...alertRecipients,
+          ...(averaEmailsSent > 0 ? [AVERA_REPORT_RECIPIENT] : []),
+        ],
         isUpdate: isUpdate || false,
         sentBy: request.auth.uid,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
@@ -513,7 +618,7 @@ exports.sendIncidentAlertNotification = onCall(
     return {
       success: true,
       message: `Incident alert sent for: ${triggerLabel}`,
-      emailsSent: recipients.length,
+      emailsSent: alertEmailsSent + averaEmailsSent,
     };
   },
 );

@@ -8,7 +8,6 @@ import {
   FolderKanban,
   FileText,
   BarChart3,
-  Users,
   LogOut,
   HelpCircle,
   PanelLeftClose,
@@ -63,11 +62,6 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Assign Schemes",
       path: "/dashboard/admin/scheme-assignment",
       icon: FolderKanban,
-    },
-    {
-      name: "Staff Management",
-      path: "/dashboard/admin/staff-management",
-      icon: Users,
     },
     {
       name: "Staff Rota",

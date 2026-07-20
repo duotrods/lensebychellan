@@ -48,7 +48,6 @@
   const BackfillCctvSchemeIdsPage = lazy(() => import("./pages/admin/BackfillCctvSchemeIdsPage"));
   const ReferenceIdManagerPage = lazy(() => import("./pages/admin/ReferenceIdManagerPage"));
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
-  const StaffManagementPage = lazy(() => import("./pages/admin/StaffManagementPage"));
   const AdminRotaPage = lazy(() => import("./pages/admin/AdminRotaPage"));
   const StaffReportsPage = lazy(() => import("./pages/admin/StaffReportsPage"));
   const AdminDocumentsPage = lazy(() => import("./pages/admin/AdminDocumentsPage"));
@@ -195,13 +194,10 @@
                   }
                 />
 
+                {/* Staff Management is now a tab on the Admin Dashboard — redirect old bookmarks. */}
                 <Route
                   path="/dashboard/admin/staff-management"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <StaffManagementPage />
-                    </ProtectedRoute>
-                  }
+                  element={<Navigate to="/dashboard/admin" replace />}
                 />
 
                 <Route

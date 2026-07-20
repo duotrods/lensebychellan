@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
-import { RefreshCw, User, Archive, ArchiveRestore, Mail, Shield, ChevronLeft, ChevronRight, Building2, Handshake } from "lucide-react";
+import { RefreshCw, User, Archive, ArchiveRestore, Mail, Shield, ChevronLeft, ChevronRight, Building2, Handshake, Trash2 } from "lucide-react";
 
 const ROLE_TABS = [
   { key: "staff", label: "Internal Staff", icon: Building2 },
@@ -17,6 +17,8 @@ const StaffManagement = () => {
   const [roleTab, setRoleTab] = useState("staff");
   const [filterStatus, setFilterStatus] = useState("all"); // all, active, archived
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Cursor for each page, per role tab: cursors[role][i] is the lastDoc needed
   // to fetch page i + 1. cursors[role][0] is always null (start of the list).
@@ -92,6 +94,24 @@ const StaffManagement = () => {
     } catch (error) {
       console.error('Failed to unarchive user:', error);
       toast.error(error.message || "Failed to unarchive user");
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteModal.user) return;
+
+    try {
+      setActionLoading(true);
+      await firestoreService.deleteUser(deleteModal.user.uid, userProfile.uid);
+      toast.success(`${deleteModal.user.displayName} has been deleted from the system`);
+      setDeleteModal({ isOpen: false, user: null });
+      usersQuery.refetch();
+      countsQuery.refetch();
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      toast.error(error.message || 'Failed to delete user');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -336,6 +356,17 @@ const StaffManagement = () => {
                             Archive
                           </button>
                         )}
+                        {user.uid !== userProfile.uid && (
+                          <button
+                            onClick={() => setDeleteModal({ isOpen: true, user })}
+                            disabled={loading}
+                            className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors disabled:opacity-50"
+                            title="Delete user"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -373,6 +404,52 @@ const StaffManagement = () => {
           </div>
         )}
       </div>
+
+      {/* Delete User Modal */}
+      {deleteModal.isOpen && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4 text-red-600">Delete User</h3>
+            <p className="py-4">
+              Are you sure you want to delete <strong>{deleteModal.user?.displayName}</strong>?
+            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-800 font-semibold mb-2">⚠️ Warning: This action cannot be undone!</p>
+              <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                <li>User account will be permanently deleted</li>
+                <li>All user data will be removed from the system</li>
+                <li>User will lose access immediately</li>
+              </ul>
+            </div>
+            <div className="modal-action">
+              <button
+                onClick={() => setDeleteModal({ isOpen: false, user: null })}
+                className="btn"
+                disabled={actionLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                className="btn btn-error text-white"
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete User
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

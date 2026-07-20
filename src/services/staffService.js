@@ -1038,6 +1038,65 @@ class StaffService {
     }
   }
 
+  /**
+   * Server-side cursor-paginated document listing, scoped by an optional
+   * category/scheme filter. Only fetches one page at a time (cost savings vs.
+   * the flat getDocuments() fetch) — the caller is expected to cache pages.
+   */
+  async getDocumentsPaginated(
+    pageSize = 10,
+    cursor = null,
+    { category = null, schemeId = null } = {},
+  ) {
+    try {
+      const documentsRef = collection(db, "documents");
+      const constraints = [];
+      if (category) constraints.push(where("category", "==", category));
+      if (schemeId)
+        constraints.push(where("schemeIds", "array-contains", schemeId));
+      constraints.push(orderBy("uploadedAt", "desc"));
+      if (cursor) constraints.push(startAfter(cursor));
+      constraints.push(limit(pageSize));
+
+      const snapshot = await getDocs(query(documentsRef, ...constraints));
+      const documents = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((d) => d.deleted !== true);
+
+      return {
+        documents,
+        cursor: snapshot.docs[snapshot.docs.length - 1] || null,
+        hasMore: snapshot.docs.length === pageSize,
+      };
+    } catch (error) {
+      console.error("Failed to get paginated documents:", error);
+      return { documents: [], cursor: null, hasMore: false };
+    }
+  }
+
+  /**
+   * Count documents matching an optional category/scheme filter, via a
+   * server-side aggregation (1 read regardless of collection size).
+   */
+  async getDocumentsCount({ category = null, schemeId = null } = {}) {
+    try {
+      const documentsRef = collection(db, "documents");
+      const constraints = [];
+      if (category) constraints.push(where("category", "==", category));
+      if (schemeId)
+        constraints.push(where("schemeIds", "array-contains", schemeId));
+      const q =
+        constraints.length > 0
+          ? query(documentsRef, ...constraints)
+          : documentsRef;
+      const snapshot = await getCountFromServer(q);
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn("Could not get documents count:", error);
+      return 0;
+    }
+  }
+
   // ============================================
   // ASSET DAMAGE REPORTS
   // ============================================
