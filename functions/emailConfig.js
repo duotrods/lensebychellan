@@ -17,6 +17,7 @@ const INCIDENT_ALERT_RECIPIENTS = {
   "A452 HS2 - Traffix": ["david@chellan.co.uk, wayne@chellan.co.uk"],
   "Gallows Corner - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
   "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
+  "A66 - WJ Scheme 1": ["Jonathan.Pettman@balfourbeatty.com, lee.mason@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"],
   default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
 };
 
@@ -27,6 +28,7 @@ const INCIDENT_ALERT_RECIPIENTS = {
 //   "A452 HS2 - Traffix": ["duotrodolinor@gmail.com, rroduot@gmail.com"],
 //   "Gallows Corner - Costain": ["rroduot@gmail.com"],
 //   "Simister Island - Costain": ["rroduot@gmail.com"],
+//   "A66 - WJ Scheme 1": ["rroduot@gmail.com"],
 //   default: ["duotrodolinor@gmail.com, rroduot@gmail.com"],
 // };
 
