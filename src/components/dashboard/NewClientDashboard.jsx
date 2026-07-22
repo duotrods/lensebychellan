@@ -337,6 +337,12 @@
           { name: "Incursions", Number: stats?.incursions || 0 },
           { name: "Incursion to Gain Advantage", Number: (stats?.incursionToGainAdvantage || 0)},
         ],
+        incursionToGainAdvantageData: [
+          {
+            name: "Incursion to Gain Advantage",
+            Number: stats?.incursionToGainAdvantage || 0,
+          },
+        ],
       }),
       [stats],
     );
@@ -387,8 +393,7 @@
             if (label === "6-10") return m >= 6 && m <= 10;
             if (label === "11-15") return m >= 11 && m <= 15;
             if (label === "16-20") return m >= 16 && m <= 20;
-            if (label === "20-30") return m >= 20 && m <= 30;
-            if (label === "30+") return m > 30;
+            if (label === "20+") return m > 20;
             return false;
           });
         } else if (chartType === "incursions")
@@ -1153,12 +1158,25 @@
               <ChartCard
                 title="Incursions"
                 data={incursionsData}
-                onSliceClick={(label) => handleBarClick("incursions", label)}
+                onSliceClick={(label) =>
+                  handleBarClick(
+                    label === "Incursion to Gain Advantage"
+                      ? "incursionToGainAdvantage"
+                      : "incursions",
+                    label,
+                  )
+                }
               >
                 <BarChart
                   data={incursionsData}
                   onClick={(d) =>
-                    d?.activeLabel && handleBarClick("incursions", d.activeLabel)
+                    d?.activeLabel &&
+                    handleBarClick(
+                      d.activeLabel === "Incursion to Gain Advantage"
+                        ? "incursionToGainAdvantage"
+                        : "incursions",
+                      d.activeLabel,
+                    )
                   }
                   style={{ cursor: "pointer" }}
                 >
