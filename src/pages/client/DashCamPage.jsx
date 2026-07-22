@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
+import { staffService } from "../../services/staffService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
+import FootageUploadDrawer from "../../components/client/FootageUploadDrawer";
 import {
   Download,
   Video,
@@ -12,7 +14,9 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  Upload,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { formatFileSize, formatDocumentDate } from "../../utils/documents";
 import { getActiveSchemeName } from "../../utils/schemes";
 
@@ -28,29 +32,40 @@ const DashCamPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hoveredId, setHoveredId] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const loadVideos = useCallback(async () => {
+    if (!schemeId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      const results = await clientDataService.getDashCamVideos(schemeId);
+      setVideos(results);
+    } catch (error) {
+      console.error("Failed to load dash cam videos:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [schemeId]);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      if (!schemeId) {
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        const results = await clientDataService.getDashCamVideos(schemeId);
-        if (!cancelled) setVideos(results);
-      } catch (error) {
-        console.error("Failed to load dash cam videos:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [schemeId]);
+    loadVideos();
+  }, [loadVideos]);
+
+  const handleDelete = async (video) => {
+    if (!confirm("Delete this upload?")) return;
+    try {
+      await staffService.deleteDashCamUpload(video.id);
+      toast.success("Upload deleted");
+      setSelectedVideo(null);
+      loadVideos();
+    } catch (error) {
+      console.error("Failed to delete dash cam upload:", error);
+      toast.error("Failed to delete upload");
+    }
+  };
 
   const filtered = videos.filter((video) => {
     const haystack = `${video.staffName || ""} ${video.date || ""}`.toLowerCase();
@@ -67,14 +82,23 @@ const DashCamPage = () => {
     <ClientSidebarLayout>
       <div className="max-w-[1600px] mx-auto px-4">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Dash Cam</h1>
-          <p className="text-gray-600 mt-2">
-            Dash cam footage uploaded by staff for{" "}
-            <span className="font-semibold text-brand-400">
-              {getActiveSchemeName(userProfile)}
-            </span>
-          </p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Dash Cam</h1>
+            <p className="text-gray-600 mt-2">
+              Dash cam footage for{" "}
+              <span className="font-semibold text-brand-400">
+                {getActiveSchemeName(userProfile)}
+              </span>
+            </p>
+          </div>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors shrink-0"
+          >
+            <Upload className="w-4 h-4" />
+            Upload footage
+          </button>
         </div>
 
         {/* Search */}
@@ -151,12 +175,19 @@ const DashCamPage = () => {
 
                       {/* Info */}
                       <div className="p-4">
-                        <h3
-                          className="font-bold text-lg text-gray-800 mb-2 truncate"
-                          title={video.fileName}
-                        >
-                          {video.fileName}
-                        </h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3
+                            className="font-bold text-lg text-gray-800 truncate"
+                            title={video.fileName}
+                          >
+                            {video.fileName}
+                          </h3>
+                          {video.uploadedByRole === "client" && (
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 shrink-0">
+                              Client upload
+                            </span>
+                          )}
+                        </div>
 
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -327,6 +358,13 @@ const DashCamPage = () => {
           </div>
         </div>
       )}
+
+      <FootageUploadDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        type="dashCam"
+        onUploaded={loadVideos}
+      />
     </ClientSidebarLayout>
   );
 };

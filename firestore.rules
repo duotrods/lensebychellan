@@ -41,6 +41,15 @@ service cloud.firestore {
       return userSchemes != null && docSchemeId != null && docSchemeId in userSchemes;
     }
 
+    // Helper: write-time check that every scheme on an incoming doc is one
+    // the writing user actually belongs to. Stricter than hasSchemeAccess
+    // (hasAny, used for reads) — used to stop a client from writing content
+    // tagged to a scheme they don't belong to.
+    function hasSchemeOwnership(docSchemeIds) {
+      let userSchemes = getUserSchemes();
+      return userSchemes != null && docSchemeIds != null && userSchemes.hasAll(docSchemeIds);
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isSignedIn() && (
@@ -328,7 +337,16 @@ service cloud.firestore {
 
     // Body Cam Uploads (internal staff/client only — no third-party access)
     match /bodyCamUploads/{uploadId} {
-      allow create: if isVerified() && getUserRole() == 'staff';
+      allow create: if isVerified() && (
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' &&
+          request.resource.data.uploadedBy.userId == request.auth.uid &&
+          (
+            hasSchemeOwnership(request.resource.data.schemeIds) ||
+            hasOldSchemeAccess(request.resource.data.schemeId)
+          )
+        )
+      );
 
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
@@ -345,14 +363,31 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isVerified() && (
+      allow update: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'admin' ||
+        (getUserRole() == 'client' &&
+          resource.data.uploadedBy.userId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt'])
+        )
+      );
+
+      allow delete: if isVerified() && (
         getUserRole() == 'staff' || getUserRole() == 'admin'
       );
     }
 
     // Dash Cam Uploads (internal staff/client only — no third-party access)
     match /dashCamUploads/{uploadId} {
-      allow create: if isVerified() && getUserRole() == 'staff';
+      allow create: if isVerified() && (
+        getUserRole() == 'staff' ||
+        (getUserRole() == 'client' &&
+          request.resource.data.uploadedBy.userId == request.auth.uid &&
+          (
+            hasSchemeOwnership(request.resource.data.schemeIds) ||
+            hasOldSchemeAccess(request.resource.data.schemeId)
+          )
+        )
+      );
 
       allow get: if isVerified() && (
         getUserRole() == 'admin' ||
@@ -369,7 +404,15 @@ service cloud.firestore {
         getUserRole() == 'client'
       );
 
-      allow update, delete: if isVerified() && (
+      allow update: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'admin' ||
+        (getUserRole() == 'client' &&
+          resource.data.uploadedBy.userId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt'])
+        )
+      );
+
+      allow delete: if isVerified() && (
         getUserRole() == 'staff' || getUserRole() == 'admin'
       );
     }
@@ -377,7 +420,14 @@ service cloud.firestore {
     // Documents (staff share files / live links with clients, scheme-scoped)
     match /documents/{documentId} {
       allow create: if isVerified() && (
-        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff'
+        getUserRole() == 'staff' || getUserRole() == 'thirdpartystaff' ||
+        (getUserRole() == 'client' &&
+          request.resource.data.uploadedBy.userId == request.auth.uid &&
+          (
+            hasSchemeOwnership(request.resource.data.schemeIds) ||
+            hasOldSchemeAccess(request.resource.data.schemeId)
+          )
+        )
       );
 
       allow get: if isVerified() && (
@@ -398,7 +448,15 @@ service cloud.firestore {
         getUserRole() == 'thirdpartyclient'
       );
 
-      allow update, delete: if isVerified() && (
+      allow update: if isVerified() && (
+        getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff' ||
+        (getUserRole() == 'client' &&
+          resource.data.uploadedBy.userId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt'])
+        )
+      );
+
+      allow delete: if isVerified() && (
         getUserRole() == 'staff' || getUserRole() == 'admin' || getUserRole() == 'thirdpartystaff'
       );
     }

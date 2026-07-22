@@ -192,6 +192,7 @@ export const getViewerSchemeScope = (userProfile) => {
 // - Demo users: only the demo scheme
 // - TP Staff/LiveOp/CCTVOp: all schemes belonging to their company (via userProfile.company)
 // - TP Client: only their assigned schemeIds array (admin-assigned)
+// - Client: only their assigned schemeIds array (admin-assigned)
 // - Internal staff: all non-demo schemes
 export const getSchemesForUser = (userProfile) => {
   if (!userProfile) return [];
@@ -214,6 +215,12 @@ export const getSchemesForUser = (userProfile) => {
       userProfile.schemeIds ||
       (userProfile.schemeId ? [userProfile.schemeId] : []);
     return THIRD_PARTY_SCHEMES.filter((s) => assignedIds.includes(s.id));
+  }
+  if (userProfile.role === "client") {
+    const assignedIds =
+      userProfile.schemeIds ||
+      (userProfile.schemeId ? [userProfile.schemeId] : []);
+    return SCHEMES.filter((s) => assignedIds.includes(s.id));
   }
   return SCHEMES.filter((s) => !s.isDemo);
 };

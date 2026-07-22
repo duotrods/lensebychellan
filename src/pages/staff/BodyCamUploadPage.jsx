@@ -1,20 +1,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { uploadFileToR2 } from "../../utils/r2Upload";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { Upload, Video, X, Eye } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { isDemoUser, DEMO_SCHEME_ID, getSchemesForUser, extractSchemeId } from "../../utils/schemes";
-
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: import.meta.env.VITE_R2_ENDPOINT,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-  },
-});
 
 const BodyCamUploadPage = () => {
   const { userProfile } = useAuth();
@@ -145,28 +136,20 @@ const BodyCamUploadPage = () => {
     setUploadingFile(true);
 
     try {
-      const key = `bodycam-uploads/${userProfile.uid}/${Date.now()}_${selectedFile.name}`;
-      const arrayBuffer = await selectedFile.arrayBuffer();
-
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: import.meta.env.VITE_R2_BUCKET,
-          Key: key,
-          Body: new Uint8Array(arrayBuffer),
-          ContentType: selectedFile.type,
-        }),
+      const { key, downloadUrl } = await uploadFileToR2(
+        selectedFile,
+        "bodycam-uploads",
+        userProfile.uid,
       );
 
       setUploadProgress(100);
-
-      const publicUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${key}`;
 
       await staffService.submitBodyCamUpload(
         {
           ...uploadForm,
           fileName: selectedFile.name,
           fileUrl: key,
-          downloadUrl: publicUrl,
+          downloadUrl,
           fileSize: selectedFile.size,
           fileType: selectedFile.type,
         },

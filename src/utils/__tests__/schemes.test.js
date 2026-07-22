@@ -4,6 +4,7 @@ import {
   isDemoUser,
   isDemoScheme,
   getThirdPartySchemeById,
+  getSchemesForUser,
   DEMO_SCHEME_ID,
 } from "../schemes";
 
@@ -48,5 +49,25 @@ describe("isDemoScheme / getThirdPartySchemeById", () => {
     expect(getThirdPartySchemeById("CO2")).toMatchObject({ id: "CO2" });
     expect(getThirdPartySchemeById("A417")).toBeNull();
     expect(getThirdPartySchemeById(null)).toBeNull();
+  });
+});
+
+describe("getSchemesForUser", () => {
+  it("restricts a client to only their own assigned schemes", () => {
+    const result = getSchemesForUser({
+      role: "client",
+      schemeIds: ["A417", "M3"],
+    });
+    expect(result.map((s) => s.id).sort()).toEqual(["A417", "M3"]);
+  });
+
+  it("falls back to legacy schemeId for a client with no schemeIds array", () => {
+    const result = getSchemesForUser({ role: "client", schemeId: "A47" });
+    expect(result.map((s) => s.id)).toEqual(["A47"]);
+  });
+
+  it("does not leak schemes a client isn't assigned to", () => {
+    const result = getSchemesForUser({ role: "client", schemeIds: ["A417"] });
+    expect(result.some((s) => s.id === "M3")).toBe(false);
   });
 });
