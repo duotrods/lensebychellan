@@ -393,7 +393,8 @@
             if (label === "6-10") return m >= 6 && m <= 10;
             if (label === "11-15") return m >= 11 && m <= 15;
             if (label === "16-20") return m >= 16 && m <= 20;
-            if (label === "20+") return m > 20;
+            if (label === "21-30") return m >= 21 && m <= 30;
+            if (label === "30+") return m > 30;
             return false;
           });
         } else if (chartType === "incursions")

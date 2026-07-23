@@ -266,7 +266,7 @@ const ClientChartsPage = () => {
 
   const getTimeToSiteData = () => {
     const incidents = getIncidentReports();
-    const timeBuckets = { '0-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '20+': 0 };
+    const timeBuckets = { '0-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '21-30': 0, '30+': 0 };
     incidents.forEach(report => {
       if (report.timeSpottedToOn) {
         const match = report.timeSpottedToOn.match(/(\d+)/);
@@ -276,7 +276,8 @@ const ClientChartsPage = () => {
           else if (mins <= 10) timeBuckets['6-10']++;
           else if (mins <= 15) timeBuckets['11-15']++;
           else if (mins <= 20) timeBuckets['16-20']++;
-          else timeBuckets['20+']++;
+          else if (mins <= 30) timeBuckets['21-30']++;
+          else timeBuckets['30+']++;
         }
       }
     });

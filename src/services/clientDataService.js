@@ -1027,7 +1027,7 @@ class ClientDataService {
     const isTimeToSite = field === "timeSpottedToOn";
 
     const ranges = isTimeToSite
-      ? { "0-5": 0, "6-10": 0, "11-15": 0, "16-20": 0, "20+": 0 }
+      ? { "0-5": 0, "6-10": 0, "11-15": 0, "16-20": 0, "21-30": 0, "30+": 0 }
       : { "0-15": 0, "16-30": 0, "31-45": 0, "46-60": 0, "60+": 0 };
 
     data.forEach((item) => {
@@ -1045,7 +1045,8 @@ class ClientDataService {
             else if (mins <= 10) ranges["6-10"]++;
             else if (mins <= 15) ranges["11-15"]++;
             else if (mins <= 20) ranges["16-20"]++;
-            else ranges["20+"]++;
+            else if (mins <= 30) ranges["21-30"]++;
+            else ranges["30+"]++;
           } else {
             // Time to Recover buckets
             if (mins <= 15) ranges["0-15"]++;
