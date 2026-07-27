@@ -9,6 +9,7 @@ const {
   INCIDENT_ALERT_RECIPIENTS,
   AVERA_REPORT_SCHEMES,
   AVERA_REPORT_RECIPIENT,
+  LENSEASSIST_REPORT_RECIPIENT,
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
@@ -338,8 +339,9 @@ exports.sendIncidentAlertNotification = onCall(
     const scheme = reportData.scheme || "Unknown Scheme";
     const averaTrigger =
       reportData.reportedBy === "Avera" && AVERA_REPORT_SCHEMES.includes(scheme);
+    const lenseAssistTrigger = reportData.reportedBy === "Lense Assist";
 
-    if (!incursionEscalated && !hasAssetDamage && !averaTrigger) {
+    if (!incursionEscalated && !hasAssetDamage && !averaTrigger && !lenseAssistTrigger) {
       return {
         success: true,
         message: "No alert triggers present",
@@ -351,6 +353,7 @@ exports.sendIncidentAlertNotification = onCall(
     if (incursionEscalated) triggers.push("Incursion", "Incursion to Gain Advantage");
     if (hasAssetDamage) triggers.push("Asset Damage");
     if (averaTrigger) triggers.push("Avera Report");
+    if (lenseAssistTrigger) triggers.push("Lense Assist Report");
     const triggerLabel = triggers.join(" & ");
 
     // Generate the PDF once — shared by both trigger blocks below.
@@ -597,6 +600,95 @@ exports.sendIncidentAlertNotification = onCall(
       }
     }
 
+    // Block C — dedicated "Lense Assist" report email, independent of the blocks above.
+    let lenseAssistEmailsSent = 0;
+    if (lenseAssistTrigger) {
+      const lenseAssistSubject = `${isUpdate ? "[UPDATED] " : ""}Incident Report (Reported by Lense Assist) — ${scheme} — ${reportData.referenceId || "New Report"}`;
+
+      const lenseAssistHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">New Incident Report</h1>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">Reported by Lense Assist — ${scheme}</p>
+        </div>
+
+        <div style="padding: 20px; background-color: #f9fafb;">
+          <h2 style="color: #374151; border-bottom: 2px solid #00BAA8; padding-bottom: 10px;">
+            Incident Details
+          </h2>
+
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
+              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Marker Post:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.markerPost || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Type:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.incidentType || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy || "N/A"}</td>
+            </tr>
+          </table>
+
+          ${reportLink ? `
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${reportLink}"
+               style="background-color: #00BAA8; color: white; padding: 12px 28px;
+                      text-decoration: none; border-radius: 6px; font-weight: bold;
+                      font-size: 14px; display: inline-block;">
+              View Full Report
+            </a>
+            <p style="margin-top: 8px; color: #6b7280; font-size: 12px;">
+              You may need to log in to view the report.
+            </p>
+          </div>` : ""}
+
+          <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">
+            The full incident report is attached as a PDF.
+          </p>
+        </div>
+
+        <div style="background-color: #374151; color: white; padding: 15px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">This is an automated notification from LENSE by Chellan</p>
+        </div>
+      </div>
+    `;
+
+      try {
+        await transporter.sendMail({
+          from: SMTP_SENDER,
+          to: LENSEASSIST_REPORT_RECIPIENT,
+          subject: lenseAssistSubject,
+          html: lenseAssistHtml,
+          attachments: [
+            {
+              filename: pdfFilename,
+              content: pdfBuffer,
+              contentType: "application/pdf",
+            },
+          ],
+        });
+        lenseAssistEmailsSent = 1;
+        console.log(`Lense Assist report email sent to ${LENSEASSIST_REPORT_RECIPIENT} (${scheme})`);
+      } catch (err) {
+        console.error("Failed to send Lense Assist report email:", err);
+      }
+    }
+
     await admin
       .firestore()
       .collection("emailLogs")
@@ -609,6 +701,7 @@ exports.sendIncidentAlertNotification = onCall(
         recipients: [
           ...alertRecipients,
           ...(averaEmailsSent > 0 ? [AVERA_REPORT_RECIPIENT] : []),
+          ...(lenseAssistEmailsSent > 0 ? [LENSEASSIST_REPORT_RECIPIENT] : []),
         ],
         isUpdate: isUpdate || false,
         sentBy: request.auth.uid,
@@ -618,7 +711,7 @@ exports.sendIncidentAlertNotification = onCall(
     return {
       success: true,
       message: `Incident alert sent for: ${triggerLabel}`,
-      emailsSent: alertEmailsSent + averaEmailsSent,
+      emailsSent: alertEmailsSent + averaEmailsSent + lenseAssistEmailsSent,
     };
   },
 );
