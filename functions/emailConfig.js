@@ -42,7 +42,8 @@ const AVERA_REPORT_RECIPIENT = "jack.gander-compton@wjsuntone.com, david@chellan
 const LENSEASSIST_REPORT_RECIPIENT = "admin@chellan.co.uk";
 // const LENSEASSIST_REPORT_RECIPIENT = "rroduot@gmail.com";
 
-const WIDELOAD_REPORT_RECIPIENT = "rroduot@gmail.com";
+const WIDELOAD_REPORT_RECIPIENT = "david@chellan.co.uk";
+// const WIDELOAD_REPORT_RECIPIENT = "rroduot@gmail.com";
 const WIDELOAD_REPORT_SCHEMES = ["A66 - WJ Scheme 1"];
 
 // SMTP sender address
