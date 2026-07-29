@@ -23,7 +23,7 @@ import {
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import SchemeSwitcher from "../client/SchemeSwitcher";
-import { isDemoUser } from "../../utils/schemes";
+import { isDemoUser, getThirdPartySchemeById } from "../../utils/schemes";
 import { DASHBOARD_ROUTES, USER_ROLES } from "../../utils/constants";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 
@@ -70,6 +70,10 @@ const ComingSoonItem = ({ item, collapsed, showIcon = true, showName = false }) 
 const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const { userProfile, role } = useAuth();
   const basePath = basePathProp ?? DASHBOARD_ROUTES[role] ?? "/dashboard/client";
+  // Internal "client" accounts can be assigned a third-party scheme (e.g. A66) —
+  // Lense Assist should be hidden for that scheme regardless of the account's role.
+  const activeSchemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
+  const isThirdPartyActiveScheme = !!getThirdPartySchemeById(activeSchemeId);
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -165,7 +169,9 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: FolderOpen, emphasize: true }];
 
   const standaloneComingSoon =
-    role === USER_ROLES.THIRDPARTYCLIENT ? [] : [{ name: "Lense Assist", icon: Sparkles }];
+    role === USER_ROLES.THIRDPARTYCLIENT || isThirdPartyActiveScheme
+      ? []
+      : [{ name: "Lense Assist", icon: Sparkles }];
 
   const [expandedGroups, setExpandedGroups] = useState(() => {
     let persisted = {};
