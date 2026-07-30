@@ -63,3 +63,8 @@ CLAUDE.md
 /coverage-ssr-final-lcov.info
 /coverage-ssr-final-lcov-report
 /coverage-ssr-final-lcov-report/index.html
+
+# graphify knowledge graph (local-only, rebuilds via post-commit hook)
+graphify-out/
+
+/tasks
