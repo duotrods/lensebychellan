@@ -8,10 +8,15 @@ const functions = getFunctions();
 // manually — the frontend and functions/ are separate packages).
 const AVERA_REPORT_SCHEMES = ["Simister Island - Costain", "A66 - WJ Scheme 1"];
 
+// Schemes where a "Wideload" incident type triggers its own dedicated email.
+// Mirrors functions/emailConfig.js's WIDELOAD_REPORT_SCHEMES.
+const WIDELOAD_REPORT_SCHEMES = ["A66 - WJ Scheme 1"];
+
 /**
  * Send alert email when an incident report contains an escalated incursion
  * (incursion YES and incursion-to-gain-advantage YES), asset damage, was
- * reported by "Avera" on Simister Island / A66, or was reported by "Lense Assist".
+ * reported by "Avera" on Simister Island / A66, was reported by "Lense Assist",
+ * or is a "Wideload" incident type on A66.
  * Recipients are hardcoded server-side — no email addresses in the frontend.
  * @param {Object} reportData - The report data
  * @param {boolean} isUpdate - Whether this is an update to an existing report
@@ -24,8 +29,10 @@ export const sendIncidentAlertNotification = async (reportData, isUpdate = false
   const averaTrigger =
     reportData.reportedBy === "Avera" && AVERA_REPORT_SCHEMES.includes(reportData.scheme);
   const lenseAssistTrigger = reportData.reportedBy === "Lense Assist";
+  const wideloadTrigger =
+    reportData.incidentType === "Wideload" && WIDELOAD_REPORT_SCHEMES.includes(reportData.scheme);
 
-  if (!incursionEscalated && !hasAssetDamage && !averaTrigger && !lenseAssistTrigger) {
+  if (!incursionEscalated && !hasAssetDamage && !averaTrigger && !lenseAssistTrigger && !wideloadTrigger) {
     return { success: true, message: "No alert triggers present", emailsSent: 0 };
   }
 
