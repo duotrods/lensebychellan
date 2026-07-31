@@ -321,6 +321,42 @@ function getRecipientsForScheme(scheme) {
  */
 const INCIDENT_ALERT_ALLOWED_ROLES = ["staff", "thirdpartystaff", "admin"];
 
+// Caps how many times a single user can trigger sendIncidentAlertNotification
+// within a rolling window — bounds the damage from a compromised/careless
+// account or a runaway retry loop, independent of the role check above.
+const RATE_LIMIT_MAX_CALLS = 15;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+/**
+ * Throws HttpsError("resource-exhausted") if `uid` has already made
+ * RATE_LIMIT_MAX_CALLS calls within the current rolling window; otherwise
+ * records this call. Uses a transaction so concurrent calls from the same
+ * user can't both read a stale count and both slip through.
+ */
+async function checkRateLimit(uid) {
+  const rateLimitRef = admin.firestore().collection("rateLimits").doc(uid);
+  const now = Date.now();
+
+  await admin.firestore().runTransaction(async (transaction) => {
+    const doc = await transaction.get(rateLimitRef);
+    const data = doc.exists ? doc.data() : null;
+
+    if (!data || now - data.windowStart > RATE_LIMIT_WINDOW_MS) {
+      transaction.set(rateLimitRef, { windowStart: now, count: 1 });
+      return;
+    }
+
+    if (data.count >= RATE_LIMIT_MAX_CALLS) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Too many alert requests — please wait a few minutes and try again.",
+      );
+    }
+
+    transaction.update(rateLimitRef, { count: admin.firestore.FieldValue.increment(1) });
+  });
+}
+
 exports.sendIncidentAlertNotification = onCall(
   { secrets: [smtpPass] },
   async (request) => {
@@ -346,6 +382,8 @@ exports.sendIncidentAlertNotification = onCall(
         "Only staff can send incident alert notifications",
       );
     }
+
+    await checkRateLimit(request.auth.uid);
 
     const { reportData, isUpdate } = request.data;
 
