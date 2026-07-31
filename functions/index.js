@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 const { onCall, HttpsError, onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
@@ -12,6 +13,7 @@ const {
   LENSEASSIST_REPORT_RECIPIENT,
   WIDELOAD_REPORT_SCHEMES,
   WIDELOAD_REPORT_RECIPIENT,
+  CCTV_FAULT_ALERT_RECIPIENTS,
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
@@ -317,6 +319,44 @@ function getRecipientsForScheme(scheme) {
  * Includes a PDF attachment matching the frontend report layout. Recipients
  * are hardcoded per scheme, server-side only.
  */
+const INCIDENT_ALERT_ALLOWED_ROLES = ["staff", "thirdpartystaff", "admin"];
+
+// Caps how many times a single user can trigger sendIncidentAlertNotification
+// within a rolling window — bounds the damage from a compromised/careless
+// account or a runaway retry loop, independent of the role check above.
+const RATE_LIMIT_MAX_CALLS = 15;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+/**
+ * Throws HttpsError("resource-exhausted") if `uid` has already made
+ * RATE_LIMIT_MAX_CALLS calls within the current rolling window; otherwise
+ * records this call. Uses a transaction so concurrent calls from the same
+ * user can't both read a stale count and both slip through.
+ */
+async function checkRateLimit(uid) {
+  const rateLimitRef = admin.firestore().collection("rateLimits").doc(uid);
+  const now = Date.now();
+
+  await admin.firestore().runTransaction(async (transaction) => {
+    const doc = await transaction.get(rateLimitRef);
+    const data = doc.exists ? doc.data() : null;
+
+    if (!data || now - data.windowStart > RATE_LIMIT_WINDOW_MS) {
+      transaction.set(rateLimitRef, { windowStart: now, count: 1 });
+      return;
+    }
+
+    if (data.count >= RATE_LIMIT_MAX_CALLS) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Too many alert requests — please wait a few minutes and try again.",
+      );
+    }
+
+    transaction.update(rateLimitRef, { count: admin.firestore.FieldValue.increment(1) });
+  });
+}
+
 exports.sendIncidentAlertNotification = onCall(
   { secrets: [smtpPass] },
   async (request) => {
@@ -326,6 +366,24 @@ exports.sendIncidentAlertNotification = onCall(
         "User must be authenticated to send notifications",
       );
     }
+
+    const callerDoc = await admin
+      .firestore()
+      .collection("users")
+      .doc(request.auth.uid)
+      .get();
+
+    if (
+      !callerDoc.exists ||
+      !INCIDENT_ALERT_ALLOWED_ROLES.includes(callerDoc.data().role)
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only staff can send incident alert notifications",
+      );
+    }
+
+    await checkRateLimit(request.auth.uid);
 
     const { reportData, isUpdate } = request.data;
 
@@ -808,6 +866,148 @@ exports.sendIncidentAlertNotification = onCall(
       message: `Incident alert sent for: ${triggerLabel}`,
       emailsSent: alertEmailsSent + averaEmailsSent + lenseAssistEmailsSent + wideloadEmailsSent,
     };
+  },
+);
+
+/**
+ * Firestore trigger: fires when a new CCTV Faults report is created with
+ * blackspotCamera: true, and sends an alert email to the scheme's dedicated
+ * blackspot-alert recipients. Unlike sendIncidentAlertNotification (onCall),
+ * this is a Firestore trigger — there is no client-side pre-check to keep in
+ * sync, so the email cannot silently stop firing due to frontend/backend
+ * drift. Only fires on new document creation, not on later edits.
+ */
+exports.sendCCTVFaultBlackspotAlert = onDocumentCreated(
+  { document: "cctvFaultsReports/{reportId}", secrets: [smtpPass] },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.error("sendCCTVFaultBlackspotAlert: no document data in event");
+      return;
+    }
+
+    const reportData = snap.data();
+
+    if (reportData.blackspotCamera !== true) {
+      // Not a blackspot camera fault — nothing to do.
+      return;
+    }
+
+    const reportId = event.params.reportId;
+    const scheme = reportData.scheme || "Unknown Scheme";
+    const recipients =
+      CCTV_FAULT_ALERT_RECIPIENTS[scheme] ||
+      CCTV_FAULT_ALERT_RECIPIENTS["default"] ||
+      [];
+
+    if (recipients.length === 0) {
+      console.log(`No blackspot alert recipients configured for scheme: ${scheme}`);
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: SMTP_USER,
+        pass: smtpPass.value(),
+      },
+    });
+
+    const reportLink = `${BASE_URL}/dashboard/client/reports/cctv-faults/${reportId}`;
+    const subject = `ALERT: Blackspot Camera Fault — ${scheme} — ${reportData.referenceId || "New Report"}`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">CCTV Fault Alert</h1>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">Blackspot Camera Fault Reported — ${scheme}</p>
+        </div>
+
+        <div style="padding: 20px; background-color: #f9fafb;">
+          <h2 style="color: #374151; border-bottom: 2px solid #00BAA8; padding-bottom: 10px;">
+            Fault Details
+          </h2>
+
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
+              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Camera:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.camera || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Time:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.time || "N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">TSS Informed:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.tssInformed ? "Yes" : "No"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
+              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy?.name || "N/A"}</td>
+            </tr>
+          </table>
+
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${reportLink}"
+               style="background-color: #00BAA8; color: white; padding: 12px 28px;
+                      text-decoration: none; border-radius: 6px; font-weight: bold;
+                      font-size: 14px; display: inline-block;">
+              View Full Report
+            </a>
+            <p style="margin-top: 8px; color: #6b7280; font-size: 12px;">
+              You may need to log in to view the report.
+            </p>
+          </div>
+        </div>
+
+        <div style="background-color: #374151; color: white; padding: 15px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">This is an automated alert from LENSE by Chellan</p>
+        </div>
+      </div>
+    `;
+
+    const emailPromises = recipients.map((recipient) =>
+      transporter
+        .sendMail({
+          from: SMTP_SENDER,
+          to: recipient,
+          subject,
+          html: htmlContent,
+        })
+        .then(() => {
+          console.log(`Blackspot camera alert sent to ${recipient} (${scheme})`);
+        })
+        .catch((err) => {
+          console.error(`Failed to send blackspot camera alert to ${recipient}:`, err);
+        }),
+    );
+
+    await Promise.all(emailPromises);
+
+    await admin
+      .firestore()
+      .collection("emailLogs")
+      .add({
+        reportType: "cctv-fault-blackspot-alert",
+        reportId,
+        referenceId: reportData.referenceId || null,
+        scheme,
+        recipients,
+        sentBy: reportData.submittedBy?.userId || null,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
   },
 );
 
