@@ -76,6 +76,7 @@ const HoursPayTally = ({
                 <th className="text-right px-4 py-3 font-medium">Holiday days</th>
                 <th className="text-right px-4 py-3 font-medium">Sick days</th>
                 <th className="text-right px-4 py-3 font-medium">Total hrs worked</th>
+                <th className="text-right px-4 py-3 font-medium">Holiday premium (BH+Xmas)</th>
                 <th className="text-right px-5 py-3 font-medium">Weighted hrs (pay)</th>
               </tr>
             </thead>
@@ -89,6 +90,7 @@ const HoursPayTally = ({
                   <td className="px-4 py-3 text-right tabular-nums">{r.holidayDays}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.sickDays}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.totalHours)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.weightedHours - r.totalHours)}</td>
                   <td className="px-5 py-3 text-right tabular-nums font-bold text-teal-700">
                     {fmtNum(r.weightedHours)}
                   </td>
@@ -104,6 +106,9 @@ const HoursPayTally = ({
                 <td className="px-4 py-3 text-right tabular-nums">{sumRows(rows, "holidayDays")}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{sumRows(rows, "sickDays")}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{fmtNum(sumRows(rows, "totalHours"))}</td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {fmtNum(sumRows(rows, "weightedHours") - sumRows(rows, "totalHours"))}
+                </td>
                 <td className="px-5 py-3 text-right tabular-nums text-teal-700">
                   {fmtNum(sumRows(rows, "weightedHours"))}
                 </td>

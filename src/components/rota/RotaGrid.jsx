@@ -370,13 +370,25 @@ const RotaGrid = ({
                 const bh = bankHolidayFor(bankHolidays, dStr);
                 const counts = staffingCounts(dStr);
                 const isToday = isSameDay(d, today);
+                // Subtle full-row tint so a bank holiday / Christmas day is
+                // obvious at a glance, not just the small orange/rose label text.
+                const rowBgClass = isToday
+                  ? "bg-teal-50/60"
+                  : bh
+                    ? bh.type === "christmas"
+                      ? "bg-rose-50/70"
+                      : "bg-orange-50/70"
+                    : "";
+                const stickyBgClass = isToday
+                  ? "bg-teal-50"
+                  : bh
+                    ? bh.type === "christmas"
+                      ? "bg-rose-50"
+                      : "bg-orange-50"
+                    : "bg-white";
                 return (
-                  <tr key={dStr} className={isToday ? "bg-teal-50/60" : ""}>
-                    <td
-                      className={`sticky left-0 z-10 px-4 py-2 whitespace-nowrap ${
-                        isToday ? "bg-teal-50" : "bg-white"
-                      }`}
-                    >
+                  <tr key={dStr} className={rowBgClass}>
+                    <td className={`sticky left-0 z-10 px-4 py-2 whitespace-nowrap ${stickyBgClass}`}>
                       <div
                         className={`text-sm font-semibold ${
                           bh ? (bh.type === "christmas" ? "text-rose-600" : "text-orange-500") : "text-gray-800"
