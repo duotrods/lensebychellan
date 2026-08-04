@@ -9,6 +9,7 @@ import {
   parseDateStr,
   datesAvailableForDuplicate,
   buildTallyCsvRows,
+  shiftCellText,
 } from "../rota";
 
 // Regression coverage for a timezone bug: fmt() used to go through
@@ -236,6 +237,31 @@ describe("tallyForPeriod", () => {
     const [row] = tallyForPeriod(staff, shifts, [], period);
     expect(row.totalHours).toBe(0);
   });
+
+  it("counts hours worked on an approved holiday separately from standard, at a flat 1x rate", () => {
+    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 2, status: "approved" } };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.holidayDays).toBe(1);
+    expect(row.holidayWorked).toBe(2);
+    expect(row.standard).toBe(0);
+    expect(row.totalHours).toBe(2);
+    expect(row.weightedHours).toBe(2);
+  });
+
+  it("does not count hours worked on a still-pending holiday request", () => {
+    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 2, status: "pending" } };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.holidayDays).toBe(0);
+    expect(row.holidayWorked).toBe(0);
+    expect(row.totalHours).toBe(0);
+  });
+
+  it("treats a legacy holiday (no status) with worked hours as approved", () => {
+    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 3 } };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.holidayWorked).toBe(3);
+    expect(row.totalHours).toBe(3);
+  });
 });
 
 describe("buildTallyCsvRows", () => {
@@ -257,5 +283,27 @@ describe("buildTallyCsvRows", () => {
     expect(premiumIdx).toBe(weightedIdx - 1);
     expect(dataRow[premiumIdx]).toBe("6");
     expect(Number(dataRow[totalIdx]) + Number(dataRow[premiumIdx])).toBe(Number(dataRow[weightedIdx]));
+  });
+
+  it("includes a holiday worked hrs column right after standard hrs", () => {
+    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 2, status: "approved" } };
+    const rows = buildTallyCsvRows(staff, shifts, [], period);
+    const header = rows[1];
+    const dataRow = rows[2];
+    const standardIdx = header.indexOf("Standard hrs");
+    const holidayWorkedIdx = header.indexOf("Holiday worked hrs");
+    expect(holidayWorkedIdx).toBeGreaterThan(-1);
+    expect(holidayWorkedIdx).toBe(standardIdx + 1);
+    expect(dataRow[holidayWorkedIdx]).toBe("2");
+  });
+});
+
+describe("shiftCellText", () => {
+  it("shows a plain 'Holiday' label when no hours were worked", () => {
+    expect(shiftCellText({ type: "holiday", hours: 0 })).toBe("Holiday");
+  });
+
+  it("notes worked hours on a holiday", () => {
+    expect(shiftCellText({ type: "holiday", hours: 2 })).toBe("Holiday (+2h worked)");
   });
 });

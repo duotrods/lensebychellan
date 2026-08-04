@@ -74,6 +74,9 @@ const ShiftPill = ({ shift, canEdit, onClick }) => {
       {HOURLY_TYPES.includes(styleKey) && (
         <span className="text-[10px] font-semibold opacity-75 mt-0.5">{shift.hours}h</span>
       )}
+      {shift?.type === "holiday" && shift.hours > 0 && (
+        <span className="text-[10px] font-semibold opacity-75 mt-0.5">+{shift.hours}h</span>
+      )}
     </button>
   );
 };
@@ -331,7 +334,15 @@ const RotaGrid = ({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/*
+        max-h + overflow-auto (not just overflow-x-auto) is required for the
+        sticky header row to work at all: overflow-x:auto forces the browser
+        to also treat overflow-y as auto, which makes this div — not the
+        page — the sticky positioning context. Without its own bounded
+        height, this div never scrolls internally, so `sticky top-0` never
+        has anything to stick against.
+      */}
+      <div className="overflow-auto max-h-[70vh]">
         {orderedStaff.length === 0 ? (
           <div className="py-16 text-center text-gray-400 text-sm">
             No staff on the roster yet.
