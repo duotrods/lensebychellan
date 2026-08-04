@@ -326,6 +326,12 @@ export const CAMERA_OPTIONS_BY_SCHEME = {
     "CAM 1", "CAM 2", "CAM 3", "CAM 4", "CAM 5",
     "CAM 6", "CAM 7", "CAM 8", "CAM 9", "CAM 10"
   ],
+   SimisterIsland: [
+    "CAM 1","CAM 2.1/2.2","CAM 3","CAM 4","CAM 5","CAM 6","CAM 7","CAM 8","CAM 9","CAM 10.1/10.2",
+    "CAM 11","CAM 12","CAM 13","CAM 14","CAM 15","CAM 16","CAM 17","CAM 18","CAM 19","CAM 20",
+    "CAM 21.1/21.2","CAM 22","CAM 24.1/24.2","CAM 25","CAM 26","CAM 27","CAM 28","CAM 29","CAM 30",
+    "CAM 31","CAM 32","CAM 33","CAM 34",
+  ],
   DMO1: [
     "DEMO-CAM-1","DEMO-CAM-2","DEMO-CAM-3","DEMO-CAM-4",
     "DEMO-CAM-5","DEMO-CAM-6","DEMO-CAM-7","DEMO-CAM-8",
