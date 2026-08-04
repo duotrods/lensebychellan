@@ -8,6 +8,7 @@ import {
   fmt,
   parseDateStr,
   datesAvailableForDuplicate,
+  buildTallyCsvRows,
 } from "../rota";
 
 // Regression coverage for a timezone bug: fmt() used to go through
@@ -215,5 +216,46 @@ describe("tallyForPeriod", () => {
     const shifts = { "s1__2026-01-15": { type: "day", hours: 12 } };
     const [row] = tallyForPeriod(staff, shifts, [], period);
     expect(row.totalHours).toBe(0);
+  });
+
+  it("counts a night shift booked on the last day of the period in full, even though its tail leg is worked past midnight", () => {
+    // 2026-03-27 is the last day of this pay period. The shift's second leg
+    // (00:00-06:00) falls on 2026-03-28, the first day of the *next* period,
+    // but the whole 12h shift is booked on and paid within this period.
+    const shifts = { "s1__2026-03-27": { type: "night", hours: 12 } };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.totalHours).toBe(12);
+    expect(row.standard).toBe(12);
+  });
+
+  it("excludes a night shift booked on the last day of the previous period entirely", () => {
+    // 2026-02-27 is the last day of the *previous* pay period. Even though its
+    // tail leg lands on 2026-02-28 (the first day of this period), the shift
+    // was booked in the previous period and is paid there in full, not here.
+    const shifts = { "s1__2026-02-27": { type: "night", hours: 12 } };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.totalHours).toBe(0);
+  });
+});
+
+describe("buildTallyCsvRows", () => {
+  const staff = [{ id: "s1", name: "Dave" }];
+  const period = getPayPeriod(new Date(2026, 2, 15)); // 28 Feb - 27 Mar 2026
+  const bankHolidays = [{ date: "2026-03-10", name: "Test BH", type: "standard" }];
+
+  it("includes a holiday premium column (weighted extra minus base hrs) before the weighted hrs column, so total + premium = weighted", () => {
+    // 12h worked on a bank holiday (×1.5): weighted = 18, base total = 12,
+    // so the premium — the extra paid on top of base hours — is 6.
+    const shifts = { "s1__2026-03-10": { type: "day", hours: 12 } };
+    const rows = buildTallyCsvRows(staff, shifts, bankHolidays, period);
+    const header = rows[1];
+    const dataRow = rows[2];
+    const totalIdx = header.indexOf("Total hrs worked");
+    const premiumIdx = header.indexOf("Holiday premium (BH + Xmas)");
+    const weightedIdx = header.indexOf("Weighted hrs (for pay)");
+    expect(premiumIdx).toBeGreaterThan(-1);
+    expect(premiumIdx).toBe(weightedIdx - 1);
+    expect(dataRow[premiumIdx]).toBe("6");
+    expect(Number(dataRow[totalIdx]) + Number(dataRow[premiumIdx])).toBe(Number(dataRow[weightedIdx]));
   });
 });

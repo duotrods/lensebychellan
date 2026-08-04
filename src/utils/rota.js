@@ -143,25 +143,30 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period) {
     const row = byId[staffId];
     if (!row) return;
     const shift = shifts[key];
+
+    // A shift belongs entirely to whichever pay period contains the date it
+    // was scheduled on. A night shift's hours are still split by calendar
+    // date (see splitShiftAcrossDates) so each portion is paid at the right
+    // rate if it crosses into a bank holiday, but that split never moves
+    // hours into a different pay period — e.g. a night shift booked on the
+    // 27th (the last day of a period) counts in full there, even though its
+    // last few hours are worked after midnight on the 28th.
+    const d = parseDateStr(dateStr);
+    if (d < period.start || d > period.end) return;
+
     if (shift.type === "holiday") {
       // Only approved holidays count toward the tally. Pending requests
       // (awaiting admin approval) are excluded; legacy holidays without a
       // status are treated as approved.
-      if (shift.status !== "pending") {
-        const d = parseDateStr(dateStr);
-        if (d >= period.start && d <= period.end) row.holidayDays += 1;
-      }
+      if (shift.status !== "pending") row.holidayDays += 1;
       return;
     }
     if (shift.type === "sick") {
-      const d = parseDateStr(dateStr);
-      if (d >= period.start && d <= period.end) row.sickDays += 1;
+      row.sickDays += 1;
       return;
     }
     const portions = splitShiftAcrossDates(dateStr, shift);
     portions.forEach((p) => {
-      const pd = parseDateStr(p.date);
-      if (pd < period.start || pd > period.end) return;
       const rate = rateForDate(bankHolidays, p.date);
       row.totalHours += p.hours;
       row.weightedHours += p.hours * rate.multiplier;
@@ -230,6 +235,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
     "Holiday days",
     "Sick days",
     "Total hrs worked",
+    "Holiday premium (BH + Xmas)",
     "Weighted hrs (for pay)",
   ];
   return [
@@ -243,6 +249,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
       r.holidayDays,
       r.sickDays,
       fmtNum(r.totalHours),
+      fmtNum(r.weightedHours - r.totalHours),
       fmtNum(r.weightedHours),
     ]),
     [
@@ -253,6 +260,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
       sumRows(rows2, "holidayDays"),
       sumRows(rows2, "sickDays"),
       fmtNum(sumRows(rows2, "totalHours")),
+      fmtNum(sumRows(rows2, "weightedHours") - sumRows(rows2, "totalHours")),
       fmtNum(sumRows(rows2, "weightedHours")),
     ],
   ];
