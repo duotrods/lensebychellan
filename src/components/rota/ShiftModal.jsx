@@ -30,19 +30,21 @@ const ShiftModal = ({
   duplicateDateOptions = [],
 }) => {
   const [type, setType] = useState(pendingCell?.existing?.type ?? null);
-  const [hours, setHours] = useState(pendingCell?.existing?.hours || 12);
+  const [hours, setHours] = useState(pendingCell?.existing?.hours ?? 12);
   const [selectedDuplicates, setSelectedDuplicates] = useState([]);
 
   useEffect(() => {
     setType(pendingCell?.existing?.type ?? null);
-    setHours(pendingCell?.existing?.hours || 12);
+    setHours(pendingCell?.existing?.hours ?? 12);
     setSelectedDuplicates([]);
   }, [pendingCell]);
 
   if (!pendingCell) return null;
 
   const dateObj = parseDateStr(pendingCell.dateStr);
-  const showHours = HOURLY_TYPES.includes(type);
+  // Holiday shares the same hours input as the hourly types, but it means
+  // something different: hours worked despite being on holiday (usually 0).
+  const showHours = HOURLY_TYPES.includes(type) || type === "holiday";
   const isPendingHoliday =
     pendingCell.existing?.type === "holiday" && pendingCell.existing?.status === "pending";
   const showDuplicate =
@@ -54,6 +56,20 @@ const ShiftModal = ({
     );
   };
 
+  // Selecting a type re-bases the hours field so a value entered for one
+  // meaning doesn't leak into another — e.g. leaving hours at 12 (a full
+  // shift default) shouldn't silently become "12 hours worked on holiday".
+  // Only resets on an actual transition, so re-clicking the same option or
+  // typing after selecting it doesn't wipe what was just entered.
+  const handleTypeSelect = (value) => {
+    if (value === "holiday" && type !== "holiday") {
+      setHours(pendingCell?.existing?.type === "holiday" ? (pendingCell.existing.hours ?? 0) : 0);
+    } else if (HOURLY_TYPES.includes(value) && (type === "holiday" || type === "sick")) {
+      setHours(pendingCell?.existing?.hours ?? 12);
+    }
+    setType(value);
+  };
+
   const handleSave = () => {
     if (!type) {
       onClose();
@@ -61,8 +77,13 @@ const ShiftModal = ({
     }
     if (type === "off") {
       onSave({ type: "off" });
-    } else if (type === "holiday" || type === "sick") {
+    } else if (type === "sick") {
       onSave({ type, hours: 0, duplicateDates: selectedDuplicates });
+    } else if (type === "holiday") {
+      // Hours worked while on holiday — 0 is the common case, unlike the
+      // hourly shift types where a shift always has some minimum length.
+      const worked = Math.max(0, Math.min(24, Number(hours) || 0));
+      onSave({ type, hours: worked, duplicateDates: selectedDuplicates });
     } else {
       const clamped = Math.max(0.5, Math.min(24, Number(hours) || 12));
       onSave({ type, hours: clamped, duplicateDates: selectedDuplicates });
@@ -130,7 +151,7 @@ const ShiftModal = ({
             <button
               key={opt.value}
               type="button"
-              onClick={() => setType(opt.value)}
+              onClick={() => handleTypeSelect(opt.value)}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-[1.5px] font-semibold text-sm text-left ${
                 type === opt.value
                   ? "border-teal-500 bg-teal-50"
@@ -149,11 +170,13 @@ const ShiftModal = ({
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-semibold text-gray-500">Hours worked</label>
+            <label className="text-xs font-semibold text-gray-500">
+              {type === "holiday" ? "Hours worked (if any)" : "Hours worked"}
+            </label>
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
-                min={0.5}
+                min={type === "holiday" ? 0 : 0.5}
                 max={24}
                 step={0.5}
                 value={hours}

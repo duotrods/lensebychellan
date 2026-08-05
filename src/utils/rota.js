@@ -129,6 +129,7 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period) {
     id: p.id,
     name: p.name,
     standard: 0,
+    holidayWorked: 0,
     bh: 0,
     xmas: 0,
     holidayDays: 0,
@@ -158,7 +159,19 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period) {
       // Only approved holidays count toward the tally. Pending requests
       // (awaiting admin approval) are excluded; legacy holidays without a
       // status are treated as approved.
-      if (shift.status !== "pending") row.holidayDays += 1;
+      if (shift.status !== "pending") {
+        row.holidayDays += 1;
+        // A holiday can still have a few hours actually worked on it. Paid
+        // at the same flat rate as standard hours, but kept in its own
+        // bucket rather than folded into `standard` so it's visible as an
+        // exception, not ordinary scheduled work.
+        const worked = Number(shift.hours) || 0;
+        if (worked > 0) {
+          row.holidayWorked += worked;
+          row.totalHours += worked;
+          row.weightedHours += worked;
+        }
+      }
       return;
     }
     if (shift.type === "sick") {
@@ -184,7 +197,9 @@ export function shiftCellText(shift) {
   if (shift.type === "night") return `Night ${shift.hours}h (from 18:00)`;
   if (shift.type === "offsite-day") return `Offsite Day ${shift.hours}h (from 06:00)`;
   if (shift.type === "offsite-night") return `Offsite Night ${shift.hours}h (from 18:00)`;
-  if (shift.type === "holiday") return "Holiday";
+  if (shift.type === "holiday") {
+    return shift.hours > 0 ? `Holiday (+${shift.hours}h worked)` : "Holiday";
+  }
   if (shift.type === "sick") return "Sick";
   return "";
 }
@@ -230,6 +245,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
   const header = [
     "Staff",
     "Standard hrs",
+    "Holiday worked hrs",
     "Bank holiday hrs (x1.5)",
     "Christmas hrs (x2)",
     "Holiday days",
@@ -244,6 +260,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
     ...rows2.map((r) => [
       r.name,
       fmtNum(r.standard),
+      fmtNum(r.holidayWorked),
       fmtNum(r.bh),
       fmtNum(r.xmas),
       r.holidayDays,
@@ -255,6 +272,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
     [
       "All staff",
       fmtNum(sumRows(rows2, "standard")),
+      fmtNum(sumRows(rows2, "holidayWorked")),
       fmtNum(sumRows(rows2, "bh")),
       fmtNum(sumRows(rows2, "xmas")),
       sumRows(rows2, "holidayDays"),

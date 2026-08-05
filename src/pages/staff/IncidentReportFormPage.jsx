@@ -404,6 +404,16 @@ const IncidentReportFormPage = () => {
       return;
     }
 
+    if (formData.affectedLanes.length === 0) {
+      toast.error("Please select at least one affected lane");
+      return;
+    }
+
+    if (formData.emergencyServices.length === 0) {
+      toast.error("Please select at least one emergency service (or N/A)");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -591,7 +601,7 @@ const IncidentReportFormPage = () => {
       <div>
         <label className="label">
           <span className="label-text font-semibold mb-2">
-            Marker Post <span className="text-red-500">*</span>
+            Marker Post
           </span>
         </label>
         <input
@@ -602,7 +612,6 @@ const IncidentReportFormPage = () => {
           onChange={handleChange}
           className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
           maxLength={50}
-          required
         />
       </div>
 
@@ -907,7 +916,7 @@ const IncidentReportFormPage = () => {
           <div>
             <label className="label">
               <span className="label-text font-semibold mb-2">
-                NH Log <span className="text-red-500">*</span>
+                NH Log
               </span>
             </label>
             <input
@@ -924,7 +933,7 @@ const IncidentReportFormPage = () => {
           <div>
             <label className="label">
               <span className="label-text font-semibold mb-2">
-                Collar Number <span className="text-red-500">*</span>
+                Collar Number 
               </span>
             </label>
             <input
@@ -1117,6 +1126,7 @@ const IncidentReportFormPage = () => {
             value={formData.reportedBy}
             onChange={handleChange}
             className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           >
             <option value="">Please Select</option>
             <option value="CCTV">CCTV</option>
@@ -1135,7 +1145,7 @@ const IncidentReportFormPage = () => {
         <div>
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              Camera Number <span className="text-red-500">*</span>
+              Camera Number
             </span>
           </label>
           <input
@@ -1162,6 +1172,7 @@ const IncidentReportFormPage = () => {
             value={formData.trafficConditions}
             onChange={handleChange}
             className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           >
             <option value="">Please Select</option>
             <option value="Light">Light</option>
@@ -1181,6 +1192,7 @@ const IncidentReportFormPage = () => {
             value={formData.track}
             onChange={handleChange}
             className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           >
             <option value="">Please Select</option>
             <option value="A">A</option>
@@ -1198,7 +1210,7 @@ const IncidentReportFormPage = () => {
         <div>
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              Marker Post <span className="text-red-500">*</span>
+              Marker Post
             </span>
           </label>
           <input
@@ -1223,6 +1235,7 @@ const IncidentReportFormPage = () => {
             value={formData.incidentType}
             onChange={handleChange}
             className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           >
             <option value="">Please Select</option>
             <option value="Free Recovery">Free Recovery</option>
@@ -1307,7 +1320,7 @@ const IncidentReportFormPage = () => {
       <div>
         <label className="label">
           <span className="label-text font-semibold">
-            Recovery Requested <span className="text-red-500">*</span>
+            Recovery Requested
           </span>
         </label>
         <div className="overflow-x-auto">
@@ -1360,6 +1373,7 @@ const IncidentReportFormPage = () => {
             value={formData.timeSpotted}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           />
         </div>
 
@@ -1375,6 +1389,7 @@ const IncidentReportFormPage = () => {
             value={formData.timeOnSite}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           />
         </div>
 
@@ -1390,6 +1405,7 @@ const IncidentReportFormPage = () => {
             value={formData.timeCleared}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           />
         </div>
       </div>
@@ -1399,7 +1415,7 @@ const IncidentReportFormPage = () => {
         <div>
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              Closed Log Collar Number <span className="text-red-500">*</span>
+              Closed Log Collar Number
             </span>
           </label>
           <input
@@ -1423,6 +1439,7 @@ const IncidentReportFormPage = () => {
             value={formData.fault}
             onChange={handleChange}
             className="select bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required
           >
             <option value="">Please Select</option>
             <option value="Puncture">Puncture</option>
@@ -1469,6 +1486,7 @@ const IncidentReportFormPage = () => {
                           handleVehicleChange(index, "type", e.target.value)
                         }
                         className="select select-sm bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                        required
                       >
                         <option value="">Please select</option>
                         <option value="Car">Car</option>

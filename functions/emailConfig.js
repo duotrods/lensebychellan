@@ -38,7 +38,7 @@ const INCIDENT_ALERT_RECIPIENTS = {
     ],
   "A66 - WJ Scheme 1": 
     [
-      "Jonathan.Pettman@balfourbeatty.com, Philip.Scott@balfourbeatty.com, lee.mason@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"
+      "Jonathan.Pettman@balfourbeatty.com, brussell@hwmartin.com, abriton2@hwmartin.com, adam.cummins@kier.co.uk, john.walker@kier.co.uk, martyn.stokes@virtusltd.com, Philip.Scott@balfourbeatty.com, lee.mason@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"
     ],
   "M48 - Seven Bridge":
     [
