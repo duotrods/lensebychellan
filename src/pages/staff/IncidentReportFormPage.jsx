@@ -1495,6 +1495,7 @@ const IncidentReportFormPage = () => {
                         <option value="HGV">HGV</option>
                         <option value="Motorbike">Motorbike</option>
                         <option value="Coach/Bus">Coach/Bus</option>
+                        <option value="None">None</option>
                       </select>
                     </td>
                     <td>
