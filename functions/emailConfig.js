@@ -14,7 +14,7 @@
 const INCIDENT_ALERT_RECIPIENTS = {
   "A417 Missing Link - Kier":
     [
-      "david@chellan.co.uk, wayne@chellan.co.uk"
+      "adam.cummins@kier.co.uk, david@chellan.co.uk, wayne@chellan.co.uk"
     ],
   "M3 Jct 9 - Balfour Beatty":
     [
@@ -22,11 +22,11 @@ const INCIDENT_ALERT_RECIPIENTS = {
     ],
   "A47 Thickthorn - Core":
     [
-      "david@chellan.co.uk, wayne@chellan.co.uk"
+      "abby.perry@corehighways.com,david@chellan.co.uk, wayne@chellan.co.uk"
     ],
   "A452 HS2 - Traffix":
     [
-      "david@chellan.co.uk, wayne@chellan.co.uk"
+      "will@traffixuk.com, david@chellan.co.uk, wayne@chellan.co.uk"
     ],
   "Gallows Corner - Costain":
     [
