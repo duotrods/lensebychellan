@@ -71,13 +71,13 @@ const INCIDENT_ALERT_RECIPIENTS = {
 
 // Production CCTV fault blackspot alert recipients
 const CCTV_FAULT_ALERT_RECIPIENTS = {
-  // "A417 Missing Link - Kier": ["david@chellan.co.uk, wayne@chellan.co.uk"],
-  // "M3 Jct 9 - Balfour Beatty": ["david@chellan.co.uk, wayne@chellan.co.uk"],
-  // "A47 Thickthorn - Core": ["david@chellan.co.uk, wayne@chellan.co.uk"],
-  // "A452 HS2 - Traffix": ["david@chellan.co.uk, wayne@chellan.co.uk"],
-  // "Gallows Corner - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk"],
-  // "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk"],
-  // "A66 - WJ Scheme 1": ["david@chellan.co.uk, wayne@chellan.co.uk"],
+  "A417 Missing Link - Kier": ["adam.cummins@kier.co.uk, david@chellan.co.uk, wayne@chellan.co.uk"],
+  "M3 Jct 9 - Balfour Beatty": ["adam.kyprianou@balfourbeatty.com, Leon.Ireland@balfourbeatty.com, david@chellan.co.uk, wayne@chellan.co.uk"],
+  "A47 Thickthorn - Core": ["abby.perry@corehighways.com, david@chellan.co.uk, wayne@chellan.co.uk"],
+  "A452 HS2 - Traffix": ["will@traffixuk.com, david@chellan.co.uk, wayne@chellan.co.uk"],
+  "Gallows Corner - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
+  "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
+  "A66 - WJ Scheme 1": ["Philip.Scott@balfourbeatty.com, Jonathan.Pettman@balfourbeatty.com, Dean.Shore@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"],
   "M48 - Severn Bridge": ["bryan.dixon@amey.co.uk"],
   default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
 };
