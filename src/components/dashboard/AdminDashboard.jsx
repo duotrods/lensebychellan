@@ -88,7 +88,7 @@ const OverviewTab = ({ userProfile, roleCounts }) => {
       </div>
 
       {section === 'staff' && <StaffManagement />}
-      {section === 'other' && <OtherUsersTab userProfile={userProfile} roleCounts={roleCounts} />}
+      {section === 'other' && <OtherUsersTab userProfile={userProfile} />}
     </>
   );
 };
@@ -96,31 +96,36 @@ const OverviewTab = ({ userProfile, roleCounts }) => {
 // Every non-admin, non-staff, non-third-party-staff user — the roles Staff
 // Management's tabs don't cover. Delete only; archive's "can't log in"
 // semantics were written for staff accounts and haven't been reviewed here.
-const OtherUsersTab = ({ userProfile, roleCounts }) => {
-  const [users, setUsers] = useState([]);
+//
+// Count, rows, and pagination all derive from a single filtered list so the
+// header total always matches what's shown. We fetch all users once and
+// paginate in memory: server-side cursor pagination filtered client-side gave
+// wrong totals (admins counted but hidden) and enabled "Next" onto empty pages.
+const OtherUsersTab = ({ userProfile }) => {
+  const [allOtherUsers, setAllOtherUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastDoc, setLastDoc] = useState(null);
-  const [hasMore, setHasMore] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
   const [actionLoading, setActionLoading] = useState(false);
   const usersPerPage = 10;
 
-  const otherTotal = Math.max(
-    0,
-    (roleCounts.total || 0) - (roleCounts.staff || 0) - (roleCounts.thirdpartystaff || 0),
+  const otherTotal = allOtherUsers.length;
+  const totalPages = Math.max(1, Math.ceil(otherTotal / usersPerPage));
+  const hasMore = currentPage < totalPages;
+  const users = allOtherUsers.slice(
+    (currentPage - 1) * usersPerPage,
+    currentPage * usersPerPage,
   );
 
-  const loadUsers = async (cursor = null, page = 1) => {
+  const loadUsers = async () => {
     try {
       setLoading(true);
-      const { users: fetched, lastDoc: lastVisible, hasMore: more } =
-        await firestoreService.getUsersPaginated(usersPerPage, cursor);
-      const filtered = fetched.filter((u) => !STAFF_TAB_ROLES.includes(u.role));
-      setUsers(filtered);
-      setLastDoc(lastVisible);
-      setHasMore(more);
-      setCurrentPage(page);
+      const fetched = await firestoreService.getAllUsers();
+      const filtered = fetched
+        .filter((u) => !STAFF_TAB_ROLES.includes(u.role))
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setAllOtherUsers(filtered);
+      setCurrentPage(1);
     } catch (error) {
       console.error('Failed to load other users:', error);
       toast.error('Failed to load users');
@@ -134,11 +139,11 @@ const OtherUsersTab = ({ userProfile, roleCounts }) => {
   }, []);
 
   const handleNextPage = () => {
-    if (hasMore) loadUsers(lastDoc, currentPage + 1);
+    if (hasMore) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) loadUsers(null, 1); // cursor pagination only supports forward — reload from start
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
   const handleDeleteUser = async () => {
@@ -234,7 +239,7 @@ const OtherUsersTab = ({ userProfile, roleCounts }) => {
 
         {!loading && users.length > 0 && (
           <div className="p-4 mt-6 border-t border-gray-300 flex justify-between items-center">
-            <div className="text-sm text-gray-600">Page {currentPage}</div>
+            <div className="text-sm text-gray-600">Page {currentPage} of {totalPages}</div>
             <div className="flex gap-2">
               <button
                 onClick={handlePrevPage}
