@@ -81,7 +81,6 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
       submenu: [
         { name: "CCTV Check Sheet", path: `${basePath}/forms/cctv-check` },
         { name: "Incident Report", path: `${basePath}/forms/incident-report` },
-        { name: "Daily Occurrence", path: `${basePath}/forms/daily-occurence` },
         { name: "CCTV Faults", path: `${basePath}/forms/cctv-faults` },
       ],
     },

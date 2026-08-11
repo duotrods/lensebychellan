@@ -154,6 +154,9 @@ const IncidentReportFormPage = () => {
       ...(name === "incursion" && value === "NO"
         ? { incursionToGainAdvantage: "NO" }
         : {}),
+      // Keep Incident Type and Fault in sync when either is set to RTC.
+      ...(name === "fault" && value === "RTC" ? { incidentType: "RTC" } : {}),
+      ...(name === "incidentType" && value === "RTC" ? { fault: "RTC" } : {}),
     }));
   };
 
