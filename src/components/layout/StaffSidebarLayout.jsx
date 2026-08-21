@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import LogoutConfirmModal from "./LogoutConfirmModal";
+import ExternalLinkConfirmModal from "./ExternalLinkConfirmModal";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
@@ -18,6 +19,7 @@ import {
   CalendarDays,
   Camera,
   Car,
+  Sparkles,
 } from "lucide-react";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -28,6 +30,8 @@ import { getStaffBasePath } from "../../utils/constants";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
+const LENSE_ASSIST_URL = "https://chellan-assist.live/";
+
 const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) => {
   const { userProfile, role } = useAuth();
   const location = useLocation();
@@ -36,6 +40,7 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
     location.pathname.includes('/forms')
   );
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showLenseAssistModal, setShowLenseAssistModal] = useState(false);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -90,6 +95,11 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
       icon: CameraOff,
       liveCount: liveFaults.length,
     },
+    // Lense Assist links out to the external Chellan Assist app — internal staff only,
+    // hidden for third-party staff and demo-scheme users, same as on the client sidebar.
+    ...(!isAnyThirdParty(role) && !isDemoUser(userProfile)
+      ? [{ name: "Lense Assist", icon: Sparkles, external: true, href: LENSE_ASSIST_URL }]
+      : []),
     // Documents, Staff Rota, Body Cam and Dash Cam uploads are internal-staff only — third-party staff don't have them.
     ...(isAnyThirdParty(role)
       ? []
@@ -124,6 +134,14 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
           onConfirm={handleSignOut}
           onCancel={() => setShowLogoutModal(false)}
           noteEnabled={true}
+        />
+      )}
+      {showLenseAssistModal && (
+        <ExternalLinkConfirmModal
+          siteName="Lense Assist"
+          url={LENSE_ASSIST_URL}
+          onConfirm={() => setShowLenseAssistModal(false)}
+          onCancel={() => setShowLenseAssistModal(false)}
         />
       )}
       {/* CCTV Check Reminder Modal */}
@@ -216,6 +234,16 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
                     </>
                   )}
                 </>
+              ) : item.external ? (
+                <button
+                  type="button"
+                  onClick={() => setShowLenseAssistModal(true)}
+                  title={collapsed ? item.name : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-gray-700 hover:bg-gray-100 ${collapsed ? 'justify-center' : ''}`}
+                >
+                  <item.icon className="w-5 h-5 shrink-0" />
+                  {!collapsed && <span className="font-medium">{item.name}</span>}
+                </button>
               ) : (
                 <Link
                   to={item.path}
