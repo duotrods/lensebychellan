@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Download, Calendar, Clock, MapPin, X } from 'lucide-react';
@@ -15,32 +16,29 @@ const DailyLogsDetailPage = () => {
   // Return to the page we came from (e.g. Third Party Reports); default to Staff Reports.
   const backPath = location.state?.from || '/dashboard/admin/staff-reports';
   const { userProfile } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [report, setReport] = useState(null);
+
+  const reportQuery = useQuery({
+    queryKey: ['dailyOccurrenceReport', id],
+    queryFn: () => staffService.getDailyOccurrenceReportById(id),
+  });
+
+  const report = reportQuery.data;
+  const loading = reportQuery.isLoading;
 
   useEffect(() => {
-    loadReport();
-  }, [id]);
+    if (reportQuery.isSuccess && !reportQuery.data) {
+      toast.error('Report not found');
+      navigate(backPath);
+    }
+  }, [reportQuery.isSuccess, reportQuery.data, navigate, backPath]);
 
-  const loadReport = async () => {
-    try {
-      setLoading(true);
-      const foundReport = await staffService.getDailyOccurrenceReportById(id);
-
-      if (foundReport) {
-        setReport(foundReport);
-      } else {
-        toast.error('Report not found');
-        navigate(backPath);
-      }
-    } catch (error) {
-      console.error('Failed to load report:', error);
+  useEffect(() => {
+    if (reportQuery.isError) {
+      console.error('Failed to load report:', reportQuery.error);
       toast.error('Failed to load report');
       navigate(backPath);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [reportQuery.isError, reportQuery.error, navigate, backPath]);
 
   const handleDownloadPDF = async () => {
     try {
@@ -75,7 +73,7 @@ const DailyLogsDetailPage = () => {
         navigate(backPath);
       } else {
         toast.success(`Occurrence #${index + 1} removed successfully`);
-        loadReport();
+        reportQuery.refetch();
       }
     } catch (error) {
       console.error('Failed to remove occurrence:', error);

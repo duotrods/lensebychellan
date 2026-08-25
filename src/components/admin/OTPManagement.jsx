@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { otpService } from "../../services/otpService";
 import { useAuth } from "../../hooks/useAuth";
@@ -28,11 +29,8 @@ const TP_TABS = [
 
 const OTPManagement = () => {
   const { userProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("client"); // "client", "staff", "cctv", or "thirdparty"
-  const [clientOTPs, setClientOTPs] = useState([]);
-  const [staffInviteCodes, setStaffInviteCodes] = useState([]);
-  const [cctvCodes, setCctvCodes] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     schemeId: "",
@@ -41,225 +39,150 @@ const OTPManagement = () => {
     maxUses: 1,
   });
 
-  // Pagination state for client OTPs
-  const [clientLastDoc, setClientLastDoc] = useState(null);
-  const [clientHasMore, setClientHasMore] = useState(true);
-  const [clientTotalCount, setClientTotalCount] = useState(0);
   const [clientCurrentPage, setClientCurrentPage] = useState(1);
-
-  // Pagination state for staff invite codes
-  const [staffLastDoc, setStaffLastDoc] = useState(null);
-  const [staffHasMore, setStaffHasMore] = useState(true);
-  const [staffTotalCount, setStaffTotalCount] = useState(0);
   const [staffCurrentPage, setStaffCurrentPage] = useState(1);
-
-  // Pagination state for CCTV operator codes
-  const [cctvLastDoc, setCctvLastDoc] = useState(null);
-  const [cctvHasMore, setCctvHasMore] = useState(true);
-  const [cctvTotalCount, setCctvTotalCount] = useState(0);
   const [cctvCurrentPage, setCctvCurrentPage] = useState(1);
 
   // Third Party tab state
   const [tpSubTab, setTpSubTab] = useState('tpoperator');
   const [tpFormData, setTpFormData] = useState({ company: '', schemeId: '', schemeName: '' });
   const [tpLoading, setTpLoading] = useState(false);
-  const [tpCodesLoading, setTpCodesLoading] = useState(false);
-  // Page cache for the third-party table: each loaded page is kept so going
-  // back (or re-visiting a page) costs zero reads. Next fetches +10.
-  const [tpPages, setTpPages] = useState([]); // array of page arrays
-  const [tpCursors, setTpCursors] = useState([]); // lastDoc cursor per page
   const [tpPage, setTpPage] = useState(0); // 0-based current page index
-  const [tpHasMore, setTpHasMore] = useState(false);
 
   const codesPerPage = 10;
 
+  // Cursor for each page, per list: cursorsRef.current[key][i] is the lastDoc
+  // needed to fetch page i + 1. cursorsRef.current[key][0] is always null.
+  const cursorsRef = useRef({ client: [null], staff: [null], cctv: [null] });
+  const tpCursorsRef = useRef({}); // keyed by tpSubTab
+
+  const clientOTPsQuery = useQuery({
+    queryKey: ["clientOTPs", clientCurrentPage],
+    queryFn: () => {
+      const cursor = cursorsRef.current.client[clientCurrentPage - 1] ?? null;
+      return otpService.getAllOTPsPaginated(codesPerPage, cursor).catch((err) => {
+        console.error("Error loading client OTPs:", err);
+        return { otps: [], lastDoc: null, hasMore: false };
+      });
+    },
+  });
   useEffect(() => {
-    loadClientCodes(true);
-    loadStaffCodes(true);
-    loadCCTVCodes(true);
-    loadTotalCounts();
-  }, []);
+    if (clientOTPsQuery.data?.lastDoc) {
+      cursorsRef.current.client[clientCurrentPage] = clientOTPsQuery.data.lastDoc;
+    }
+  }, [clientOTPsQuery.data, clientCurrentPage]);
+  const clientOTPs = clientOTPsQuery.data?.otps ?? [];
+  const clientHasMore = clientOTPsQuery.data?.hasMore ?? false;
 
-  // Load the persistent table of generated codes for the active third-party sub-tab.
+  const staffInviteCodesQuery = useQuery({
+    queryKey: ["staffInviteCodes", staffCurrentPage],
+    queryFn: () => {
+      const cursor = cursorsRef.current.staff[staffCurrentPage - 1] ?? null;
+      return otpService.getAllStaffInviteCodesPaginated(codesPerPage, cursor).catch((err) => {
+        console.error("Error loading staff invite codes:", err);
+        return { codes: [], lastDoc: null, hasMore: false };
+      });
+    },
+  });
   useEffect(() => {
-    if (activeTab !== "thirdparty") return;
-    loadTpCodes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, tpSubTab]);
-
-  // Reset the cache and load page 0 (the 10 latest codes).
-  const loadTpCodes = async () => {
-    const tabConfig = TP_TABS.find((t) => t.key === tpSubTab);
-    if (!tabConfig) return;
-    setTpCodesLoading(true);
-    try {
-      const { codes, lastDoc, hasMore } =
-        await otpService.getThirdPartyCodesPaginated(tabConfig.collection, codesPerPage);
-      setTpPages([codes]);
-      setTpCursors([lastDoc]);
-      setTpPage(0);
-      setTpHasMore(hasMore);
-    } catch (error) {
-      console.error("Failed to load third party codes:", error);
-      setTpPages([]);
-      setTpCursors([]);
-      setTpPage(0);
-      setTpHasMore(false);
-    } finally {
-      setTpCodesLoading(false);
+    if (staffInviteCodesQuery.data?.lastDoc) {
+      cursorsRef.current.staff[staffCurrentPage] = staffInviteCodesQuery.data.lastDoc;
     }
+  }, [staffInviteCodesQuery.data, staffCurrentPage]);
+  const staffInviteCodes = staffInviteCodesQuery.data?.codes ?? [];
+  const staffHasMore = staffInviteCodesQuery.data?.hasMore ?? false;
+
+  const cctvCodesQuery = useQuery({
+    queryKey: ["cctvOperatorCodes", cctvCurrentPage],
+    queryFn: () => {
+      const cursor = cursorsRef.current.cctv[cctvCurrentPage - 1] ?? null;
+      return otpService.getCCTVOperatorCodesPaginated(codesPerPage, cursor).catch((err) => {
+        console.error("Error loading CCTV operator codes:", err);
+        return { codes: [], lastDoc: null, hasMore: false };
+      });
+    },
+  });
+  useEffect(() => {
+    if (cctvCodesQuery.data?.lastDoc) {
+      cursorsRef.current.cctv[cctvCurrentPage] = cctvCodesQuery.data.lastDoc;
+    }
+  }, [cctvCodesQuery.data, cctvCurrentPage]);
+  const cctvCodes = cctvCodesQuery.data?.codes ?? [];
+  const cctvHasMore = cctvCodesQuery.data?.hasMore ?? false;
+
+  const loading = clientOTPsQuery.isFetching || staffInviteCodesQuery.isFetching || cctvCodesQuery.isFetching;
+
+  // Aggregation counts — 3 reads regardless of how many codes exist, cached once.
+  const otpCountsQuery = useQuery({
+    queryKey: ["otpCounts"],
+    queryFn: () => otpService.getOTPCounts(),
+  });
+  const clientTotalCount = otpCountsQuery.data?.clientTotal ?? 0;
+  const staffTotalCount = otpCountsQuery.data?.staffTotal ?? 0;
+  const cctvTotalCount = otpCountsQuery.data?.cctvTotal ?? 0;
+
+  // Third-party codes for the active sub-tab — page cache lives in React
+  // Query itself now, keyed by sub-tab + page, instead of a hand-rolled array.
+  const tpTabConfig = TP_TABS.find((t) => t.key === tpSubTab);
+
+  const tpCodesQuery = useQuery({
+    queryKey: ["thirdPartyCodes", tpSubTab, tpPage],
+    queryFn: () => {
+      tpCursorsRef.current[tpSubTab] ??= [null];
+      const cursor = tpCursorsRef.current[tpSubTab][tpPage] ?? null;
+      return otpService.getThirdPartyCodesPaginated(tpTabConfig.collection, codesPerPage, cursor);
+    },
+    enabled: activeTab === "thirdparty" && !!tpTabConfig,
+  });
+  useEffect(() => {
+    if (tpCodesQuery.isError) {
+      console.error("Failed to load third party codes:", tpCodesQuery.error);
+      toast.error("Failed to load codes");
+    }
+  }, [tpCodesQuery.isError, tpCodesQuery.error]);
+  useEffect(() => {
+    if (tpCodesQuery.data?.lastDoc) {
+      tpCursorsRef.current[tpSubTab] ??= [null];
+      tpCursorsRef.current[tpSubTab][tpPage + 1] = tpCodesQuery.data.lastDoc;
+    }
+  }, [tpCodesQuery.data, tpSubTab, tpPage]);
+  const tpCurrentCodes = tpCodesQuery.data?.codes ?? [];
+  const tpHasMore = tpCodesQuery.data?.hasMore ?? false;
+  const tpCodesLoading = tpCodesQuery.isFetching;
+
+  const goNextTpPage = () => {
+    if (tpHasMore) setTpPage((p) => p + 1);
   };
-
-  // Next page: serve from cache if already loaded (0 reads), else fetch +10.
-  const goNextTpPage = async () => {
-    if (tpPage < tpPages.length - 1) {
-      setTpPage(tpPage + 1);
-      return;
-    }
-    if (!tpHasMore) return;
-    const tabConfig = TP_TABS.find((t) => t.key === tpSubTab);
-    if (!tabConfig) return;
-    setTpCodesLoading(true);
-    try {
-      const { codes, lastDoc, hasMore } = await otpService.getThirdPartyCodesPaginated(
-        tabConfig.collection,
-        codesPerPage,
-        tpCursors[tpPage],
-      );
-      setTpPages((prev) => [...prev, codes]);
-      setTpCursors((prev) => [...prev, lastDoc]);
-      setTpPage((prev) => prev + 1);
-      setTpHasMore(hasMore);
-    } catch (error) {
-      console.error("Failed to load next page of third party codes:", error);
-      toast.error("Failed to load more codes");
-    } finally {
-      setTpCodesLoading(false);
-    }
-  };
-
-  // Previous page: always cached, no reads.
-  const goPrevTpPage = () => setTpPage((prev) => Math.max(0, prev - 1));
+  const goPrevTpPage = () => setTpPage((p) => Math.max(0, p - 1));
 
   const handleDeleteTpCode = async (code) => {
-    const tabConfig = TP_TABS.find((t) => t.key === tpSubTab);
-    if (!tabConfig) return;
+    if (!tpTabConfig) return;
     if (!window.confirm(`Delete code ${code}? This cannot be undone.`)) return;
     try {
-      await otpService.deleteThirdPartyCode(tabConfig.collection, code);
+      await otpService.deleteThirdPartyCode(tpTabConfig.collection, code);
       toast.success("Code deleted");
-      loadTpCodes();
+      // A deletion can shift every cursor after it — drop the chain and
+      // reset to page 0, same as the original's full reload.
+      tpCursorsRef.current[tpSubTab] = [null];
+      setTpPage(0);
+      queryClient.invalidateQueries({ queryKey: ["thirdPartyCodes", tpSubTab] });
     } catch (error) {
       console.error("Failed to delete third party code:", error);
       toast.error("Failed to delete code");
     }
   };
 
-  const loadClientCodes = async (resetPage = false) => {
-    setLoading(true);
-    try {
-      // Use server-side pagination for client OTPs
-      const result = await otpService
-        .getAllOTPsPaginated(codesPerPage, resetPage ? null : clientLastDoc)
-        .catch((err) => {
-          console.error("Error loading client OTPs:", err);
-          return { otps: [], lastDoc: null, hasMore: false };
-        });
-
-      setClientOTPs(result.otps);
-      setClientLastDoc(result.lastDoc);
-      setClientHasMore(result.hasMore);
-
-      if (resetPage) {
-        setClientCurrentPage(1);
-      }
-
-      console.log(`Loaded ${result.otps.length} client codes`);
-    } catch (error) {
-      console.error("Failed to load client codes:", error);
-      toast.error("Failed to load client codes");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStaffCodes = async (resetPage = false) => {
-    setLoading(true);
-    try {
-      // Use server-side pagination for staff invite codes
-      const result = await otpService
-        .getAllStaffInviteCodesPaginated(
-          codesPerPage,
-          resetPage ? null : staffLastDoc,
-        )
-        .catch((err) => {
-          console.error("Error loading staff invite codes:", err);
-          console.log("This is normal if no staff codes have been created yet");
-          return { codes: [], lastDoc: null, hasMore: false };
-        });
-
-      setStaffInviteCodes(result.codes);
-      setStaffLastDoc(result.lastDoc);
-      setStaffHasMore(result.hasMore);
-
-      if (resetPage) {
-        setStaffCurrentPage(1);
-      }
-
-      console.log(`Loaded ${result.codes.length} staff codes`);
-    } catch (error) {
-      console.error("Failed to load staff codes:", error);
-      toast.error("Failed to load staff codes");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCCTVCodes = async (resetPage = false) => {
-    setLoading(true);
-    try {
-      const result = await otpService
-        .getCCTVOperatorCodesPaginated(
-          codesPerPage,
-          resetPage ? null : cctvLastDoc,
-        )
-        .catch((err) => {
-          console.error("Error loading CCTV operator codes:", err);
-          return { codes: [], lastDoc: null, hasMore: false };
-        });
-
-      setCctvCodes(result.codes);
-      setCctvLastDoc(result.lastDoc);
-      setCctvHasMore(result.hasMore);
-
-      if (resetPage) {
-        setCctvCurrentPage(1);
-      }
-    } catch (error) {
-      console.error("Failed to load CCTV operator codes:", error);
-      toast.error("Failed to load CCTV operator codes");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTotalCounts = async () => {
-    try {
-      // Use aggregation - only 3 reads regardless of how many codes exist
-      const counts = await otpService.getOTPCounts();
-      setClientTotalCount(counts.clientTotal);
-      setStaffTotalCount(counts.staffTotal);
-      setCctvTotalCount(counts.cctvTotal);
-    } catch (error) {
-      console.warn("Could not load total counts:", error);
-    }
-  };
-
-  const loadAllCodes = () => {
-    loadClientCodes(true);
-    loadStaffCodes(true);
-    loadCCTVCodes(true);
-    loadTotalCounts();
+  // Creating a code always affects page 1 of its list — reset to page 1,
+  // drop the stale cursor chain, and force a fresh read there.
+  const refreshAllCodeLists = () => {
+    setClientCurrentPage(1);
+    setStaffCurrentPage(1);
+    setCctvCurrentPage(1);
+    cursorsRef.current = { client: [null], staff: [null], cctv: [null] };
+    queryClient.invalidateQueries({ queryKey: ["clientOTPs"] });
+    queryClient.invalidateQueries({ queryKey: ["staffInviteCodes"] });
+    queryClient.invalidateQueries({ queryKey: ["cctvOperatorCodes"] });
+    queryClient.invalidateQueries({ queryKey: ["otpCounts"] });
   };
 
   const handleCreateClientOTP = async (e) => {
@@ -270,7 +193,6 @@ const OTPManagement = () => {
       return;
     }
 
-    setLoading(true);
     try {
       const otpCode = await otpService.createOTP(
         formData.schemeId.toUpperCase(),
@@ -286,12 +208,10 @@ const OTPManagement = () => {
         maxUses: 1,
       });
       setShowCreateModal(false);
-      loadAllCodes();
+      refreshAllCodeLists();
       // eslint-disable-next-line no-unused-vars
     } catch (error) {
       toast.error("Failed to create access code");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -303,7 +223,6 @@ const OTPManagement = () => {
       return;
     }
 
-    setLoading(true);
     try {
       const code = await otpService.createCCTVOperatorCode(
         formData.schemeId.toUpperCase(),
@@ -320,19 +239,16 @@ const OTPManagement = () => {
         maxUses: 1,
       });
       setShowCreateModal(false);
-      loadAllCodes();
+      refreshAllCodeLists();
       // eslint-disable-next-line no-unused-vars
     } catch (error) {
       toast.error("Failed to create CCTV operator access code");
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleCreateStaffInvite = async (e) => {
     e.preventDefault();
 
-    setLoading(true);
     try {
       const inviteCode = await otpService.createStaffInviteCode(
         userProfile.uid,
@@ -349,12 +265,10 @@ const OTPManagement = () => {
         maxUses: 1,
       });
       setShowCreateModal(false);
-      loadAllCodes();
+      refreshAllCodeLists();
       // eslint-disable-next-line no-unused-vars
     } catch (error) {
       toast.error("Failed to create staff invite code");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -376,7 +290,9 @@ const OTPManagement = () => {
         : await tabConfig.create(tpFormData.schemeId.toUpperCase(), tpFormData.schemeName, userProfile.uid);
       toast.success(`Third Party ${tabConfig.label} code created: ${code}`);
       setTpFormData({ company: '', schemeId: '', schemeName: '' });
-      loadTpCodes();
+      tpCursorsRef.current[tpSubTab] = [null];
+      setTpPage(0);
+      queryClient.invalidateQueries({ queryKey: ["thirdPartyCodes", tpSubTab] });
     } catch {
       toast.error('Failed to create third party code');
     } finally {
@@ -455,58 +371,37 @@ const OTPManagement = () => {
     (code) => getCodeStatus(code) === "available",
   ).length;
 
-  // Codes for the currently-viewed third-party page (from the page cache).
-  const tpCurrentCodes = tpPages[tpPage] || [];
-
   // Pagination handlers for client codes
   const clientTotalPages = Math.ceil(clientTotalCount / codesPerPage);
 
   const handleClientNextPage = () => {
-    if (clientHasMore) {
-      setClientCurrentPage((prev) => prev + 1);
-      loadClientCodes(false);
-    }
+    if (clientHasMore) setClientCurrentPage((p) => p + 1);
   };
 
   const handleClientPrevPage = () => {
-    if (clientCurrentPage > 1) {
-      setClientCurrentPage((prev) => prev - 1);
-      loadClientCodes(true);
-    }
+    if (clientCurrentPage > 1) setClientCurrentPage((p) => p - 1);
   };
 
   // Pagination handlers for staff codes
   const staffTotalPages = Math.ceil(staffTotalCount / codesPerPage);
 
   const handleStaffNextPage = () => {
-    if (staffHasMore) {
-      setStaffCurrentPage((prev) => prev + 1);
-      loadStaffCodes(false);
-    }
+    if (staffHasMore) setStaffCurrentPage((p) => p + 1);
   };
 
   const handleStaffPrevPage = () => {
-    if (staffCurrentPage > 1) {
-      setStaffCurrentPage((prev) => prev - 1);
-      loadStaffCodes(true);
-    }
+    if (staffCurrentPage > 1) setStaffCurrentPage((p) => p - 1);
   };
 
   // Pagination handlers for CCTV operator codes
   const cctvTotalPages = Math.ceil(cctvTotalCount / codesPerPage);
 
   const handleCctvNextPage = () => {
-    if (cctvHasMore) {
-      setCctvCurrentPage((prev) => prev + 1);
-      loadCCTVCodes(false);
-    }
+    if (cctvHasMore) setCctvCurrentPage((p) => p + 1);
   };
 
   const handleCctvPrevPage = () => {
-    if (cctvCurrentPage > 1) {
-      setCctvCurrentPage((prev) => prev - 1);
-      loadCCTVCodes(true);
-    }
+    if (cctvCurrentPage > 1) setCctvCurrentPage((p) => p - 1);
   };
 
   return (
@@ -522,7 +417,7 @@ const OTPManagement = () => {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={loadAllCodes}
+            onClick={refreshAllCodeLists}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
@@ -865,7 +760,7 @@ const OTPManagement = () => {
             {TP_TABS.map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => { setTpSubTab(key); setTpFormData({ company: '', schemeId: '', schemeName: '' }); }}
+                onClick={() => { setTpSubTab(key); setTpPage(0); setTpFormData({ company: '', schemeId: '', schemeName: '' }); }}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tpSubTab === key
                     ? 'border-teal-500 text-teal-600'
@@ -1068,7 +963,7 @@ const OTPManagement = () => {
                   </button>
                   <button
                     onClick={goNextTpPage}
-                    disabled={tpPage === tpPages.length - 1 && !tpHasMore}
+                    disabled={!tpHasMore}
                     className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next

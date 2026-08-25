@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
@@ -19,38 +20,31 @@ import {
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 
-// Module-level variable — survives component unmount/remount, no serialization needed
+// Module-level variable — survives component unmount/remount, no serialization needed.
+// Only browse-pagination state needs restoring: React Query's own cache already
+// keeps the actual report data/counts alive across unmount, so this just needs
+// to get currentPage/filterType/filterScheme (and the cursor chain, for the
+// rare case the cache entry itself has expired) back the way they were.
 let _staffReportsRestore = null;
 
 const StaffReportsPage = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [reports, setReports] = useState([]);
-  const [filteredReports, setFilteredReports] = useState([]);
+  const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [filterType, setFilterType] = useState("all");
   const [filterScheme, setFilterScheme] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [searchPage, setSearchPage] = useState(1);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchPage, setSearchPage] = useState(1);
-  const [searchHasMore, setSearchHasMore] = useState(false);
-  const [searchLastDocs, setSearchLastDocs] = useState({});
-  const searchPageCacheRef = useRef({});
-  const [cursors, setCursors] = useState({});
-  const [typeCursor, setTypeCursor] = useState(null);
-  const pageCacheRef = useRef({});
-  const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
-  const searchCounterRef = useRef(0);
   const searchRateLimitRef = useRef([]); // timestamps of recent searches
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [typeCount, setTypeCount] = useState(0);
-  const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
+  // Cursor state per filter combo, one entry per page: cursorsRef.current[key][i]
+  // is what's needed to fetch page i + 1. Only consulted on a cache miss.
+  const cursorsRef = useRef({});
+  const searchCursorsRef = useRef({});
   const reportsPerPage = 10;
 
   // Maps admin display filter values → staffService type keys
@@ -64,36 +58,11 @@ const StaffReportsPage = () => {
   useEffect(() => {
     if (_staffReportsRestore) {
       setCurrentPage(_staffReportsRestore.page);
-      setFilterType(_staffReportsRestore.filter);
-      setFilterScheme(_staffReportsRestore.scheme);
-      setReports(_staffReportsRestore.reports);
-      setHasMore(_staffReportsRestore.hasMore);
-      setCursors(_staffReportsRestore.cursors || {});
-      setTypeCursor(_staffReportsRestore.typeCursor || null);
-      setTypeCount(_staffReportsRestore.typeCount || 0);
-      setTotalCount(_staffReportsRestore.totalCount || 0);
-      // Restore the full page cache so Prev/Next navigation works on all cached pages
-      pageCacheRef.current = _staffReportsRestore.pageCache ? { ..._staffReportsRestore.pageCache } : {
-        [_staffReportsRestore.page]: {
-          data: _staffReportsRestore.reports,
-          cursors: _staffReportsRestore.cursors || {},
-          typeCursor: _staffReportsRestore.typeCursor || null,
-          hasMore: _staffReportsRestore.hasMore,
-        }
-      };
-      setLoading(false);
-      wasRestoredRef.current = true;
-    } else {
-      loadAllReports(true);
+      setFilterType(_staffReportsRestore.filterType);
+      setFilterScheme(_staffReportsRestore.filterScheme);
+      cursorsRef.current = _staffReportsRestore.cursors || {};
     }
-    loadTotalCount();
-    loadFormCounts();
   }, []);
-
-  useEffect(() => {
-    applyFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports]);
 
   const clearRestoreState = () => { _staffReportsRestore = null; };
 
@@ -116,34 +85,32 @@ const StaffReportsPage = () => {
     return results.map(f => ({ ...f, ...(typeMap[f.type] || {}) }));
   };
 
-  const runSearch = async (term, page = 1, lastDocs = {}, overrideType = null, overrideScheme = null) => {
-    if (!term.trim()) {
-      setSearchResults([]);
-      setSearchPage(1);
-      setSearchHasMore(false);
-      setSearchLastDocs({});
-      searchPageCacheRef.current = {};
-      return;
-    }
+  // Abuse/cost guard — independent of caching, so it stays a manual gate in
+  // front of whatever triggers a search query (typing, Next, Prev).
+  const checkSearchRateLimit = () => {
     const now = Date.now();
     searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
     if (searchRateLimitRef.current.length >= 10) {
       toast.error('Too many searches. Please wait a moment.');
-      return;
+      return false;
     }
     searchRateLimitRef.current.push(now);
-    const myCount = ++searchCounterRef.current;
-    setSearchLoading(true);
-    try {
-      const activeType = overrideType !== null ? overrideType : filterType;
-      const activeScheme = overrideScheme !== null ? overrideScheme : filterScheme;
-      const collections = activeType !== 'all' ? typeToCollectionKey[activeType] : null;
-      const { results, lastDocs: newLastDocs, hasMore } =
-        await staffService.searchFormsPaginated(term.trim(), 10, lastDocs, collections);
-      if (myCount !== searchCounterRef.current) return; // stale
+    return true;
+  };
 
-      // Client-side scheme filter
-      const schemeId = activeScheme !== 'all' ? activeScheme : null;
+  const isSearchMode = debouncedSearchQuery.trim() !== '';
+  const searchKey = `${debouncedSearchQuery}|${filterType}|${filterScheme}`;
+
+  const searchQueryResult = useQuery({
+    queryKey: ["staffReportsSearch", debouncedSearchQuery, filterType, filterScheme, searchPage],
+    queryFn: async () => {
+      searchCursorsRef.current[searchKey] ??= [{}];
+      const lastDocs = searchCursorsRef.current[searchKey][searchPage - 1] ?? {};
+      const collections = filterType !== 'all' ? typeToCollectionKey[filterType] : null;
+      const { results, lastDocs: newLastDocs, hasMore } =
+        await staffService.searchFormsPaginated(debouncedSearchQuery.trim(), 10, lastDocs, collections);
+
+      const schemeId = filterScheme !== 'all' ? filterScheme : null;
       const filtered = schemeId
         ? results.filter(f => {
             if (f.schemeIds?.length) return f.schemeIds.includes(schemeId);
@@ -151,85 +118,59 @@ const StaffReportsPage = () => {
           })
         : results;
 
-      const mapped = mapSearchResults(filtered);
-      searchPageCacheRef.current[page] = { results: mapped, lastDocs: newLastDocs, hasMore };
-      setSearchResults(mapped);
-      setSearchPage(page);
-      setSearchHasMore(hasMore);
-      setSearchLastDocs(newLastDocs);
-    } catch (err) {
-      console.error('Search failed:', err);
-      toast.error('Search failed. Please try again.');
-    } finally {
-      setSearchLoading(false);
+      return { results: mapSearchResults(filtered), lastDocs: newLastDocs, hasMore };
+    },
+    enabled: isSearchMode,
+  });
+
+  useEffect(() => {
+    if (searchQueryResult.data) {
+      searchCursorsRef.current[searchKey] ??= [{}];
+      searchCursorsRef.current[searchKey][searchPage] = searchQueryResult.data.lastDocs;
     }
-  };
+  }, [searchQueryResult.data, searchKey, searchPage]);
+
+  useEffect(() => {
+    if (searchQueryResult.isError) {
+      console.error('Search failed:', searchQueryResult.error);
+      toast.error('Search failed. Please try again.');
+    }
+  }, [searchQueryResult.isError, searchQueryResult.error]);
+
+  const searchResults = searchQueryResult.data?.results ?? [];
+  const searchHasMore = searchQueryResult.data?.hasMore ?? false;
+  const searchLoading = searchQueryResult.isFetching;
 
   const handleSearchNextPage = () => {
-    if (!searchHasMore) return;
-    runSearch(searchQuery, searchPage + 1, searchLastDocs);
+    if (!searchHasMore || !checkSearchRateLimit()) return;
+    setSearchPage(p => p + 1);
   };
 
   const handleSearchPrevPage = () => {
-    if (searchPage <= 1) return;
-    const cached = searchPageCacheRef.current[searchPage - 1];
-    if (cached) {
-      setSearchResults(cached.results);
-      setSearchPage(searchPage - 1);
-      setSearchHasMore(cached.hasMore);
-      setSearchLastDocs(cached.lastDocs);
-    }
+    if (searchPage > 1) setSearchPage(p => p - 1);
   };
 
-  const loadAllReports = async (resetPage = false, overrideFilter = null, overrideScheme = null, cursorOverride = null, targetPage = null, silent = false) => {
-    // Check page cache first (targetPage is set by pagination handlers)
-    if (targetPage && pageCacheRef.current[targetPage]) {
-      const cached = pageCacheRef.current[targetPage];
-      setReports(cached.data);
-      setCursors(cached.cursors);
-      setTypeCursor(cached.typeCursor);
-      setHasMore(cached.hasMore);
-      setCurrentPage(targetPage);
-      return;
-    }
+  const filterKey = `${filterType}|${filterScheme}`;
 
-    try {
-      if (!silent) setLoading(true);
+  const reportsQuery = useQuery({
+    queryKey: ["staffReports", filterType, filterScheme, currentPage],
+    queryFn: async () => {
+      cursorsRef.current[filterKey] ??= [{ cursors: {}, typeCursor: null }];
+      const prev = cursorsRef.current[filterKey][currentPage - 1] ?? { cursors: {}, typeCursor: null };
+      const schemeIdArg = filterScheme !== 'all' ? [filterScheme] : null;
 
-      const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
-      const activeScheme = overrideScheme !== null ? overrideScheme : filterScheme;
-      const schemeId = activeScheme !== 'all' ? [activeScheme] : null;
-      let rawForms;
-      let newCursors = {};
-      let newTypeCursor = null;
-      let newHasMore = true;
-
-      if (activeFilter === 'all') {
-        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
-        const result = await staffService.getAllFormsPaginated(
-          reportsPerPage,
-          effectiveCursors,
-          schemeId
-        );
+      let rawForms, newCursors = {}, newTypeCursor = null, newHasMore = true;
+      if (filterType === 'all') {
+        const result = await staffService.getAllFormsPaginated(reportsPerPage, prev.cursors, schemeIdArg);
         rawForms = result.forms;
         newCursors = result.cursors;
         newHasMore = result.hasMore;
-        setCursors(newCursors);
-        setHasMore(newHasMore);
       } else {
-        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
-        const serviceType = adminTypeToServiceType[activeFilter] || activeFilter;
-        const result = await staffService.getFormsByTypePaginated(
-          serviceType,
-          reportsPerPage,
-          effectiveTypeCursor,
-          schemeId
-        );
+        const serviceType = adminTypeToServiceType[filterType] || filterType;
+        const result = await staffService.getFormsByTypePaginated(serviceType, reportsPerPage, prev.typeCursor, schemeIdArg);
         rawForms = result.forms;
         newTypeCursor = result.lastDoc;
         newHasMore = result.hasMore;
-        setTypeCursor(newTypeCursor);
-        setHasMore(newHasMore);
       }
 
       // Map forms to reports with display metadata
@@ -270,95 +211,82 @@ const StaffReportsPage = () => {
         return schemeId !== DEMO_SCHEME_ID;
       });
 
-      setReports(filteredReports);
+      return { reports: filteredReports, cursors: newCursors, typeCursor: newTypeCursor, hasMore: newHasMore };
+    },
+  });
 
-      // Cache this page's data
-      const pageNum = targetPage || (resetPage ? 1 : currentPage);
-      pageCacheRef.current[pageNum] = {
-        data: filteredReports,
-        cursors: newCursors,
-        typeCursor: newTypeCursor,
-        hasMore: newHasMore,
+  useEffect(() => {
+    if (reportsQuery.data) {
+      cursorsRef.current[filterKey] ??= [{ cursors: {}, typeCursor: null }];
+      cursorsRef.current[filterKey][currentPage] = {
+        cursors: reportsQuery.data.cursors,
+        typeCursor: reportsQuery.data.typeCursor,
       };
+    }
+  }, [reportsQuery.data, filterKey, currentPage]);
 
-      if (resetPage) {
-        setCurrentPage(1);
-      }
-    } catch (error) {
-      console.error("Failed to load reports:", error);
+  useEffect(() => {
+    if (reportsQuery.isError) {
+      console.error("Failed to load reports:", reportsQuery.error);
       toast.error("Failed to load reports");
-    } finally {
-      setLoading(false);
     }
+  }, [reportsQuery.isError, reportsQuery.error]);
+
+  const reports = reportsQuery.data?.reports ?? [];
+  const filteredReports = reports;
+  const hasMore = reportsQuery.data?.hasMore ?? false;
+  const loading = reportsQuery.isFetching;
+
+  // Grand totals, not scoped to the scheme filter (matches prior behavior) —
+  // fetched once and cached.
+  const totalCountQuery = useQuery({
+    queryKey: ["allFormsCount", "everything"],
+    queryFn: () => staffService.getAllFormsCount(),
+  });
+  const totalCount = totalCountQuery.data ?? 0;
+
+  const formCountsQuery = useQuery({
+    queryKey: ["allFormsCountByType", "everything"],
+    queryFn: () => staffService.getAllFormsCountByType(),
+  });
+  const formCounts = formCountsQuery.data ?? {
+    cctvCheckTotal: 0,
+    incidentReportTotal: 0,
+    assetDamageTotal: 0,
+    dailyLogsTotal: 0,
   };
 
-  const loadTotalCount = async () => {
-    try {
-      const count = await staffService.getAllFormsCount();
-      setTotalCount(count);
-    } catch (error) {
-      console.warn('Could not load total count:', error);
-    }
-  };
+  const typeCountQuery = useQuery({
+    queryKey: ["formCountForType", filterType],
+    queryFn: () => staffService.getFormCountForType(adminTypeToServiceType[filterType] || filterType),
+    enabled: filterType !== 'all',
+  });
+  const typeCount = filterType !== 'all' ? (typeCountQuery.data ?? 0) : 0;
 
-  const loadFormCounts = async () => {
-    try {
-      const counts = await staffService.getAllFormsCountByType();
-      setFormCounts(counts);
-    } catch (error) {
-      console.warn('Could not load form counts:', error);
-    }
-  };
-
-  const handleFilterChange = async (newType) => {
+  const handleFilterChange = (newType) => {
     clearRestoreState();
     setFilterType(newType);
-    setTypeCursor(null);
-    setCursors({});
-    pageCacheRef.current = {};
     setCurrentPage(1);
-    if (searchQuery.trim()) {
-      searchPageCacheRef.current = {};
-      runSearch(searchQuery, 1, {}, newType, null);
-    } else {
-      loadAllReports(true, newType);
-    }
-    if (newType !== 'all') {
-      try {
-        const serviceType = adminTypeToServiceType[newType] || newType;
-        const count = await staffService.getFormCountForType(serviceType);
-        setTypeCount(count);
-      } catch {
-        setTypeCount(0);
-      }
-    }
+    setSearchPage(1);
   };
 
   const handleSchemeChange = (newScheme) => {
     clearRestoreState();
     setFilterScheme(newScheme);
-    setTypeCursor(null);
-    setCursors({});
-    pageCacheRef.current = {};
     setCurrentPage(1);
-    if (searchQuery.trim()) {
-      searchPageCacheRef.current = {};
-      runSearch(searchQuery, 1, {}, null, newScheme);
-    } else {
-      loadAllReports(true, null, newScheme);
-    }
-  };
-
-  const applyFilters = () => {
-    // Type and scheme filtering are handled server-side; text search uses Firestore query
-    setFilteredReports([...reports]);
+    setSearchPage(1);
   };
 
   // Non-demo schemes for the dropdown
   const availableSchemes = SCHEMES.filter(s => !s.isDemo);
 
   const handleViewReport = (report) => {
-    _staffReportsRestore = { page: currentPage, filter: filterType, scheme: filterScheme, reports, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
+    _staffReportsRestore = {
+      page: currentPage,
+      filterType,
+      filterScheme,
+      cursors: cursorsRef.current,
+    };
     // Navigate to appropriate view page based on report type
     if (report.type === "CCTV Check") {
       navigate(`/dashboard/admin/staff-reports/cctv/${report.id}`);
@@ -390,8 +318,6 @@ const StaffReportsPage = () => {
     }
   };
 
-  const isSearchMode = searchQuery.trim() !== '';
-
   // Use Firestore search results when searching, otherwise use paginated page data
   const currentReports = isSearchMode ? searchResults : filteredReports;
   const activeCount = filterType === 'all' ? totalCount : typeCount;
@@ -400,28 +326,19 @@ const StaffReportsPage = () => {
   // If restored page exceeds actual total pages, reset to page 1
   useEffect(() => {
     if (!loading && totalPages > 0 && currentPage > totalPages) {
-      pageCacheRef.current = {};
       _staffReportsRestore = null;
-      loadAllReports(true);
+      setCurrentPage(1);
     }
-  }, [totalPages, loading]);
+  }, [totalPages, loading, currentPage]);
 
   // Pagination handlers
   const handleNextPage = () => {
     const atLastPage = totalPages > 0 && currentPage >= totalPages;
-    if (hasMore && !atLastPage) {
-      const nextPage = currentPage + 1;
-      setCurrentPage(nextPage);
-      loadAllReports(false, null, null, null, nextPage);
-    }
+    if (hasMore && !atLastPage) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      const prevPage = currentPage - 1;
-      setCurrentPage(prevPage);
-      loadAllReports(false, null, null, null, prevPage);
-    }
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
   const formatDate = (timestamp) => {
@@ -545,8 +462,18 @@ const StaffReportsPage = () => {
       if (collectionName) {
         await staffService.deleteReport(collectionName, reportToDelete.id);
         toast.success("Report deleted successfully");
-        // Remove from local state
-        setReports((prev) => prev.filter((r) => r.id !== reportToDelete.id));
+        // Splice out of whichever cached list is currently displayed.
+        if (isSearchMode) {
+          queryClient.setQueryData(
+            ["staffReportsSearch", debouncedSearchQuery, filterType, filterScheme, searchPage],
+            (old) => old ? { ...old, results: old.results.filter((r) => r.id !== reportToDelete.id) } : old,
+          );
+        } else {
+          queryClient.setQueryData(
+            ["staffReports", filterType, filterScheme, currentPage],
+            (old) => old ? { ...old, reports: old.reports.filter((r) => r.id !== reportToDelete.id) } : old,
+          );
+        }
       }
     } catch (error) {
       console.error("Failed to delete report:", error);
@@ -654,21 +581,15 @@ const StaffReportsPage = () => {
                   setSearchQuery(value);
                   if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                   if (!value.trim()) {
-                    setSearchResults([]);
+                    setDebouncedSearchQuery("");
                     setSearchPage(1);
-                    setSearchHasMore(false);
-                    setSearchLastDocs({});
-                    searchPageCacheRef.current = {};
                     setCurrentPage(1);
-                    setCursors({});
-                    setTypeCursor(null);
-                    pageCacheRef.current = {};
-                    loadAllReports(true, null, null, null, null, true);
                     return;
                   }
                   searchDebounceRef.current = setTimeout(() => {
-                    searchPageCacheRef.current = {};
-                    runSearch(value, 1, {});
+                    if (!checkSearchRateLimit()) return;
+                    setDebouncedSearchQuery(value);
+                    setSearchPage(1);
                   }, 150);
                 }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"

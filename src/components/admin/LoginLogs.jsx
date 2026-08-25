@@ -1,12 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { firestoreService } from "../../services/firestoreService";
-import { RefreshCw, LogIn, ChevronLeft, ChevronRight, Shield, Clock } from "lucide-react";
-
-const ROLE_BADGE = {
-  admin:  "bg-purple-100 text-purple-700",
-  staff:  "bg-blue-100 text-blue-700",
-  client: "bg-teal-100 text-teal-700",
-};
+import { RefreshCw, LogIn, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { MdPerson } from "react-icons/md";
+import { ROLE_BADGE, ROLE_ICON } from "../../utils/roleBadge";
 
 const formatDateTime = (ts) => {
   if (!ts) return "—";
@@ -20,74 +17,54 @@ const formatDateTime = (ts) => {
 const LOGS_PER_PAGE = 10;
 
 const LoginLogs = () => {
-  const [logs, setLogs]           = useState([]);
-  const [loading, setLoading]     = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [cursors, setCursors]     = useState([]); // cursors[i] = lastDoc for page i+1
-  const [hasMore, setHasMore]     = useState(true);
 
-  const totalPages = Math.ceil(totalCount / LOGS_PER_PAGE);
+  // Cursor for each page: cursorsRef.current[i] is the lastDoc needed to
+  // fetch page i + 1. cursorsRef.current[0] is always null (start of list).
+  const cursorsRef = useRef([null]);
+
+  const logsQuery = useQuery({
+    queryKey: ["loginLogs", currentPage],
+    queryFn: () => {
+      const cursor = cursorsRef.current[currentPage - 1] ?? null;
+      return firestoreService.getLoginLogsPaginated(LOGS_PER_PAGE, cursor);
+    },
+  });
+
+  const countQuery = useQuery({
+    queryKey: ["loginLogsCount"],
+    queryFn: () => firestoreService.getLoginLogsCount(),
+  });
 
   useEffect(() => {
-    loadPage(1, null);
-    loadCount();
-  }, []);
-
-  const loadCount = async () => {
-    try {
-      const count = await firestoreService.getLoginLogsCount();
-      setTotalCount(count);
-    } catch (err) {
-      console.warn("Could not load login log count:", err);
+    if (logsQuery.data?.lastDoc) {
+      cursorsRef.current[currentPage] = logsQuery.data.lastDoc;
     }
-  };
+  }, [logsQuery.data, currentPage]);
 
-  const loadPage = async (page, lastDoc) => {
-    setLoading(true);
-    try {
-      const result = await firestoreService.getLoginLogsPaginated(LOGS_PER_PAGE, lastDoc);
-      setLogs(result.logs);
-      setHasMore(result.hasMore);
-
-      // Store cursor for navigating to the next page from this one
-      if (result.lastDoc) {
-        setCursors(prev => {
-          const next = [...prev];
-          next[page - 1] = result.lastDoc;
-          return next;
-        });
-      }
-
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("Failed to load login logs:", err);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (logsQuery.isError) {
+      console.error("Failed to load login logs:", logsQuery.error);
     }
-  };
+  }, [logsQuery.isError, logsQuery.error]);
+
+  const logs = logsQuery.data?.logs ?? [];
+  const hasMore = logsQuery.data?.hasMore ?? false;
+  const loading = logsQuery.isFetching || countQuery.isFetching;
+  const totalCount = countQuery.data ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / LOGS_PER_PAGE));
 
   const handleNextPage = () => {
-    if (hasMore && currentPage < totalPages) {
-      const cursor = cursors[currentPage - 1] || null;
-      loadPage(currentPage + 1, cursor);
-    }
+    if (hasMore) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      // Go back to page 1 and paginate forward to page-2 using stored cursors
-      const targetPage = currentPage - 1;
-      const cursor = targetPage === 1 ? null : (cursors[targetPage - 2] || null);
-      loadPage(targetPage, cursor);
-    }
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
   const handleRefresh = () => {
-    setCursors([]);
-    setCurrentPage(1);
-    loadPage(1, null);
-    loadCount();
+    logsQuery.refetch();
+    countQuery.refetch();
   };
 
   return (
@@ -96,7 +73,7 @@ const LoginLogs = () => {
         <div>
           <h3 className="text-2xl font-bold text-gray-800">Login Audit Logs</h3>
           <p className="text-gray-600 mt-1">
-            Who signed in and when — auto-deleted after 15 days
+            Who signed in and when — auto-deleted after 3 days
           </p>
         </div>
         <button
@@ -109,39 +86,25 @@ const LoginLogs = () => {
         </button>
       </div>
 
-      {/* Count card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Total Log Entries</p>
-          <p className="text-2xl font-bold text-gray-800">{totalCount}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 col-span-2">
-          <p className="text-sm text-gray-500 mb-1">Retention Policy</p>
-          <p className="text-sm text-gray-700 mt-1">
-            Logs are automatically deleted after <span className="font-semibold">15 days</span> via Firestore TTL on the <code className="bg-gray-100 px-1 rounded">expireAt</code> field.
-          </p>
-        </div>
-      </div>
-
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-brand-500">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Role
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Logged In At
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Expires
                 </th>
               </tr>
@@ -163,34 +126,30 @@ const LoginLogs = () => {
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-                          <LogIn className="w-4 h-4 text-teal-600" />
+                logs.map((log) => {
+                  const RoleIcon = ROLE_ICON[log.role] || MdPerson;
+                  return (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{log.displayName}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{log.email}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium capitalize ${ROLE_BADGE[log.role] || "bg-gray-100 text-gray-700"}`}>
+                          <RoleIcon className="w-3.5 h-3.5" />
+                          {log.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatDateTime(log.loginAt)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDateTime(log.expireAt)}
                         </div>
-                        <span className="font-medium text-gray-800">{log.displayName}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{log.email}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium capitalize ${ROLE_BADGE[log.role] || "bg-gray-100 text-gray-700"}`}>
-                        <Shield className="w-3 h-3" />
-                        {log.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {formatDateTime(log.loginAt)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatDateTime(log.expireAt)}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

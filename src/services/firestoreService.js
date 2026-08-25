@@ -243,20 +243,26 @@ class FirestoreService {
   async getUsersCountByRole() {
     try {
       const usersRef = collection(db, 'users');
-      const [totalSnap, staffSnap, clientSnap, cctvSnap, thirdPartyStaffSnap] = await Promise.all([
+      const roles = [
+        'admin',
+        'staff',
+        'client',
+        'liveoperator',
+        'cctvfaultoperator',
+        'thirdpartystaff',
+        'thirdpartyclient',
+        'thirdpartyliveoperator',
+        'thirdpartycctvoperator',
+      ];
+      const [totalSnap, ...roleSnaps] = await Promise.all([
         getCountFromServer(query(usersRef)),
-        getCountFromServer(query(usersRef, where('role', '==', 'staff'))),
-        getCountFromServer(query(usersRef, where('role', '==', 'client'))),
-        getCountFromServer(query(usersRef, where('role', '==', 'cctvfaultoperator'))),
-        getCountFromServer(query(usersRef, where('role', '==', 'thirdpartystaff'))),
+        ...roles.map((role) => getCountFromServer(query(usersRef, where('role', '==', role)))),
       ]);
-      return {
-        total: totalSnap.data().count,
-        staff: staffSnap.data().count,
-        client: clientSnap.data().count,
-        cctvfaultoperator: cctvSnap.data().count,
-        thirdpartystaff: thirdPartyStaffSnap.data().count,
-      };
+      const counts = { total: totalSnap.data().count };
+      roles.forEach((role, i) => {
+        counts[role] = roleSnaps[i].data().count;
+      });
+      return counts;
     } catch (error) {
       throw new AppError('Failed to count users by role', 'firestore/read-error', error);
     }
@@ -625,11 +631,11 @@ class FirestoreService {
 
   // ── Login Audit Logs ──────────────────────────────────────────────────────
   // Each doc has an expireAt field. Enable Firestore TTL on loginLogs.expireAt
-  // in the Firebase console to auto-delete documents after 15 days.
+  // in the Firebase console to auto-delete documents after 3 days.
 
   async logUserLogin(userId, displayName, email, role) {
     const expireAt = Timestamp.fromDate(
-      new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+      new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
     );
     await addDoc(collection(db, 'loginLogs'), {
       userId,

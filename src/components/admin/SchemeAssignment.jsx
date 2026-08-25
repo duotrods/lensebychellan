@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
@@ -31,65 +32,59 @@ const SchemeAssignment = () => {
 
   // --- Client Assignments tab state ---
   const [roleFilter, setRoleFilter] = useState("client");
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({ schemeId: "", schemeName: "" });
-  const [lastDoc, setLastDoc] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [actionLoading, setActionLoading] = useState(false);
   const usersPerPage = 10;
 
-  // --- Scheme Overview tab state ---
-  const [overviewUsers, setOverviewUsers] = useState([]);
-  const [overviewLoading, setOverviewLoading] = useState(false);
+  // Cursor for each page, per role: cursorsRef.current[role][i] is the lastDoc
+  // needed to fetch page i + 1. cursorsRef.current[role][0] is always null.
+  const cursorsRef = useRef({});
+
+  const usersQuery = useQuery({
+    queryKey: ["schemeAssignmentUsers", roleFilter, currentPage],
+    queryFn: () => {
+      cursorsRef.current[roleFilter] ??= [null];
+      const cursor = cursorsRef.current[roleFilter][currentPage - 1] ?? null;
+      return firestoreService.getAllUsersPaginated(usersPerPage, cursor, roleFilter);
+    },
+  });
 
   useEffect(() => {
-    loadUsers(true, roleFilter);
-    loadTotalCount(roleFilter);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (usersQuery.data?.lastDoc) {
+      cursorsRef.current[roleFilter] ??= [null];
+      cursorsRef.current[roleFilter][currentPage] = usersQuery.data.lastDoc;
+    }
+  }, [usersQuery.data, roleFilter, currentPage]);
 
-  const loadUsers = async (resetPage = false, role = roleFilter) => {
-    setLoading(true);
-    try {
-      const result = await firestoreService.getAllUsersPaginated(
-        usersPerPage,
-        resetPage ? null : lastDoc,
-        role
-      );
-      setUsers(result.users);
-      setLastDoc(result.lastDoc);
-      setHasMore(result.hasMore);
-      if (resetPage) setCurrentPage(1);
-    } catch (error) {
-      console.error("Failed to load users:", error);
+  useEffect(() => {
+    if (usersQuery.isError) {
+      console.error("Failed to load users:", usersQuery.error);
       toast.error("Failed to load users");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [usersQuery.isError, usersQuery.error]);
 
-  const loadTotalCount = async (role = roleFilter) => {
-    try {
-      const counts = await firestoreService.getUsersCountByRole();
-      setTotalCount(role === "client" ? counts.client : counts[role] ?? 0);
-    } catch (error) {
-      console.warn("Could not load total count:", error);
-    }
-  };
+  const countsQuery = useQuery({
+    queryKey: ["userCounts"],
+    queryFn: () => firestoreService.getUsersCountByRole(),
+  });
+
+  const users = usersQuery.data?.users ?? [];
+  const hasMore = usersQuery.data?.hasMore ?? false;
+  const loading = usersQuery.isFetching || countsQuery.isFetching;
+  const totalCount = countsQuery.data?.[roleFilter] ?? 0;
 
   const handleRoleFilterChange = (role) => {
     setRoleFilter(role);
-    setLastDoc(null);
-    loadUsers(true, role);
-    loadTotalCount(role);
+    setCurrentPage(1);
   };
 
-  const loadOverview = async () => {
-    setOverviewLoading(true);
-    try {
+  // --- Scheme Overview tab: lazy — only fetched once the tab is opened ---
+  const overviewQuery = useQuery({
+    queryKey: ["schemeOverviewUsers"],
+    queryFn: async () => {
       const [clientResult, liveOpResult, cctvOpResult,
              tpOpResult, tpClientResult, tpLiveOpResult, tpCCTVOpResult] = await Promise.all([
         firestoreService.getAllUsersPaginated(100, null, "client"),
@@ -100,7 +95,7 @@ const SchemeAssignment = () => {
         firestoreService.getAllUsersPaginated(100, null, "thirdpartyliveoperator"),
         firestoreService.getAllUsersPaginated(100, null, "thirdpartycctvoperator"),
       ]);
-      setOverviewUsers([
+      return [
         ...clientResult.users,
         ...liveOpResult.users,
         ...cctvOpResult.users,
@@ -108,20 +103,23 @@ const SchemeAssignment = () => {
         ...tpClientResult.users,
         ...tpLiveOpResult.users,
         ...tpCCTVOpResult.users,
-      ]);
-    } catch (error) {
-      console.error("Failed to load scheme overview:", error);
+      ];
+    },
+    enabled: activeTab === "overview",
+  });
+
+  useEffect(() => {
+    if (overviewQuery.isError) {
+      console.error("Failed to load scheme overview:", overviewQuery.error);
       toast.error("Failed to load scheme overview");
-    } finally {
-      setOverviewLoading(false);
     }
-  };
+  }, [overviewQuery.isError, overviewQuery.error]);
+
+  const overviewUsers = overviewQuery.data ?? [];
+  const overviewLoading = overviewQuery.isFetching;
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    if (tab === "overview" && overviewUsers.length === 0) {
-      loadOverview();
-    }
     if (tab === "cctv") {
       handleRoleFilterChange("cctvfaultoperator");
     }
@@ -140,7 +138,7 @@ const SchemeAssignment = () => {
       toast.error("No user selected");
       return;
     }
-    setLoading(true);
+    setActionLoading(true);
     try {
       await firestoreService.assignSchemeToUser(
         selectedUser.uid,
@@ -152,7 +150,7 @@ const SchemeAssignment = () => {
       setFormData({ schemeId: "", schemeName: "" });
       setShowAssignModal(false);
       setSelectedUser(null);
-      loadUsers(true);
+      usersQuery.refetch();
     } catch (error) {
       console.error("Failed to assign scheme:", error);
       if (error.code === "firestore/already-exists") {
@@ -161,17 +159,17 @@ const SchemeAssignment = () => {
         toast.error(error.message || "Failed to assign scheme");
       }
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
   const handleRemoveScheme = async (user, schemeId) => {
     if (!confirm(`Remove scheme ${schemeId} from ${user.displayName}?`)) return;
-    setLoading(true);
+    setActionLoading(true);
     try {
       await firestoreService.removeSchemeFromUser(user.uid, schemeId, userProfile.uid);
       toast.success(`Scheme ${schemeId} removed from ${user.displayName}`);
-      loadUsers(true);
+      usersQuery.refetch();
     } catch (error) {
       console.error("Failed to remove scheme:", error);
       if (error.code === "firestore/invalid-operation") {
@@ -180,7 +178,7 @@ const SchemeAssignment = () => {
         toast.error(error.message || "Failed to remove scheme");
       }
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -213,48 +211,42 @@ const SchemeAssignment = () => {
 
   const handleArchiveUser = async (user) => {
     if (!confirm(`Archive user ${user.displayName}? They will not be able to log in.`)) return;
-    setLoading(true);
+    setActionLoading(true);
     try {
       await firestoreService.archiveUser(user.uid, userProfile.uid);
       toast.success(`User ${user.displayName} archived successfully`);
-      loadUsers(true);
+      usersQuery.refetch();
     } catch (error) {
       console.error("Failed to archive user:", error);
       toast.error(error.message || "Failed to archive user");
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
   const handleUnarchiveUser = async (user) => {
     if (!confirm(`Unarchive user ${user.displayName}? They will be able to log in again.`)) return;
-    setLoading(true);
+    setActionLoading(true);
     try {
       await firestoreService.unarchiveUser(user.uid, userProfile.uid);
       toast.success(`User ${user.displayName} unarchived successfully`);
-      loadUsers(true);
+      usersQuery.refetch();
     } catch (error) {
       console.error("Failed to unarchive user:", error);
       toast.error(error.message || "Failed to unarchive user");
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
   const totalPages = Math.ceil(totalCount / usersPerPage);
 
   const handleNextPage = () => {
-    if (hasMore) {
-      setCurrentPage((prev) => prev + 1);
-      loadUsers(false);
-    }
+    if (hasMore) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-      loadUsers(true);
-    }
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
   // Group overview users by scheme for the Scheme Overview tab
@@ -280,7 +272,14 @@ const SchemeAssignment = () => {
           <p className="text-gray-600 mt-1">Manage scheme access for users</p>
         </div>
         <button
-          onClick={activeTab === "assignments" ? () => loadUsers(true) : loadOverview}
+          onClick={() => {
+            if (activeTab === "overview") {
+              overviewQuery.refetch();
+            } else {
+              usersQuery.refetch();
+              countsQuery.refetch();
+            }
+          }}
           disabled={loading || overviewLoading}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
         >
@@ -475,7 +474,7 @@ const SchemeAssignment = () => {
                                   {effectiveSchemeIds.length > 1 && user.schemeIds?.includes(sid) && (
                                     <button
                                       onClick={() => handleRemoveScheme(user, sid)}
-                                      disabled={loading}
+                                      disabled={actionLoading || loading}
                                       className="ml-1 hover:text-red-600 transition-colors"
                                       title="Remove scheme"
                                     >
@@ -514,7 +513,7 @@ const SchemeAssignment = () => {
                             {!user.isArchived && (
                               <button
                                 onClick={() => openAssignModal(user)}
-                                disabled={loading}
+                                disabled={actionLoading || loading}
                                 className="flex items-center gap-1 px-3 py-1 bg-teal-500 hover:bg-teal-600 text-white rounded text-sm transition-colors"
                               >
                                 <Plus className="w-4 h-4" />
@@ -524,7 +523,7 @@ const SchemeAssignment = () => {
                             {user.isArchived ? (
                               <button
                                 onClick={() => handleUnarchiveUser(user)}
-                                disabled={loading}
+                                disabled={actionLoading || loading}
                                 className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
                               >
                                 <ArchiveRestore className="w-4 h-4" />
@@ -533,7 +532,7 @@ const SchemeAssignment = () => {
                             ) : (
                               <button
                                 onClick={() => handleArchiveUser(user)}
-                                disabled={loading}
+                                disabled={actionLoading || loading}
                                 className="flex items-center gap-1 px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors"
                               >
                                 <Archive className="w-4 h-4" />
@@ -720,14 +719,14 @@ const SchemeAssignment = () => {
                   type="button"
                   onClick={() => { setShowAssignModal(false); setSelectedUser(null); }}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-                  disabled={loading}
+                  disabled={actionLoading || loading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors flex items-center gap-2"
-                  disabled={loading}
+                  disabled={actionLoading || loading}
                 >
                   {loading ? (
                     <>

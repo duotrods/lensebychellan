@@ -524,7 +524,7 @@ service cloud.firestore {
     // Any authenticated user can create their own login entry.
     // isSignedIn() used (not isVerified()) so the log is captured even if the
     // user hasn't verified their email yet — keeping the audit trail complete.
-    // Only admins can read. TTL auto-deletes after 15 days.
+    // Only admins can read. TTL auto-deletes after 3 days.
     match /loginLogs/{logId} {
       allow create: if isSignedIn();
       allow read: if isSignedIn() && getUserRole() == 'admin';

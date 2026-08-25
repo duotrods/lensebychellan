@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { THIRD_PARTY_SCHEMES } from "../../utils/schemes";
@@ -32,19 +33,26 @@ function getCounterVariants(type) {
   return variants;
 }
 
-const CounterRow = ({ formType, counterName, label, prefix, suffix }) => {
-  const [current, setCurrent] = useState(null);
-  const [loaded, setLoaded] = useState(false);
+const CounterRow = ({ counterName, label, prefix, suffix }) => {
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
-    const snap = await getDoc(doc(db, "counters", counterName));
-    const val = snap.exists() ? (snap.data().current ?? 0) : 0;
-    setCurrent(val);
-    setLoaded(true);
-  };
+  // enabled: false keeps this lazy — a counter is only read from Firestore
+  // when the admin clicks "Load", not on mount. Caching means reopening a
+  // collapsed section reuses the value instead of re-reading it.
+  const counterQuery = useQuery({
+    queryKey: ["counter", counterName],
+    queryFn: async () => {
+      const snap = await getDoc(doc(db, "counters", counterName));
+      return snap.exists() ? (snap.data().current ?? 0) : 0;
+    },
+    enabled: false,
+  });
+
+  const current = counterQuery.data;
+  const loaded = counterQuery.isSuccess;
 
   const handleEdit = () => {
     setInputVal(String(current ?? 0));
@@ -60,7 +68,7 @@ const CounterRow = ({ formType, counterName, label, prefix, suffix }) => {
     setSaving(true);
     try {
       await setDoc(doc(db, "counters", counterName), { current: num });
-      setCurrent(num);
+      queryClient.setQueryData(["counter", counterName], num);
       setEditing(false);
       const nextId = num === 0
         ? `${prefix}01${suffix}`
@@ -77,7 +85,7 @@ const CounterRow = ({ formType, counterName, label, prefix, suffix }) => {
     setSaving(true);
     try {
       await setDoc(doc(db, "counters", counterName), { current: 0 });
-      setCurrent(0);
+      queryClient.setQueryData(["counter", counterName], 0);
       setEditing(false);
       toast.success(`Counter reset to 0. Next ID will be ${prefix}01${suffix}`);
     } catch {
@@ -96,10 +104,11 @@ const CounterRow = ({ formType, counterName, label, prefix, suffix }) => {
 
       {!loaded ? (
         <button
-          onClick={load}
-          className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+          onClick={() => counterQuery.refetch()}
+          disabled={counterQuery.isFetching}
+          className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 disabled:opacity-50"
         >
-          Load
+          {counterQuery.isFetching ? "Loading..." : "Load"}
         </button>
       ) : editing ? (
         <div className="flex items-center gap-2">
@@ -199,7 +208,6 @@ const ReferenceIdManagerPage = () => {
                 {getCounterVariants(type).map((v) => (
                   <CounterRow
                     key={v.counterName}
-                    formType={type}
                     counterName={v.counterName}
                     label={v.label}
                     prefix={prefix}

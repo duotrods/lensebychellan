@@ -3,11 +3,29 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
-import { RefreshCw, User, Archive, ArchiveRestore, Mail, Shield, ChevronLeft, ChevronRight, Building2, Handshake, Trash2 } from "lucide-react";
+import {
+  MdRefresh,
+  MdPerson,
+  MdArchive,
+  MdUnarchive,
+  MdMail,
+  MdVerifiedUser,
+  MdChevronLeft,
+  MdChevronRight,
+  MdBusiness,
+  MdHandshake,
+  MdDelete,
+} from "react-icons/md";
 
 const ROLE_TABS = [
-  { key: "staff", label: "Internal Staff", icon: Building2 },
-  { key: "thirdpartystaff", label: "Third Party Staff", icon: Handshake },
+  { key: "staff", label: "Internal Staff", icon: MdBusiness },
+  { key: "thirdpartystaff", label: "Third Party Staff", icon: MdHandshake },
+];
+
+const STATUS_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "archived", label: "Archived" },
 ];
 
 const usersPerPage = 10;
@@ -122,11 +140,7 @@ const StaffManagement = () => {
     return true; // all
   });
 
-  const stats = {
-    total: totalCount, // Server-side total count
-    active: users.filter(u => !u.isArchived).length,
-    archived: users.filter(u => u.isArchived).length,
-  };
+  const stats = { total: totalCount };
 
   // Pagination handlers
   const totalPages = Math.ceil(totalCount / usersPerPage);
@@ -159,7 +173,7 @@ const StaffManagement = () => {
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <MdRefresh className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
@@ -182,60 +196,29 @@ const StaffManagement = () => {
         ))}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
+      {/* Total + filter, combined into a single row instead of duplicating counts
+          in separate stat cards and filter buttons. */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
           <p className="text-sm text-gray-500 mb-1">
             Total {roleTab === "staff" ? "Internal" : "Third Party"} Staff
           </p>
           <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Active (Current Page)</p>
-          <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500 mb-1">Archived (Current Page)</p>
-          <p className="text-2xl font-bold text-gray-600">{stats.archived}</p>
-        </div>
-      </div>
-
-      {/* Filter */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Filter:</label>
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {STATUS_FILTERS.map(({ key, label }) => (
             <button
-              onClick={() => setFilterStatus("all")}
+              key={key}
+              onClick={() => setFilterStatus(key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterStatus === "all"
+                filterStatus === key
                   ? "bg-teal-500 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              All ({stats.total})
+              {label}
             </button>
-            <button
-              onClick={() => setFilterStatus("active")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterStatus === "active"
-                  ? "bg-green-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Active ({stats.active})
-            </button>
-            <button
-              onClick={() => setFilterStatus("archived")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterStatus === "archived"
-                  ? "bg-gray-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              Archived ({stats.archived})
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -267,7 +250,7 @@ const StaffManagement = () => {
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mb-2" />
+                      <MdRefresh className="w-8 h-8 text-gray-400 animate-spin mb-2" />
                       <p className="text-gray-500">Loading staff users...</p>
                     </div>
                   </td>
@@ -276,7 +259,7 @@ const StaffManagement = () => {
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <User className="w-12 h-12 text-gray-300 mb-2" />
+                      <MdPerson className="w-12 h-12 text-gray-300 mb-2" />
                       <p className="text-gray-500">
                         {filterStatus === "archived"
                           ? `No archived ${roleTab === "staff" ? "internal" : "third-party"} staff users`
@@ -293,7 +276,7 @@ const StaffManagement = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
-                          <User className="w-5 h-5 text-teal-600" />
+                          <MdPerson className="w-5 h-5 text-teal-600" />
                         </div>
                         <div>
                           <p className="font-medium text-gray-800">
@@ -309,13 +292,13 @@ const StaffManagement = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-gray-400" />
+                        <MdMail className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600">{user.email}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-blue-500" />
+                        <MdVerifiedUser className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium text-blue-700 capitalize">
                           {user.role}
                         </span>
@@ -324,7 +307,7 @@ const StaffManagement = () => {
                     <td className="px-6 py-4">
                       {user.isArchived ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                          <Archive className="w-3 h-3" />
+                          <MdArchive className="w-3 h-3" />
                           Archived
                         </span>
                       ) : (
@@ -342,7 +325,7 @@ const StaffManagement = () => {
                             className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors disabled:opacity-50"
                             title="Unarchive user"
                           >
-                            <ArchiveRestore className="w-4 h-4" />
+                            <MdUnarchive className="w-4 h-4" />
                             Unarchive
                           </button>
                         ) : (
@@ -352,7 +335,7 @@ const StaffManagement = () => {
                             className="flex items-center gap-1 px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors disabled:opacity-50"
                             title="Archive user"
                           >
-                            <Archive className="w-4 h-4" />
+                            <MdArchive className="w-4 h-4" />
                             Archive
                           </button>
                         )}
@@ -363,7 +346,7 @@ const StaffManagement = () => {
                             className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors disabled:opacity-50"
                             title="Delete user"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <MdDelete className="w-4 h-4" />
                             Delete
                           </button>
                         )}
@@ -388,7 +371,7 @@ const StaffManagement = () => {
                 disabled={currentPage === 1}
                 className="btn btn-sm btn-outline"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <MdChevronLeft className="w-4 h-4" />
               </button>
               <span className="text-sm font-medium">
                 Page {currentPage} of {totalPages}
@@ -398,7 +381,7 @@ const StaffManagement = () => {
                 disabled={!hasMore || currentPage === totalPages}
                 className="btn btn-sm btn-outline"
               >
-                <ChevronRight className="w-4 h-4" />
+                <MdChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -441,7 +424,7 @@ const StaffManagement = () => {
                   </>
                 ) : (
                   <>
-                    <Trash2 className="w-4 h-4" />
+                    <MdDelete className="w-4 h-4" />
                     Delete User
                   </>
                 )}

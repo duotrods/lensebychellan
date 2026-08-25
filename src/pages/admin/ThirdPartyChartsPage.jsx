@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import {
@@ -42,11 +43,8 @@ const ChartCard = ({ title, children, fullWidth = false, height = 300 }) => (
 );
 
 const ThirdPartyChartsPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [selectedScheme, setSelectedScheme] = useState("");
-  const [reports, setReports] = useState([]);
+  const [selectedScheme, setSelectedScheme] = useState(THIRD_PARTY_SCHEMES[0]?.fullName ?? "");
   const [isExporting, setIsExporting] = useState(false);
-  const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
   const datePickerRef = useRef(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -79,25 +77,6 @@ const ThirdPartyChartsPage = () => {
     bar: { fill: COLORS.primary, radius: [8, 8, 0, 0] }
   };
 
-  useEffect(() => {
-    // Default to the first third-party scheme.
-    if (THIRD_PARTY_SCHEMES.length > 0) {
-      setSelectedScheme(THIRD_PARTY_SCHEMES[0].fullName);
-    }
-  }, []);
-
-  // Refetch incidents whenever the date range changes — scoped server-side so
-  // we read only the selected window instead of the whole collection.
-  useEffect(() => {
-    loadAllData(dateRange[0].startDate, dateRange[0].endDate);
-  }, [dateRange]);
-
-  // Stat cards reflect ALL third-party schemes combined (a company-wide total),
-  // independent of the selected scheme — so load once on mount.
-  useEffect(() => {
-    loadFormCounts();
-  }, []);
-
   // Close date picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -110,38 +89,57 @@ const ThirdPartyChartsPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const loadAllData = async (startDate, endDate) => {
-    try {
-      setLoading(true);
-      // Only load incident reports - all 12 charts are incident-based.
-      // Scoped to the selected date window so we don't read the whole collection.
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // include the entire end day
-      const incidentReports = await staffService.getIncidentReports(null, null, {
-        startDate,
-        endDate: end,
-      });
-      const reportsWithType = incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
-      setReports(reportsWithType);
-    } catch (error) {
-      console.error("Failed to load data:", error);
-      toast.error("Failed to load chart data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Only incident reports are loaded — all 12 charts are incident-based.
+  // Scoped server-side to the selected date window, re-fetched whenever the
+  // range changes, so we never read the whole collection. Shared query key
+  // with ClientChartsPage — getIncidentReports() has no scheme filter, so
+  // both pages fetch the identical dataset for a given date window and only
+  // split it client-side. Switching between the two pages within the cache
+  // window costs 0 extra reads.
+  const rangeStart = dateRange[0].startDate;
+  const rangeEnd = new Date(dateRange[0].endDate);
+  rangeEnd.setHours(23, 59, 59, 999); // include the entire end day
 
-  const loadFormCounts = async () => {
-    try {
-      // Cards show a third-party-wide total across every TP scheme
-      // (excludes internal staff + demo data), regardless of the selected scheme.
-      const counts = await staffService.getAllFormsCountByType(
-        getAllThirdPartySchemeIds()
-      );
-      setFormCounts(counts);
-    } catch (error) {
-      console.warn('Could not load form counts:', error);
+  const reportsQuery = useQuery({
+    queryKey: ["allIncidentReportsInRange", rangeStart.getTime(), rangeEnd.getTime()],
+    queryFn: async () => {
+      const incidentReports = await staffService.getIncidentReports(null, null, {
+        startDate: rangeStart,
+        endDate: rangeEnd,
+      });
+      return incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
+    },
+  });
+
+  useEffect(() => {
+    if (reportsQuery.isError) {
+      console.error("Failed to load data:", reportsQuery.error);
+      toast.error("Failed to load chart data");
     }
+  }, [reportsQuery.isError, reportsQuery.error]);
+
+  const reports = reportsQuery.data ?? [];
+  const loading = reportsQuery.isFetching;
+
+  // Cards show a third-party-wide total across every TP scheme (excludes
+  // internal staff + demo data), regardless of the selected scheme. No
+  // date/scheme dependency, so this is fetched once and cached.
+  const formCountsQuery = useQuery({
+    queryKey: ["allFormsCountByType", "thirdparty"],
+    queryFn: () => staffService.getAllFormsCountByType(getAllThirdPartySchemeIds()),
+  });
+
+  useEffect(() => {
+    if (formCountsQuery.isError) {
+      console.warn('Could not load form counts:', formCountsQuery.error);
+    }
+  }, [formCountsQuery.isError, formCountsQuery.error]);
+
+  const formCounts = formCountsQuery.data ?? {
+    cctvCheckTotal: 0,
+    incidentReportTotal: 0,
+    assetDamageTotal: 0,
+    dailyLogsTotal: 0,
   };
 
   // Convert date range to timestamps for filtering

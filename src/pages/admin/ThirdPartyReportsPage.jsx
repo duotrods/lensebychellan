@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
@@ -24,38 +25,29 @@ import {
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 
-// Module-level variable — survives component unmount/remount, no serialization needed
+// Module-level variable — survives component unmount/remount, no serialization needed.
+// Only browse-pagination state needs restoring: React Query's own cache already
+// keeps the actual report data/counts alive across unmount.
 let _thirdPartyReportsRestore = null;
 
 const ThirdPartyReportsPage = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [reports, setReports] = useState([]);
-  const [filteredReports, setFilteredReports] = useState([]);
+  const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [filterType, setFilterType] = useState("all");
   const [filterCompany, setFilterCompany] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [searchPage, setSearchPage] = useState(1);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchPage, setSearchPage] = useState(1);
-  const [searchHasMore, setSearchHasMore] = useState(false);
-  const [searchLastDocs, setSearchLastDocs] = useState({});
-  const searchPageCacheRef = useRef({});
-  const [cursors, setCursors] = useState({});
-  const [typeCursor, setTypeCursor] = useState(null);
-  const pageCacheRef = useRef({});
-  const wasRestoredRef = useRef(false);
   const searchDebounceRef = useRef(null);
-  const searchCounterRef = useRef(0);
   const searchRateLimitRef = useRef([]); // timestamps of recent searches
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [typeCount, setTypeCount] = useState(0);
-  const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
+  // Cursor state per filter combo, one entry per page: cursorsRef.current[key][i]
+  // is what's needed to fetch page i + 1. Only consulted on a cache miss.
+  const cursorsRef = useRef({});
+  const searchCursorsRef = useRef({});
   const reportsPerPage = 10;
 
   // Third-party companies for the filter dropdown
@@ -77,42 +69,13 @@ const ThirdPartyReportsPage = () => {
   };
 
   useEffect(() => {
-    const restored = _thirdPartyReportsRestore;
-    if (restored) {
-      setCurrentPage(restored.page);
-      setFilterType(restored.filter);
-      setFilterCompany(restored.company);
-      setReports(restored.reports);
-      setHasMore(restored.hasMore);
-      setCursors(restored.cursors || {});
-      setTypeCursor(restored.typeCursor || null);
-      setTypeCount(restored.typeCount || 0);
-      setTotalCount(restored.totalCount || 0);
-      // Restore the full page cache so Prev/Next navigation works on all cached pages
-      pageCacheRef.current = restored.pageCache ? { ...restored.pageCache } : {
-        [restored.page]: {
-          data: restored.reports,
-          cursors: restored.cursors || {},
-          typeCursor: restored.typeCursor || null,
-          hasMore: restored.hasMore,
-        }
-      };
-      setLoading(false);
-      wasRestoredRef.current = true;
-      loadTotalCount(restored.company);
-      loadFormCounts(restored.company);
-    } else {
-      loadAllReports(true);
-      loadTotalCount("all");
-      loadFormCounts("all");
+    if (_thirdPartyReportsRestore) {
+      setCurrentPage(_thirdPartyReportsRestore.page);
+      setFilterType(_thirdPartyReportsRestore.filterType);
+      setFilterCompany(_thirdPartyReportsRestore.filterCompany);
+      cursorsRef.current = _thirdPartyReportsRestore.cursors || {};
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    applyFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports]);
 
   const clearRestoreState = () => { _thirdPartyReportsRestore = null; };
 
@@ -135,113 +98,85 @@ const ThirdPartyReportsPage = () => {
     return results.map(f => ({ ...f, ...(typeMap[f.type] || {}) }));
   };
 
-  const runSearch = async (term, page = 1, lastDocs = {}, overrideType = null, overrideCompany = null) => {
-    if (!term.trim()) {
-      setSearchResults([]);
-      setSearchPage(1);
-      setSearchHasMore(false);
-      setSearchLastDocs({});
-      searchPageCacheRef.current = {};
-      return;
-    }
+  // Abuse/cost guard — independent of caching, so it stays a manual gate in
+  // front of whatever triggers a search query (typing, Next, Prev).
+  const checkSearchRateLimit = () => {
     const now = Date.now();
     searchRateLimitRef.current = searchRateLimitRef.current.filter(t => now - t < 30000);
     if (searchRateLimitRef.current.length >= 10) {
       toast.error('Too many searches. Please wait a moment.');
-      return;
+      return false;
     }
     searchRateLimitRef.current.push(now);
-    const myCount = ++searchCounterRef.current;
-    setSearchLoading(true);
-    try {
-      const activeType = overrideType !== null ? overrideType : filterType;
-      const activeCompany = overrideCompany !== null ? overrideCompany : filterCompany;
-      const collections = activeType !== 'all' ? typeToCollectionKey[activeType] : null;
+    return true;
+  };
+
+  const isSearchMode = debouncedSearchQuery.trim() !== '';
+  const searchKey = `${debouncedSearchQuery}|${filterType}|${filterCompany}`;
+
+  const searchQueryResult = useQuery({
+    queryKey: ["thirdPartyReportsSearch", debouncedSearchQuery, filterType, filterCompany, searchPage],
+    queryFn: async () => {
+      searchCursorsRef.current[searchKey] ??= [{}];
+      const lastDocs = searchCursorsRef.current[searchKey][searchPage - 1] ?? {};
+      const collections = filterType !== 'all' ? typeToCollectionKey[filterType] : null;
       // Scope search to the company's schemes — searchFormsPaginated filters
       // results down to the supplied scheme set.
       const { results, lastDocs: newLastDocs, hasMore } =
-        await staffService.searchFormsPaginated(term.trim(), 10, lastDocs, collections, getCompanyScope(activeCompany));
-      if (myCount !== searchCounterRef.current) return; // stale
+        await staffService.searchFormsPaginated(debouncedSearchQuery.trim(), 10, lastDocs, collections, getCompanyScope(filterCompany));
+      return { results: mapSearchResults(results), lastDocs: newLastDocs, hasMore };
+    },
+    enabled: isSearchMode,
+  });
 
-      const mapped = mapSearchResults(results);
-      searchPageCacheRef.current[page] = { results: mapped, lastDocs: newLastDocs, hasMore };
-      setSearchResults(mapped);
-      setSearchPage(page);
-      setSearchHasMore(hasMore);
-      setSearchLastDocs(newLastDocs);
-    } catch (err) {
-      console.error('Search failed:', err);
-      toast.error('Search failed. Please try again.');
-    } finally {
-      setSearchLoading(false);
+  useEffect(() => {
+    if (searchQueryResult.data) {
+      searchCursorsRef.current[searchKey] ??= [{}];
+      searchCursorsRef.current[searchKey][searchPage] = searchQueryResult.data.lastDocs;
     }
-  };
+  }, [searchQueryResult.data, searchKey, searchPage]);
+
+  useEffect(() => {
+    if (searchQueryResult.isError) {
+      console.error('Search failed:', searchQueryResult.error);
+      toast.error('Search failed. Please try again.');
+    }
+  }, [searchQueryResult.isError, searchQueryResult.error]);
+
+  const searchResults = searchQueryResult.data?.results ?? [];
+  const searchHasMore = searchQueryResult.data?.hasMore ?? false;
+  const searchLoading = searchQueryResult.isFetching;
 
   const handleSearchNextPage = () => {
-    if (!searchHasMore) return;
-    runSearch(searchQuery, searchPage + 1, searchLastDocs);
+    if (!searchHasMore || !checkSearchRateLimit()) return;
+    setSearchPage(p => p + 1);
   };
 
   const handleSearchPrevPage = () => {
-    if (searchPage <= 1) return;
-    const cached = searchPageCacheRef.current[searchPage - 1];
-    if (cached) {
-      setSearchResults(cached.results);
-      setSearchPage(searchPage - 1);
-      setSearchHasMore(cached.hasMore);
-      setSearchLastDocs(cached.lastDocs);
-    }
+    if (searchPage > 1) setSearchPage(p => p - 1);
   };
 
-  const loadAllReports = async (resetPage = false, overrideFilter = null, overrideCompany = null, cursorOverride = null, targetPage = null, silent = false) => {
-    // Check page cache first (targetPage is set by pagination handlers)
-    if (targetPage && pageCacheRef.current[targetPage]) {
-      const cached = pageCacheRef.current[targetPage];
-      setReports(cached.data);
-      setCursors(cached.cursors);
-      setTypeCursor(cached.typeCursor);
-      setHasMore(cached.hasMore);
-      setCurrentPage(targetPage);
-      return;
-    }
+  const filterKey = `${filterType}|${filterCompany}`;
 
-    try {
-      if (!silent) setLoading(true);
+  const reportsQuery = useQuery({
+    queryKey: ["thirdPartyReports", filterType, filterCompany, currentPage],
+    queryFn: async () => {
+      cursorsRef.current[filterKey] ??= [{ cursors: {}, typeCursor: null }];
+      const prev = cursorsRef.current[filterKey][currentPage - 1] ?? { cursors: {}, typeCursor: null };
+      const scope = getCompanyScope(filterCompany);
 
-      const activeFilter = overrideFilter !== null ? overrideFilter : filterType;
-      const activeCompany = overrideCompany !== null ? overrideCompany : filterCompany;
-      const scope = getCompanyScope(activeCompany);
-      let rawForms;
-      let newCursors = {};
-      let newTypeCursor = null;
-      let newHasMore = true;
-
-      if (activeFilter === 'all') {
-        const effectiveCursors = cursorOverride ? cursorOverride.cursors : (resetPage ? {} : cursors);
-        const result = await staffService.getAllFormsPaginated(
-          reportsPerPage,
-          effectiveCursors,
-          scope
-        );
+      let rawForms, newCursors = {}, newTypeCursor = null, newHasMore = true;
+      if (filterType === 'all') {
+        const result = await staffService.getAllFormsPaginated(reportsPerPage, prev.cursors, scope);
         rawForms = result.forms;
         newCursors = result.cursors;
         newHasMore = result.hasMore;
-        setCursors(newCursors);
-        setHasMore(newHasMore);
       } else {
-        const effectiveTypeCursor = cursorOverride ? cursorOverride.typeCursor : (resetPage ? null : typeCursor);
-        const serviceType = adminTypeToServiceType[activeFilter] || activeFilter;
-        const result = await staffService.getFormsByTypePaginated(
-          serviceType,
-          reportsPerPage,
-          effectiveTypeCursor,
-          scope
-        );
+        const serviceType = adminTypeToServiceType[filterType] || filterType;
+        const result = await staffService.getFormsByTypePaginated(serviceType, reportsPerPage, prev.typeCursor, scope);
         rawForms = result.forms;
         newTypeCursor = result.lastDoc;
         newHasMore = result.hasMore;
-        setTypeCursor(newTypeCursor);
-        setHasMore(newHasMore);
       }
 
       // Map forms to reports with display metadata
@@ -282,101 +217,78 @@ const ThirdPartyReportsPage = () => {
         return schemeId !== DEMO_SCHEME_ID;
       });
 
-      setReports(filteredReports);
+      return { reports: filteredReports, cursors: newCursors, typeCursor: newTypeCursor, hasMore: newHasMore };
+    },
+  });
 
-      // Cache this page's data
-      const pageNum = targetPage || (resetPage ? 1 : currentPage);
-      pageCacheRef.current[pageNum] = {
-        data: filteredReports,
-        cursors: newCursors,
-        typeCursor: newTypeCursor,
-        hasMore: newHasMore,
+  useEffect(() => {
+    if (reportsQuery.data) {
+      cursorsRef.current[filterKey] ??= [{ cursors: {}, typeCursor: null }];
+      cursorsRef.current[filterKey][currentPage] = {
+        cursors: reportsQuery.data.cursors,
+        typeCursor: reportsQuery.data.typeCursor,
       };
+    }
+  }, [reportsQuery.data, filterKey, currentPage]);
 
-      if (resetPage) {
-        setCurrentPage(1);
-      }
-    } catch (error) {
-      console.error("Failed to load reports:", error);
+  useEffect(() => {
+    if (reportsQuery.isError) {
+      console.error("Failed to load reports:", reportsQuery.error);
       toast.error("Failed to load reports");
-    } finally {
-      setLoading(false);
     }
+  }, [reportsQuery.isError, reportsQuery.error]);
+
+  const reports = reportsQuery.data?.reports ?? [];
+  const filteredReports = reports;
+  const hasMore = reportsQuery.data?.hasMore ?? false;
+  const loading = reportsQuery.isFetching;
+
+  // Counts are company-scoped, so they're keyed (and refetched) by company.
+  const totalCountQuery = useQuery({
+    queryKey: ["allFormsCount", "thirdparty-company", filterCompany],
+    queryFn: () => staffService.getAllFormsCount(getCompanyScope(filterCompany)),
+  });
+  const totalCount = totalCountQuery.data ?? 0;
+
+  const formCountsQuery = useQuery({
+    queryKey: ["allFormsCountByType", "thirdparty-company", filterCompany],
+    queryFn: () => staffService.getAllFormsCountByType(getCompanyScope(filterCompany)),
+  });
+  const formCounts = formCountsQuery.data ?? {
+    cctvCheckTotal: 0,
+    incidentReportTotal: 0,
+    assetDamageTotal: 0,
+    dailyLogsTotal: 0,
   };
 
-  const loadTotalCount = async (company = filterCompany) => {
-    try {
-      const count = await staffService.getAllFormsCount(getCompanyScope(company));
-      setTotalCount(count);
-    } catch (error) {
-      console.warn('Could not load total count:', error);
-    }
-  };
+  const typeCountQuery = useQuery({
+    queryKey: ["formCountForType", filterType, filterCompany],
+    queryFn: () => staffService.getFormCountForType(adminTypeToServiceType[filterType] || filterType, getCompanyScope(filterCompany)),
+    enabled: filterType !== 'all',
+  });
+  const typeCount = filterType !== 'all' ? (typeCountQuery.data ?? 0) : 0;
 
-  const loadFormCounts = async (company = filterCompany) => {
-    try {
-      const counts = await staffService.getAllFormsCountByType(getCompanyScope(company));
-      setFormCounts(counts);
-    } catch (error) {
-      console.warn('Could not load form counts:', error);
-    }
-  };
-
-  const handleFilterChange = async (newType) => {
+  const handleFilterChange = (newType) => {
     clearRestoreState();
     setFilterType(newType);
-    setTypeCursor(null);
-    setCursors({});
-    pageCacheRef.current = {};
     setCurrentPage(1);
-    if (searchQuery.trim()) {
-      searchPageCacheRef.current = {};
-      runSearch(searchQuery, 1, {}, newType, null);
-    } else {
-      loadAllReports(true, newType);
-    }
-    if (newType !== 'all') {
-      try {
-        const serviceType = adminTypeToServiceType[newType] || newType;
-        const count = await staffService.getFormCountForType(serviceType, getCompanyScope(filterCompany));
-        setTypeCount(count);
-      } catch {
-        setTypeCount(0);
-      }
-    }
+    setSearchPage(1);
   };
 
   const handleCompanyChange = (newCompany) => {
     clearRestoreState();
     setFilterCompany(newCompany);
-    setTypeCursor(null);
-    setCursors({});
-    pageCacheRef.current = {};
     setCurrentPage(1);
-    // Counts are company-scoped, so refresh them when the company changes.
-    loadTotalCount(newCompany);
-    loadFormCounts(newCompany);
-    if (searchQuery.trim()) {
-      searchPageCacheRef.current = {};
-      runSearch(searchQuery, 1, {}, null, newCompany);
-    } else {
-      loadAllReports(true, null, newCompany);
-    }
-    if (filterType !== 'all') {
-      const serviceType = adminTypeToServiceType[filterType] || filterType;
-      staffService.getFormCountForType(serviceType, getCompanyScope(newCompany))
-        .then(setTypeCount)
-        .catch(() => setTypeCount(0));
-    }
-  };
-
-  const applyFilters = () => {
-    // Type and company filtering are handled server-side; text search uses Firestore query
-    setFilteredReports([...reports]);
+    setSearchPage(1);
   };
 
   const handleViewReport = (report) => {
-    _thirdPartyReportsRestore = { page: currentPage, filter: filterType, company: filterCompany, reports, hasMore, cursors, typeCursor, typeCount, totalCount, pageCache: { ...pageCacheRef.current } };
+    _thirdPartyReportsRestore = {
+      page: currentPage,
+      filterType,
+      filterCompany,
+      cursors: cursorsRef.current,
+    };
     // Reuse the admin staff-report detail routes; pass `from` so the detail
     // page's back button returns here instead of the Staff Reports page.
     const opts = { state: { from: '/dashboard/admin/thirdparty-reports' } };
@@ -410,8 +322,6 @@ const ThirdPartyReportsPage = () => {
     }
   };
 
-  const isSearchMode = searchQuery.trim() !== '';
-
   // Use Firestore search results when searching, otherwise use paginated page data
   const currentReports = isSearchMode ? searchResults : filteredReports;
   const activeCount = filterType === 'all' ? totalCount : typeCount;
@@ -420,29 +330,19 @@ const ThirdPartyReportsPage = () => {
   // If restored page exceeds actual total pages, reset to page 1
   useEffect(() => {
     if (!loading && totalPages > 0 && currentPage > totalPages) {
-      pageCacheRef.current = {};
       _thirdPartyReportsRestore = null;
-      loadAllReports(true);
+      setCurrentPage(1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalPages, loading]);
+  }, [totalPages, loading, currentPage]);
 
   // Pagination handlers
   const handleNextPage = () => {
     const atLastPage = totalPages > 0 && currentPage >= totalPages;
-    if (hasMore && !atLastPage) {
-      const nextPage = currentPage + 1;
-      setCurrentPage(nextPage);
-      loadAllReports(false, null, null, null, nextPage);
-    }
+    if (hasMore && !atLastPage) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      const prevPage = currentPage - 1;
-      setCurrentPage(prevPage);
-      loadAllReports(false, null, null, null, prevPage);
-    }
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
   const formatDate = (timestamp) => {
@@ -566,8 +466,18 @@ const ThirdPartyReportsPage = () => {
       if (collectionName) {
         await staffService.deleteReport(collectionName, reportToDelete.id);
         toast.success("Report deleted successfully");
-        // Remove from local state
-        setReports((prev) => prev.filter((r) => r.id !== reportToDelete.id));
+        // Splice out of whichever cached list is currently displayed.
+        if (isSearchMode) {
+          queryClient.setQueryData(
+            ["thirdPartyReportsSearch", debouncedSearchQuery, filterType, filterCompany, searchPage],
+            (old) => old ? { ...old, results: old.results.filter((r) => r.id !== reportToDelete.id) } : old,
+          );
+        } else {
+          queryClient.setQueryData(
+            ["thirdPartyReports", filterType, filterCompany, currentPage],
+            (old) => old ? { ...old, reports: old.reports.filter((r) => r.id !== reportToDelete.id) } : old,
+          );
+        }
       }
     } catch (error) {
       console.error("Failed to delete report:", error);
@@ -675,21 +585,15 @@ const ThirdPartyReportsPage = () => {
                   setSearchQuery(value);
                   if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                   if (!value.trim()) {
-                    setSearchResults([]);
+                    setDebouncedSearchQuery("");
                     setSearchPage(1);
-                    setSearchHasMore(false);
-                    setSearchLastDocs({});
-                    searchPageCacheRef.current = {};
                     setCurrentPage(1);
-                    setCursors({});
-                    setTypeCursor(null);
-                    pageCacheRef.current = {};
-                    loadAllReports(true, null, null, null, null, true);
                     return;
                   }
                   searchDebounceRef.current = setTimeout(() => {
-                    searchPageCacheRef.current = {};
-                    runSearch(value, 1, {});
+                    if (!checkSearchRateLimit()) return;
+                    setDebouncedSearchQuery(value);
+                    setSearchPage(1);
                   }, 150);
                 }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"

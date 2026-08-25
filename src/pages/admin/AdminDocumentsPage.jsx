@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import {
@@ -162,172 +163,109 @@ const DeleteConfirmModal = ({ doc, deleting, onConfirm, onCancel }) => (
 );
 
 const AdminDocumentsPage = () => {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterScheme, setFilterScheme] = useState("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [viewing, setViewing] = useState(null);
   const [confirmDoc, setConfirmDoc] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  // Pagination — cursor-based, page cache means Prev/back-navigation costs 0 reads.
   const [currentPage, setCurrentPage] = useState(1);
-  const [cursor, setCursor] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const pageCacheRef = useRef({}); // { pageNum: { data, cursor, hasMore } }
 
-  // Search — bounded single fetch (SEARCH_LIMIT) instead of scanning everything.
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
   const searchDebounceRef = useRef(null);
+  // Cursor for each page, per filter combo: cursorsRef.current[key][i] is the
+  // lastDoc needed to fetch page i + 1. Query caching means Prev/Next and
+  // revisiting a filter combo within the cache window cost 0 reads.
+  const cursorsRef = useRef({});
 
-  const isSearchMode = search.trim() !== "";
-
-  useEffect(() => {
-    loadPage(true);
-    loadTotalCount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const activeFilters = (overrideCategory = null, overrideScheme = null) => {
-    const category = overrideCategory !== null ? overrideCategory : filterCategory;
-    const scheme = overrideScheme !== null ? overrideScheme : filterScheme;
-    return {
-      category: category !== "all" ? category : null,
-      schemeId: scheme !== "all" ? scheme : null,
-    };
+  const isSearchMode = debouncedSearch.trim() !== "";
+  const filterKey = `${filterCategory}|${filterScheme}`;
+  const filters = {
+    category: filterCategory !== "all" ? filterCategory : null,
+    schemeId: filterScheme !== "all" ? filterScheme : null,
   };
 
-  const loadPage = async (
-    resetPage = false,
-    targetPage = null,
-    overrideCategory = null,
-    overrideScheme = null,
-  ) => {
-    // Already-visited pages are served from cache — no Firestore read.
-    if (targetPage && pageCacheRef.current[targetPage]) {
-      const cached = pageCacheRef.current[targetPage];
-      setDocuments(cached.data);
-      setCursor(cached.cursor);
-      setHasMore(cached.hasMore);
-      setCurrentPage(targetPage);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const effectiveCursor = resetPage ? null : cursor;
-      const result = await staffService.getDocumentsPaginated(
-        PAGE_SIZE,
-        effectiveCursor,
-        activeFilters(overrideCategory, overrideScheme),
-      );
-      const cleaned = excludeDemo(result.documents);
-      setDocuments(cleaned);
-      setCursor(result.cursor);
-      setHasMore(result.hasMore);
-
-      const pageNum = targetPage || (resetPage ? 1 : currentPage);
-      pageCacheRef.current[pageNum] = {
-        data: cleaned,
+  const pageQuery = useQuery({
+    queryKey: ["documents", filterCategory, filterScheme, currentPage],
+    queryFn: async () => {
+      cursorsRef.current[filterKey] ??= [null];
+      const cursor = cursorsRef.current[filterKey][currentPage - 1] ?? null;
+      const result = await staffService.getDocumentsPaginated(PAGE_SIZE, cursor, filters);
+      return {
+        documents: excludeDemo(result.documents),
         cursor: result.cursor,
         hasMore: result.hasMore,
       };
+    },
+    enabled: !isSearchMode,
+  });
 
-      if (resetPage) setCurrentPage(1);
-    } catch (error) {
-      console.error("Failed to load documents:", error);
+  useEffect(() => {
+    if (pageQuery.data?.cursor) {
+      cursorsRef.current[filterKey] ??= [null];
+      cursorsRef.current[filterKey][currentPage] = pageQuery.data.cursor;
+    }
+  }, [pageQuery.data, filterKey, currentPage]);
+
+  useEffect(() => {
+    if (pageQuery.isError) {
+      console.error("Failed to load documents:", pageQuery.error);
       toast.error("Failed to load documents");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [pageQuery.isError, pageQuery.error]);
 
-  const loadTotalCount = async (overrideCategory = null, overrideScheme = null) => {
-    try {
-      const count = await staffService.getDocumentsCount(
-        activeFilters(overrideCategory, overrideScheme),
-      );
-      setTotalCount(count);
-    } catch (error) {
-      console.warn("Could not load documents count:", error);
-    }
-  };
+  const countQuery = useQuery({
+    queryKey: ["documentsCount", filterCategory, filterScheme],
+    queryFn: () => staffService.getDocumentsCount(filters),
+  });
 
-  const runSearch = async (term, overrideCategory = null, overrideScheme = null) => {
-    if (!term.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const result = await staffService.getDocumentsPaginated(
-        SEARCH_LIMIT,
-        null,
-        activeFilters(overrideCategory, overrideScheme),
+  const searchQuery = useQuery({
+    queryKey: ["documentsSearch", debouncedSearch, filterCategory, filterScheme],
+    queryFn: async () => {
+      const result = await staffService.getDocumentsPaginated(SEARCH_LIMIT, null, filters);
+      return excludeDemo(result.documents).filter((d) =>
+        (d.title || "").toLowerCase().includes(debouncedSearch.toLowerCase()),
       );
-      const matches = excludeDemo(result.documents).filter((d) =>
-        (d.title || "").toLowerCase().includes(term.toLowerCase()),
-      );
-      setSearchResults(matches);
-    } catch (error) {
-      console.error("Search failed:", error);
+    },
+    enabled: isSearchMode,
+  });
+
+  useEffect(() => {
+    if (searchQuery.isError) {
+      console.error("Search failed:", searchQuery.error);
       toast.error("Search failed. Please try again.");
-    } finally {
-      setSearchLoading(false);
     }
-  };
-
-  const resetPagination = () => {
-    setCursor(null);
-    setCurrentPage(1);
-    pageCacheRef.current = {};
-  };
+  }, [searchQuery.isError, searchQuery.error]);
 
   const handleCategoryChange = (newCategory) => {
     setFilterCategory(newCategory);
-    resetPagination();
-    if (isSearchMode) {
-      runSearch(search, newCategory, null);
-    } else {
-      loadPage(true, null, newCategory, null);
-    }
-    loadTotalCount(newCategory, null);
+    setCurrentPage(1);
   };
 
   const handleSchemeChange = (newScheme) => {
     setFilterScheme(newScheme);
-    resetPagination();
-    if (isSearchMode) {
-      runSearch(search, null, newScheme);
-    } else {
-      loadPage(true, null, null, newScheme);
-    }
-    loadTotalCount(null, newScheme);
+    setCurrentPage(1);
   };
 
   const handleSearchChange = (value) => {
     setSearch(value);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     if (!value.trim()) {
-      setSearchResults([]);
+      setDebouncedSearch("");
       return;
     }
     searchDebounceRef.current = setTimeout(() => {
-      runSearch(value);
+      setDebouncedSearch(value);
     }, 300);
   };
 
   const handleNextPage = () => {
-    if (!hasMore) return;
-    loadPage(false, currentPage + 1);
+    if (pageQuery.data?.hasMore) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage <= 1) return;
-    loadPage(false, currentPage - 1);
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
   const confirmDelete = async () => {
@@ -335,13 +273,15 @@ const AdminDocumentsPage = () => {
     setDeleting(true);
     try {
       await staffService.deleteDocument(confirmDoc.id);
-      setDocuments((prev) => prev.filter((d) => d.id !== confirmDoc.id));
-      setSearchResults((prev) => prev.filter((d) => d.id !== confirmDoc.id));
-      // Cached pages may now be stale (one doc short) — drop the cache so
-      // Prev/Next re-fetches instead of showing a phantom deleted row.
-      pageCacheRef.current = {};
       toast.success("Document deleted");
       setConfirmDoc(null);
+      // A deletion can shift every cursor after it — drop cursor chains and
+      // let the affected queries re-fetch cleanly instead of risking a
+      // phantom or skipped row.
+      cursorsRef.current = {};
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documentsCount"] });
+      queryClient.invalidateQueries({ queryKey: ["documentsSearch"] });
     } catch (error) {
       console.error("Failed to delete document:", error);
       toast.error("Failed to delete document");
@@ -350,8 +290,10 @@ const AdminDocumentsPage = () => {
     }
   };
 
-  const currentDocs = isSearchMode ? searchResults : documents;
-  const isLoading = isSearchMode ? searchLoading : loading;
+  const currentDocs = isSearchMode ? (searchQuery.data ?? []) : (pageQuery.data?.documents ?? []);
+  const isLoading = isSearchMode ? searchQuery.isFetching : pageQuery.isFetching;
+  const hasMore = pageQuery.data?.hasMore ?? false;
+  const totalCount = countQuery.data ?? 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
@@ -414,8 +356,8 @@ const AdminDocumentsPage = () => {
             <Filter className="w-4 h-4" />
             <span>
               {isSearchMode
-                ? `${searchResults.length} result${searchResults.length !== 1 ? "s" : ""} for "${search}"${
-                    searchResults.length === SEARCH_LIMIT
+                ? `${currentDocs.length} result${currentDocs.length !== 1 ? "s" : ""} for "${search}"${
+                    currentDocs.length === SEARCH_LIMIT
                       ? ` (showing top ${SEARCH_LIMIT} — refine your search)`
                       : ""
                   }`

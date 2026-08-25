@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import { SCHEMES, getInternalSchemeIds } from "../../utils/schemes";
@@ -37,13 +38,13 @@ const ChartCard = ({ title, children, fullWidth = false, height = 300 }) => (
   </div>
 );
 
+// The set of active schemes for the dropdown — stable, independent of the
+// selected date range, so changing the range never disturbs the selection.
+const schemes = SCHEMES.map((s) => s.fullName).sort();
+
 const ClientChartsPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [selectedScheme, setSelectedScheme] = useState("");
-  const [reports, setReports] = useState([]);
-  const [schemes, setSchemes] = useState([]);
+  const [selectedScheme, setSelectedScheme] = useState(schemes[0] ?? "");
   const [isExporting, setIsExporting] = useState(false);
-  const [formCounts, setFormCounts] = useState({ cctvCheckTotal: 0, incidentReportTotal: 0, assetDamageTotal: 0, dailyLogsTotal: 0 });
   const datePickerRef = useRef(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -73,21 +74,6 @@ const ClientChartsPage = () => {
     bar: { fill: COLORS.primary, radius: [8, 8, 0, 0] }
   };
 
-  useEffect(() => {
-    // Scheme dropdown = the set of active schemes (stable, independent of the
-    // selected date range, so changing the range never disturbs the selection).
-    const activeSchemeNames = SCHEMES.map((s) => s.fullName).sort();
-    setSchemes(activeSchemeNames);
-    if (activeSchemeNames.length > 0) setSelectedScheme(activeSchemeNames[0]);
-    loadFormCounts();
-  }, []);
-
-  // Refetch incidents whenever the date range changes — scoped server-side so
-  // we read only the selected window instead of the whole collection.
-  useEffect(() => {
-    loadAllData(dateRange[0].startDate, dateRange[0].endDate);
-  }, [dateRange]);
-
   // Close date picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -100,35 +86,56 @@ const ClientChartsPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const loadAllData = async (startDate, endDate) => {
-    try {
-      setLoading(true);
-      // Only load incident reports - all 12 charts are incident-based.
-      // Scoped to the selected date window so we don't read the whole collection.
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // include the entire end day
-      const incidentReports = await staffService.getIncidentReports(null, null, {
-        startDate,
-        endDate: end,
-      });
-      const reportsWithType = incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
-      setReports(reportsWithType);
-    } catch (error) {
-      console.error("Failed to load data:", error);
-      toast.error("Failed to load chart data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Only incident reports are loaded — all 12 charts are incident-based.
+  // Scoped server-side to the selected date window, re-fetched whenever the
+  // range changes, so we never read the whole collection.
+  const rangeStart = dateRange[0].startDate;
+  const rangeEnd = new Date(dateRange[0].endDate);
+  rangeEnd.setHours(23, 59, 59, 999); // include the entire end day
 
-  const loadFormCounts = async () => {
-    try {
-      // Cards count internal schemes only — excludes third-party (and demo) data.
-      const counts = await staffService.getAllFormsCountByType(getInternalSchemeIds());
-      setFormCounts(counts);
-    } catch (error) {
-      console.warn('Could not load form counts:', error);
+  const reportsQuery = useQuery({
+    // Shared with ThirdPartyChartsPage — getIncidentReports() has no scheme
+    // filter, so both pages fetch the identical dataset for a given date
+    // window and only split it client-side. Same key means switching between
+    // the two pages within the cache window costs 0 extra reads.
+    queryKey: ["allIncidentReportsInRange", rangeStart.getTime(), rangeEnd.getTime()],
+    queryFn: async () => {
+      const incidentReports = await staffService.getIncidentReports(null, null, {
+        startDate: rangeStart,
+        endDate: rangeEnd,
+      });
+      return incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
+    },
+  });
+
+  useEffect(() => {
+    if (reportsQuery.isError) {
+      console.error("Failed to load data:", reportsQuery.error);
+      toast.error("Failed to load chart data");
     }
+  }, [reportsQuery.isError, reportsQuery.error]);
+
+  const reports = reportsQuery.data ?? [];
+  const loading = reportsQuery.isFetching;
+
+  // Cards count internal schemes only — excludes third-party (and demo) data.
+  // No date/scheme dependency, so this is fetched once and cached.
+  const formCountsQuery = useQuery({
+    queryKey: ["allFormsCountByType", "internal"],
+    queryFn: () => staffService.getAllFormsCountByType(getInternalSchemeIds()),
+  });
+
+  useEffect(() => {
+    if (formCountsQuery.isError) {
+      console.warn('Could not load form counts:', formCountsQuery.error);
+    }
+  }, [formCountsQuery.isError, formCountsQuery.error]);
+
+  const formCounts = formCountsQuery.data ?? {
+    cctvCheckTotal: 0,
+    incidentReportTotal: 0,
+    assetDamageTotal: 0,
+    dailyLogsTotal: 0,
   };
 
   // Convert date range to timestamps for filtering
