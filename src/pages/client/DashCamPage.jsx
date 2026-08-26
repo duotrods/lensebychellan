@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import { staffService } from "../../services/staffService";
@@ -26,33 +27,26 @@ const DashCamPage = () => {
   const { userProfile } = useAuth();
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
 
-  const [videos, setVideos] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [hoveredId, setHoveredId] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const loadVideos = useCallback(async () => {
-    if (!schemeId) {
-      setLoading(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      const results = await clientDataService.getDashCamVideos(schemeId);
-      setVideos(results);
-    } catch (error) {
-      console.error("Failed to load dash cam videos:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [schemeId]);
+  const videosQuery = useQuery({
+    queryKey: ["clientDashCamVideos", schemeId],
+    queryFn: () => clientDataService.getDashCamVideos(schemeId),
+    enabled: !!schemeId,
+  });
 
   useEffect(() => {
-    loadVideos();
-  }, [loadVideos]);
+    if (videosQuery.isError) {
+      console.error("Failed to load dash cam videos:", videosQuery.error);
+    }
+  }, [videosQuery.isError, videosQuery.error]);
+
+  const videos = videosQuery.data ?? [];
+  const loading = !!schemeId && videosQuery.isLoading;
 
   const handleDelete = async (video) => {
     if (!confirm("Delete this upload?")) return;
@@ -60,7 +54,7 @@ const DashCamPage = () => {
       await staffService.deleteDashCamUpload(video.id);
       toast.success("Upload deleted");
       setSelectedVideo(null);
-      loadVideos();
+      videosQuery.refetch();
     } catch (error) {
       console.error("Failed to delete dash cam upload:", error);
       toast.error("Failed to delete upload");
@@ -363,7 +357,7 @@ const DashCamPage = () => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         type="dashCam"
-        onUploaded={loadVideos}
+        onUploaded={() => videosQuery.refetch()}
       />
     </ClientSidebarLayout>
   );

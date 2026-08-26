@@ -42,10 +42,14 @@
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
   import DrillDownSidebar from "./DrillDownSidebar";
-  import { DateRangePicker } from "react-date-range";
+  import {
+    DateRangePicker,
+    defaultStaticRanges,
+    createStaticRanges,
+  } from "react-date-range";
   import "react-date-range/dist/styles.css"; // main css file
   import "react-date-range/dist/theme/default.css"; // theme css file
-  import { addDays } from "date-fns";
+  import { addDays, startOfYear, startOfDay, endOfDay } from "date-fns";
   import { jsPDF } from "jspdf";
   import toast from "react-hot-toast";
 
@@ -141,6 +145,25 @@
     },
   );
 
+  const buildStaticRanges = (earliestDate) =>
+    createStaticRanges([
+      ...defaultStaticRanges,
+      {
+        label: "Year",
+        range: () => ({
+          startDate: startOfYear(new Date()),
+          endDate: endOfDay(new Date()),
+        }),
+      },
+      {
+        label: "All Time",
+        range: () => ({
+          startDate: startOfDay(earliestDate || new Date("2020-01-01")),
+          endDate: endOfDay(new Date()),
+        }),
+      },
+    ]);
+
   const fmtDowntime = (mins) => {
     if (!mins) return "0m";
     if (mins < 60) return `${mins}m`;
@@ -234,6 +257,19 @@
     const getActiveSchemeId = () => {
       return userProfile?.activeSchemeId || userProfile?.schemeId;
     };
+
+    // Cached query for the earliest incident date (drives the "All Time" static range)
+    const { data: earliestIncidentDate } = useQuery({
+      queryKey: ["earliestIncidentDate", schemeId],
+      queryFn: () => clientDataService.getEarliestIncidentDate(schemeId),
+      enabled: !!schemeId,
+      staleTime: 60 * 60 * 1000, // an hour — this date essentially never changes
+    });
+
+    const staticRanges = useMemo(
+      () => buildStaticRanges(earliestIncidentDate),
+      [earliestIncidentDate],
+    );
 
     // Cached query for stats
     const { data: stats, isLoading: statsLoading } = useQuery({
@@ -736,6 +772,7 @@
                     direction="horizontal"
                     showDateDisplay={false}
                     rangeColors={["#17af93"]}
+                    staticRanges={staticRanges}
                   />
                 </div>
               )}

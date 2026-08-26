@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Download, Clock, MapPin, Calendar } from 'lucide-react';
@@ -13,43 +14,47 @@ const DailyOccurrenceView = () => {
   const navigate = useNavigate();
   const { userProfile, role } = useAuth();
   const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
+
+  // Shared with ReportsPage — same underlying "all reports for this scheme"
+  // fetch, so viewing a report after browsing the list costs 0 extra reads.
+  const allReportsQuery = useQuery({
+    queryKey: ["clientAllReports", activeScheme],
+    queryFn: () => clientDataService.getAllReports(activeScheme),
+    enabled: !!activeScheme,
+  });
+
+  const foundReport = allReportsQuery.data?.find(
+    (r) => r.id === id && r.reportType === 'daily-occurrence',
+  );
+
+  const report = foundReport
+    ? {
+        ...foundReport,
+        // Filter occurrences to only show those matching the client's active scheme
+        occurrences:
+          foundReport.occurrences?.filter((occurrence) => {
+            const activeSchemeName = getActiveSchemeName(userProfile);
+            return occurrence.scheme === activeSchemeName || occurrence.scheme === 'All Schemes';
+          }) || [],
+      }
+    : null;
+
+  const loading = allReportsQuery.isLoading;
 
   useEffect(() => {
-    loadReport();
-  }, [id]);
-
-  const loadReport = async () => {
-    try {
-      setLoading(true);
-      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const allReports = await clientDataService.getAllReports(activeScheme);
-      const foundReport = allReports.find(r => r.id === id && r.reportType === 'daily-occurrence');
-
-      if (foundReport) {
-        // Filter occurrences to only show those matching the client's active scheme
-        const activeSchemeName = getActiveSchemeName(userProfile);
-
-        const filteredOccurrences = foundReport.occurrences?.filter(occurrence => {
-          return occurrence.scheme === activeSchemeName || occurrence.scheme === 'All Schemes';
-        }) || [];
-
-        setReport({
-          ...foundReport,
-          occurrences: filteredOccurrences
-        });
-      } else {
-        toast.error('Report not found');
-        navigate(`${basePath}/reports`);
-      }
-    } catch (error) {
-      console.error('Failed to load report:', error);
-      toast.error('Failed to load report');
-    } finally {
-      setLoading(false);
+    if (allReportsQuery.isSuccess && !foundReport) {
+      toast.error('Report not found');
+      navigate(`${basePath}/reports`);
     }
-  };
+  }, [allReportsQuery.isSuccess, foundReport, navigate, basePath]);
+
+  useEffect(() => {
+    if (allReportsQuery.isError) {
+      console.error('Failed to load report:', allReportsQuery.error);
+      toast.error('Failed to load report');
+    }
+  }, [allReportsQuery.isError, allReportsQuery.error]);
 
   const handleDownloadPDF = async () => {
     try {

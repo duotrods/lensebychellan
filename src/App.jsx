@@ -62,7 +62,6 @@
   const LiveOperatorIncidentDetailPage = lazy(() => import("./pages/liveoperator/IncidentDetailPage"));
 
   // Client pages
-  const AnalyticsPage = lazy(() => import("./pages/client/AnalyticsPage"));
   const ReportsPage = lazy(() => import("./pages/client/ReportsPage"));
   const CCTVRecordingsPage = lazy(() => import("./pages/client/CCTVRecordingsPage"));
   const ClientIncidentReportView = lazy(() => import("./pages/client/IncidentReportView"));
@@ -512,15 +511,6 @@
 
                 {/* Client Pages Routes */}
                 <Route
-                  path="/dashboard/client/analytics"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
-                      <AnalyticsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
                   path="/dashboard/client/reports"
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]}>
@@ -690,14 +680,6 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
                       <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/thirdparty/client/analytics"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.THIRDPARTYCLIENT]}>
-                      <AnalyticsPage />
                     </ProtectedRoute>
                   }
                 />

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import {
@@ -19,33 +20,31 @@ const CCTVCheckView = () => {
   const navigate = useNavigate();
   const { userProfile, role } = useAuth();
   const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
-  const [form, setForm] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  const formQuery = useQuery({
+    queryKey: ["clientCCTVCheckForm", id],
+    queryFn: async () => {
+      const formDoc = await getDoc(doc(db, "cctvCheckForms", id));
+      return formDoc.exists() ? { id: formDoc.id, ...formDoc.data() } : null;
+    },
+  });
+
+  const form = formQuery.data;
+  const loading = formQuery.isLoading;
 
   useEffect(() => {
-    loadForm();
-  }, [id]);
-
-  const loadForm = async () => {
-    try {
-      setLoading(true);
-      // Get the specific form by ID
-      const formRef = doc(db, "cctvCheckForms", id);
-      const formDoc = await getDoc(formRef);
-
-      if (formDoc.exists()) {
-        setForm({ id: formDoc.id, ...formDoc.data() });
-      } else {
-        toast.error("Form not found");
-        navigate(`${basePath}/reports`);
-      }
-    } catch (error) {
-      console.error("Failed to load form:", error);
-      toast.error("Failed to load form");
-    } finally {
-      setLoading(false);
+    if (formQuery.isSuccess && !formQuery.data) {
+      toast.error("Form not found");
+      navigate(`${basePath}/reports`);
     }
-  };
+  }, [formQuery.isSuccess, formQuery.data, navigate, basePath]);
+
+  useEffect(() => {
+    if (formQuery.isError) {
+      console.error("Failed to load form:", formQuery.error);
+      toast.error("Failed to load form");
+    }
+  }, [formQuery.isError, formQuery.error]);
 
   const handleDownloadPDF = async () => {
     try {

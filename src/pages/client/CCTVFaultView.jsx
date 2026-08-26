@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -52,40 +53,41 @@ const CCTVFaultView = () => {
   const navigate = useNavigate();
   const { role, userProfile } = useAuth();
   const Layout = role === USER_ROLES.CCTVOPERATOR ? CCTVOperatorSidebarLayout : ClientSidebarLayout;
-  const [fault, setFault] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [threadOpen, setThreadOpen] = useState(false);
 
-  useEffect(() => {
-    loadFault();
-  }, [id]);
+  const faultQuery = useQuery({
+    queryKey: ["clientCCTVFault", id],
+    queryFn: () => clientDataService.getCCTVFaultById(id),
+  });
 
-  const loadFault = async () => {
-    try {
-      setLoading(true);
-      const data = await clientDataService.getCCTVFaultById(id);
-      if (data) {
-        // For clients, verify the fault belongs to their active scheme
-        if (role === USER_ROLES.CLIENT) {
-          const activeScheme = userProfile?.activeSchemeId;
-          const faultSchemes = data.schemeIds || [];
-          if (activeScheme && !faultSchemes.includes(activeScheme)) {
-            navigate(-1);
-            return;
-          }
-        }
-        setFault(data);
-      } else {
-        toast.error('Fault report not found');
-        navigate(-1);
-      }
-    } catch (error) {
-      console.error('Failed to load fault report:', error);
-      toast.error('Failed to load fault report');
-    } finally {
-      setLoading(false);
+  const rawFault = faultQuery.data;
+  const loading = faultQuery.isLoading;
+
+  // For clients, the fault must belong to their active scheme.
+  const outOfScope =
+    role === USER_ROLES.CLIENT &&
+    rawFault &&
+    userProfile?.activeSchemeId &&
+    !(rawFault.schemeIds || []).includes(userProfile.activeSchemeId);
+
+  const fault = outOfScope ? null : rawFault;
+
+  useEffect(() => {
+    if (!faultQuery.isSuccess) return;
+    if (!rawFault) {
+      toast.error('Fault report not found');
+      navigate(-1);
+    } else if (outOfScope) {
+      navigate(-1);
     }
-  };
+  }, [faultQuery.isSuccess, rawFault, outOfScope, navigate]);
+
+  useEffect(() => {
+    if (faultQuery.isError) {
+      console.error('Failed to load fault report:', faultQuery.error);
+      toast.error('Failed to load fault report');
+    }
+  }, [faultQuery.isError, faultQuery.error]);
 
   const formatDateTime = (timestamp) => {
     if (!timestamp) return 'N/A';

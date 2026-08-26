@@ -1298,6 +1298,25 @@ class ClientDataService {
     return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
   }
 
+  // Get the createdAt date of the earliest incident report for a scheme (for "All Time" filters)
+  async getEarliestIncidentDate(schemeId) {
+    try {
+      const incidentsRef = collection(db, "incidentReports");
+      const q = query(
+        incidentsRef,
+        where("schemeIds", "array-contains", schemeId),
+        orderBy("createdAt", "asc"),
+        limit(1),
+      );
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return null;
+      return snapshot.docs[0].data().createdAt?.toDate() ?? null;
+    } catch (error) {
+      console.error("Failed to fetch earliest incident date:", error);
+      return null;
+    }
+  }
+
   // Get aggregated statistics for a scheme by date range
   async getSchemeStatsByDateRange(schemeId, startDateStr, endDateStr) {
     try {
@@ -1804,6 +1823,29 @@ class ClientDataService {
       console.error(`Error fetching from ${collectionName}:`, error);
       return { docs: [], lastDoc: null, hasMore: false };
     }
+  }
+
+  /**
+   * Live view of the newest `limitCount` docs in a collection, scoped to one
+   * scheme value. Bounded by the limit — cost stays fixed (one read per doc
+   * in the window, plus one per subsequent change to a doc in that window)
+   * regardless of collection size. Meant for a "new reports appear instantly"
+   * overlay on page 1 of a list; NOT for pagination beyond that.
+   */
+  subscribeToLatestReports(collectionName, limitCount, schemeValue, onData, onError) {
+    const q = query(
+      collection(db, collectionName),
+      where("schemeIds", "array-contains", schemeValue),
+      orderBy("createdAt", "desc"),
+      limit(limitCount),
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        onData(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      },
+      onError,
+    );
   }
 
   // Get total count of all reports for a scheme (for pagination display)

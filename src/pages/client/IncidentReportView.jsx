@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { ArrowLeft, Download, Image, Video, X } from "lucide-react";
@@ -10,8 +11,6 @@ import { isVideoFile } from "../../utils/fileType";
 const IncidentReportView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [loadedImages, setLoadedImages] = useState({}); // Track which images are loaded
   const [viewingFile, setViewingFile] = useState(null); // { url, isVideo } for fullscreen view
 
@@ -31,29 +30,28 @@ const IncidentReportView = () => {
     }
   };
 
+  const reportQuery = useQuery({
+    // Use efficient single-document fetch (1 read instead of loading all reports!)
+    queryKey: ["clientIncident", id],
+    queryFn: () => clientDataService.getIncidentById(id),
+  });
+
+  const report = reportQuery.data;
+  const loading = reportQuery.isLoading;
+
   useEffect(() => {
-    loadReport();
-  }, [id]);
-
-  const loadReport = async () => {
-    try {
-      setLoading(true);
-      // Use efficient single-document fetch (1 read instead of loading all reports!)
-      const foundReport = await clientDataService.getIncidentById(id);
-
-      if (foundReport) {
-        setReport(foundReport);
-      } else {
-        toast.error("Report not found");
-        navigate(-1);
-      }
-    } catch (error) {
-      console.error("Failed to load report:", error);
-      toast.error("Failed to load report");
-    } finally {
-      setLoading(false);
+    if (reportQuery.isSuccess && !reportQuery.data) {
+      toast.error("Report not found");
+      navigate(-1);
     }
-  };
+  }, [reportQuery.isSuccess, reportQuery.data, navigate]);
+
+  useEffect(() => {
+    if (reportQuery.isError) {
+      console.error("Failed to load report:", reportQuery.error);
+      toast.error("Failed to load report");
+    }
+  }, [reportQuery.isError, reportQuery.error]);
 
   const handleDownloadPDF = async () => {
     try {

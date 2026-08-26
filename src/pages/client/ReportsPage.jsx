@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
+import { useLiveClientReports } from "../../hooks/useLiveClientReports";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import {
   FileText,
@@ -25,102 +27,236 @@ import {
   getReportDisplayTime,
 } from "../../utils/reportDisplay";
 
-// Module-level variable — survives component unmount/remount, no serialization needed
+// Module-level variable — survives component unmount/remount, no serialization needed.
+// Only browse-pagination state needs restoring: TanStack Query's own cache
+// already keeps the actual report data/counts alive across unmount.
 let _reportsRestore = null;
 
 const ReportsPage = () => {
   const navigate = useNavigate();
   const { userProfile, role } = useAuth();
   const basePath = role === "thirdpartyclient" ? "/dashboard/thirdparty/client" : "/dashboard/client";
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
+  const reportsPerPage = 10;
+
   const [filterType, setFilterType] = useState("all");
+  const [subFilter, setSubFilter] = useState(null); // 'free-recovery' | 'incursion' | null
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState(null);
-  const [cursors, setCursors] = useState({});
-  const [typeCursor, setTypeCursor] = useState(null);
-  const pageCacheRef = useRef({});
-  const wasRestoredRef = useRef(false);
-  const searchDebounceRef = useRef(null);
-  const searchCounterRef = useRef(0);
-  const searchRateLimitRef = useRef([]);
-  const countCacheRef = useRef({}); // { cacheKey: { counts, fetchedAt } }
-  const allViewCacheRef = useRef({}); // { pageNum: { data, cursors, hasMore, cachedAt } }
-  const [hasMore, setHasMore] = useState(true);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [searchPage, setSearchPage] = useState(1);
-  const [searchHasMore, setSearchHasMore] = useState(false);
-  const [searchLastDocs, setSearchLastDocs] = useState({});
-  const searchPageCacheRef = useRef({});
-  const [subFilter, setSubFilter] = useState(null); // 'free-recovery' | 'incursion' | null
   const [dateFilter, setDateFilter] = useState({ startDate: "", endDate: "" });
   const [appliedDateFilter, setAppliedDateFilter] = useState(null); // null = no filter
 
-  const isSearchMode = searchTerm.trim() !== "";
+  const searchDebounceRef = useRef(null);
+  const searchRateLimitRef = useRef([]);
+  // Cursor state per filter combo, one entry per page: cursorsRef.current[key][i]
+  // is what's needed to fetch page i + 1. Only consulted on a cache miss.
+  const cursorsRef = useRef({});
+  const searchCursorsRef = useRef({});
 
-  const runSearch = async (term, page = 1, lastDocs = {}, overrideFilterType = null) => {
-    if (!term.trim()) {
-      setSearchResults([]);
-      setSearchPage(1);
-      setSearchHasMore(false);
-      setSearchLastDocs({});
-      searchPageCacheRef.current = {};
-      return;
+  const isSearchMode = debouncedSearchTerm.trim() !== "";
+  const dateKey = appliedDateFilter
+    ? `${appliedDateFilter.startDate.getTime()}-${appliedDateFilter.endDate.getTime()}`
+    : "none";
+  const filterKey = `${filterType}|${subFilter}|${dateKey}`;
+
+  useEffect(() => {
+    if (_reportsRestore) {
+      setCurrentPage(_reportsRestore.page);
+      setFilterType(_reportsRestore.filterType);
+      setSubFilter(_reportsRestore.subFilter);
+      cursorsRef.current = _reportsRestore.cursors || {};
+      if (_reportsRestore.appliedDateFilter) {
+        setAppliedDateFilter(_reportsRestore.appliedDateFilter);
+        setDateFilter({
+          startDate: _reportsRestore.appliedDateFilter.startDate.toISOString().split("T")[0],
+          endDate: _reportsRestore.appliedDateFilter.endDate.toISOString().split("T")[0],
+        });
+      }
     }
-    const now = Date.now();
-    searchRateLimitRef.current = searchRateLimitRef.current.filter(
-      (t) => now - t < 30000,
-    );
-    if (searchRateLimitRef.current.length >= 10) {
-      toast.error("Too many searches. Please wait a moment.");
-      return;
-    }
-    searchRateLimitRef.current.push(now);
-    const myCount = ++searchCounterRef.current;
-    setSearchLoading(true);
-    try {
-      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const activeFilter = overrideFilterType !== null ? overrideFilterType : filterType;
-      const { results, lastDocs: newLastDocs, hasMore } =
-        await clientDataService.searchReportsPaginated(
-          activeScheme,
-          term.trim(),
-          10,
-          lastDocs,
-          activeFilter === "all" ? null : activeFilter,
-        );
-      if (myCount !== searchCounterRef.current) return; // stale
-      searchPageCacheRef.current[page] = { results, lastDocs: newLastDocs, hasMore };
-      setSearchResults(results);
-      setSearchPage(page);
-      setSearchHasMore(hasMore);
-      setSearchLastDocs(newLastDocs);
-    } catch (err) {
-      console.error("Search failed:", err);
-      toast.error("Search failed. Please try again.");
-    } finally {
-      setSearchLoading(false);
-    }
+  }, []);
+
+  const clearRestoreState = () => {
+    _reportsRestore = null;
   };
 
+  // Abuse/cost guard — independent of caching, so it stays a manual gate in
+  // front of whatever triggers a search query (typing, Next, Prev).
+  const checkSearchRateLimit = () => {
+    const now = Date.now();
+    searchRateLimitRef.current = searchRateLimitRef.current.filter((t) => now - t < 30000);
+    if (searchRateLimitRef.current.length >= 10) {
+      toast.error("Too many searches. Please wait a moment.");
+      return false;
+    }
+    searchRateLimitRef.current.push(now);
+    return true;
+  };
+
+  const searchKey = `${debouncedSearchTerm}|${filterType}`;
+
+  const searchQueryResult = useQuery({
+    queryKey: ["clientReportsSearch", activeScheme, debouncedSearchTerm, filterType, searchPage],
+    queryFn: async () => {
+      searchCursorsRef.current[searchKey] ??= [{}];
+      const lastDocs = searchCursorsRef.current[searchKey][searchPage - 1] ?? {};
+      return clientDataService.searchReportsPaginated(
+        activeScheme,
+        debouncedSearchTerm.trim(),
+        10,
+        lastDocs,
+        filterType === "all" ? null : filterType,
+      );
+    },
+    enabled: isSearchMode && !!activeScheme,
+  });
+
+  useEffect(() => {
+    if (searchQueryResult.data) {
+      searchCursorsRef.current[searchKey] ??= [{}];
+      searchCursorsRef.current[searchKey][searchPage] = searchQueryResult.data.lastDocs;
+    }
+  }, [searchQueryResult.data, searchKey, searchPage]);
+
+  useEffect(() => {
+    if (searchQueryResult.isError) {
+      console.error("Search failed:", searchQueryResult.error);
+      toast.error("Search failed. Please try again.");
+    }
+  }, [searchQueryResult.isError, searchQueryResult.error]);
+
+  const searchResults = searchQueryResult.data?.results ?? [];
+  const searchHasMore = searchQueryResult.data?.hasMore ?? false;
+  const searchLoading = searchQueryResult.isFetching;
+
   const handleSearchNextPage = () => {
-    if (!searchHasMore) return;
-    runSearch(searchTerm, searchPage + 1, searchLastDocs);
+    if (!searchHasMore || !checkSearchRateLimit()) return;
+    setSearchPage((p) => p + 1);
   };
 
   const handleSearchPrevPage = () => {
-    if (searchPage <= 1) return;
-    const cached = searchPageCacheRef.current[searchPage - 1];
-    if (cached) {
-      setSearchResults(cached.results);
-      setSearchPage(searchPage - 1);
-      setSearchHasMore(cached.hasMore);
-      setSearchLastDocs(cached.lastDocs);
-    }
+    if (searchPage > 1) setSearchPage((p) => p - 1);
   };
-  const [reportTypeCounts, setReportTypeCounts] = useState({
+
+  const handleCardClick = (type, sub = null) => {
+    clearRestoreState();
+    setSubFilter(sub);
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
+    setSearchPage(1);
+    setFilterType(type);
+    setCurrentPage(1);
+    // Scroll table into view
+    setTimeout(() => {
+      document
+        .querySelector(".bg-white.rounded-lg.shadow.overflow-hidden")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  const reportsQuery = useQuery({
+    queryKey: ["clientReports", activeScheme, filterType, subFilter, dateKey, currentPage],
+    queryFn: async () => {
+      cursorsRef.current[filterKey] ??= [{ cursors: {}, typeCursor: null }];
+      const prev = cursorsRef.current[filterKey][currentPage - 1] ?? { cursors: {}, typeCursor: null };
+
+      let newReports, newCursors = {}, newTypeCursor = null, newHasMore = true;
+      if (filterType === "all") {
+        const result = await clientDataService.getAllReportsPaginated(
+          activeScheme,
+          reportsPerPage,
+          prev.cursors,
+          appliedDateFilter,
+        );
+        newReports = result.reports;
+        newCursors = result.cursors;
+        newHasMore = result.hasMore;
+      } else {
+        const extraWhere =
+          subFilter === "incursion"
+            ? { field: "incursion", op: "==", value: "YES" }
+            : subFilter === "gain-advantage"
+              ? { field: "incursionToGainAdvantage", op: "==", value: "YES" }
+              : subFilter === "free-recovery"
+                ? { field: "incidentType", op: "in", value: ["Free Recovery", "Drive Off"] }
+                : subFilter === "asset-damage"
+                  ? { field: "propertyDamage", op: "==", value: true }
+                  : subFilter === "pure"
+                    ? { field: "isPureIncident", op: "==", value: true }
+                    : null;
+        const result = await clientDataService.getReportsByTypePaginated(
+          activeScheme,
+          filterType,
+          reportsPerPage,
+          prev.typeCursor,
+          extraWhere,
+          appliedDateFilter,
+        );
+        newReports = result.reports;
+        newTypeCursor = result.lastDoc;
+        newHasMore = result.hasMore;
+      }
+
+      return { reports: newReports, cursors: newCursors, typeCursor: newTypeCursor, hasMore: newHasMore };
+    },
+    enabled: !!activeScheme,
+  });
+
+  useEffect(() => {
+    if (reportsQuery.data) {
+      cursorsRef.current[filterKey] ??= [{ cursors: {}, typeCursor: null }];
+      cursorsRef.current[filterKey][currentPage] = {
+        cursors: reportsQuery.data.cursors,
+        typeCursor: reportsQuery.data.typeCursor,
+      };
+    }
+  }, [reportsQuery.data, filterKey, currentPage]);
+
+  useEffect(() => {
+    if (reportsQuery.isError) {
+      console.error("Failed to load reports:", reportsQuery.error);
+      const err = reportsQuery.error;
+      if (err?.message?.includes("index") || err?.cause?.message?.includes("index")) {
+        toast.error("Firebase indexes are still building. Please wait 5-10 minutes and refresh.");
+      } else {
+        toast.error("Failed to load reports. Check console for details.");
+      }
+    }
+  }, [reportsQuery.isError, reportsQuery.error]);
+
+  // Live overlay for page 1 only — a bounded (limit 10 per collection) listener
+  // shows brand-new reports the instant they're submitted. Only applies with
+  // no date range or sub-filter active, since the live query can't apply
+  // those and would otherwise show rows that don't belong on that page.
+  const isLiveWindow = !isSearchMode && currentPage === 1 && !appliedDateFilter && !subFilter;
+  const liveReports = useLiveClientReports({
+    filterType,
+    schemeId: activeScheme,
+    enabled: isLiveWindow,
+  });
+
+  const reports =
+    isLiveWindow && liveReports.length > 0
+      ? liveReports.slice(0, reportsPerPage)
+      : reportsQuery.data?.reports ?? [];
+  const loading = reportsQuery.isLoading;
+  const hasMore = reportsQuery.data?.hasMore ?? false;
+
+  const reportTypeCountsQuery = useQuery({
+    queryKey: ["clientReportsCounts", activeScheme, dateKey],
+    queryFn: () => clientDataService.getAllReportsCountByType(activeScheme, appliedDateFilter),
+    enabled: !!activeScheme,
+  });
+
+  useEffect(() => {
+    if (reportTypeCountsQuery.isError) {
+      console.warn("Could not load total count:", reportTypeCountsQuery.error);
+    }
+  }, [reportTypeCountsQuery.isError, reportTypeCountsQuery.error]);
+
+  const reportTypeCounts = reportTypeCountsQuery.data ?? {
     incident: 0,
     pureIncident: 0,
     assetDamage: 0,
@@ -134,238 +270,6 @@ const ReportsPage = () => {
     vehiclesDispatched: 0,
     incidentAssetDamage: 0,
     total: 0,
-  });
-  const reportsPerPage = 10;
-
-  useEffect(() => {
-    const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
-    if (activeScheme) {
-      if (_reportsRestore) {
-        setCurrentPage(_reportsRestore.page);
-        setFilterType(_reportsRestore.filter);
-        setReports(_reportsRestore.reports);
-        setHasMore(_reportsRestore.hasMore);
-        setCursors(_reportsRestore.cursors || {});
-        setTypeCursor(_reportsRestore.typeCursor || null);
-        if (_reportsRestore.reportTypeCounts)
-          setReportTypeCounts(_reportsRestore.reportTypeCounts);
-        if (_reportsRestore.appliedDateFilter) {
-          setAppliedDateFilter(_reportsRestore.appliedDateFilter);
-          setDateFilter({
-            startDate: _reportsRestore.appliedDateFilter.startDate
-              .toISOString()
-              .split("T")[0],
-            endDate: _reportsRestore.appliedDateFilter.endDate
-              .toISOString()
-              .split("T")[0],
-          });
-        }
-        // Restore the full page cache so Prev/Next navigation works on all cached pages
-        pageCacheRef.current = _reportsRestore.pageCache
-          ? { ..._reportsRestore.pageCache }
-          : {
-              [_reportsRestore.page]: {
-                data: _reportsRestore.reports,
-                cursors: _reportsRestore.cursors || {},
-                typeCursor: _reportsRestore.typeCursor || null,
-                hasMore: _reportsRestore.hasMore,
-              },
-            };
-        setLoading(false);
-        wasRestoredRef.current = true;
-        // counts already restored from _reportsRestore — skip the 10 extra queries
-      } else {
-        loadReports(true);
-        loadTotalCount();
-      }
-    }
-  }, [
-    userProfile?.activeSchemeId,
-    userProfile?.schemeId,
-    userProfile?.schemeName,
-  ]);
-
-  const clearRestoreState = () => {
-    _reportsRestore = null;
-  };
-
-  const handleCardClick = (type, sub = null) => {
-    clearRestoreState();
-    setSubFilter(sub);
-    setSearchTerm("");
-    setSearchResults([]);
-    setSearchPage(1);
-    setSearchHasMore(false);
-    setSearchLastDocs({});
-    searchPageCacheRef.current = {};
-    pageCacheRef.current = {};
-    setTypeCursor(null);
-    setCursors({});
-    setFilterType(type);
-    loadReports(true, type, null, null, false, sub, appliedDateFilter);
-    // Scroll table into view
-    setTimeout(() => {
-      document
-        .querySelector(".bg-white.rounded-lg.shadow.overflow-hidden")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
-  };
-
-  const loadReports = async (
-    resetPage = false,
-    overrideFilterType = null,
-    cursorOverride = null,
-    targetPage = null,
-    silent = false,
-    subFilterOverride = undefined,
-    dateRange = null,
-  ) => {
-    // Check page cache first
-    if (targetPage && pageCacheRef.current[targetPage]) {
-      const cached = pageCacheRef.current[targetPage];
-      setReports(cached.data);
-      setCursors(cached.cursors);
-      setTypeCursor(cached.typeCursor);
-      setHasMore(cached.hasMore);
-      setCurrentPage(targetPage);
-      return;
-    }
-
-    try {
-      if (!silent) setLoading(true);
-      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const activeFilter =
-        overrideFilterType !== null ? overrideFilterType : filterType;
-
-      let newCursors = {};
-      let newTypeCursor = null;
-      let newHasMore = true;
-      let newReports;
-
-      if (activeFilter === "all") {
-        const effectiveCursors = cursorOverride
-          ? cursorOverride.cursors
-          : resetPage
-            ? {}
-            : cursors;
-        const pageNum = targetPage || (resetPage ? 1 : currentPage);
-        const allCacheKey = `${activeScheme}|${dateRange?.startDate?.getTime() ?? ""}|${pageNum}`;
-        const allCached = allViewCacheRef.current[allCacheKey];
-        const ALL_TTL = 2 * 60 * 1000; // 2 minutes
-        if (allCached && Date.now() - allCached.cachedAt < ALL_TTL && !resetPage) {
-          setReports(allCached.data);
-          setCursors(allCached.cursors);
-          setHasMore(allCached.hasMore);
-          setCurrentPage(pageNum);
-          setLoading(false);
-          return;
-        }
-        const result = await clientDataService.getAllReportsPaginated(
-          activeScheme,
-          reportsPerPage,
-          effectiveCursors,
-          dateRange,
-        );
-        newReports = result.reports;
-        newCursors = result.cursors;
-        newHasMore = result.hasMore;
-        setCursors(newCursors);
-        setHasMore(newHasMore);
-        allViewCacheRef.current[allCacheKey] = {
-          data: newReports,
-          cursors: newCursors,
-          hasMore: newHasMore,
-          cachedAt: Date.now(),
-        };
-      } else {
-        const effectiveTypeCursor = cursorOverride
-          ? cursorOverride.typeCursor
-          : resetPage
-            ? null
-            : typeCursor;
-        const activeSub =
-          subFilterOverride !== undefined ? subFilterOverride : subFilter;
-        const extraWhere =
-          activeSub === "incursion"
-            ? { field: "incursion", op: "==", value: "YES" }
-            : activeSub === "gain-advantage"
-              ? { field: "incursionToGainAdvantage", op: "==", value: "YES" }
-              : activeSub === "free-recovery"
-                ? {
-                    field: "incidentType",
-                    op: "in",
-                    value: ["Free Recovery", "Drive Off"],
-                  }
-                : activeSub === "asset-damage"
-                  ? { field: "propertyDamage", op: "==", value: true }
-                  : activeSub === "pure"
-                    ? { field: "isPureIncident", op: "==", value: true }
-                    : null;
-        const result = await clientDataService.getReportsByTypePaginated(
-          activeScheme,
-          activeFilter,
-          reportsPerPage,
-          effectiveTypeCursor,
-          extraWhere,
-          dateRange,
-        );
-        newReports = result.reports;
-        newTypeCursor = result.lastDoc;
-        newHasMore = result.hasMore;
-        setTypeCursor(newTypeCursor);
-        setHasMore(newHasMore);
-      }
-
-      setReports(newReports);
-
-      // Cache this page's data
-      const pageNum = targetPage || (resetPage ? 1 : currentPage);
-      pageCacheRef.current[pageNum] = {
-        data: newReports,
-        cursors: newCursors,
-        typeCursor: newTypeCursor,
-        hasMore: newHasMore,
-      };
-
-      if (resetPage) {
-        setCurrentPage(1);
-      }
-    } catch (error) {
-      console.error("Failed to load reports:", error);
-      if (
-        error.message?.includes("index") ||
-        error.cause?.message?.includes("index")
-      ) {
-        toast.error(
-          "Firebase indexes are still building. Please wait 5-10 minutes and refresh.",
-        );
-      } else {
-        toast.error("Failed to load reports. Check console for details.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTotalCount = async (dateRange = null) => {
-    try {
-      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const cacheKey = `${activeScheme}|${dateRange?.startDate?.getTime() ?? ""}|${dateRange?.endDate?.getTime() ?? ""}`;
-      const cached = countCacheRef.current[cacheKey];
-      const TTL = 5 * 60 * 1000; // 5 minutes
-      if (cached && Date.now() - cached.fetchedAt < TTL) {
-        setReportTypeCounts(cached.counts);
-        return;
-      }
-      const counts = await clientDataService.getAllReportsCountByType(
-        activeScheme,
-        dateRange,
-      );
-      countCacheRef.current[cacheKey] = { counts, fetchedAt: Date.now() };
-      setReportTypeCounts(counts);
-    } catch (error) {
-      console.warn("Could not load total count:", error);
-    }
   };
 
   // Filter and search reports (client-side search + daily-occurrence scheme check only)
@@ -446,56 +350,27 @@ const ReportsPage = () => {
   // If restored page exceeds actual total pages, reset to page 1
   useEffect(() => {
     if (!loading && totalPages > 0 && currentPage > totalPages) {
-      pageCacheRef.current = {};
       _reportsRestore = null;
-      loadReports(true);
+      setCurrentPage(1);
     }
-  }, [totalPages, loading]);
+  }, [totalPages, loading, currentPage]);
 
   // Pagination handlers
   const handleNextPage = () => {
     const atLastPage = totalPages > 0 && currentPage >= totalPages;
-    if (hasMore && !atLastPage) {
-      const nextPage = currentPage + 1;
-      setCurrentPage(nextPage);
-      loadReports(
-        false,
-        null,
-        null,
-        nextPage,
-        false,
-        undefined,
-        appliedDateFilter,
-      );
-    }
+    if (hasMore && !atLastPage) setCurrentPage((p) => p + 1);
   };
 
   const handlePrevPage = () => {
-    if (currentPage > 1) {
-      const prevPage = currentPage - 1;
-      setCurrentPage(prevPage);
-      loadReports(
-        false,
-        null,
-        null,
-        prevPage,
-        false,
-        undefined,
-        appliedDateFilter,
-      );
-    }
+    if (currentPage > 1) setCurrentPage((p) => p - 1);
   };
 
   const handleViewReport = (report) => {
     _reportsRestore = {
       page: currentPage,
-      filter: filterType,
-      reports,
-      hasMore,
-      cursors,
-      typeCursor,
-      reportTypeCounts,
-      pageCache: { ...pageCacheRef.current },
+      filterType,
+      subFilter,
+      cursors: cursorsRef.current,
       appliedDateFilter,
     };
     // Navigate to appropriate view page based on report type
@@ -553,27 +428,16 @@ const ReportsPage = () => {
     // Set end date to end of day so the full day is included
     const end = new Date(dateFilter.endDate);
     end.setHours(23, 59, 59, 999);
-    const range = { startDate: start, endDate: end };
-    setAppliedDateFilter(range);
+    setAppliedDateFilter({ startDate: start, endDate: end });
     clearRestoreState();
-    pageCacheRef.current = {};
-    allViewCacheRef.current = {};
-    setTypeCursor(null);
-    setCursors({});
-    loadReports(true, null, null, null, false, undefined, range);
-    loadTotalCount(range);
+    setCurrentPage(1);
   };
 
   const handleClearDateFilter = () => {
     setDateFilter({ startDate: "", endDate: "" });
     setAppliedDateFilter(null);
     clearRestoreState();
-    pageCacheRef.current = {};
-    allViewCacheRef.current = {};
-    setTypeCursor(null);
-    setCursors({});
-    loadReports(true, null, null, null, false, undefined, null);
-    loadTotalCount(null);
+    setCurrentPage(1);
   };
 
   return (
@@ -607,22 +471,15 @@ const ReportsPage = () => {
                     clearTimeout(searchDebounceRef.current);
                   if (value.trim() === "") {
                     // Search cleared — go back to normal pagination
-                    setSearchResults([]);
+                    setDebouncedSearchTerm("");
                     setSearchPage(1);
-                    setSearchHasMore(false);
-                    setSearchLastDocs({});
-                    searchPageCacheRef.current = {};
-                    if (wasRestoredRef.current) {
-                      wasRestoredRef.current = false;
-                      clearRestoreState();
-                    }
-                    pageCacheRef.current = {};
-                    loadReports(true, null, null, null, true);
+                    clearRestoreState();
                   } else if (value.trim().length >= 3) {
                     // Only search after 3 chars — skips "I", "IN" etc.
                     searchDebounceRef.current = setTimeout(() => {
-                      searchPageCacheRef.current = {};
-                      runSearch(value, 1, {});
+                      if (!checkSearchRateLimit()) return;
+                      setDebouncedSearchTerm(value);
+                      setSearchPage(1);
                     }, 400);
                   }
                 }}
@@ -682,23 +539,8 @@ const ReportsPage = () => {
                   clearRestoreState();
                   setSubFilter(null);
                   setFilterType(newType);
-                  setTypeCursor(null);
-                  setCursors({});
-                  pageCacheRef.current = {};
-                  if (searchTerm.trim()) {
-                    searchPageCacheRef.current = {};
-                    runSearch(searchTerm, 1, {}, newType === "all" ? null : newType);
-                  } else {
-                    loadReports(
-                      true,
-                      newType,
-                      null,
-                      null,
-                      false,
-                      null,
-                      appliedDateFilter,
-                    );
-                  }
+                  setCurrentPage(1);
+                  setSearchPage(1);
                 }}
                 className="select  select-bordered bg-white border-gray-300"
               >

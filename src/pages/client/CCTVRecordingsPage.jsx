@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
@@ -21,8 +22,7 @@ import { isVideoFile, isImageFile } from "../../utils/fileType";
 
 const CCTVRecordingsPage = () => {
   const { userProfile } = useAuth();
-  const [recordings, setRecordings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [cameraFilter, setCameraFilter] = useState("all");
@@ -32,35 +32,26 @@ const CCTVRecordingsPage = () => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const recordingsPerPage = 12;
 
-  useEffect(() => {
-    const activeScheme = userProfile?.activeSchemeId || userProfile?.schemeId;
-    if (activeScheme) {
-      loadRecordings();
-    }
-  }, [userProfile?.activeSchemeId, userProfile?.schemeId]);
+  const recordingsQuery = useQuery({
+    queryKey: ["clientCCTVRecordings", activeScheme],
+    queryFn: () => clientDataService.getCCTVRecordings(activeScheme),
+    enabled: !!activeScheme,
+  });
 
-  const loadRecordings = async () => {
-    try {
-      setLoading(true);
-      const activeScheme = userProfile.activeSchemeId || userProfile.schemeId;
-      const cctvData = await clientDataService.getCCTVRecordings(activeScheme);
-      setRecordings(cctvData);
-    } catch (error) {
+  useEffect(() => {
+    if (recordingsQuery.isError) {
+      const error = recordingsQuery.error;
       console.error("Failed to load CCTV recordings:", error);
-      if (
-        error.message?.includes("index") ||
-        error.cause?.message?.includes("index")
-      ) {
-        toast.error(
-          "Firebase indexes are still building. Please wait 5-10 minutes and refresh.",
-        );
+      if (error.message?.includes("index") || error.cause?.message?.includes("index")) {
+        toast.error("Firebase indexes are still building. Please wait 5-10 minutes and refresh.");
       } else {
         toast.error("Failed to load CCTV recordings");
       }
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [recordingsQuery.isError, recordingsQuery.error]);
+
+  const recordings = recordingsQuery.data ?? [];
+  const loading = !!activeScheme && recordingsQuery.isLoading;
 
   // Get unique cameras
   const uniqueCameras = [

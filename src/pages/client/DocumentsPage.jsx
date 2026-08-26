@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import { staffService } from "../../services/staffService";
@@ -173,8 +174,6 @@ const DocumentsPage = () => {
   const schemeId = userProfile?.activeSchemeId || userProfile?.schemeId;
   const canUpload = role === USER_ROLES.CLIENT;
 
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState(null);
@@ -188,25 +187,20 @@ const DocumentsPage = () => {
 
   const uploadScheme = getActiveSchemeName(userProfile);
 
-  const loadDocuments = useCallback(async () => {
-    if (!schemeId) {
-      setLoading(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      const docs = await clientDataService.getDocuments(schemeId);
-      setDocuments(docs);
-    } catch (error) {
-      console.error("Failed to load documents:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [schemeId]);
+  const documentsQuery = useQuery({
+    queryKey: ["clientDocuments", schemeId],
+    queryFn: () => clientDataService.getDocuments(schemeId),
+    enabled: !!schemeId,
+  });
 
   useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
+    if (documentsQuery.isError) {
+      console.error("Failed to load documents:", documentsQuery.error);
+    }
+  }, [documentsQuery.isError, documentsQuery.error]);
+
+  const documents = documentsQuery.data ?? [];
+  const loading = !!schemeId && documentsQuery.isLoading;
 
   const resetForm = () => {
     setTitle("");
@@ -284,7 +278,7 @@ const DocumentsPage = () => {
 
       resetForm();
       setDrawerOpen(false);
-      loadDocuments();
+      documentsQuery.refetch();
     } catch (error) {
       console.error("Failed to upload document:", error);
       toast.error("Upload failed. Check your connection and try again.");
@@ -299,7 +293,7 @@ const DocumentsPage = () => {
       await staffService.deleteDocument(doc.id);
       toast.success("Document deleted");
       if (viewing?.id === doc.id) setViewing(null);
-      loadDocuments();
+      documentsQuery.refetch();
     } catch (error) {
       console.error("Failed to delete document:", error);
       toast.error("Failed to delete document");
