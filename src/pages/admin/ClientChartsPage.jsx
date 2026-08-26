@@ -106,6 +106,11 @@ const ClientChartsPage = () => {
       });
       return incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
     },
+    // Poll instead of a live listener — this query has no `limit()`, so a
+    // real-time listener here would re-bill for every incident change in the
+    // whole date window. A 90s interval keeps charts near-live cheaply, and
+    // only runs while the tab is focused (React Query's default).
+    refetchInterval: 90 * 1000,
   });
 
   useEffect(() => {

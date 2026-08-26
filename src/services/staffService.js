@@ -2112,6 +2112,31 @@ class StaffService {
   }
 
   /**
+   * Live view of the newest `limitCount` docs in a collection. Bounded by the
+   * limit — cost stays fixed (one read per doc in the window, plus one per
+   * subsequent change to a doc in that window) regardless of collection size.
+   * Meant for a "new reports appear instantly" overlay on page 1 of a list;
+   * NOT for pagination beyond that.
+   */
+  subscribeToLatestForms(collectionName, limitCount, schemeIds, onData, onError) {
+    const collectionRef = collection(db, collectionName);
+    const constraints = [];
+    if (schemeIds && schemeIds.length > 0) {
+      constraints.push(where("schemeIds", "array-contains-any", schemeIds));
+    }
+    constraints.push(orderBy("createdAt", "desc"));
+    constraints.push(limit(limitCount));
+
+    return onSnapshot(
+      query(collectionRef, ...constraints),
+      (snapshot) => {
+        onData(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      },
+      onError,
+    );
+  }
+
+  /**
    * Count a collection scoped to a viewer's scheme set.
    * schemeScope: array of scheme IDs the viewer may see (real staff → internal
    * schemes; TP staff → company schemes; demo → demo scheme). Always scoped via

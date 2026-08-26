@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import {
-  DEMO_SCHEME_ID,
   getThirdPartyCompanies,
   getSchemeIdsForCompany,
   getAllThirdPartySchemeIds,
 } from "../../utils/schemes";
+import { decorateForm, excludeDemoScheme } from "../../utils/reportMapping";
+import { useLiveReports } from "../../hooks/useLiveReports";
 import {
   FileText,
   Camera,
@@ -87,16 +88,7 @@ const ThirdPartyReportsPage = () => {
     'CCTV Faults':     ['cctvFaults'],
   };
 
-  const mapSearchResults = (results) => {
-    const typeMap = {
-      'Incident Report':  { type: 'Incident Report', icon: FileText,      color: 'bg-teal-100 text-teal-600'    },
-      'Asset Damage':     { type: 'Asset Damage',    icon: AlertTriangle, color: 'bg-orange-100 text-orange-600' },
-      'Daily Occurrence': { type: 'Daily Logs',      icon: Calendar,      color: 'bg-blue-100 text-blue-600'    },
-      'CCTV Check Sheet': { type: 'CCTV Check',      icon: Camera,        color: 'bg-purple-100 text-purple-600' },
-      'CCTV Faults':      { type: 'CCTV Faults',     icon: FileText,      color: 'bg-pink-100 text-pink-600'    },
-    };
-    return results.map(f => ({ ...f, ...(typeMap[f.type] || {}) }));
-  };
+  const mapSearchResults = (results) => results.map(decorateForm);
 
   // Abuse/cost guard — independent of caching, so it stays a manual gate in
   // front of whatever triggers a search query (typing, Next, Prev).
@@ -179,43 +171,8 @@ const ThirdPartyReportsPage = () => {
         newHasMore = result.hasMore;
       }
 
-      // Map forms to reports with display metadata
-      const mappedReports = rawForms.map(f => {
-        let type, icon, color;
-
-        if (f.type === 'CCTV Check Sheet') {
-          type = "CCTV Check";
-          icon = Camera;
-          color = "bg-purple-100 text-purple-600";
-        } else if (f.type === 'Incident Report') {
-          type = "Incident Report";
-          icon = FileText;
-          color = "bg-teal-100 text-teal-600";
-        } else if (f.type === 'Asset Damage') {
-          type = "Asset Damage";
-          icon = AlertTriangle;
-          color = "bg-orange-100 text-orange-600";
-        } else if (f.type === 'Daily Occurrence') {
-          type = "Daily Logs";
-          icon = Calendar;
-          color = "bg-blue-100 text-blue-600";
-        } else if (f.type === 'CCTV Faults') {
-          type = "CCTV Faults";
-          icon = Eye;
-          color = "bg-pink-100 text-pink-600";
-        }
-
-        return { ...f, type, icon, color };
-      });
-
-      // Exclude demo scheme (DMO1) forms (TP scope already excludes them; kept defensively)
-      const filteredReports = mappedReports.filter(report => {
-        if (report.schemeIds && Array.isArray(report.schemeIds)) {
-          return !report.schemeIds.every(id => id === DEMO_SCHEME_ID);
-        }
-        const schemeId = report.schemeId || report.scheme?.split(' ')[0];
-        return schemeId !== DEMO_SCHEME_ID;
-      });
+      // TP scope already excludes demo forms; excludeDemoScheme kept defensively.
+      const filteredReports = excludeDemoScheme(rawForms.map(decorateForm));
 
       return { reports: filteredReports, cursors: newCursors, typeCursor: newTypeCursor, hasMore: newHasMore };
     },
@@ -238,7 +195,20 @@ const ThirdPartyReportsPage = () => {
     }
   }, [reportsQuery.isError, reportsQuery.error]);
 
-  const reports = reportsQuery.data?.reports ?? [];
+  // Live overlay for page 1 only — a bounded (limit 10 per collection) listener
+  // shows brand-new reports the instant they're submitted, without paginating
+  // via live listeners (which pagination beyond page 1 still doesn't use).
+  const isLiveWindow = !isSearchMode && currentPage === 1;
+  const liveReports = useLiveReports({
+    filterType,
+    schemeScope: getCompanyScope(filterCompany),
+    enabled: isLiveWindow,
+  });
+
+  const reports =
+    isLiveWindow && liveReports.length > 0
+      ? liveReports.slice(0, reportsPerPage)
+      : reportsQuery.data?.reports ?? [];
   const filteredReports = reports;
   const hasMore = reportsQuery.data?.hasMore ?? false;
   const loading = reportsQuery.isFetching;
