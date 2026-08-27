@@ -1317,8 +1317,80 @@ class ClientDataService {
     }
   }
 
-  // Get aggregated statistics for a scheme by date range
-  async getSchemeStatsByDateRange(schemeId, startDateStr, endDateStr) {
+  // Shared by getSchemeStatsAndTimeSeriesByDateRange — one fetch of
+  // incidentReports for a scheme+date-range, instead of stats and time-series
+  // each independently scanning the exact same collection.
+  async _fetchIncidentsInRange(schemeId, startDate, endDate) {
+    const incidentsRef = collection(db, "incidentReports");
+    try {
+      // Try compound query with date range and ordering (requires index)
+      const q = query(
+        incidentsRef,
+        where("schemeIds", "array-contains", schemeId),
+        where("createdAt", ">=", Timestamp.fromDate(startDate)),
+        where("createdAt", "<=", Timestamp.fromDate(endDate)),
+        orderBy("createdAt", "asc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch (indexError) {
+      // If index doesn't exist, fall back to fetching all and filtering in memory
+      if (
+        indexError.code === "failed-precondition" ||
+        indexError.message?.includes("index")
+      ) {
+        console.warn(
+          "Index not available for incident range query, filtering in memory",
+        );
+        const simpleQuery = query(
+          incidentsRef,
+          where("schemeIds", "array-contains", schemeId),
+        );
+        const snapshot = await getDocs(simpleQuery);
+        return snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .filter((incident) => {
+            if (!incident.createdAt) return false;
+            const incidentDate = incident.createdAt.toDate();
+            return incidentDate >= startDate && incidentDate <= endDate;
+          })
+          .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      }
+      throw indexError;
+    }
+  }
+
+  // Get aggregated statistics AND time-series data for a scheme by date
+  // range in one fetch — these used to be two separate methods that each
+  // independently scanned the same incidentReports range, doubling the read
+  // cost for no reason since they're always requested together.
+  //
+  // Same shared-cache pattern as getCCTVUptimeData: a computed result is
+  // written to a doc every client can read, so only the first request in a
+  // 15-min window per scheme+range pays for the full incident scan — every
+  // other client (or the same one revisiting) gets it for 1 read. The write
+  // is fire-and-forget and swallows errors, so an oversized result (e.g. a
+  // busy scheme's "All Time" range) just fails to cache rather than crashing
+  // — that specific range keeps computing fresh every time, everything else
+  // still benefits.
+  async getSchemeStatsAndTimeSeriesByDateRange(schemeId, startDateStr, endDateStr, force = false) {
+    const CACHE_TTL_MS = 15 * 60 * 1000;
+    const cacheRef = doc(db, "schemeStatsCache", `${schemeId}_${startDateStr}_${endDateStr}`);
+
+    if (!force) {
+      try {
+        const cacheSnap = await getDoc(cacheRef);
+        if (cacheSnap.exists()) {
+          const cached = cacheSnap.data();
+          if (Date.now() - cached.cachedAt.toMillis() < CACHE_TTL_MS) {
+            return { stats: cached.stats, timeSeriesData: cached.timeSeriesData };
+          }
+        }
+      } catch {
+        // Cache read failed — fall through to full query
+      }
+    }
+
     try {
       // Convert date strings (YYYY-MM-DD) to Date objects
       const startDate = new Date(startDateStr);
@@ -1327,58 +1399,10 @@ class ClientDataService {
       const endDate = new Date(endDateStr);
       endDate.setHours(23, 59, 59, 999); // End of day
 
-      // Get recent incidents
-      const incidentsRef = collection(db, "incidentReports");
-      let incidents = [];
-
-      try {
-        // Try compound query with date range (requires index)
-        const incidentsQuery = query(
-          incidentsRef,
-          where("schemeIds", "array-contains", schemeId),
-          where("createdAt", ">=", Timestamp.fromDate(startDate)),
-          where("createdAt", "<=", Timestamp.fromDate(endDate)),
-        );
-        const incidentsSnapshot = await getDocs(incidentsQuery);
-        incidents = incidentsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        console.log(
-          `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
-        );
-      } catch (indexError) {
-        // If index doesn't exist, fall back to fetching all and filtering in memory
-        if (
-          indexError.code === "failed-precondition" ||
-          indexError.message?.includes("index")
-        ) {
-          console.warn(
-            "Index not available for date range query, filtering in memory",
-          );
-          const simpleQuery = query(
-            incidentsRef,
-            where("schemeIds", "array-contains", schemeId),
-          );
-          const snapshot = await getDocs(simpleQuery);
-          const allIncidents = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-
-          // Filter by date range in memory
-          incidents = allIncidents.filter((incident) => {
-            if (!incident.createdAt) return false;
-            const incidentDate = incident.createdAt.toDate();
-            return incidentDate >= startDate && incidentDate <= endDate;
-          });
-          console.log(
-            `Filtered ${incidents.length} incidents from ${allIncidents.length} total for scheme ${schemeId}`,
-          );
-        } else {
-          throw indexError;
-        }
-      }
+      const incidents = await this._fetchIncidentsInRange(schemeId, startDate, endDate);
+      console.log(
+        `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
+      );
 
       // Calculate statistics (same as getSchemeStats)
       const stats = {
@@ -1426,77 +1450,12 @@ class ClientDataService {
         ...this.calcAverageTimes(incidents),
       };
 
-      return { ...stats, incidents };
-    } catch (error) {
-      throw new AppError(
-        "Failed to fetch scheme stats by date range",
-        "client-data/stats-error",
-        error,
-      );
-    }
-  }
-
-  // Get time series data by date range
-  async getTimeSeriesDataByDateRange(schemeId, startDateStr, endDateStr) {
-    try {
-      // Convert date strings (YYYY-MM-DD) to Date objects
-      const startDate = new Date(startDateStr);
-      startDate.setHours(0, 0, 0, 0);
-
-      const endDate = new Date(endDateStr);
-      endDate.setHours(23, 59, 59, 999);
-
-      const incidentsRef = collection(db, "incidentReports");
-      let incidents = [];
-
-      try {
-        // Try compound query with date range and ordering (requires index)
-        const q = query(
-          incidentsRef,
-          where("schemeIds", "array-contains", schemeId),
-          where("createdAt", ">=", Timestamp.fromDate(startDate)),
-          where("createdAt", "<=", Timestamp.fromDate(endDate)),
-          orderBy("createdAt", "asc"),
-        );
-        const querySnapshot = await getDocs(q);
-        incidents = querySnapshot.docs.map((doc) => doc.data());
-      } catch (indexError) {
-        // If index doesn't exist, fall back to fetching all and filtering in memory
-        if (
-          indexError.code === "failed-precondition" ||
-          indexError.message?.includes("index")
-        ) {
-          console.warn(
-            "Index not available for time series query, filtering in memory",
-          );
-          const simpleQuery = query(
-            incidentsRef,
-            where("schemeIds", "array-contains", schemeId),
-          );
-          const snapshot = await getDocs(simpleQuery);
-          const allIncidents = snapshot.docs.map((doc) => doc.data());
-
-          // Filter by date range and sort in memory
-          incidents = allIncidents
-            .filter((incident) => {
-              if (!incident.createdAt) return false;
-              const incidentDate = incident.createdAt.toDate();
-              return incidentDate >= startDate && incidentDate <= endDate;
-            })
-            .sort((a, b) => {
-              const timeA = a.createdAt?.seconds || 0;
-              const timeB = b.createdAt?.seconds || 0;
-              return timeA - timeB;
-            });
-        } else {
-          throw indexError;
-        }
-      }
-
-      // Group by month (e.g., "January 2026")
+      // Group by month (e.g., "January 2026") — derived from the same
+      // incidents array the stats above were computed from.
       const monthlyData = {};
       const monthOrder = []; // Track order of months for sorting
       incidents.forEach((incident) => {
+        if (!incident.createdAt) return;
         const date = incident.createdAt.toDate();
         const monthKey = date.toLocaleDateString("en-US", {
           month: "short",
@@ -1512,16 +1471,24 @@ class ClientDataService {
         }
         monthlyData[monthKey]++;
       });
-
-      // Sort by date and return
       monthOrder.sort((a, b) => a.date - b.date);
-      return monthOrder.map(({ key }) => ({
+      const timeSeriesData = monthOrder.map(({ key }) => ({
         name: key,
         count: monthlyData[key],
       }));
+
+      const result = { stats: { ...stats, incidents }, timeSeriesData };
+
+      // Write result to shared Firestore cache (fire-and-forget, non-blocking)
+      setDoc(cacheRef, { ...result, cachedAt: serverTimestamp(), schemeId, startDateStr, endDateStr }).catch(() => {});
+
+      return result;
     } catch (error) {
-      console.error("Failed to fetch time series data by date range:", error);
-      return [];
+      throw new AppError(
+        "Failed to fetch scheme stats by date range",
+        "client-data/stats-error",
+        error,
+      );
     }
   }
 

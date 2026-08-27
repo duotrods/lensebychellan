@@ -549,6 +549,33 @@ service cloud.firestore {
       allow read, write: if isVerified();
     }
 
+    // Scheme Stats + Time Series Cache (computed summaries, shared across users,
+    // 15-min TTL). Unlike cctvUptimeCache, this embeds real incident detail
+    // (locations, who reported them, descriptions) for the dashboard's
+    // drill-down feature — not just an aggregate percentage — so reads are
+    // scheme-scoped the same way the underlying incidentReports collection
+    // is, rather than open to any verified user. Doc IDs are guessable
+    // (schemeId + dates), so this scoping is the only thing stopping a user
+    // on one scheme from reading another scheme's cached incident data.
+    match /schemeStatsCache/{docId} {
+      allow read: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'thirdpartystaff' ||
+        ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') &&
+          getUserSchemes() != null && resource.data.schemeId in getUserSchemes())
+      );
+      // Write is populated by the same read path that computes the data (a
+      // cache-aside fill), so it's scoped the same way as the read it backs.
+      allow write: if isVerified() && (
+        getUserRole() == 'admin' ||
+        getUserRole() == 'staff' ||
+        getUserRole() == 'thirdpartystaff' ||
+        ((getUserRole() == 'client' || getUserRole() == 'thirdpartyclient') &&
+          getUserSchemes() != null && request.resource.data.schemeId in getUserSchemes())
+      );
+    }
+
     // Collection count cache (computed dashboard totals, shared, 15-min TTL)
     match /collectionStatsCache/{docId} {
       allow read, write: if isVerified();

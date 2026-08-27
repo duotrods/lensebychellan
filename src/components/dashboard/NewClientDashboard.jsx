@@ -1,7 +1,7 @@
   /* eslint-disable no-constant-binary-expression */
   import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
   import { useNavigate } from "react-router-dom";
-  import { useQuery } from "@tanstack/react-query";
+  import { useQuery, useQueryClient } from "@tanstack/react-query";
   import { useAuth } from "../../hooks/useAuth";
   import { useLiveIncidents } from "../../hooks/useLiveIncidents";
   import { useLiveCCTVFaults } from "../../hooks/useCCTVFaults";
@@ -39,6 +39,7 @@
     Car,
     BarChart3,
     PieChart as PieChartIcon,
+    ClipboardList,
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
   import DrillDownSidebar from "./DrillDownSidebar";
@@ -190,6 +191,7 @@
   const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
     const navigate = useNavigate();
     const { userProfile } = useAuth();
+    const queryClient = useQueryClient();
     const datePickerRef = useRef(null);
     const dashboardRef = useRef(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -271,31 +273,29 @@
       [earliestIncidentDate],
     );
 
-    // Cached query for stats
-    const { data: stats, isLoading: statsLoading } = useQuery({
-      queryKey: ["schemeStats", schemeId, startDate, endDate],
+    // Cached query for stats + time series — one fetch instead of two, since
+    // both used to independently scan the exact same incidentReports range.
+    // Trend numbers don't need to be fresher than 15 min, so the staleTime is
+    // bumped up from the 5-min default to cut repeat-visit reads further.
+    const { data: statsAndTimeSeries, isLoading: statsLoading } = useQuery({
+      queryKey: ["schemeStatsAndTimeSeries", schemeId, startDate, endDate],
       queryFn: () =>
-        clientDataService.getSchemeStatsByDateRange(schemeId, startDate, endDate),
+        clientDataService.getSchemeStatsAndTimeSeriesByDateRange(schemeId, startDate, endDate),
       enabled: !!schemeId && !!startDate && !!endDate,
+      staleTime: 15 * 60 * 1000,
     });
+    const stats = statsAndTimeSeries?.stats;
+    const timeSeriesData = statsAndTimeSeries?.timeSeriesData ?? [];
+    const timeSeriesLoading = statsLoading;
 
-    // Cached query for uptime
+    // Cached query for uptime — the underlying data already has its own
+    // 15-min server-side cache (cctvUptimeCache), so matching that here
+    // avoids re-fetching client-side before the server cache would even change.
     const { data: uptimeData, isLoading: uptimeLoading } = useQuery({
       queryKey: ["cctvUptime", schemeId],
       queryFn: () => clientDataService.getCCTVUptimeData(schemeId, 30),
       enabled: !!schemeId,
-    });
-
-    // Cached query for time series
-    const { data: timeSeriesData = [], isLoading: timeSeriesLoading } = useQuery({
-      queryKey: ["timeSeriesData", schemeId, startDate, endDate],
-      queryFn: () =>
-        clientDataService.getTimeSeriesDataByDateRange(
-          schemeId,
-          startDate,
-          endDate,
-        ),
-      enabled: !!schemeId && !!startDate && !!endDate,
+      staleTime: 15 * 60 * 1000,
     });
 
     // Real-time subscription for live incidents (no polling - only charges when data changes)
@@ -305,6 +305,65 @@
     // Real-time subscription for CCTV fault reports
     const { faults: liveCCTVFaults, loading: cctvFaultsLoading } =
       useLiveCCTVFaults(schemeId);
+
+    // Bounded (limit 1) listener — watches only for a brand-new incident
+    // arriving, not the stats themselves, so its cost is fixed regardless of
+    // how much historical data exists. When one lands, wait a few seconds
+    // (coalesces a burst of several incidents into one refresh instead of
+    // one per incident) then force a fresh compute — a *normal* refetch
+    // isn't enough here, since it would just re-read the shared 15-min
+    // schemeStatsCache, which is still "fresh" by its own TTL but now stale
+    // relative to the incident that just triggered this. The forced compute
+    // also rewrites that shared cache, so other dashboards on this scheme
+    // pick up the update on their own next normal read.
+    const lastIncidentIdRef = useRef(null);
+    const refreshTimeoutRef = useRef(null);
+    useEffect(() => {
+      if (!schemeId) return;
+      const unsubscribe = clientDataService.subscribeToLatestReports(
+        "incidentReports",
+        1,
+        schemeId,
+        (docs) => {
+          const latestId = docs[0]?.id ?? null;
+          if (lastIncidentIdRef.current === null) {
+            // First snapshot on mount — just record it, the dashboard's
+            // queries already load fresh data on their own.
+            lastIncidentIdRef.current = latestId;
+            return;
+          }
+          if (latestId && latestId !== lastIncidentIdRef.current) {
+            lastIncidentIdRef.current = latestId;
+            if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+            refreshTimeoutRef.current = setTimeout(async () => {
+              try {
+                const fresh = await clientDataService.getSchemeStatsAndTimeSeriesByDateRange(
+                  schemeId,
+                  startDate,
+                  endDate,
+                  true, // force — bypass the shared cache, this data just changed
+                );
+                queryClient.setQueryData(
+                  ["schemeStatsAndTimeSeries", schemeId, startDate, endDate],
+                  fresh,
+                );
+              } catch (err) {
+                console.error("Failed to refresh dashboard after new incident:", err);
+              }
+            }, 4000);
+          }
+        },
+        (err) => {
+          console.error("Live incident-watch subscription failed:", err);
+        },
+      );
+      return () => {
+        unsubscribe?.();
+        if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+        lastIncidentIdRef.current = null;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [schemeId, startDate, endDate]);
 
     const loading = statsLoading || uptimeLoading || timeSeriesLoading;
 
@@ -443,6 +502,15 @@
     );
 
     const statsCards = [
+      {
+        title: "Total Incidents",
+        value: loading ? "..." : incidents.length.toString(),
+        text: "Includes Free Recovery, Drive Off and Incursions.",
+        icon: ClipboardList,
+        color: "text-white",
+        bgColor: "bg-linear-to-b from-amber-400 to-amber-500",
+        filter: () => incidents,
+      },
       {
         title: "Incidents",
         value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
@@ -781,7 +849,7 @@
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
           {statsCards.map((stat, index) => (
             <div
               key={index}
@@ -793,17 +861,17 @@
               }}
             >
               <div className="flex items-center gap-2 mb-4">
-                <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                  <stat.icon className={`w-4 h-4 ${stat.color}`} />
                 </div>
                 <div>
-                  <h5 className="font-bold! text-gray-800">{stat.title}</h5>
-                  <p className="text-[11px] font-medium text-gray-400">
+                  <h5 className="font-bold! text-sm text-gray-800">{stat.title}</h5>
+                  <p className="text-[10px] font-medium text-gray-400">
                     {stat.text}
                   </p>
                 </div>
               </div>
-              <span className="text-3xl font-bold text-gray-800 pl-1">
+              <span className="text-2xl font-bold text-gray-800 pl-1">
                 {stat.value}
               </span>
             </div>
