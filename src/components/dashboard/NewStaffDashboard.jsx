@@ -747,6 +747,11 @@
                                     Gain Advantage
                                   </span>
                                 )}
+                              {form.type === "Incident Report" && form.standDown && (
+                                <span className="badge badge-neutral badge-xs mt-1">
+                                  Stood Down
+                                </span>
+                              )}
                             </td>
                             <td className="text-sm">
                               <div>
@@ -804,7 +809,7 @@
                             </td>
                             <td>
                               <div className="flex items-center justify-center gap-2">
-                                {(form.type === "Incident Report" ||
+                                {form.standDown ? null : (form.type === "Incident Report" ||
                                   form.type === "CCTV Faults") &&
                                 form.status === "live" ? (
                                   <button

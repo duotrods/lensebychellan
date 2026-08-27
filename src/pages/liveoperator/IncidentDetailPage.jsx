@@ -103,6 +103,18 @@ const IncidentDetailPage = () => {
           </button>
         </div>
 
+        {report.standDown && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-700 font-medium">
+              This report was stood down
+            </p>
+            <p className="text-red-600 text-sm mt-1">
+              It's excluded from the Incident Type, Fault Type, and Drive
+              Off charts and counts.
+            </p>
+          </div>
+        )}
+
         {/* Report Content */}
         <div className="bg-white rounded-xl shadow-md p-8">
           {/* Logo */}

@@ -26,6 +26,7 @@ import {
 } from "../../utils/incidentForm";
 
 import chellanlogo from "../../assets/chellanpng.png";
+import warningIcon from "../../assets/warning.svg";
 
 const IncidentReportFormPage = () => {
   const navigate = useNavigate();
@@ -42,6 +43,8 @@ const IncidentReportFormPage = () => {
   const [isEditingLiveIncident, setIsEditingLiveIncident] = useState(false);
   const [liveIncidentId, setLiveIncidentId] = useState(null);
   const [existingReferenceId, setExistingReferenceId] = useState(null);
+  const [pairMismatchWarning, setPairMismatchWarning] = useState(null);
+  const [showStandDownConfirm, setShowStandDownConfirm] = useState(false);
 
   const [formData, setFormData] = useState({
     scheme: "",
@@ -73,6 +76,7 @@ const IncidentReportFormPage = () => {
     damageType: "",
     vehicles: [{ type: "", make: "", model: "", vin: "" }],
     description: "",
+    standDown: false,
   });
 
   useEffect(() => {
@@ -86,6 +90,12 @@ const IncidentReportFormPage = () => {
       setLoading(true);
       const reports = await staffService.getIncidentReports(null);
       const report = reports.find((r) => r.id === editId);
+
+      if (report?.standDown) {
+        toast.error("This incident has been stood down and can no longer be edited");
+        navigate(basePath);
+        return;
+      }
 
       if (report) {
         setExistingReferenceId(report.referenceId || null);
@@ -127,6 +137,7 @@ const IncidentReportFormPage = () => {
           ],
           description: report.description || "",
           files: report.files || [],
+          standDown: report.standDown || false,
         });
 
         // If editing a live incident, go directly to Step 2
@@ -146,8 +157,36 @@ const IncidentReportFormPage = () => {
     }
   };
 
+  // Incident Type and Fault are kept in sync when either is set to one of
+  // these shared values, so charts for each field don't disagree about the
+  // same report.
+  const PAIRED_INCIDENT_VALUES = ["RTC", "Drive Off"];
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // Warn before overwriting an existing RTC/Drive Off pairing on the other
+    // field (e.g. Fault is "RTC" and the staff member picks a different
+    // Incident Type, or vice versa) since that is what leaks a report
+    // between the Incident Type and Fault charts.
+    const otherFieldName =
+      name === "incidentType" ? "fault" : name === "fault" ? "incidentType" : null;
+    const otherFieldValue = otherFieldName ? formData[otherFieldName] : null;
+    const breaksPair =
+      otherFieldName &&
+      value !== "" &&
+      PAIRED_INCIDENT_VALUES.includes(otherFieldValue) &&
+      value !== otherFieldValue;
+
+    if (breaksPair) {
+      setPairMismatchWarning({ name, value, pairedValue: otherFieldValue });
+      return;
+    }
+
+    applyFieldChange(name, value);
+  };
+
+  const applyFieldChange = (name, value) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -157,8 +196,93 @@ const IncidentReportFormPage = () => {
       // Keep Incident Type and Fault in sync when either is set to RTC.
       ...(name === "fault" && value === "RTC" ? { incidentType: "RTC" } : {}),
       ...(name === "incidentType" && value === "RTC" ? { fault: "RTC" } : {}),
+      // Keep Incident Type and Fault in sync when either is set to Drive Off.
+      ...(name === "fault" && value === "Drive Off"
+        ? { incidentType: "Drive Off" }
+        : {}),
+      ...(name === "incidentType" && value === "Drive Off"
+        ? { fault: "Drive Off" }
+        : {}),
     }));
   };
+
+  const confirmPairMismatch = () => {
+    if (pairMismatchWarning) {
+      applyFieldChange(pairMismatchWarning.name, pairMismatchWarning.value);
+    }
+    setPairMismatchWarning(null);
+  };
+
+  const cancelPairMismatch = () => setPairMismatchWarning(null);
+
+  // Standing down an incident skips the rest of the form entirely — clears
+  // the incident-detail fields (they don't apply to a report that isn't
+  // being counted) and saves immediately, rather than requiring the staff
+  // member to fill everything in first.
+  const confirmStandDown = async () => {
+    setShowStandDownConfirm(false);
+
+    if (!formData.scheme || !formData.date || !formData.firstName) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const clearedData = {
+        ...formData,
+        standDown: true,
+        affectedLanes: [],
+        emergencyServices: [],
+        recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
+        timeSpotted: "",
+        timeOnSite: "",
+        timeCleared: "",
+        closedLogCollar: "",
+        propertyDamage: false,
+        assetType: "",
+        damageType: "",
+        vehicles: [{ type: "", make: "", model: "", vin: "" }],
+        description: "",
+        files: [],
+      };
+
+      const incidentId = editId || liveIncidentId;
+
+      if (incidentId) {
+        const updateData = { ...clearedData };
+        if (isEditingLiveIncident) {
+          updateData.status = "completed";
+        }
+
+        await staffService.updateIncidentReport(
+          incidentId,
+          updateData,
+          userProfile.uid,
+          userProfile.displayName,
+          isEditingLiveIncident,
+        );
+      } else {
+        await staffService.submitIncidentReport(
+          clearedData,
+          userProfile.uid,
+          userProfile.displayName,
+          "submitted",
+        );
+      }
+
+      toast.success("Incident stood down and saved.");
+      setFiles([]);
+      navigate(basePath);
+    } catch (error) {
+      console.error("Error standing down incident:", error);
+      toast.error("Failed to stand down incident. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelStandDown = () => setShowStandDownConfirm(false);
 
   const handleCheckbox = (field, value) => {
     setFormData((prev) => ({
@@ -1259,6 +1383,30 @@ const IncidentReportFormPage = () => {
         </div>
       </div>
 
+      {(formData.incidentType === "Drive Off" ||
+        formData.fault === "Drive Off") && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-amber-800 font-medium">Drive Off incident</p>
+              <p className="text-amber-700 text-sm mt-1">
+                If this shouldn't be counted on the charts, stand it down —
+                it saves immediately as a Drive Off report, skips the rest
+                of the form, and can no longer be edited afterwards.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowStandDownConfirm(true)}
+              disabled={loading}
+              className="shrink-0 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium disabled:opacity-50 transition-colors"
+            >
+              {loading ? "Standing Down..." : "Stand Down Incident"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Affected Lanes */}
       <div>
         <label className="label">
@@ -1730,6 +1878,80 @@ const IncidentReportFormPage = () => {
           renderStep2()
         )}
       </div>
+
+      {pairMismatchWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-10">
+            <div className="flex justify-center mb-6">
+              <img src={warningIcon} alt="" className="w-40 h-40" />
+            </div>
+
+            <h2 className="text-gray-800 text-center text-xl mb-2">
+              Change away from {pairMismatchWarning.pairedValue}?
+            </h2>
+            <p className="text-base text-gray-500 text-center mb-8">
+              {pairMismatchWarning.name === "incidentType"
+                ? `Fault is currently set to ${pairMismatchWarning.pairedValue}. Changing Incident Type to something else will make the two fields inconsistent, which can cause this report to be miscounted on the charts.`
+                : `Incident Type is currently set to ${pairMismatchWarning.pairedValue}. Changing Fault to something else will make the two fields inconsistent, which can cause this report to be miscounted on the charts.`}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={cancelPairMismatch}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                onClick={confirmPairMismatch}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors"
+              >
+                Continue Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStandDownConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-10">
+            <div className="flex justify-center mb-6">
+              <img src={warningIcon} alt="" className="w-40 h-40" />
+            </div>
+
+            <h2 className="text-gray-800 text-center text-xl mb-2">
+              Stand down this incident?
+            </h2>
+            <p className="text-base text-gray-500 text-center mb-8">
+              The rest of the form (vehicles, affected lanes, emergency
+              services, times, description, etc.) will be cleared and this
+              will be saved immediately as a stood down Drive Off report,
+              excluded from the Incident Type, Fault Type, and Drive Off
+              charts and counts.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={cancelStandDown}
+                disabled={loading}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                onClick={confirmStandDown}
+                disabled={loading}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium disabled:opacity-50 transition-colors"
+              >
+                {loading ? "Saving..." : "Stand Down"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </StaffSidebarLayout>
   );
 };

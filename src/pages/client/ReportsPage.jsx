@@ -607,6 +607,11 @@ const ReportsPage = () => {
                                 Gain Advantage
                               </span>
                             )}
+                          {report.reportType === "incident" && report.standDown && (
+                            <span className="badge badge-neutral badge-xs mt-1">
+                              Stood Down
+                            </span>
+                          )}
                         </td>
                         <td className="max-w-xs truncate">
                           {report.type || report.title || "N/A"}

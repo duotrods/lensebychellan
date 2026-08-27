@@ -901,11 +901,15 @@ class ClientDataService {
         where("createdAt", ">=", Timestamp.fromDate(startDate)),
       );
       const incidentsSnapshot = await getDocs(incidentsQuery);
-      const incidents = incidentsSnapshot.docs.map((doc) => doc.data());
+      const allIncidents = incidentsSnapshot.docs.map((doc) => doc.data());
+      // Stood-down reports still count toward the Total Incidents figure,
+      // but are excluded from every breakdown stat below (incidentsByType,
+      // faultTypes, etc.) so they don't skew the per-type/fault charts.
+      const incidents = allIncidents.filter((i) => !i.standDown);
 
       // Calculate statistics
       const stats = {
-        totalIncidents: incidents.filter(
+        totalIncidents: allIncidents.filter(
           (i) =>
             i.incidentType !== "Free Recovery" &&
             i.incursion !== "YES" &&
@@ -1399,17 +1403,24 @@ class ClientDataService {
       const endDate = new Date(endDateStr);
       endDate.setHours(23, 59, 59, 999); // End of day
 
-      const incidents = await this._fetchIncidentsInRange(schemeId, startDate, endDate);
+      const allIncidents = await this._fetchIncidentsInRange(
+        schemeId,
+        startDate,
+        endDate,
+      );
+      // Stood-down reports still count toward the Total Incidents figure,
+      // but are excluded from every breakdown stat below (incidentsByType,
+      // faultTypes, etc.) so they don't skew the per-type/fault charts.
+      const incidents = allIncidents.filter((i) => !i.standDown);
       console.log(
         `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
       );
 
       // Calculate statistics (same as getSchemeStats)
       const stats = {
-        totalIncidents: incidents.filter(
+        totalIncidents: allIncidents.filter(
           (i) =>
             i.incidentType !== "Free Recovery" &&
-            i.incidentType !== "Drive Off" &&
             i.incursion !== "YES" &&
             i.incursionToGainAdvantage !== "YES",
         ).length,

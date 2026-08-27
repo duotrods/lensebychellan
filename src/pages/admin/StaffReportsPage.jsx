@@ -651,6 +651,11 @@ const StaffReportsPage = () => {
                                 Gain Advantage
                               </span>
                             )}
+                          {report.type === "Incident Report" && report.standDown && (
+                            <span className="badge badge-neutral badge-xs mt-1">
+                              Stood Down
+                            </span>
+                          )}
                         </td>
                         <td className="text-sm">
                           <div>

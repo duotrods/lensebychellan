@@ -171,9 +171,11 @@ const ThirdPartyChartsPage = () => {
     return filtered;
   };
 
-  // Get incident reports only
+  // Get incident reports only, excluding stood-down ones from every chart
   const getIncidentReports = () => {
-    return getFilteredReports().filter(r => r.type === "Incident Report");
+    return getFilteredReports().filter(
+      (r) => r.type === "Incident Report" && !r.standDown,
+    );
   };
 
   // Chart data extraction functions
