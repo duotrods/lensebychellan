@@ -213,6 +213,24 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "schemeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "camera",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cctvFaultsReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "schemeIds",
           "arrayConfig": "CONTAINS"
         },

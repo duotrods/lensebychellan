@@ -39,7 +39,7 @@
     Car,
     BarChart3,
     PieChart as PieChartIcon,
-    ClipboardList,
+    LogOut,
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
   import DrillDownSidebar from "./DrillDownSidebar";
@@ -197,6 +197,17 @@
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [drillDown, setDrillDown] = useState(null); // { title, incidents }
+    // Drives the date-range calendar's month count — two side-by-side months
+    // don't fit on a phone screen, so collapse to one below the sm breakpoint.
+    const [isNarrowScreen, setIsNarrowScreen] = useState(
+      () => typeof window !== "undefined" && window.innerWidth < 640,
+    );
+
+    useEffect(() => {
+      const handleResize = () => setIsNarrowScreen(window.innerWidth < 640);
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     const openDrillDown = useCallback((data) => {
       const sorted = [...data.incidents].sort((a, b) => {
@@ -503,15 +514,6 @@
 
     const statsCards = [
       {
-        title: "Total Incidents",
-        value: loading ? "..." : incidents.length.toString(),
-        text: "Includes Free Recovery, Drive Off and Incursions.",
-        icon: ClipboardList,
-        color: "text-white",
-        bgColor: "bg-linear-to-b from-amber-400 to-amber-500",
-        filter: () => incidents,
-      },
-      {
         title: "Incidents",
         value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
         text: "Excluding Free Recovery, Drive off and Incursions.",
@@ -792,9 +794,9 @@
     return (
       <div className="max-w-[1600px] mx-auto px-4">
         {/* Header with Date Filter */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
               Welcome back, {userProfile?.displayName}!
             </h1>
             <p className="text-brand-500 text-sm mt-2 font-semibold">
@@ -803,7 +805,7 @@
           </div>
 
           {/* Date Range Filter and Export Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleExportPDF}
               disabled={isExporting || loading}
@@ -818,7 +820,7 @@
                 onClick={() => setShowDatePicker(!showDatePicker)}
                 className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               >
-                <Calendar className="w-4 h-4 text-teal-600" />
+                <Calendar className="w-4 h-4 text-teal-600 shrink-0" />
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-medium text-gray-700">
                     {dateRange[0].startDate.toLocaleDateString("en-GB")}
@@ -831,12 +833,12 @@
               </button>
 
               {showDatePicker && (
-                <div className="absolute right-0 top-full mt-2 z-50 shadow-xl rounded-lg overflow-hidden border border-gray-200">
+                <div className="absolute right-0 top-full mt-2 z-50 shadow-xl rounded-lg overflow-hidden border border-gray-200 max-w-[calc(100vw-2rem)] overflow-x-auto">
                   <DateRangePicker
                     ranges={dateRange}
                     onChange={(item) => setDateRange([item.selection])}
                     moveRangeOnFirstSelection={false}
-                    months={2}
+                    months={isNarrowScreen ? 1 : 2}
                     direction="horizontal"
                     showDateDisplay={false}
                     rangeColors={["#17af93"]}
@@ -849,19 +851,19 @@
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
           {statsCards.map((stat, index) => (
             <div
               key={index}
-              className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => {
                 const filtered = stat.filter();
                 if (filtered.length)
                   openDrillDown({ title: stat.title, incidents: filtered });
               }}
             >
-              <div className="flex items-center gap-2 mb-4">
-                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className={`p-2 rounded-lg shrink-0 ${stat.bgColor}`}>
                   <stat.icon className={`w-4 h-4 ${stat.color}`} />
                 </div>
                 <div>
@@ -871,7 +873,7 @@
                   </p>
                 </div>
               </div>
-              <span className="text-2xl font-bold text-gray-800 pl-1">
+              <span className="text-xl font-bold text-gray-800">
                 {stat.value}
               </span>
             </div>
@@ -879,71 +881,88 @@
         </div>
 
         {/* Metric Cards Row 2 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-linear-to-b from-teal-400 to-teal-500">
-                <Clock className="w-6 h-6 text-white" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
+          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-cyan-500 to-cyan-600">
+                <LogOut className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h5 className="font-bold! text-gray-800">Avg Time to Site</h5>
-                <p className="text-xs font-medium text-gray-400">
+                <h5 className="font-bold! text-sm text-gray-800">Drive Off</h5>
+                <p className="text-[10px] font-medium text-gray-400">
+                  Total number of drive off incidents.
+                </p>
+              </div>
+            </div>
+            <span className="text-xl font-bold text-gray-800">
+              {loading ? "..." : (stats?.incidentsByType?.["Drive Off"] || 0).toString()}
+            </span>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-teal-400 to-teal-500">
+                <Clock className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h5 className="font-bold! text-sm text-gray-800">Avg Time to Site</h5>
+                <p className="text-[10px] font-medium text-gray-400">
                   Average response time from incident spotted to unit on site.
                 </p>
               </div>
             </div>
-            <span className="text-2xl font-bold text-gray-800">
+            <span className="text-xl font-bold text-gray-800">
               {loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`}
             </span>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-linear-to-b from-blue-400 to-blue-500">
-                <TimerReset className="w-6 h-6 text-white " />
+          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-blue-400 to-blue-500">
+                <TimerReset className="w-4 h-4 text-white " />
               </div>
               <div>
-                <h5 className="font-bold! text-gray-800">Avg Time to Recover</h5>
-                <p className="text-xs font-medium text-gray-400">
+                <h5 className="font-bold! text-sm text-gray-800">Avg Time to Recover</h5>
+                <p className="text-[10px] font-medium text-gray-400">
                   Average time from unit on site to incident cleared.
                 </p>
               </div>
             </div>
-            <span className="text-2xl font-bold text-gray-800">
+            <span className="text-xl font-bold text-gray-800">
               {loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`}
             </span>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`p-3 rounded-lg ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "bg-linear-to-b from-red-400 to-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "bg-linear-to-b from-amber-400 to-amber-500" : "bg-linear-to-b from-green-400 to-green-500"}`}>
-                <TrendingUp className={`w-6 h-6 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "text-white" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "text-white" : "text-white"}`} />
+          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`p-2 rounded-lg shrink-0 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "bg-linear-to-b from-red-400 to-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "bg-linear-to-b from-amber-400 to-amber-500" : "bg-linear-to-b from-green-400 to-green-500"}`}>
+                <TrendingUp className={`w-4 h-4 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "text-white" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "text-white" : "text-white"}`} />
               </div>
               <div>
-                <h5 className="font-bold! text-gray-800">Avg Camera Uptime</h5>
-                <p className="text-xs font-medium text-gray-400">
+                <h5 className="font-bold! text-sm text-gray-800">Avg Camera Uptime</h5>
+                <p className="text-[10px] font-medium text-gray-400">
                   Average camera uptime across the scheme (last 30 days).
                 </p>
               </div>
             </div>
-            <span className="text-2xl font-bold text-gray-800">
+            <span className="text-xl font-bold text-gray-800">
               {uptimeLoading ? "..." : `${uptimeData?.totals?.avgUptimePct ?? "100.0"}%`}
             </span>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-linear-to-b from-rose-500 to-rose-600">
-                <TrendingDown className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-rose-500 to-rose-600">
+                <TrendingDown className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h5 className="font-bold! text-gray-800">Avg Camera Downtime</h5>
-                <p className="text-xs font-medium text-gray-400">
+                <h5 className="font-bold! text-sm text-gray-800">Avg Camera Downtime</h5>
+                <p className="text-[10px] font-medium text-gray-400">
                   Average camera downtime across the scheme (last 30 days).
                 </p>
               </div>
             </div>
-            <span className="text-2xl font-bold text-gray-800">
+            <span className="text-xl font-bold text-gray-800">
               {uptimeLoading ? "..." : `${(100 - parseFloat(uptimeData?.totals?.avgUptimePct ?? 100)).toFixed(1)}%`}
             </span>
           </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import LogoutConfirmModal from "./LogoutConfirmModal";
-import ExternalLinkConfirmModal from "./ExternalLinkConfirmModal";
+import WarningConfirmModal from "../common/WarningConfirmModal";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
@@ -137,10 +137,14 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
         />
       )}
       {showLenseAssistModal && (
-        <ExternalLinkConfirmModal
-          siteName="Lense Assist"
-          url={LENSE_ASSIST_URL}
-          onConfirm={() => setShowLenseAssistModal(false)}
+        <WarningConfirmModal
+          title="Leave this site?"
+          message="You're about to open Lense Assist in a new tab."
+          confirmLabel="Continue"
+          onConfirm={() => {
+            window.open(LENSE_ASSIST_URL, "_blank", "noopener,noreferrer");
+            setShowLenseAssistModal(false);
+          }}
           onCancel={() => setShowLenseAssistModal(false)}
         />
       )}

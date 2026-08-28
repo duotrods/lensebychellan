@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import WarningConfirmModal from "../../components/common/WarningConfirmModal";
 import { getSchemesForUser, CAMERA_OPTIONS_BY_SCHEME, extractSchemeId } from "../../utils/schemes";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { getStaffBasePath } from "../../utils/constants";
@@ -20,6 +21,10 @@ const CCTVFaultsFormPage = () => {
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [reportMeta, setReportMeta] = useState(null);
+  const [showBlackspotConfirm, setShowBlackspotConfirm] = useState(false);
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+  const [duplicateReport, setDuplicateReport] = useState(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
   const formatDateToBritish = (date) => {
     const d = new Date(date);
@@ -47,9 +52,16 @@ const CCTVFaultsFormPage = () => {
     const { name, value } = e.target;
     if (name === "scheme") {
       setFormData((prev) => ({ ...prev, scheme: value, camera: "" }));
+    } else if (name === "blackspotCamera" && value === "yes") {
+      setShowBlackspotConfirm(true);
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+  };
+
+  const confirmBlackspot = () => {
+    setFormData((prev) => ({ ...prev, blackspotCamera: "yes" }));
+    setShowBlackspotConfirm(false);
   };
 
   useEffect(() => {
@@ -135,6 +147,24 @@ const CCTVFaultsFormPage = () => {
       return;
     }
 
+    if (!editId) {
+      setCheckingDuplicate(true);
+      const recent = await staffService.getRecentCCTVFaultForCamera(
+        extractSchemeId(formData.scheme),
+        formData.camera
+      );
+      setCheckingDuplicate(false);
+      if (recent) {
+        setDuplicateReport(recent);
+        setShowDuplicateConfirm(true);
+        return;
+      }
+    }
+
+    await submitForm();
+  };
+
+  const submitForm = async () => {
     const trimmedData = {
       ...formData,
       fullName: formData.fullName.trim(),
@@ -178,8 +208,37 @@ const CCTVFaultsFormPage = () => {
     }
   };
 
+  const confirmDuplicateSubmit = async () => {
+    setShowDuplicateConfirm(false);
+    await submitForm();
+  };
+
   return (
     <StaffSidebarLayout basePath={basePath}>
+      {showBlackspotConfirm && (
+        <WarningConfirmModal
+          title="Confirm blackspot camera"
+          message="Are you sure this is a blackspot camera?"
+          confirmLabel="Yes, confirm"
+          cancelLabel="No, cancel"
+          onConfirm={confirmBlackspot}
+          onCancel={() => setShowBlackspotConfirm(false)}
+        />
+      )}
+      {showDuplicateConfirm && duplicateReport && (
+        <WarningConfirmModal
+          title="Already reported recently"
+          message={`This camera was already reported${
+            duplicateReport.submittedBy?.name ? ` by ${duplicateReport.submittedBy.name}` : ""
+          } on ${duplicateReport.date || ""}${
+            duplicateReport.time ? ` at ${duplicateReport.time}` : ""
+          } (within the last 24 hours). Do you still want to submit this report?`}
+          confirmLabel="Submit anyway"
+          cancelLabel="Cancel"
+          onConfirm={confirmDuplicateSubmit}
+          onCancel={() => setShowDuplicateConfirm(false)}
+        />
+      )}
       <div>
         <div className="flex items-center gap-4 mb-6">
           <button
@@ -456,10 +515,12 @@ const CCTVFaultsFormPage = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || checkingDuplicate}
               className="px-8 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 transition-colors font-semibold"
             >
-              {loading
+              {checkingDuplicate
+                ? "Checking..."
+                : loading
                 ? editId
                   ? "Updating..."
                   : "Submitting..."

@@ -1271,7 +1271,8 @@ class StaffService {
       // Keep the live dashboard counter in step (decoupled, non-fatal).
       this._applyCountDelta("cctvFaultsReports", isDemo, 1);
 
-      await this.logActivity({
+      // Non-fatal audit log — don't make the staff member wait on it.
+      this.logActivity({
         type: "form_submitted",
         staffId: userId,
         staffName: userName,
@@ -1283,6 +1284,27 @@ class StaffService {
     } catch (error) {
       console.error("Failed to submit CCTV fault report:", error);
       throw error;
+    }
+  }
+
+  async getRecentCCTVFaultForCamera(schemeId, camera) {
+    try {
+      const cutoff = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
+      const q = query(
+        collection(db, "cctvFaultsReports"),
+        where("schemeId", "==", schemeId),
+        where("camera", "==", camera),
+        where("createdAt", ">=", cutoff),
+        orderBy("createdAt", "desc"),
+        limit(1),
+      );
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return null;
+      const doc0 = snapshot.docs[0];
+      return { id: doc0.id, ...doc0.data() };
+    } catch (error) {
+      console.error("Failed to check for recent CCTV fault reports:", error);
+      return null;
     }
   }
 
