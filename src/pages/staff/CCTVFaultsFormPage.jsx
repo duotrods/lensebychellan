@@ -25,6 +25,7 @@ const CCTVFaultsFormPage = () => {
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [duplicateReport, setDuplicateReport] = useState(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+  const [preparedSubmission, setPreparedSubmission] = useState(null);
 
   const formatDateToBritish = (date) => {
     const d = new Date(date);
@@ -149,22 +150,22 @@ const CCTVFaultsFormPage = () => {
 
     if (!editId) {
       setCheckingDuplicate(true);
-      const recent = await staffService.getRecentCCTVFaultForCamera(
-        extractSchemeId(formData.scheme),
-        formData.camera
-      );
+      const prepared = await staffService.prepareCCTVFaultSubmission(formData);
       setCheckingDuplicate(false);
-      if (recent) {
-        setDuplicateReport(recent);
+      if (prepared.duplicate) {
+        setDuplicateReport(prepared.duplicate);
+        setPreparedSubmission(prepared);
         setShowDuplicateConfirm(true);
         return;
       }
+      await submitForm(prepared);
+      return;
     }
 
     await submitForm();
   };
 
-  const submitForm = async () => {
+  const submitForm = async (prepared = null) => {
     const trimmedData = {
       ...formData,
       fullName: formData.fullName.trim(),
@@ -187,7 +188,8 @@ const CCTVFaultsFormPage = () => {
         await staffService.submitCCTVFaultsReport(
           trimmedData,
           userProfile.uid,
-          userProfile.displayName
+          userProfile.displayName,
+          prepared
         );
         toast.success("CCTV Fault report submitted successfully!");
         setFormData({
@@ -210,7 +212,8 @@ const CCTVFaultsFormPage = () => {
 
   const confirmDuplicateSubmit = async () => {
     setShowDuplicateConfirm(false);
-    await submitForm();
+    await submitForm(preparedSubmission);
+    setPreparedSubmission(null);
   };
 
   return (

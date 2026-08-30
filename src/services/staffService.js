@@ -1240,19 +1240,43 @@ class StaffService {
 
   // ─── CCTV Faults ────────────────────────────────────────────────────────────
 
-  async submitCCTVFaultsReport(formData, userId, userName) {
+  /**
+   * Runs the "already reported in the last 24h?" check and reference-ID
+   * generation concurrently, since neither depends on the other's result.
+   * If the caller finds `duplicate` set and the staff member cancels, the
+   * generated referenceId is simply never used (a harmless gap in the
+   * sequence) rather than paying for the two round trips back-to-back.
+   */
+  async prepareCCTVFaultSubmission(formData) {
+    const schemeId = formData.scheme
+      ? extractSchemeId(formData.scheme)
+      : null;
+    const isDemo = schemeId === DEMO_SCHEME_ID;
+    const tpCompany = getThirdPartySchemeById(schemeId)?.company || null;
+
+    const [duplicate, referenceId] = await Promise.all([
+      this.getRecentCCTVFaultForCamera(schemeId, formData.camera),
+      referenceIdService.generateReferenceId("cctvFaults", isDemo, tpCompany),
+    ]);
+
+    return { schemeId, isDemo, referenceId, duplicate };
+  }
+
+  async submitCCTVFaultsReport(formData, userId, userName, prepared = null) {
     try {
-      const schemeId = formData.scheme
-        ? extractSchemeId(formData.scheme)
-        : null;
-      const isDemo = schemeId === DEMO_SCHEME_ID;
+      const schemeId =
+        prepared?.schemeId ??
+        (formData.scheme ? extractSchemeId(formData.scheme) : null);
+      const isDemo = prepared?.isDemo ?? schemeId === DEMO_SCHEME_ID;
       // Isolated per-company counter for third party submissions
       const tpCompany = getThirdPartySchemeById(schemeId)?.company || null;
-      const referenceId = await referenceIdService.generateReferenceId(
-        "cctvFaults",
-        isDemo,
-        tpCompany,
-      );
+      const referenceId =
+        prepared?.referenceId ??
+        (await referenceIdService.generateReferenceId(
+          "cctvFaults",
+          isDemo,
+          tpCompany,
+        ));
 
       const docRef = await addDoc(collection(db, "cctvFaultsReports"), {
         ...formData,
