@@ -76,7 +76,7 @@ const CCTV_FAULT_ALERT_RECIPIENTS = {
   "A47 Thickthorn - Core": ["abby.perry@corehighways.com, david@chellan.co.uk, wayne@chellan.co.uk"],
   "A452 HS2 - Traffix": ["will@traffixuk.com, david@chellan.co.uk, wayne@chellan.co.uk"],
   "Gallows Corner - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
-  "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
+  "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Rob.hawkins@costain.com"],
   "A66 - WJ Scheme 1": ["Philip.Scott@balfourbeatty.com, Jonathan.Pettman@balfourbeatty.com, Dean.Shore@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"],
   "M48 - Severn Bridge": ["bryan.dixon@amey.co.uk"],
   default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
