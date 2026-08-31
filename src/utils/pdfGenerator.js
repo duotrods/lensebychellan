@@ -328,7 +328,7 @@ export const generateReportPDF = async (
       if (report.collarNumber) addField("Collar Number", report.collarNumber);
       if (report.incursion) addField("Incursion", report.incursion);
       if (report.incursionToGainAdvantage)
-        addField("Incursion to Gain Advantage", report.incursionToGainAdvantage);
+        addField("Incursion to Gain Benifit", report.incursionToGainAdvantage);
       addField("Asset Damage?", report.propertyDamage ? "Yes" : "No");
       if (report.propertyDamage && report.assetType) addField("Asset Type", report.assetType);
       if (report.propertyDamage && report.damageType) addField("Damage Type", report.damageType);

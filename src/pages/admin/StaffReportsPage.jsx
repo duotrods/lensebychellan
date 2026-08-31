@@ -648,7 +648,7 @@ const StaffReportsPage = () => {
                           {report.type === "Incident Report" &&
                             report.incursionToGainAdvantage === "YES" && (
                               <span className="badge badge-warning badge-xs mt-1">
-                                Gain Advantage
+                                Gain Benifit
                               </span>
                             )}
                           {report.type === "Incident Report" && report.standDown && (

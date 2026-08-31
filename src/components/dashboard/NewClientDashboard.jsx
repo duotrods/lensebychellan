@@ -40,6 +40,7 @@
     BarChart3,
     PieChart as PieChartIcon,
     LogOut,
+    History,
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
   import DrillDownSidebar from "./DrillDownSidebar";
@@ -441,11 +442,11 @@
         vehicleTypeData: transformDataForChart(stats?.vehicleTypes),
         incursionsData: [
           { name: "Incursions", Number: stats?.incursions || 0 },
-          { name: "Incursion to Gain Advantage", Number: (stats?.incursionToGainAdvantage || 0)},
+          { name: "Incursion to Gain Benifit", Number: (stats?.incursionToGainAdvantage || 0)},
         ],
         incursionToGainAdvantageData: [
           {
-            name: "Incursion to Gain Advantage",
+            name: "Incursion to Gain Benifit",
             Number: stats?.incursionToGainAdvantage || 0,
           },
         ],
@@ -548,20 +549,13 @@
         title: "Free Recovery",
         value: loading
           ? "..."
-          : (
-              (Number(stats?.incidentsByType?.["Free Recovery"]) || 0) +
-              (Number(stats?.incidentsByType?.["Drive Off"]) || 0)
-            ).toString(),
+          : (Number(stats?.incidentsByType?.["Free Recovery"]) || 0).toString(),
         text: "Total number of free recovery incidents.",
         icon: Wrench,
         color: "text-white",
         bgColor: "bg-linear-to-b from-sky-500 to-sky-600",
         filter: () =>
-          incidents.filter(
-            (i) =>
-              i.incidentType === "Free Recovery" ||
-              i.incidentType === "Drive Off",
-          ),
+          incidents.filter((i) => i.incidentType === "Free Recovery"),
       },
       {
         title: "Incursions",
@@ -581,9 +575,9 @@
           ),
       },
       {
-        title: "Incursion (G.A)",
+        title: "Incursion (G.B)",
         value: loading ? "..." : (stats?.incursionToGainAdvantage || 0).toString(),
-        text: "Total number of incursions to gain advantage.",
+        text: "Total number of incursions to gain benifit.",
         icon: Car,
         color: "text-white",
         bgColor: "bg-linear-to-b from-lime-500 to-lime-600",
@@ -749,7 +743,7 @@
           { data: trackData, title: "Track of Incident" },
           { data: vehicleTypeData, title: "Vehicle Type" },
           { data: incursionsData, title: "Incursions" },
-          { data: incursionToGainAdvantageData, title: "Incursion to Gain Advantage" },
+          { data: incursionToGainAdvantageData, title: "Incursion to Gain Benifit" },
         ];
 
         charts.forEach((chart) => {
@@ -791,6 +785,10 @@
       }
     };
 
+    const isAllTimeRange =
+      dateRange[0].startDate.getTime() ===
+      startOfDay(earliestIncidentDate || new Date("2020-01-01")).getTime();
+
     return (
       <div className="max-w-[1600px] mx-auto px-4">
         {/* Header with Date Filter */}
@@ -799,8 +797,11 @@
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
               Welcome back, {userProfile?.displayName}!
             </h1>
-            <p className="text-brand-500 text-sm mt-2 font-semibold">
-            {getActiveSchemeName(userProfile)}
+            <p className="text-sm mt-2">
+            <span className="text-brand-500 font-semibold ">{getActiveSchemeName(userProfile)}</span> reports{" "}
+            {isAllTimeRange
+              ? "— All Time"
+              : `from ${dateRange[0].startDate.toLocaleDateString("en-GB")} to ${dateRange[0].endDate.toLocaleDateString("en-GB")}`}
             </p>
           </div>
 
@@ -847,6 +848,26 @@
                 </div>
               )}
             </div>
+
+            <button
+              onClick={() => {
+                setDateRange([
+                  {
+                    startDate: startOfDay(
+                      earliestIncidentDate || new Date("2020-01-01"),
+                    ),
+                    endDate: endOfDay(new Date()),
+                    key: "selection",
+                  },
+                ]);
+                setShowDatePicker(false);
+              }}
+              title="Loads full incident history — auto-updates when new incidents come in, no need to re-click"
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-teal-600 px-2 py-1 transition-colors cursor-pointer"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>All Time</span>
+            </button>
           </div>
         </div>
 
@@ -882,7 +903,16 @@
 
         {/* Metric Cards Row 2 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
-          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
+          <div
+            className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => {
+              const filtered = incidents.filter(
+                (i) => i.incidentType === "Drive Off",
+              );
+              if (filtered.length)
+                openDrillDown({ title: "Drive Off", incidents: filtered });
+            }}
+          >
             <div className="flex items-center gap-2 mb-3">
               <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-cyan-500 to-cyan-600">
                 <LogOut className="w-4 h-4 text-white" />
@@ -1285,7 +1315,7 @@
                 data={incursionsData}
                 onSliceClick={(label) =>
                   handleBarClick(
-                    label === "Incursion to Gain Advantage"
+                    label === "Incursion to Gain Benifit"
                       ? "incursionToGainAdvantage"
                       : "incursions",
                     label,
@@ -1297,7 +1327,7 @@
                   onClick={(d) =>
                     d?.activeLabel &&
                     handleBarClick(
-                      d.activeLabel === "Incursion to Gain Advantage"
+                      d.activeLabel === "Incursion to Gain Benifit"
                         ? "incursionToGainAdvantage"
                         : "incursions",
                       d.activeLabel,

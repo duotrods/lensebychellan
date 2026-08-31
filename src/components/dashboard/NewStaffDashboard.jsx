@@ -744,7 +744,7 @@
                               {form.type === "Incident Report" &&
                                 form.incursionToGainAdvantage === "YES" && (
                                   <span className="badge badge-warning badge-xs mt-1">
-                                    Gain Advantage
+                                    Gain Benifit
                                   </span>
                                 )}
                               {form.type === "Incident Report" && form.standDown && (

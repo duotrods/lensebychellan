@@ -172,7 +172,7 @@ const IncidentReportDetailPage = () => {
                 <p className="text-base text-gray-800 mt-1">{report.incursion || 'NO'}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-500 uppercase">Incursion to Gain Advantage</label>
+                <label className="text-sm font-semibold text-gray-500 uppercase">Incursion to Gain Benifit</label>
                 <p className="text-base text-gray-800 mt-1">{report.incursionToGainAdvantage || 'NO'}</p>
               </div>
               <div>

@@ -491,7 +491,7 @@ const ClientChartsPage = () => {
         { data: trackData, title: 'Track of Incident' },
         { data: vehicleTypeData, title: 'Vehicle Type' },
         { data: incursionsData, title: 'Incursions' },
-        { data: incursionToGainAdvantageData, title: 'Incursion to Gain Advantage' },
+        { data: incursionToGainAdvantageData, title: 'Incursion to Gain Benifit' },
       ];
 
       charts.forEach((chart) => {
@@ -842,7 +842,7 @@ const ClientChartsPage = () => {
               </ChartCard>
 
               {/* Chart 13: Incursion to Gain Advantage */}
-              <ChartCard title="Incursion to Gain Advantage">
+              <ChartCard title="Incursion to Gain Benifit">
                 <BarChart data={incursionToGainAdvantageData.length > 0 ? incursionToGainAdvantageData : [{ name: "No Data", Number: 0 }]}>
                   <CartesianGrid {...commonChartProps.cartesianGrid} />
                   <XAxis dataKey="name" tick={{ fontSize: 13 }} />

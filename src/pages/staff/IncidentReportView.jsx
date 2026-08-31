@@ -262,7 +262,7 @@ const IncidentReportView = () => {
               </div>
               <div>
                 <label className="text-sm font-semibold text-gray-600">
-                  Incursion to Gain Advantage
+                  Incursion to Gain Benifit
                 </label>
                 <p className="text-gray-800">
                   {report.incursionToGainAdvantage || "N/A"}

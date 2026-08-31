@@ -1117,7 +1117,7 @@ const IncidentReportFormPage = () => {
                 formData.incursion !== "YES" ? "text-gray-400" : ""
               }`}
             >
-              Incursion to Gain Advantage?
+              Incursion to Gain Benifit?
             </span>
           </label>
           <div className="flex gap-6">
