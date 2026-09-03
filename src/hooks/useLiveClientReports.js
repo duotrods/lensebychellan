@@ -50,6 +50,12 @@ export function useLiveClientReports({ filterType, schemeId, enabled, limitPerCo
       return;
     }
 
+    // Drop stale entries from a previous filterType/collection set before
+    // resubscribing — otherwise unsubscribed collections' last-known docs
+    // (e.g. CCTV faults) linger in state and keep showing up after a filter
+    // switch, since setByKey below only ever merges keys in.
+    setByKey({});
+
     const unsubscribes = [];
     const watch = (reportType, collectionName, value, key) => {
       unsubscribes.push(

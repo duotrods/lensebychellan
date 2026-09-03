@@ -226,12 +226,26 @@ const StaffReportsPage = () => {
     dailyLogsTotal: 0,
   };
 
-  const typeCountQuery = useQuery({
-    queryKey: ["formCountForType", filterType],
-    queryFn: () => staffService.getFormCountForType(adminTypeToServiceType[filterType] || filterType),
+  // Scheme-scoped counts, used only for pagination (Page X of Y / total
+  // reports / Next-Prev). The KPI cards above intentionally stay unscoped
+  // (see comment on totalCountQuery) — but the table itself is scoped to
+  // filterScheme via reportsQuery, so pagination has to match that, not the
+  // grand total.
+  const schemeScope = filterScheme !== 'all' ? [filterScheme] : null;
+
+  const scopedTotalCountQuery = useQuery({
+    queryKey: ["allFormsCount", "staff-scheme", filterScheme],
+    queryFn: () => staffService.getAllFormsCount(schemeScope),
+  });
+  const scopedTotalCount = scopedTotalCountQuery.data ?? 0;
+
+  const scopedTypeCountQuery = useQuery({
+    queryKey: ["formCountForType", "staff-scheme", filterType, filterScheme],
+    queryFn: () =>
+      staffService.getFormCountForType(adminTypeToServiceType[filterType] || filterType, schemeScope),
     enabled: filterType !== 'all',
   });
-  const typeCount = filterType !== 'all' ? (typeCountQuery.data ?? 0) : 0;
+  const scopedTypeCount = filterType !== 'all' ? (scopedTypeCountQuery.data ?? 0) : 0;
 
   const handleFilterChange = (newType) => {
     clearRestoreState();
@@ -290,7 +304,7 @@ const StaffReportsPage = () => {
 
   // Use Firestore search results when searching, otherwise use paginated page data
   const currentReports = isSearchMode ? searchResults : filteredReports;
-  const activeCount = filterType === 'all' ? totalCount : typeCount;
+  const activeCount = filterType === 'all' ? scopedTotalCount : scopedTypeCount;
   const totalPages = Math.ceil(activeCount / reportsPerPage);
 
   // If restored page exceeds actual total pages, reset to page 1

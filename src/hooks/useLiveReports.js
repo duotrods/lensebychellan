@@ -30,6 +30,12 @@ export function useLiveReports({ filterType, schemeScope, enabled, limitPerColle
       return;
     }
 
+    // Drop stale entries from a previous filterType/collection set before
+    // resubscribing — otherwise unsubscribed collections' last-known docs
+    // linger in state and keep showing up after a filter switch, since
+    // setByCollection below only ever merges keys in.
+    setByCollection({});
+
     const unsubscribes = collections.map((collectionName) =>
       staffService.subscribeToLatestForms(
         collectionName,
