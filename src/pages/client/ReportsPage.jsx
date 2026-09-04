@@ -149,11 +149,11 @@ const ReportsPage = () => {
     setFilterType(type);
     setCurrentPage(1);
     // Scroll table into view
-    setTimeout(() => {
-      document
-        .querySelector(".bg-white.rounded-lg.shadow.overflow-hidden")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
+    setTimeout(() => { 
+      document 
+        .querySelector(".bg-white.rounded-lg.shadow.overflow-hidden") 
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }); 
+    }, 100); 
   };
 
   const reportsQuery = useQuery({

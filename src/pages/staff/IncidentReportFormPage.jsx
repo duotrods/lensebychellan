@@ -218,8 +218,16 @@ const IncidentReportFormPage = () => {
   // Standing down an incident skips the rest of the form entirely — clears
   // the incident-detail fields (they don't apply to a report that isn't
   // being counted) and saves immediately, rather than requiring the staff
-  // member to fill everything in first.
+  // member to fill everything in first. Time Spotted and the comment
+  // (description) are the exception — captured in the stand-down modal
+  // itself, since they're still useful context on a report that's otherwise
+  // excluded from the charts/counts.
   const confirmStandDown = async () => {
+    if (!formData.timeSpotted) {
+      toast.error("Please enter the time this was spotted");
+      return;
+    }
+
     setShowStandDownConfirm(false);
 
     if (!formData.scheme || !formData.date || !formData.firstName) {
@@ -235,7 +243,6 @@ const IncidentReportFormPage = () => {
         affectedLanes: [],
         emergencyServices: [],
         recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
-        timeSpotted: "",
         timeOnSite: "",
         timeCleared: "",
         closedLogCollar: "",
@@ -243,7 +250,6 @@ const IncidentReportFormPage = () => {
         assetType: "",
         damageType: "",
         vehicles: [{ type: "", make: "", model: "", vin: "" }],
-        description: "",
         files: [],
       };
 
@@ -1924,13 +1930,44 @@ const IncidentReportFormPage = () => {
             <h2 className="text-gray-800 text-center text-xl mb-2">
               Stand down this incident?
             </h2>
-            <p className="text-base text-gray-500 text-center mb-8">
+            <p className="text-base text-gray-500 text-center mb-6">
               The rest of the form (vehicles, affected lanes, emergency
-              services, times, description, etc.) will be cleared and this
-              will be saved immediately as a stood down Drive Off report,
-              excluded from the Incident Type, Fault Type, and Drive Off
-              charts and counts.
+              services, time on site, time cleared, etc.) will be cleared and
+              this will be saved immediately as a stood down Drive Off
+              report, excluded from the Incident Type, Fault Type, and Drive
+              Off charts and counts.
             </p>
+
+            <div className="mb-4">
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  Time Spotted <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <input
+                type="time"
+                name="timeSpotted"
+                value={formData.timeSpotted}
+                onChange={handleChange}
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                required
+              />
+            </div>
+
+            <div className="mb-8">
+              <label className="label">
+                <span className="label-text font-semibold mb-2">Comment</span>
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={3}
+                placeholder="Optional comment, e.g. why this was stood down"
+                className="textarea bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                maxLength={2000}
+              />
+            </div>
 
             <div className="flex gap-3">
               <button
