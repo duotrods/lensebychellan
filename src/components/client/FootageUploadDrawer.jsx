@@ -34,6 +34,7 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [description, setDescription] = useState("");
+  const [incidentReferenceNumber, setIncidentReferenceNumber] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +45,7 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
     setDate("");
     setTime("");
     setDescription("");
+    setIncidentReferenceNumber("");
     setSelectedFile(null);
   };
 
@@ -107,6 +109,7 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
           date,
           time,
           description,
+          incidentReferenceNumber,
           fileName: selectedFile.name,
           fileUrl: key,
           downloadUrl,
@@ -180,6 +183,19 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
                 className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+              Incident Reference Number
+            </label>
+            <input
+              type="text"
+              value={incidentReferenceNumber}
+              onChange={(e) => setIncidentReferenceNumber(e.target.value)}
+              placeholder="e.g., INC-001 (optional)"
+              className="w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-400"
+            />
           </div>
 
           <div>

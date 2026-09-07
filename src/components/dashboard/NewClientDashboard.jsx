@@ -41,8 +41,10 @@
     PieChart as PieChartIcon,
     LogOut,
     History,
+    X,
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
+  import { transformDataForChart } from "../../utils/chartData";
   import DrillDownSidebar from "./DrillDownSidebar";
   import {
     DateRangePicker,
@@ -174,20 +176,6 @@
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   };
 
-  const transformDataForChart = (dataObj, filterUnknown = true) => {
-    if (!dataObj) return [];
-    return Object.entries(dataObj)
-      .filter(([name, count]) => {
-        if (
-          filterUnknown &&
-          (name === "Unknown" || name === "" || name === "undefined")
-        )
-          return false;
-        return count > 0;
-      })
-      .map(([name, count]) => ({ name, Number: count }))
-      .sort((a, b) => b.Number - a.Number);
-  };
 
   const NewClientDashboard = ({ basePath = "/dashboard/client" }) => {
     const navigate = useNavigate();
@@ -849,25 +837,51 @@
               )}
             </div>
 
-            <button
-              onClick={() => {
-                setDateRange([
-                  {
-                    startDate: startOfDay(
-                      earliestIncidentDate || new Date("2020-01-01"),
-                    ),
-                    endDate: endOfDay(new Date()),
-                    key: "selection",
-                  },
-                ]);
-                setShowDatePicker(false);
-              }}
-              title="Loads full incident history — auto-updates when new incidents come in, no need to re-click"
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-teal-600 px-2 py-1 transition-colors cursor-pointer"
-            >
-              <History className="w-3.5 h-3.5" />
-              <span>All Time</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setDateRange([
+                    {
+                      startDate: startOfDay(
+                        earliestIncidentDate || new Date("2020-01-01"),
+                      ),
+                      endDate: endOfDay(new Date()),
+                      key: "selection",
+                    },
+                  ]);
+                  setShowDatePicker(false);
+                }}
+                title="Loads full incident history — auto-updates when new incidents come in, no need to re-click"
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg border shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
+                  isAllTimeRange
+                    ? "bg-teal-50 border-teal-500"
+                    : "bg-white border-gray-200"
+                }`}
+              >
+                <History className="w-4 h-4 text-teal-600 shrink-0" />
+                <span className="text-sm font-medium text-gray-700">
+                  All Time
+                </span>
+              </button>
+
+              {isAllTimeRange && (
+                <button
+                  onClick={() => {
+                    setDateRange([
+                      {
+                        startDate: addDays(new Date(), -30),
+                        endDate: new Date(),
+                        key: "selection",
+                      },
+                    ]);
+                  }}
+                  title="Clear All Time — back to last 30 days"
+                  className="flex items-center justify-center w-9 h-9 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:text-red-500 hover:border-red-200 text-gray-400 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

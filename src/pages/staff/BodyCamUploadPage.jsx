@@ -17,6 +17,7 @@ const BodyCamUploadPage = () => {
     scheme: "",
     date: "",
     time: "",
+    incidentReferenceNumber: "",
   });
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -164,6 +165,7 @@ const BodyCamUploadPage = () => {
         scheme: "",
         date: "",
         time: "",
+        incidentReferenceNumber: "",
       });
       setSelectedFile(null);
       setUploadProgress(0);
@@ -269,6 +271,26 @@ const BodyCamUploadPage = () => {
                     required
                   />
                 </div>
+
+                <div>
+                  <label className="label">
+                    <span className="label-text font-semibold mb-2">
+                      Incident Reference Number
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadForm.incidentReferenceNumber}
+                    onChange={(e) =>
+                      setUploadForm({
+                        ...uploadForm,
+                        incidentReferenceNumber: e.target.value,
+                      })
+                    }
+                    className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                    placeholder="e.g., INC-001 (optional)"
+                  />
+                </div>
               </div>
 
               <div className="divider"></div>
@@ -372,6 +394,7 @@ const BodyCamUploadPage = () => {
                       scheme: "",
                       date: "",
                       time: "",
+                      incidentReferenceNumber: "",
                     });
                     setSelectedFile(null);
                   }}

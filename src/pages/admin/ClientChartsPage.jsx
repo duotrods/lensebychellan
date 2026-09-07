@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { staffService } from "../../services/staffService";
+import { clientDataService } from "../../services/clientDataService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
-import { SCHEMES, getInternalSchemeIds } from "../../utils/schemes";
+import { SCHEMES, getInternalSchemeIds, extractSchemeId } from "../../utils/schemes";
+import { transformDataForChart } from "../../utils/chartData";
 import {
   BarChart3,
   TrendingUp,
@@ -10,6 +12,8 @@ import {
   Calendar,
   Download,
   Filter,
+  History,
+  X,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
@@ -26,7 +30,7 @@ import { jsPDF } from 'jspdf';
 import { DateRangePicker } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
-import { addDays } from 'date-fns';
+import { addDays, startOfDay, endOfDay } from 'date-fns';
 
 // Chart Card Component
 const ChartCard = ({ title, children, fullWidth = false, height = 300 }) => (
@@ -86,42 +90,52 @@ const ClientChartsPage = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Only incident reports are loaded — all 12 charts are incident-based.
-  // Scoped server-side to the selected date window, re-fetched whenever the
-  // range changes, so we never read the whole collection.
-  const rangeStart = dateRange[0].startDate;
-  const rangeEnd = new Date(dateRange[0].endDate);
-  rangeEnd.setHours(23, 59, 59, 999); // include the entire end day
+  // Chart data comes from the same cached, per-scheme aggregation the client
+  // dashboard uses — one document read on a cache hit instead of scanning
+  // every incident in the window, and the Firestore-side cache (15 min TTL)
+  // is shared across every viewer of this scheme+date combination, admin or
+  // client. Replaces the old unbounded raw-document fetch, which had no
+  // limit() and polled every 90s.
+  const schemeId = extractSchemeId(selectedScheme);
 
-  const reportsQuery = useQuery({
-    // Shared with ThirdPartyChartsPage — getIncidentReports() has no scheme
-    // filter, so both pages fetch the identical dataset for a given date
-    // window and only split it client-side. Same key means switching between
-    // the two pages within the cache window costs 0 extra reads.
-    queryKey: ["allIncidentReportsInRange", rangeStart.getTime(), rangeEnd.getTime()],
-    queryFn: async () => {
-      const incidentReports = await staffService.getIncidentReports(null, null, {
-        startDate: rangeStart,
-        endDate: rangeEnd,
-      });
-      return incidentReports.map((f) => ({ ...f, type: "Incident Report" }));
-    },
-    // Poll instead of a live listener — this query has no `limit()`, so a
-    // real-time listener here would re-bill for every incident change in the
-    // whole date window. A 90s interval keeps charts near-live cheaply, and
-    // only runs while the tab is focused (React Query's default).
-    refetchInterval: 90 * 1000,
+  const { data: earliestIncidentDate } = useQuery({
+    queryKey: ["earliestIncidentDate", schemeId],
+    queryFn: () => clientDataService.getEarliestIncidentDate(schemeId),
+    enabled: !!schemeId,
+    staleTime: 60 * 60 * 1000, // an hour — this date essentially never changes
+  });
+
+  const ALL_TIME_START = startOfDay(earliestIncidentDate || new Date("2020-01-01"));
+  const isAllTimeRange = dateRange[0].startDate.getTime() === ALL_TIME_START.getTime();
+
+  const startDateStr = dateRange[0].startDate.toISOString().split("T")[0];
+  const endDateStr = dateRange[0].endDate.toISOString().split("T")[0];
+
+  const statsQuery = useQuery({
+    // Same key shape as the client dashboard's schemeStatsAndTimeSeries query
+    // — a scheme+date combo already viewed there (or on another admin page)
+    // is served from the shared server-side cache at no extra cost.
+    queryKey: ["schemeStatsAndTimeSeries", schemeId, startDateStr, endDateStr],
+    queryFn: () =>
+      clientDataService.getSchemeStatsAndTimeSeriesByDateRange(
+        schemeId,
+        startDateStr,
+        endDateStr,
+      ),
+    enabled: !!schemeId,
+    staleTime: 15 * 60 * 1000,
   });
 
   useEffect(() => {
-    if (reportsQuery.isError) {
-      console.error("Failed to load data:", reportsQuery.error);
+    if (statsQuery.isError) {
+      console.error("Failed to load data:", statsQuery.error);
       toast.error("Failed to load chart data");
     }
-  }, [reportsQuery.isError, reportsQuery.error]);
+  }, [statsQuery.isError, statsQuery.error]);
 
-  const reports = reportsQuery.data ?? [];
-  const loading = reportsQuery.isFetching;
+  const chartStats = statsQuery.data?.stats;
+  const chartTimeSeries = statsQuery.data?.timeSeriesData ?? [];
+  const loading = statsQuery.isLoading;
 
   // Cards count internal schemes only — excludes third-party (and demo) data.
   // No date/scheme dependency, so this is fetched once and cached.
@@ -141,222 +155,6 @@ const ClientChartsPage = () => {
     incidentReportTotal: 0,
     assetDamageTotal: 0,
     dailyLogsTotal: 0,
-  };
-
-  // Convert date range to timestamps for filtering
-  const startDate = dateRange[0].startDate;
-  const endDate = new Date(dateRange[0].endDate);
-  endDate.setHours(23, 59, 59, 999); // Include the entire end date
-
-  // Filter reports by selected scheme and date range
-  const getFilteredReports = () => {
-    let filtered = reports;
-
-    // Filter by scheme
-    if (selectedScheme) {
-      filtered = filtered.filter((r) => r.scheme === selectedScheme);
-    }
-
-    // Filter by date range
-    filtered = filtered.filter((r) => {
-      if (!r.createdAt) return false;
-      const reportDate = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
-      return reportDate >= startDate && reportDate <= endDate;
-    });
-
-    return filtered;
-  };
-
-  // Get incident reports only, excluding stood-down ones from every chart
-  const getIncidentReports = () => {
-    return getFilteredReports().filter(
-      (r) => r.type === "Incident Report" && !r.standDown,
-    );
-  };
-
-  // Chart data extraction functions
-  const getFaultData = () => {
-    const incidents = getIncidentReports();
-    const faultCounts = {};
-    incidents.forEach(report => {
-      if (report.fault) {
-        faultCounts[report.fault] = (faultCounts[report.fault] || 0) + 1;
-      }
-    });
-    return Object.entries(faultCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getIncidentTypeData = () => {
-    const incidents = getIncidentReports();
-    const typeCounts = {};
-    incidents.forEach(report => {
-      if (report.incidentType) {
-        typeCounts[report.incidentType] = (typeCounts[report.incidentType] || 0) + 1;
-      }
-    });
-    return Object.entries(typeCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getVehiclesDispatchedData = () => {
-    const incidents = getIncidentReports();
-    const dispatchData = { Light: 0, Heavy: 0, IPV: 0, HETOS: 0 };
-    incidents.forEach(report => {
-      if (report.recoveryRequested) {
-        dispatchData.Light += report.recoveryRequested.light || 0;
-        dispatchData.Heavy += report.recoveryRequested.heavy || 0;
-        dispatchData.IPV += report.recoveryRequested.ipv || 0;
-        dispatchData.HETOS += report.recoveryRequested.hetos || 0;
-      }
-    });
-    return Object.entries(dispatchData).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getSpottedByData = () => {
-    const incidents = getIncidentReports();
-    const spottedCounts = {};
-    incidents.forEach(report => {
-      if (report.reportedBy) {
-        spottedCounts[report.reportedBy] = (spottedCounts[report.reportedBy] || 0) + 1;
-      }
-    });
-    return Object.entries(spottedCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getLaneAffectedData = () => {
-    const incidents = getIncidentReports();
-    const laneCounts = {};
-    incidents.forEach(report => {
-      if (report.affectedLanes && Array.isArray(report.affectedLanes)) {
-        report.affectedLanes.forEach(lane => {
-          laneCounts[lane] = (laneCounts[lane] || 0) + 1;
-        });
-      }
-    });
-    return Object.entries(laneCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getTimeToRecoverData = () => {
-    const incidents = getIncidentReports();
-    const timeBuckets = { '0-15': 0, '16-30': 0, '31-45': 0, '46-60': 0, '60+': 0 };
-    incidents.forEach(report => {
-      if (report.timeOnsiteToCleared) {
-        const match = report.timeOnsiteToCleared.match(/(\d+)/);
-        if (match) {
-          const mins = parseInt(match[1]);
-          if (mins <= 15) timeBuckets['0-15']++;
-          else if (mins <= 30) timeBuckets['16-30']++;
-          else if (mins <= 45) timeBuckets['31-45']++;
-          else if (mins <= 60) timeBuckets['46-60']++;
-          else timeBuckets['60+']++;
-        }
-      }
-    });
-    return Object.entries(timeBuckets).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getTrafficConditionsData = () => {
-    const incidents = getIncidentReports();
-    const trafficCounts = {};
-    incidents.forEach(report => {
-      if (report.trafficConditions) {
-        trafficCounts[report.trafficConditions] = (trafficCounts[report.trafficConditions] || 0) + 1;
-      }
-    });
-    return Object.entries(trafficCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getEmergencyServicesData = () => {
-    const incidents = getIncidentReports();
-    const serviceCounts = {};
-    incidents.forEach(report => {
-      if (report.emergencyServices && Array.isArray(report.emergencyServices)) {
-        report.emergencyServices.forEach(service => {
-          serviceCounts[service] = (serviceCounts[service] || 0) + 1;
-        });
-      }
-    });
-    return Object.entries(serviceCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getTimeToSiteData = () => {
-    const incidents = getIncidentReports();
-    const timeBuckets = { '0-5': 0, '6-10': 0, '11-15': 0, '16-20': 0, '21-30': 0, '30+': 0 };
-    incidents.forEach(report => {
-      if (report.timeSpottedToOn) {
-        const match = report.timeSpottedToOn.match(/(\d+)/);
-        if (match) {
-          const mins = parseInt(match[1]);
-          if (mins <= 5) timeBuckets['0-5']++;
-          else if (mins <= 10) timeBuckets['6-10']++;
-          else if (mins <= 15) timeBuckets['11-15']++;
-          else if (mins <= 20) timeBuckets['16-20']++;
-          else if (mins <= 30) timeBuckets['21-30']++;
-          else timeBuckets['30+']++;
-        }
-      }
-    });
-    return Object.entries(timeBuckets).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getTrackData = () => {
-    const incidents = getIncidentReports();
-    const trackCounts = {};
-    incidents.forEach(report => {
-      if (report.track) {
-        trackCounts[report.track] = (trackCounts[report.track] || 0) + 1;
-      }
-    });
-    return Object.entries(trackCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getVehicleTypeData = () => {
-    const incidents = getIncidentReports();
-    const vehicleCounts = {};
-    incidents.forEach(report => {
-      if (report.vehicles && Array.isArray(report.vehicles)) {
-        report.vehicles.forEach(vehicle => {
-          if (vehicle.type) {
-            vehicleCounts[vehicle.type] = (vehicleCounts[vehicle.type] || 0) + 1;
-          }
-        });
-      }
-    });
-    return Object.entries(vehicleCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getIncursionsData = () => {
-    const incidents = getIncidentReports();
-    const incursionCounts = { YES: 0, NO: 0 };
-    incidents.forEach(report => {
-      if (report.incursion) {
-        incursionCounts[report.incursion] = (incursionCounts[report.incursion] || 0) + 1;
-      }
-    });
-    return Object.entries(incursionCounts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getIncursionToGainAdvantageData = () => {
-    const incidents = getIncidentReports();
-    const counts = { YES: 0, NO: 0 };
-    incidents.forEach(report => {
-      if (report.incursionToGainAdvantage) {
-        counts[report.incursionToGainAdvantage] = (counts[report.incursionToGainAdvantage] || 0) + 1;
-      }
-    });
-    return Object.entries(counts).map(([name, Number]) => ({ name, Number }));
-  };
-
-  const getTimeSeriesData = () => {
-    const incidents = getIncidentReports();
-    const monthlyCounts = {};
-    incidents.forEach(report => {
-      if (report.createdAt) {
-        const date = report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt);
-        const monthKey = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-        monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
-      }
-    });
-    return Object.entries(monthlyCounts).map(([name, count]) => ({ name, count, Number: count }));
   };
 
   // Helper function to draw a bar chart in PDF
@@ -534,21 +332,41 @@ const ClientChartsPage = () => {
     dailyLogs: formCounts.dailyLogsTotal,
   };
 
-  // Extract chart data
-  const faultData = getFaultData();
-  const incidentTypeData = getIncidentTypeData();
-  const vehiclesDispatchedData = getVehiclesDispatchedData();
-  const spottedByData = getSpottedByData();
-  const laneAffectedData = getLaneAffectedData();
-  const timeToRecoverData = getTimeToRecoverData();
-  const trafficConditionsData = getTrafficConditionsData();
-  const emergencyServicesData = getEmergencyServicesData();
-  const timeToSiteData = getTimeToSiteData();
-  const trackData = getTrackData();
-  const vehicleTypeData = getVehicleTypeData();
-  const incursionsData = getIncursionsData();
-  const incursionToGainAdvantageData = getIncursionToGainAdvantageData();
-  const timeSeriesData = getTimeSeriesData();
+  // Extract chart data — pre-aggregated server-side, just reshaped for recharts.
+  const chartIncidents = chartStats?.incidents ?? [];
+  const faultData = transformDataForChart(chartStats?.faultTypes);
+  const incidentTypeData = transformDataForChart(chartStats?.incidentsByType);
+  const vehiclesDispatchedData = transformDataForChart(chartStats?.vehicleTypesDispatched);
+  const spottedByData = transformDataForChart(chartStats?.spottedBy);
+  const laneAffectedData = transformDataForChart(chartStats?.incidentsByLane);
+  const timeToRecoverData = transformDataForChart(chartStats?.timeToRecover, false);
+  const trafficConditionsData = transformDataForChart(chartStats?.trafficConditions);
+  const emergencyServicesData = transformDataForChart(chartStats?.emergencyServices);
+  const timeToSiteData = transformDataForChart(chartStats?.timeToSite, false);
+  const trackData = transformDataForChart(chartStats?.trackOfIncident);
+  const vehicleTypeData = transformDataForChart(chartStats?.vehicleTypes);
+
+  // Incursion / gain-benifit YES-vs-NO breakdown isn't part of the shared
+  // stats shape (which only tracks the YES count) — derive it from the same
+  // cached incidents array instead of a separate fetch.
+  const incursionsData = (() => {
+    const counts = { YES: 0, NO: 0 };
+    chartIncidents.forEach((report) => {
+      if (report.incursion) counts[report.incursion] = (counts[report.incursion] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, Number]) => ({ name, Number }));
+  })();
+  const incursionToGainAdvantageData = (() => {
+    const counts = { YES: 0, NO: 0 };
+    chartIncidents.forEach((report) => {
+      if (report.incursionToGainAdvantage)
+        counts[report.incursionToGainAdvantage] =
+          (counts[report.incursionToGainAdvantage] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, Number]) => ({ name, Number }));
+  })();
+
+  const timeSeriesData = chartTimeSeries;
 
   return (
     <AdminSidebarLayout>
@@ -610,6 +428,46 @@ const ClientChartsPage = () => {
                   </div>
                 )}
               </div>
+
+              <button
+                onClick={() => {
+                  setDateRange([
+                    {
+                      startDate: ALL_TIME_START,
+                      endDate: endOfDay(new Date()),
+                      key: 'selection',
+                    },
+                  ]);
+                  setShowDatePicker(false);
+                }}
+                title="Loads full incident history"
+                className={`flex items-center gap-3 px-4 py-2 rounded-lg border shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
+                  isAllTimeRange
+                    ? "bg-teal-50 border-teal-500"
+                    : "bg-white border-gray-200"
+                }`}
+              >
+                <History className="w-5 h-5 text-teal-600" />
+                <span className="text-sm font-medium text-gray-700">All Time</span>
+              </button>
+
+              {isAllTimeRange && (
+                <button
+                  onClick={() => {
+                    setDateRange([
+                      {
+                        startDate: addDays(new Date(), -30),
+                        endDate: new Date(),
+                        key: 'selection',
+                      },
+                    ]);
+                  }}
+                  title="Clear All Time — back to last 30 days"
+                  className="flex items-center justify-center w-9 h-9 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:text-red-500 hover:border-red-200 text-gray-400 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
 
               <button
                 onClick={handleExportPDF}

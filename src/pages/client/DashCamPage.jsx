@@ -13,6 +13,7 @@ import {
   Car,
   Play,
   MapPin,
+  Hash,
   ChevronLeft,
   ChevronRight,
   Upload,
@@ -202,6 +203,13 @@ const DashCamPage = () => {
                             <span>Submitted by {video.staffName || "Staff"}</span>
                           </div>
 
+                          {video.incidentReferenceNumber && (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <Hash className="w-4 h-4" />
+                              <span>{video.incidentReferenceNumber}</span>
+                            </div>
+                          )}
+
                           <p className="text-sm text-gray-400">
                             {formatFileSize(video.fileSize)}
                           </p>
@@ -323,6 +331,16 @@ const DashCamPage = () => {
                     {selectedVideo.time ? ` · ${selectedVideo.time}` : ""}
                   </p>
                 </div>
+                {selectedVideo.incidentReferenceNumber && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">
+                      Incident Reference
+                    </p>
+                    <p className="font-semibold">
+                      {selectedVideo.incidentReferenceNumber}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Size</p>
                   <p className="font-semibold">
