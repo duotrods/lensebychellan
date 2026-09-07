@@ -78,10 +78,34 @@
     "#1baf7a", "#eb6834", "#4a3aa7", "#e34948",
   ];
 
+  // "#rrggbb" -> [r, g, b] for jsPDF's setFillColor, which takes 0-255 ints.
+  const hexToRgb = (hex) => [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
+
   const ChartCard = memo(
-    ({ title, children, data, onSliceClick, fullWidth = false, height = 380 }) => {
+    ({
+      title,
+      children,
+      data,
+      onSliceClick,
+      fullWidth = false,
+      height = 380,
+      chartKey,
+      chartTypesRef,
+    }) => {
       const [type, setType] = useState("bar");
       const canTogglePie = Array.isArray(data);
+
+      // Mirrors the toggle into a ref keyed by chartKey so handleExportPDF
+      // (which lives outside this component and can't see its state) knows
+      // whether to draw a bar or pie chart for this card in the PDF.
+      const changeType = (t) => {
+        setType(t);
+        if (chartTypesRef && chartKey) chartTypesRef.current[chartKey] = t;
+      };
 
       return (
         <div
@@ -94,7 +118,7 @@
               <div className="flex gap-1">
                 <button
                   type="button"
-                  onClick={() => setType("bar")}
+                  onClick={() => changeType("bar")}
                   title="Bar chart"
                   className={`p-1.5 rounded-md transition-colors ${
                     type === "bar"
@@ -106,7 +130,7 @@
                 </button>
                 <button
                   type="button"
-                  onClick={() => setType("pie")}
+                  onClick={() => changeType("pie")}
                   title="Pie chart"
                   className={`p-1.5 rounded-md transition-colors ${
                     type === "pie"
@@ -183,6 +207,10 @@
     const queryClient = useQueryClient();
     const datePickerRef = useRef(null);
     const dashboardRef = useRef(null);
+    // Current bar/pie selection per chart, keyed by chartKey — written by
+    // ChartCard, read by handleExportPDF so the download matches what's on
+    // screen. A ref (not state) since it's write-only until export time.
+    const chartTypesRef = useRef({});
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [drillDown, setDrillDown] = useState(null); // { title, incidents }
@@ -595,6 +623,18 @@
       const chartWidth = width - margin.left - margin.right;
       const chartHeight = height - margin.top - margin.bottom;
 
+      // Subtle horizontal gridlines behind the bars — mirrors the dashed
+      // CartesianGrid shown on screen (commonChartProps.cartesianGrid).
+      pdf.setDrawColor(23, 175, 147);
+      pdf.setLineWidth(0.1);
+      pdf.setLineDashPattern([1, 1], 0);
+      const gridLines = 4;
+      for (let g = 1; g < gridLines; g++) {
+        const gridY = y + margin.top + (chartHeight / gridLines) * g;
+        pdf.line(x + margin.left, gridY, x + margin.left + chartWidth, gridY);
+      }
+      pdf.setLineDashPattern([], 0);
+
       // Calculate max value - ensure it's at least 1 to avoid division by zero
       const maxValue = Math.max(...data.map((d) => d.Number), 1);
       const barWidth = (chartWidth / data.length) * 0.7;
@@ -614,13 +654,8 @@
           !isNaN(barY) &&
           barWidth > 0
         ) {
-          // Draw bar - use regular rect if height is too small for rounded corners
           pdf.setFillColor(23, 175, 147); // Teal color
-          if (barHeight >= 4) {
-            pdf.roundedRect(barX, barY, barWidth, barHeight, 2, 2, "F");
-          } else {
-            pdf.rect(barX, barY, barWidth, barHeight, "F");
-          }
+          pdf.rect(barX, barY, barWidth, barHeight, "F");
         }
 
         // Draw value on top of bar
@@ -645,6 +680,83 @@
       });
     };
 
+    // Mirrors the on-screen pie chart (Pie/Cell from recharts) for whichever
+    // charts are toggled to pie view — jsPDF has no native pie primitive, so
+    // each slice is drawn as a filled polygon approximating its arc.
+    const drawPieChart = (pdf, data, title, x, y, width, height) => {
+      if (!data || data.length === 0) return;
+
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(x, y, width, height, "F");
+      pdf.setDrawColor(229, 231, 235);
+      pdf.rect(x, y, width, height, "S");
+
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(31, 41, 55);
+      pdf.text(title, x + width / 2, y + 6, { align: "center" });
+
+      const total = data.reduce((sum, d) => sum + (d.Number || 0), 0);
+      if (total <= 0) return;
+
+      const margin = { top: 12, bottom: 6 };
+      const plotHeight = height - margin.top - margin.bottom;
+      const radius = Math.max(Math.min(width * 0.24, plotHeight / 2 - 2), 4);
+      const centerX = x + width * 0.3;
+      const centerY = y + margin.top + plotHeight / 2;
+
+      let startAngle = -Math.PI / 2;
+      data.forEach((item, i) => {
+        const value = item.Number || 0;
+        if (value <= 0) return;
+        const sliceAngle = (value / total) * Math.PI * 2;
+        const endAngle = startAngle + sliceAngle;
+
+        const [r, g, b] = hexToRgb(PIE_COLORS[i % PIE_COLORS.length]);
+        pdf.setFillColor(r, g, b);
+
+        // Polygon: center -> points along the arc -> back to center (closed).
+        const steps = Math.max(2, Math.ceil((sliceAngle / (Math.PI * 2)) * 60));
+        const arcPoints = [];
+        for (let s = 0; s <= steps; s++) {
+          const angle = startAngle + (sliceAngle * s) / steps;
+          arcPoints.push([
+            centerX + radius * Math.cos(angle),
+            centerY + radius * Math.sin(angle),
+          ]);
+        }
+        const segments = [];
+        let prev = [centerX, centerY];
+        arcPoints.forEach((point) => {
+          segments.push([point[0] - prev[0], point[1] - prev[1]]);
+          prev = point;
+        });
+        pdf.lines(segments, centerX, centerY, [1, 1], "F", true);
+
+        startAngle = endAngle;
+      });
+
+      // Legend to the right of the pie, one line per slice.
+      const legendX = centerX + radius + 8;
+      const legendLineHeight = Math.min(5, plotHeight / data.length);
+      let legendY = y + margin.top + 3;
+      pdf.setFont("helvetica", "normal");
+      data.forEach((item, i) => {
+        if (legendY > y + height - 3) return;
+        const [r, g, b] = hexToRgb(PIE_COLORS[i % PIE_COLORS.length]);
+        pdf.setFillColor(r, g, b);
+        pdf.rect(legendX, legendY - 2.5, 3, 3, "F");
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(55, 65, 81);
+        const pct = Math.round(((item.Number || 0) / total) * 100);
+        const rawLabel = `${item.name} (${pct}%)`;
+        const label =
+          rawLabel.length > 26 ? rawLabel.slice(0, 23) + "..." : rawLabel;
+        pdf.text(label, legendX + 5, legendY);
+        legendY += legendLineHeight;
+      });
+    };
+
     // Export dashboard as PDF
     const handleExportPDF = async () => {
       setIsExporting(true);
@@ -660,103 +772,80 @@
         });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-
-        // Add header to the PDF
         const headerHeight = 25;
-        pdf.setFillColor(23, 175, 147); // Teal color
-        pdf.rect(0, 0, pdfWidth, headerHeight, "F");
 
-        // Header text - left side
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(18);
-        pdf.setFont("helvetica", "bold");
-        pdf.text("Dashboard Report", 15, 12);
-
-        pdf.setFontSize(11);
-        pdf.setFont("helvetica", "normal");
-        pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
-
-        // Date range and stats - right side
+        // Date range and stats — computed before the header so both the
+        // first page and every subsequent page can use them.
         const dateRangeText = `${dateRange[0].startDate.toLocaleDateString("en-GB")} - ${dateRange[0].endDate.toLocaleDateString("en-GB")}`;
-        pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
-
         const statsText = `Total Incidents: ${stats?.totalIncidents || 0} | Vehicles Dispatched: ${stats?.vehiclesDispatched || 0} | Free Recovery: ${(Number(stats?.incidentsByType?.["Free Recovery"]) || 0)}`;
-        pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
 
-        // Content area
-        const contentStartY = headerHeight + 10;
-        const chartWidth = (pdfWidth - 30) / 2; // 2 columns with margins
-        const chartHeight = 60;
-        const chartGap = 10;
+        const drawPageHeader = () => {
+          pdf.setFillColor(23, 175, 147); // Teal color
+          pdf.rect(0, 0, pdfWidth, headerHeight, "F");
 
-        let currentY = contentStartY;
-        let currentX = 15;
-        let chartCount = 0;
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(18);
+          pdf.setFont("helvetica", "bold");
+          pdf.text("Dashboard Report", 15, 12);
 
-        // Helper to add new page if needed
-        const checkNewPage = () => {
-          if (currentY + chartHeight > pdfHeight - 10) {
-            pdf.addPage();
+          pdf.setFontSize(11);
+          pdf.setFont("helvetica", "normal");
+          pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
 
-            // Add header to new page
-            pdf.setFillColor(23, 175, 147);
-            pdf.rect(0, 0, pdfWidth, headerHeight, "F");
-            pdf.setTextColor(255, 255, 255);
-            pdf.setFontSize(18);
-            pdf.setFont("helvetica", "bold");
-            pdf.text("Dashboard Report", 15, 12);
-            pdf.setFontSize(11);
-            pdf.setFont("helvetica", "normal");
-            pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
-            pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
-            pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
-
-            currentY = contentStartY;
-            currentX = 15;
-            chartCount = 0;
-          }
+          pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
+          pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
         };
 
-        // Draw all charts in 2-column layout
+        drawPageHeader();
+
+        // Content area — 4 charts per page in a 2x2 grid.
+        const contentStartY = headerHeight + 10;
+        const chartGap = 8;
+        const chartWidth = (pdfWidth - 30 - chartGap) / 2;
+        const chartHeight = (pdfHeight - contentStartY - 15 - chartGap) / 2;
+        const positions = [
+          { x: 15, y: contentStartY },
+          { x: 15 + chartWidth + chartGap, y: contentStartY },
+          { x: 15, y: contentStartY + chartHeight + chartGap },
+          { x: 15 + chartWidth + chartGap, y: contentStartY + chartHeight + chartGap },
+        ];
+
+        let chartsOnPage = 0;
+
+        // Draw all charts, 2 per page
         const charts = [
-          { data: timeToSiteData, title: "Time to Site (mins)" },
-          { data: timeToRecoverData, title: "Time to Recover (mins)" },
-          { data: faultData, title: "Fault" },
-          { data: incidentTypeData, title: "Incident Type" },
-          { data: vehiclesDispatchedData, title: "Vehicles Dispatched" },
-          { data: spottedByData, title: "Spotted By" },
-          { data: laneAffectedData, title: "Lane Affected" },
-          { data: trafficConditionsData, title: "Traffic Conditions" },
-          { data: emergencyServicesData, title: "Emergency Services Attended" },
-          { data: trackData, title: "Track of Incident" },
-          { data: vehicleTypeData, title: "Vehicle Type" },
-          { data: incursionsData, title: "Incursions" },
+          { data: timeToSiteData, title: "Time to Site (mins)", key: "timeToSite" },
+          { data: timeToRecoverData, title: "Time to Recover (mins)", key: "timeToRecover" },
+          { data: faultData, title: "Fault", key: "fault" },
+          { data: incidentTypeData, title: "Incident Type", key: "incidentType" },
+          { data: vehiclesDispatchedData, title: "Vehicles Dispatched", key: "vehiclesDispatched" },
+          { data: spottedByData, title: "Spotted By", key: "spottedBy" },
+          { data: laneAffectedData, title: "Lane Affected", key: "laneAffected" },
+          { data: trafficConditionsData, title: "Traffic Conditions", key: "trafficConditions" },
+          { data: emergencyServicesData, title: "Emergency Services Attended", key: "emergencyServices" },
+          { data: trackData, title: "Track of Incident", key: "track" },
+          { data: vehicleTypeData, title: "Vehicle Type", key: "vehicleType" },
+          { data: incursionsData, title: "Incursions", key: "incursions" },
           { data: incursionToGainAdvantageData, title: "Incursion to Gain Benifit" },
         ];
 
         charts.forEach((chart) => {
           if (chart.data && chart.data.length > 0) {
-            checkNewPage();
-
-            drawBarChart(
-              pdf,
-              chart.data,
-              chart.title,
-              currentX,
-              currentY,
-              chartWidth - 5,
-              chartHeight,
-            );
-
-            chartCount++;
-            if (chartCount % 2 === 0) {
-              // Move to next row
-              currentY += chartHeight + chartGap;
-              currentX = 15;
-            } else {
-              // Move to next column
-              currentX = 15 + chartWidth + 5;
+            if (chartsOnPage === 4) {
+              pdf.addPage();
+              drawPageHeader();
+              chartsOnPage = 0;
             }
+
+            const drawFn =
+              chartTypesRef.current[chart.key] === "pie"
+                ? drawPieChart
+                : drawBarChart;
+
+            const pos = positions[chartsOnPage];
+            drawFn(pdf, chart.data, chart.title, pos.x, pos.y, chartWidth, chartHeight);
+
+            chartsOnPage++;
           }
         });
 
@@ -1078,6 +1167,8 @@
               <ChartCard
                 title="Time to Site (mins)"
                 data={timeToSiteData}
+                chartKey="timeToSite"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("timeToSite", label)}
               >
                 <BarChart
@@ -1099,6 +1190,8 @@
               <ChartCard
                 title="Time to recover (mins)"
                 data={timeToRecoverData}
+                chartKey="timeToRecover"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("timeToRecover", label)}
               >
                 <BarChart
@@ -1121,6 +1214,8 @@
               <ChartCard
                 title="Fault"
                 data={faultData}
+                chartKey="fault"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("fault", label)}
               >
                 <BarChart
@@ -1152,6 +1247,8 @@
               <ChartCard
                 title="Incident Type"
                 data={incidentTypeData}
+                chartKey="incidentType"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("incidentType", label)}
               >
                 <BarChart
@@ -1175,6 +1272,8 @@
               <ChartCard
                 title="Vehicles Dispatched"
                 data={vehiclesDispatchedData}
+                chartKey="vehiclesDispatched"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("vehicleTypesDispatched", label)}
               >
                 <BarChart
@@ -1197,6 +1296,8 @@
               <ChartCard
                 title="Spotted By"
                 data={spottedByData}
+                chartKey="spottedBy"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("reportedBy", label)}
               >
                 <BarChart
@@ -1218,6 +1319,8 @@
               <ChartCard
                 title="Lane Affected"
                 data={laneAffectedData}
+                chartKey="laneAffected"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("affectedLanes", label)}
               >
                 <BarChart
@@ -1240,6 +1343,8 @@
               <ChartCard
                 title="Traffic Conditions"
                 data={trafficConditionsData}
+                chartKey="trafficConditions"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("trafficConditions", label)}
               >
                 <BarChart
@@ -1262,6 +1367,8 @@
               <ChartCard
                 title="Emergency Services Attended"
                 data={emergencyServicesData}
+                chartKey="emergencyServices"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("emergencyServices", label)}
               >
                 <BarChart
@@ -1284,6 +1391,8 @@
               <ChartCard
                 title="Track of Incident"
                 data={trackData}
+                chartKey="track"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("track", label)}
               >
                 <BarChart
@@ -1305,6 +1414,8 @@
               <ChartCard
                 title="Vehicle Type"
                 data={vehicleTypeData}
+                chartKey="vehicleType"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) => handleBarClick("vehicleTypes", label)}
               >
                 <BarChart
@@ -1327,6 +1438,8 @@
               <ChartCard
                 title="Incursions"
                 data={incursionsData}
+                chartKey="incursions"
+                chartTypesRef={chartTypesRef}
                 onSliceClick={(label) =>
                   handleBarClick(
                     label === "Incursion to Gain Benifit"
