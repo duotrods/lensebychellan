@@ -26,7 +26,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { jsPDF } from 'jspdf';
+import { exportChartsToPDF } from "../../utils/pdfChartExport";
 import { DateRangePicker } from 'react-date-range';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
@@ -157,162 +157,39 @@ const ClientChartsPage = () => {
     dailyLogsTotal: 0,
   };
 
-  // Helper function to draw a bar chart in PDF
-  const drawBarChart = (pdf, data, title, x, y, width, height) => {
-    if (!data || data.length === 0) return;
-
-    // Draw chart background
-    pdf.setFillColor(255, 255, 255);
-    pdf.rect(x, y, width, height, 'F');
-    pdf.setDrawColor(229, 231, 235);
-    pdf.rect(x, y, width, height, 'S');
-
-    // Draw title at the top with better positioning
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(31, 41, 55);
-    pdf.text(title, x + width / 2, y + 6, { align: 'center' });
-
-    // Adjusted margins - less bottom margin since labels are closer
-    const margin = { top: 12, right: 10, bottom: 18, left: 10 };
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
-
-    // Calculate max value
-    const maxValue = Math.max(...data.map(d => d.Number));
-    const barWidth = chartWidth / data.length * 0.7;
-    const gap = chartWidth / data.length * 0.3;
-
-    // Draw bars
-    data.forEach((item, index) => {
-      const barHeight = (item.Number / maxValue) * chartHeight;
-      const barX = x + margin.left + (index * (barWidth + gap));
-      const barY = y + margin.top + chartHeight - barHeight;
-
-      // Draw bar
-      pdf.setFillColor(23, 175, 147); // Teal color
-      pdf.roundedRect(barX, barY, barWidth, barHeight, 2, 2, 'F');
-
-      // Draw value on top of bar
-      pdf.setFontSize(8);
-      pdf.setTextColor(31, 41, 55);
-      pdf.text(String(item.Number), barX + barWidth / 2, barY - 2, { align: 'center' });
-
-      // Draw label below bar - much closer now
-      pdf.setFontSize(7);
-      pdf.setTextColor(107, 114, 128);
-      const label = item.name.length > 12 ? item.name.substring(0, 12) + '...' : item.name;
-      const labelY = y + margin.top + chartHeight + 5; // Just 5mm below the chart area
-      pdf.text(label, barX + barWidth / 2, labelY, { align: 'center', maxWidth: barWidth });
-    });
-  };
-
-  // Export dashboard as PDF
+  // Export charts as PDF — layout/drawing lives in utils/pdfChartExport so
+  // every "Export Charts" button in the app shares one design.
   const handleExportPDF = async () => {
     setIsExporting(true);
     toast.loading('Generating PDF...', { id: 'export-pdf' });
 
     try {
-      // Create PDF in landscape orientation with compression enabled
-      const pdf = new jsPDF({
-        orientation: 'l',
-        unit: 'mm',
-        format: 'a4',
-        compress: true
-      });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      // Add header to the PDF
-      const headerHeight = 25;
-      pdf.setFillColor(23, 175, 147); // Teal color
-      pdf.rect(0, 0, pdfWidth, headerHeight, 'F');
-
-      // Header text - left side
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(18);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Client Charts & Analytics', 15, 12);
-
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Scheme: ${selectedScheme}`, 15, 19);
-
-      // Stats - right side
       const statsText = `Total Incidents: ${stats.incident} | Total Reports: ${stats.total}`;
-      pdf.text(statsText, pdfWidth - 15, 15, { align: 'right' });
 
-      // Content area
-      const contentStartY = headerHeight + 10;
-      const chartWidth = (pdfWidth - 30) / 2; // 2 columns with margins
-      const chartHeight = 60;
-      const chartGap = 10;
-
-      let currentY = contentStartY;
-      let currentX = 15;
-      let chartCount = 0;
-
-      // Helper to add new page if needed
-      const checkNewPage = () => {
-        if (currentY + chartHeight > pdfHeight - 10) {
-          pdf.addPage();
-
-          // Add header to new page
-          pdf.setFillColor(23, 175, 147);
-          pdf.rect(0, 0, pdfWidth, headerHeight, 'F');
-          pdf.setTextColor(255, 255, 255);
-          pdf.setFontSize(18);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Client Charts & Analytics', 15, 12);
-          pdf.setFontSize(11);
-          pdf.setFont('helvetica', 'normal');
-          pdf.text(`Scheme: ${selectedScheme}`, 15, 19);
-          pdf.text(statsText, pdfWidth - 15, 15, { align: 'right' });
-
-          currentY = contentStartY;
-          currentX = 15;
-          chartCount = 0;
-        }
-      };
-
-      // Draw all charts in 2-column layout
       const charts = [
-        { data: timeToSiteData, title: 'Time to Site (mins)' },
-        { data: timeToRecoverData, title: 'Time to Recover (mins)' },
-        { data: faultData, title: 'Fault' },
-        { data: incidentTypeData, title: 'Incident Type' },
-        { data: vehiclesDispatchedData, title: 'Vehicles Dispatched' },
-        { data: spottedByData, title: 'Spotted By' },
-        { data: laneAffectedData, title: 'Lane Affected' },
-        { data: trafficConditionsData, title: 'Traffic Conditions' },
-        { data: emergencyServicesData, title: 'Emergency Services Attended' },
-        { data: trackData, title: 'Track of Incident' },
-        { data: vehicleTypeData, title: 'Vehicle Type' },
-        { data: incursionsData, title: 'Incursions' },
+        { data: timeToSiteData, title: 'Time to Site (mins)', key: 'timeToSite' },
+        { data: timeToRecoverData, title: 'Time to Recover (mins)', key: 'timeToRecover' },
+        { data: faultData, title: 'Fault', key: 'fault' },
+        { data: incidentTypeData, title: 'Incident Type', key: 'incidentType' },
+        { data: vehiclesDispatchedData, title: 'Vehicles Dispatched', key: 'vehiclesDispatched' },
+        { data: spottedByData, title: 'Spotted By', key: 'spottedBy' },
+        { data: laneAffectedData, title: 'Lane Affected', key: 'laneAffected' },
+        { data: trafficConditionsData, title: 'Traffic Conditions', key: 'trafficConditions' },
+        { data: emergencyServicesData, title: 'Emergency Services Attended', key: 'emergencyServices' },
+        { data: trackData, title: 'Track of Incident', key: 'track' },
+        { data: vehicleTypeData, title: 'Vehicle Type', key: 'vehicleType' },
+        { data: incursionsData, title: 'Incursions', key: 'incursions' },
         { data: incursionToGainAdvantageData, title: 'Incursion to Gain Benifit' },
       ];
 
-      charts.forEach((chart) => {
-        if (chart.data && chart.data.length > 0) {
-          checkNewPage();
-
-          drawBarChart(pdf, chart.data, chart.title, currentX, currentY, chartWidth - 5, chartHeight);
-
-          chartCount++;
-          if (chartCount % 2 === 0) {
-            // Move to next row
-            currentY += chartHeight + chartGap;
-            currentX = 15;
-          } else {
-            // Move to next column
-            currentX = 15 + chartWidth + 5;
-          }
-        }
+      await exportChartsToPDF({
+        reportTitle: 'Client Charts & Analytics',
+        subtitle: `Scheme: ${selectedScheme}`,
+        dateRangeText: `${dateRange[0].startDate.toLocaleDateString('en-GB')} - ${dateRange[0].endDate.toLocaleDateString('en-GB')}`,
+        statsText,
+        charts,
+        fileName: `client_charts_${selectedScheme.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
       });
-
-      // Save the PDF
-      const fileName = `client_charts_${selectedScheme.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
 
       toast.success('Charts exported successfully!', { id: 'export-pdf' });
     } catch (error) {

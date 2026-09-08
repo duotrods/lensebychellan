@@ -54,8 +54,8 @@
   import "react-date-range/dist/styles.css"; // main css file
   import "react-date-range/dist/theme/default.css"; // theme css file
   import { addDays, startOfYear, startOfDay, endOfDay } from "date-fns";
-  import { jsPDF } from "jspdf";
   import toast from "react-hot-toast";
+  import { PIE_COLORS, exportChartsToPDF } from "../../utils/pdfChartExport";
 
   const commonChartProps = {
     cartesianGrid: { strokeDasharray: "3 3", stroke: "#17af93" },
@@ -72,18 +72,6 @@
     legend: { wrapperStyle: { paddingTop: "20px" } },
     bar: { fill: "#17af93", radius: [8, 8, 0, 0] },
   };
-
-  const PIE_COLORS = [
-    "#2a78d6", "#008300", "#e87ba4", "#eda100",
-    "#1baf7a", "#eb6834", "#4a3aa7", "#e34948",
-  ];
-
-  // "#rrggbb" -> [r, g, b] for jsPDF's setFillColor, which takes 0-255 ints.
-  const hexToRgb = (hex) => [
-    parseInt(hex.slice(1, 3), 16),
-    parseInt(hex.slice(3, 5), 16),
-    parseInt(hex.slice(5, 7), 16),
-  ];
 
   const ChartCard = memo(
     ({
@@ -602,217 +590,16 @@
       },
     ];
 
-    // Helper function to draw a bar chart in PDF
-    const drawBarChart = (pdf, data, title, x, y, width, height) => {
-      if (!data || data.length === 0) return;
-
-      // Draw chart background
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(x, y, width, height, "F");
-      pdf.setDrawColor(229, 231, 235);
-      pdf.rect(x, y, width, height, "S");
-
-      // Draw title at the top with better positioning
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(31, 41, 55);
-      pdf.text(title, x + width / 2, y + 6, { align: "center" });
-
-      // Adjusted margins - less bottom margin since labels are closer
-      const margin = { top: 12, right: 10, bottom: 18, left: 10 };
-      const chartWidth = width - margin.left - margin.right;
-      const chartHeight = height - margin.top - margin.bottom;
-
-      // Subtle horizontal gridlines behind the bars — mirrors the dashed
-      // CartesianGrid shown on screen (commonChartProps.cartesianGrid).
-      pdf.setDrawColor(23, 175, 147);
-      pdf.setLineWidth(0.1);
-      pdf.setLineDashPattern([1, 1], 0);
-      const gridLines = 4;
-      for (let g = 1; g < gridLines; g++) {
-        const gridY = y + margin.top + (chartHeight / gridLines) * g;
-        pdf.line(x + margin.left, gridY, x + margin.left + chartWidth, gridY);
-      }
-      pdf.setLineDashPattern([], 0);
-
-      // Calculate max value - ensure it's at least 1 to avoid division by zero
-      const maxValue = Math.max(...data.map((d) => d.Number), 1);
-      const barWidth = (chartWidth / data.length) * 0.7;
-      const gap = (chartWidth / data.length) * 0.3;
-
-      // Draw bars
-      data.forEach((item, index) => {
-        const barHeight = (item.Number / maxValue) * chartHeight;
-        const barX = x + margin.left + index * (barWidth + gap);
-        const barY = y + margin.top + chartHeight - barHeight;
-
-        // Only draw bar if height is valid and greater than 0
-        if (
-          barHeight > 0 &&
-          !isNaN(barHeight) &&
-          !isNaN(barX) &&
-          !isNaN(barY) &&
-          barWidth > 0
-        ) {
-          pdf.setFillColor(23, 175, 147); // Teal color
-          pdf.rect(barX, barY, barWidth, barHeight, "F");
-        }
-
-        // Draw value on top of bar
-        pdf.setFontSize(8);
-        pdf.setTextColor(31, 41, 55);
-        const valueY =
-          barHeight > 0 ? barY - 2 : y + margin.top + chartHeight - 2;
-        pdf.text(String(item.Number), barX + barWidth / 2, valueY, {
-          align: "center",
-        });
-
-        // Draw label below bar - much closer now
-        pdf.setFontSize(7);
-        pdf.setTextColor(107, 114, 128);
-        const label =
-          item.name.length > 12 ? item.name.substring(0, 12) + "..." : item.name;
-        const labelY = y + margin.top + chartHeight + 5; // Just 5mm below the chart area
-        pdf.text(label, barX + barWidth / 2, labelY, {
-          align: "center",
-          maxWidth: barWidth,
-        });
-      });
-    };
-
-    // Mirrors the on-screen pie chart (Pie/Cell from recharts) for whichever
-    // charts are toggled to pie view — jsPDF has no native pie primitive, so
-    // each slice is drawn as a filled polygon approximating its arc.
-    const drawPieChart = (pdf, data, title, x, y, width, height) => {
-      if (!data || data.length === 0) return;
-
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(x, y, width, height, "F");
-      pdf.setDrawColor(229, 231, 235);
-      pdf.rect(x, y, width, height, "S");
-
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(31, 41, 55);
-      pdf.text(title, x + width / 2, y + 6, { align: "center" });
-
-      const total = data.reduce((sum, d) => sum + (d.Number || 0), 0);
-      if (total <= 0) return;
-
-      const margin = { top: 12, bottom: 6 };
-      const plotHeight = height - margin.top - margin.bottom;
-      const radius = Math.max(Math.min(width * 0.24, plotHeight / 2 - 2), 4);
-      const centerX = x + width * 0.3;
-      const centerY = y + margin.top + plotHeight / 2;
-
-      let startAngle = -Math.PI / 2;
-      data.forEach((item, i) => {
-        const value = item.Number || 0;
-        if (value <= 0) return;
-        const sliceAngle = (value / total) * Math.PI * 2;
-        const endAngle = startAngle + sliceAngle;
-
-        const [r, g, b] = hexToRgb(PIE_COLORS[i % PIE_COLORS.length]);
-        pdf.setFillColor(r, g, b);
-
-        // Polygon: center -> points along the arc -> back to center (closed).
-        const steps = Math.max(2, Math.ceil((sliceAngle / (Math.PI * 2)) * 60));
-        const arcPoints = [];
-        for (let s = 0; s <= steps; s++) {
-          const angle = startAngle + (sliceAngle * s) / steps;
-          arcPoints.push([
-            centerX + radius * Math.cos(angle),
-            centerY + radius * Math.sin(angle),
-          ]);
-        }
-        const segments = [];
-        let prev = [centerX, centerY];
-        arcPoints.forEach((point) => {
-          segments.push([point[0] - prev[0], point[1] - prev[1]]);
-          prev = point;
-        });
-        pdf.lines(segments, centerX, centerY, [1, 1], "F", true);
-
-        startAngle = endAngle;
-      });
-
-      // Legend to the right of the pie, one line per slice.
-      const legendX = centerX + radius + 8;
-      const legendLineHeight = Math.min(5, plotHeight / data.length);
-      let legendY = y + margin.top + 3;
-      pdf.setFont("helvetica", "normal");
-      data.forEach((item, i) => {
-        if (legendY > y + height - 3) return;
-        const [r, g, b] = hexToRgb(PIE_COLORS[i % PIE_COLORS.length]);
-        pdf.setFillColor(r, g, b);
-        pdf.rect(legendX, legendY - 2.5, 3, 3, "F");
-        pdf.setFontSize(6.5);
-        pdf.setTextColor(55, 65, 81);
-        const pct = Math.round(((item.Number || 0) / total) * 100);
-        const rawLabel = `${item.name} (${pct}%)`;
-        const label =
-          rawLabel.length > 26 ? rawLabel.slice(0, 23) + "..." : rawLabel;
-        pdf.text(label, legendX + 5, legendY);
-        legendY += legendLineHeight;
-      });
-    };
-
-    // Export dashboard as PDF
+    // Export dashboard as PDF — layout/drawing lives in utils/pdfChartExport
+    // so every "Export Charts" button in the app shares one design.
     const handleExportPDF = async () => {
       setIsExporting(true);
       toast.loading("Generating PDF...", { id: "export-pdf" });
 
       try {
-        // Create PDF in landscape orientation with compression enabled
-        const pdf = new jsPDF({
-          orientation: "l",
-          unit: "mm",
-          format: "a4",
-          compress: true,
-        });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const headerHeight = 25;
-
-        // Date range and stats — computed before the header so both the
-        // first page and every subsequent page can use them.
         const dateRangeText = `${dateRange[0].startDate.toLocaleDateString("en-GB")} - ${dateRange[0].endDate.toLocaleDateString("en-GB")}`;
         const statsText = `Total Incidents: ${stats?.totalIncidents || 0} | Vehicles Dispatched: ${stats?.vehiclesDispatched || 0} | Free Recovery: ${(Number(stats?.incidentsByType?.["Free Recovery"]) || 0)}`;
 
-        const drawPageHeader = () => {
-          pdf.setFillColor(23, 175, 147); // Teal color
-          pdf.rect(0, 0, pdfWidth, headerHeight, "F");
-
-          pdf.setTextColor(255, 255, 255);
-          pdf.setFontSize(18);
-          pdf.setFont("helvetica", "bold");
-          pdf.text("Dashboard Report", 15, 12);
-
-          pdf.setFontSize(11);
-          pdf.setFont("helvetica", "normal");
-          pdf.text(`${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`, 15, 19);
-
-          pdf.text(dateRangeText, pdfWidth - 15, 12, { align: "right" });
-          pdf.text(statsText, pdfWidth - 15, 19, { align: "right" });
-        };
-
-        drawPageHeader();
-
-        // Content area — 4 charts per page in a 2x2 grid.
-        const contentStartY = headerHeight + 10;
-        const chartGap = 8;
-        const chartWidth = (pdfWidth - 30 - chartGap) / 2;
-        const chartHeight = (pdfHeight - contentStartY - 15 - chartGap) / 2;
-        const positions = [
-          { x: 15, y: contentStartY },
-          { x: 15 + chartWidth + chartGap, y: contentStartY },
-          { x: 15, y: contentStartY + chartHeight + chartGap },
-          { x: 15 + chartWidth + chartGap, y: contentStartY + chartHeight + chartGap },
-        ];
-
-        let chartsOnPage = 0;
-
-        // Draw all charts, 2 per page
         const charts = [
           { data: timeToSiteData, title: "Time to Site (mins)", key: "timeToSite" },
           { data: timeToRecoverData, title: "Time to Recover (mins)", key: "timeToRecover" },
@@ -829,29 +616,15 @@
           { data: incursionToGainAdvantageData, title: "Incursion to Gain Benifit" },
         ];
 
-        charts.forEach((chart) => {
-          if (chart.data && chart.data.length > 0) {
-            if (chartsOnPage === 4) {
-              pdf.addPage();
-              drawPageHeader();
-              chartsOnPage = 0;
-            }
-
-            const drawFn =
-              chartTypesRef.current[chart.key] === "pie"
-                ? drawPieChart
-                : drawBarChart;
-
-            const pos = positions[chartsOnPage];
-            drawFn(pdf, chart.data, chart.title, pos.x, pos.y, chartWidth, chartHeight);
-
-            chartsOnPage++;
-          }
+        await exportChartsToPDF({
+          reportTitle: "Dashboard Report",
+          subtitle: `${getActiveSchemeId()} - ${getActiveSchemeName(userProfile)}`,
+          dateRangeText,
+          statsText,
+          charts,
+          chartTypesRef,
+          fileName: `dashboard_${getActiveSchemeId()}_${startDate}_to_${endDate}.pdf`,
         });
-
-        // Save the PDF
-        const fileName = `dashboard_${getActiveSchemeId()}_${startDate}_to_${endDate}.pdf`;
-        pdf.save(fileName);
 
         toast.success("Dashboard exported successfully!", { id: "export-pdf" });
       } catch (error) {
