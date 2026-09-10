@@ -17,3 +17,11 @@ export const isPureIncident = (formData) =>
   formData.incursion !== "YES" &&
   formData.incursionToGainAdvantage !== "YES" &&
   !formData.propertyDamage;
+
+// A drive off — logged either as the incident type or as the fault. The
+// vehicle leaves before or without recovery, so there's no attendance to
+// time: the form hides Time On Site / Time Cleared for these, and the Time to
+// Site / Time to Recover metrics skip them so they don't skew response times.
+// Everything else about a drive off is still recorded and counted as normal.
+export const isDriveOff = (record) =>
+  record?.incidentType === "Drive Off" || record?.fault === "Drive Off";

@@ -24,6 +24,7 @@ import {
   formatDateToBritish,
   calculateTimeDifferences,
 } from "../../utils/incidentForm";
+import { isDriveOff } from "../../utils/incidentStats";
 
 import chellanlogo from "../../assets/chellanpng.png";
 import warningIcon from "../../assets/warning.svg";
@@ -44,7 +45,6 @@ const IncidentReportFormPage = () => {
   const [liveIncidentId, setLiveIncidentId] = useState(null);
   const [existingReferenceId, setExistingReferenceId] = useState(null);
   const [pairMismatchWarning, setPairMismatchWarning] = useState(null);
-  const [showStandDownConfirm, setShowStandDownConfirm] = useState(false);
 
   const [formData, setFormData] = useState({
     scheme: "",
@@ -78,6 +78,10 @@ const IncidentReportFormPage = () => {
     description: "",
     standDown: false,
   });
+
+  // A drive off has no attendance to time, so Time On Site / Time Cleared are
+  // hidden and never saved — see isDriveOff for the full reasoning.
+  const driveOff = isDriveOff(formData);
 
   useEffect(() => {
     if (editId) {
@@ -214,81 +218,6 @@ const IncidentReportFormPage = () => {
   };
 
   const cancelPairMismatch = () => setPairMismatchWarning(null);
-
-  // Standing down an incident skips the rest of the form entirely — clears
-  // the incident-detail fields (they don't apply to a report that isn't
-  // being counted) and saves immediately, rather than requiring the staff
-  // member to fill everything in first. Time Spotted and the comment
-  // (description) are the exception — captured in the stand-down modal
-  // itself, since they're still useful context on a report that's otherwise
-  // excluded from the charts/counts.
-  const confirmStandDown = async () => {
-    if (!formData.timeSpotted) {
-      toast.error("Please enter the time this was spotted");
-      return;
-    }
-
-    setShowStandDownConfirm(false);
-
-    if (!formData.scheme || !formData.date || !formData.firstName) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const clearedData = {
-        ...formData,
-        standDown: true,
-        affectedLanes: [],
-        emergencyServices: [],
-        recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
-        timeOnSite: "",
-        timeCleared: "",
-        closedLogCollar: "",
-        propertyDamage: false,
-        assetType: "",
-        damageType: "",
-        vehicles: [{ type: "", make: "", model: "", vin: "" }],
-        files: [],
-      };
-
-      const incidentId = editId || liveIncidentId;
-
-      if (incidentId) {
-        const updateData = { ...clearedData };
-        if (isEditingLiveIncident) {
-          updateData.status = "completed";
-        }
-
-        await staffService.updateIncidentReport(
-          incidentId,
-          updateData,
-          userProfile.uid,
-          userProfile.displayName,
-          isEditingLiveIncident,
-        );
-      } else {
-        await staffService.submitIncidentReport(
-          clearedData,
-          userProfile.uid,
-          userProfile.displayName,
-          "submitted",
-        );
-      }
-
-      toast.success("Incident stood down and saved.");
-      setFiles([]);
-      navigate(basePath);
-    } catch (error) {
-      console.error("Error standing down incident:", error);
-      toast.error("Failed to stand down incident. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const cancelStandDown = () => setShowStandDownConfirm(false);
 
   const handleCheckbox = (field, value) => {
     setFormData((prev) => ({
@@ -559,6 +488,19 @@ const IncidentReportFormPage = () => {
         collarNumber: formData.collarNumber.trim(),
         cameraNumber: formData.cameraNumber.trim(),
         description: formData.description.trim(),
+        // The inputs are hidden for a drive off, but they can still hold
+        // values typed before the type/fault was switched over — and on an
+        // edit, the derived fields may already exist on the stored document.
+        // Clear both so the saved report can't report an attendance it never
+        // had. (calculateTimeDifferences only ever sets these, never clears.)
+        ...(driveOff
+          ? {
+              timeOnSite: "",
+              timeCleared: "",
+              timeSpottedToOn: "",
+              timeOnsiteToCleared: "",
+            }
+          : {}),
       };
       const dataWithTimings = calculateTimeDifferences(trimmedData);
 
@@ -1389,30 +1331,6 @@ const IncidentReportFormPage = () => {
         </div>
       </div>
 
-      {(formData.incidentType === "Drive Off" ||
-        formData.fault === "Drive Off") && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-amber-800 font-medium">Drive Off incident</p>
-              <p className="text-amber-700 text-sm mt-1">
-                If this shouldn't be counted on the charts, stand it down —
-                it saves immediately as a Drive Off report, skips the rest
-                of the form, and can no longer be edited afterwards.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowStandDownConfirm(true)}
-              disabled={loading}
-              className="shrink-0 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium disabled:opacity-50 transition-colors"
-            >
-              {loading ? "Standing Down..." : "Stand Down Incident"}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Affected Lanes */}
       <div>
         <label className="label">
@@ -1534,37 +1452,44 @@ const IncidentReportFormPage = () => {
           />
         </div>
 
-        <div>
-          <label className="label">
-            <span className="label-text font-semibold mb-2">
-              Time On Site <span className="text-red-500">*</span>
-            </span>
-          </label>
-          <input
-            type="time"
-            name="timeOnSite"
-            value={formData.timeOnSite}
-            onChange={handleChange}
-            className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-            required
-          />
-        </div>
+        {/* A drive off is away before there's anything to attend or clear, so
+            these two don't apply — hiding them also keeps Time to Site and
+            Time to Recover from being derived for this report. */}
+        {!driveOff && (
+          <>
+            <div>
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  Time On Site <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <input
+                type="time"
+                name="timeOnSite"
+                value={formData.timeOnSite}
+                onChange={handleChange}
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                required
+              />
+            </div>
 
-        <div>
-          <label className="label">
-            <span className="label-text font-semibold mb-2">
-              Time Cleared <span className="text-red-500">*</span>
-            </span>
-          </label>
-          <input
-            type="time"
-            name="timeCleared"
-            value={formData.timeCleared}
-            onChange={handleChange}
-            className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-            required
-          />
-        </div>
+            <div>
+              <label className="label">
+                <span className="label-text font-semibold mb-2">
+                  Time Cleared <span className="text-red-500">*</span>
+                </span>
+              </label>
+              <input
+                type="time"
+                name="timeCleared"
+                value={formData.timeCleared}
+                onChange={handleChange}
+                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+                required
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Closed Log and Fault */}
@@ -1920,75 +1845,6 @@ const IncidentReportFormPage = () => {
         </div>
       )}
 
-      {showStandDownConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-10">
-            <div className="flex justify-center mb-6">
-              <img src={warningIcon} alt="" className="w-40 h-40" />
-            </div>
-
-            <h2 className="text-gray-800 text-center text-xl mb-2">
-              Stand down this incident?
-            </h2>
-            <p className="text-base text-gray-500 text-center mb-6">
-              The rest of the form (vehicles, affected lanes, emergency
-              services, time on site, time cleared, etc.) will be cleared and
-              this will be saved immediately as a stood down Drive Off
-              report, excluded from the Incident Type, Fault Type, and Drive
-              Off charts and counts.
-            </p>
-
-            <div className="mb-4">
-              <label className="label">
-                <span className="label-text font-semibold mb-2">
-                  Time Spotted <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <input
-                type="time"
-                name="timeSpotted"
-                value={formData.timeSpotted}
-                onChange={handleChange}
-                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                required
-              />
-            </div>
-
-            <div className="mb-8">
-              <label className="label">
-                <span className="label-text font-semibold mb-2">Comment</span>
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                placeholder="Optional comment, e.g. why this was stood down"
-                className="textarea bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                maxLength={2000}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={cancelStandDown}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                <X className="w-4 h-4" />
-                Cancel
-              </button>
-              <button
-                onClick={confirmStandDown}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium disabled:opacity-50 transition-colors"
-              >
-                {loading ? "Saving..." : "Stand Down"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </StaffSidebarLayout>
   );
 };

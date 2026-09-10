@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { countVehicles, isPureIncident } from "../incidentStats";
+import { countVehicles, isPureIncident, isDriveOff } from "../incidentStats";
 
 describe("countVehicles", () => {
   it("returns 0 when recoveryRequested is missing", () => {
@@ -49,5 +49,26 @@ describe("isPureIncident", () => {
     expect(
       isPureIncident({ incidentType: "Breakdown", incursionToGainAdvantage: "YES" }),
     ).toBe(false);
+  });
+});
+
+describe("isDriveOff", () => {
+  it("is true when the incident type is Drive Off", () => {
+    expect(isDriveOff({ incidentType: "Drive Off" })).toBe(true);
+  });
+
+  it("is true when the fault is Drive Off", () => {
+    expect(isDriveOff({ incidentType: "Breakdown", fault: "Drive Off" })).toBe(true);
+  });
+
+  it("is false for any other incident", () => {
+    expect(isDriveOff({ incidentType: "Breakdown", fault: "Tyre" })).toBe(false);
+    expect(isDriveOff({ incidentType: "Free Recovery" })).toBe(false);
+  });
+
+  it("is false for empty or missing records", () => {
+    expect(isDriveOff({})).toBe(false);
+    expect(isDriveOff(null)).toBe(false);
+    expect(isDriveOff(undefined)).toBe(false);
   });
 });

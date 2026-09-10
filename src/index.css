@@ -19,19 +19,20 @@
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: clamp(26px, 3vw, 28px);;
   font-weight: 600;
   line-height: 1.25;
+  letter-spacing: -0.2%;
 }
 
 h2 {
-  font-size: 1.5rem;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1.3;
 }
 
 h3 {
-  font-size: 1.25rem;
+   font-size: 20px;
   font-weight: 600;
   line-height: 1.35;
 }
@@ -49,7 +50,7 @@ h5 {
 }
 
 h6 {
-  font-size: 0.875rem;
+font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -60,6 +61,11 @@ a {
 }
 
 @theme {
+  /* Montserrat stays the body default; Poppins/Inter are loaded alongside it in
+     index.html and used by the dashboard cards (titles / metric values). */
+  --font-poppins: "Poppins", "Montserrat", system-ui, sans-serif;
+  --font-inter: "Inter", "Montserrat", system-ui, sans-serif;
+
   --color-brand-50: #e8f7f4;
   --color-brand-100: #b7e6de;
   --color-brand-200: #94dacd;

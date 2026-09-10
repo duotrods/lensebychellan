@@ -19,6 +19,7 @@ import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
 import { CAMERA_OPTIONS_BY_SCHEME, THIRD_PARTY_SCHEMES } from "../utils/schemes";
 import { isVideoFile } from "../utils/fileType";
+import { isDriveOff } from "../utils/incidentStats";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -1412,6 +1413,12 @@ class ClientDataService {
       // but are excluded from every breakdown stat below (incidentsByType,
       // faultTypes, etc.) so they don't skew the per-type/fault charts.
       const incidents = allIncidents.filter((i) => !i.standDown);
+      // Drive offs are recorded and counted like any other incident, but the
+      // vehicle is away before there's anything to attend or clear, so they
+      // have no meaningful response times. Excluded from the two timing stats
+      // only — including older reports saved back when the form still
+      // collected Time On Site / Time Cleared for them.
+      const timedIncidents = incidents.filter((i) => !isDriveOff(i));
       console.log(
         `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
       );
@@ -1438,10 +1445,13 @@ class ClientDataService {
           "emergencyServices",
         ),
         timeToRecover: this.groupByCalculatedTime(
-          incidents,
+          timedIncidents,
           "timeOnsiteToCleared",
         ),
-        timeToSite: this.groupByCalculatedTime(incidents, "timeSpottedToOn"),
+        timeToSite: this.groupByCalculatedTime(
+          timedIncidents,
+          "timeSpottedToOn",
+        ),
         incursions: incidents.filter((i) => i.incursion === "YES").length,
         incursionToGainAdvantage: incidents.filter(
           (i) => i.incursionToGainAdvantage === "YES",
@@ -1458,7 +1468,7 @@ class ClientDataService {
           time: incident.createdAt,
           status: incident.status || "Resolved",
         })),
-        ...this.calcAverageTimes(incidents),
+        ...this.calcAverageTimes(timedIncidents),
       };
 
       // Group by month (e.g., "January 2026") — derived from the same

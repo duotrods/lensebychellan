@@ -24,14 +24,11 @@
     Calendar,
     Download,
     Radio,
-    Eye,
     CameraOff,
     Wrench,
     ShieldAlert,
     TriangleAlert,
     Clock,
-    TrendingUp,
-    TrendingDown,
     TimerReset,
     CarFront,
     Cctv,
@@ -45,6 +42,7 @@
   } from "lucide-react";
   import { getActiveSchemeName } from "../../utils/schemes";
   import { transformDataForChart } from "../../utils/chartData";
+  import { isDriveOff } from "../../utils/incidentStats";
   import DrillDownSidebar from "./DrillDownSidebar";
   import {
     DateRangePicker,
@@ -186,6 +184,190 @@
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+
+  // Shared card shell for the dashboard's stat / metric / live-link cards.
+  // Flat white surface with the design's 1px 4px 12%-black shadow, not the
+  // Tailwind shadow scale — the design's is much softer than shadow-md.
+  const CARD_SHELL =
+    "bg-white rounded-[10px] shadow-[0px_1px_4px_0px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-[0px_2px_10px_0px_rgba(0,0,0,0.14)]";
+
+  // Stat/metric card: tinted icon tile + title, a full-bleed rule, then the
+  // value and its caption. Header block is a fixed height so the rule lines up
+  // across every card in a row regardless of how long the caption wraps.
+  const StatCard = memo(
+    ({ title, value, text, icon, tint, iconColor, onClick }) => {
+      const Icon = icon;
+      return (
+        <div
+          className={`${CARD_SHELL} ${onClick ? "cursor-pointer" : ""}`}
+          onClick={onClick}
+        >
+          <div className="flex items-center gap-3 px-[22px] pt-4 pb-[15px]">
+            <div
+              className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
+            >
+              <Icon className={`w-5 h-5 ${iconColor}`} />
+            </div>
+            <h5
+              className="font-poppins font-medium! text-base text-[#191d23] leading-none truncate min-w-0"
+              title={title}
+            >
+              {title}
+            </h5>
+          </div>
+          <div className="h-px bg-[#ededed]" />
+          <div className="px-[22px] pt-2.5 pb-4">
+            <p className="font-inter font-medium text-[32px] leading-[1.2] text-black/70">
+              {value}
+            </p>
+            <p className="mt-3.5 text-xs leading-normal text-[#637381]">
+              {text}
+            </p>
+          </div>
+        </div>
+      );
+    },
+  );
+
+  // Meter gradients run worst → best, so the colour the fill *ends* on reads as
+  // the health of the number. Uptime climbs red → green; downtime is reversed,
+  // since a small downtime bar is the good case.
+  const UPTIME_GRADIENT =
+    "linear-gradient(to right, #ff8080 0%, #ffcf96 49%, #95e45d 100%)";
+  const DOWNTIME_GRADIENT =
+    "linear-gradient(to right, #95e45d 0%, #ffcf96 51%, #ff8080 100%)";
+
+  // Segmented meter: the gradient always spans the full track and a grey block
+  // masks the unfilled tail, so a 40% bar shows only the red/amber part of the
+  // ramp rather than a squashed copy of the whole thing.
+  const CameraMeter = ({ label, value, pct, gradient, caption, empty }) => {
+    const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+    return (
+      <div>
+        <p className="font-poppins font-light text-base uppercase text-[#191d23]">
+          {label}
+        </p>
+        <p className="mt-2.5 font-inter font-medium text-[32px] leading-[1.2] text-black/70">
+          {value}
+        </p>
+        <div className="mt-4 max-w-[248px]">
+          <div className="relative h-[14px]">
+            {!empty && (
+              <span
+                className="absolute top-0 -translate-x-1/2 border-x-[6px] border-x-transparent border-t-[8px] border-t-[#191d23]"
+                style={{ left: `${clamped}%` }}
+              />
+            )}
+          </div>
+          {/* Track is grey by default; the gradient only paints over it when
+              there's real data, so "no data" can't read as a full green bar. */}
+          <div
+            className="relative h-2.5 overflow-hidden bg-[#d9d9d9]"
+            style={empty ? undefined : { backgroundImage: gradient }}
+          >
+            {!empty && (
+              <div
+                className="absolute inset-y-0 right-0 bg-[#d9d9d9]"
+                style={{ width: `${100 - clamped}%` }}
+              />
+            )}
+            <div className="absolute inset-y-0 left-1/4 w-px bg-white" />
+            <div className="absolute inset-y-0 left-1/2 w-px bg-white" />
+            <div className="absolute inset-y-0 left-3/4 w-px bg-white" />
+          </div>
+        </div>
+        <p className="mt-3.5 text-xs leading-normal text-[#637381]">{caption}</p>
+      </div>
+    );
+  };
+
+  // Wide panel pairing the two camera meters, split by a vertical rule.
+  //
+  // `hasData` is deliberately driven by the camera list, not by avgUptimePct:
+  // the service returns "100.0" for a scheme with zero cameras, so keying off
+  // the percentage alone would paint a full green bar for a scheme that has no
+  // cameras to report on at all.
+  const CameraOverviewCard = ({ uptimePct, hasData, loading }) => {
+    const parsed = parseFloat(uptimePct);
+    const uptime = Number.isFinite(parsed) ? parsed : 0;
+    const downtime = 100 - uptime;
+    const empty = !loading && !hasData;
+    const show = (value) => (loading ? "..." : empty ? "—" : value);
+    return (
+      <div className={`${CARD_SHELL} p-8`}>
+        <h5 className="font-poppins font-medium! text-2xl text-[#191d23]">
+          Camera Overview
+        </h5>
+        <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-8">
+          <CameraMeter
+            label="Average Camera Uptime"
+            value={show(`${uptime.toFixed(1)}%`)}
+            pct={loading || empty ? 0 : uptime}
+            gradient={UPTIME_GRADIENT}
+            empty={loading || empty}
+            caption={
+              empty
+                ? "No camera uptime recorded for this scheme yet."
+                : "Average camera uptime across the scheme (last 30 days)."
+            }
+          />
+          <div className="sm:border-l sm:border-[#ededed] sm:pl-8">
+            <CameraMeter
+              label="Average Camera Downtime"
+              value={show(`${downtime.toFixed(1)}%`)}
+              pct={loading || empty ? 0 : downtime}
+              gradient={DOWNTIME_GRADIENT}
+              empty={loading || empty}
+              caption={
+                empty
+                  ? "No camera downtime recorded for this scheme yet."
+                  : "Average camera downtime across the scheme (last 30 days)."
+              }
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Live Incidents / Live CCTV Faults link card: status dot + title on the
+  // left, a translucent-red count pill on the right.
+  const LiveLinkCard = ({
+    title,
+    description,
+    icon,
+    countLabel,
+    loading,
+    onClick,
+  }) => {
+    const Icon = icon;
+    return (
+      <div
+        onClick={onClick}
+        className={`${CARD_SHELL} cursor-pointer flex items-center gap-4 px-8 py-7`}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="size-2.5 rounded-full bg-red-600 shrink-0" />
+            <span className="font-poppins font-medium text-xl text-[#191d23]">
+              {title}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-normal text-[#637381]">
+            {description}
+          </p>
+        </div>
+        {loading ? (
+          <span className="loading loading-spinner loading-sm text-red-500"></span>
+        ) : (
+          <span className="flex items-center gap-2 h-[38px] px-5 rounded-[80px] bg-[rgba(255,0,0,0.1)] text-red-600 font-poppins font-medium text-xs whitespace-nowrap shrink-0">
+            <Icon className="w-[18px] h-[18px] shrink-0" />
+            {countLabel}
+          </span>
+        )}
+      </div>
+    );
   };
 
 
@@ -486,7 +668,11 @@
           const key = label.toLowerCase();
           filtered = incidents.filter((i) => i.recoveryRequested?.[key] > 0);
         } else if (chartType === "timeToRecover") {
+          // Drive offs are left out of the timing stats, so they must be left
+          // out here too — otherwise the drill-down lists incidents the bar
+          // never counted.
           filtered = incidents.filter((i) => {
+            if (isDriveOff(i)) return false;
             const m = parseInt(i.timeOnsiteToCleared?.match(/(\d+)/)?.[1]);
             if (isNaN(m)) return false;
             if (label === "0-15") return m <= 15;
@@ -498,6 +684,7 @@
           });
         } else if (chartType === "timeToSite") {
           filtered = incidents.filter((i) => {
+            if (isDriveOff(i)) return false;
             const m = parseInt(i.timeSpottedToOn?.match(/(\d+)/)?.[1]);
             if (isNaN(m)) return false;
             if (label === "0-5") return m <= 5;
@@ -523,8 +710,8 @@
         value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
         text: "Excluding Free Recovery, Drive off and Incursions.",
         icon: AlertTriangle,
-        color: "text-white",
-        bgColor: "bg-linear-to-b from-orange-400 to-orange-500",
+        tint: "bg-[rgba(242,96,118,0.1)]",
+        iconColor: "text-[#f26076]",
         filter: () =>
           incidents.filter(
             (i) =>
@@ -539,8 +726,8 @@
         value: loading ? "..." : (stats?.assetDamage || 0).toString(),
         text: "Incidents with reported asset or property damage.",
         icon: ShieldAlert,
-        color: "text-white",
-        bgColor: "bg-linear-to-b from-pink-500 to-pink-600",
+        tint: "bg-[rgba(255,151,96,0.1)]",
+        iconColor: "text-[#ff9760]",
         filter: () =>
           incidents.filter(
             (i) =>
@@ -556,8 +743,8 @@
           : (Number(stats?.incidentsByType?.["Free Recovery"]) || 0).toString(),
         text: "Total number of free recovery incidents.",
         icon: Wrench,
-        color: "text-white",
-        bgColor: "bg-linear-to-b from-sky-500 to-sky-600",
+        tint: "bg-[rgba(112,59,59,0.1)]",
+        iconColor: "text-[#703b3b]",
         filter: () =>
           incidents.filter((i) => i.incidentType === "Free Recovery"),
       },
@@ -571,8 +758,8 @@
             ).toString(),
         text: "Total number of incursions recorded.",
         icon: CarFront,
-        color: "text-white",
-        bgColor: "bg-linear-to-b from-purple-500 to-purple-600",
+        tint: "bg-[rgba(116,69,119,0.1)]",
+        iconColor: "text-[#744577]",
         filter: () =>
           incidents.filter(
             (i) => i.incursion === "YES" || i.incidentType === "Incursion",
@@ -583,10 +770,37 @@
         value: loading ? "..." : (stats?.incursionToGainAdvantage || 0).toString(),
         text: "Total number of incursions to gain benifit.",
         icon: Car,
-        color: "text-white",
-        bgColor: "bg-linear-to-b from-lime-500 to-lime-600",
+        tint: "bg-[rgba(84,89,172,0.1)]",
+        iconColor: "text-[#5459ac]",
         filter: () =>
           incidents.filter((i) => i.incursionToGainAdvantage === "YES"),
+      },
+      {
+        title: "Drive Off",
+        value: loading
+          ? "..."
+          : (stats?.incidentsByType?.["Drive Off"] || 0).toString(),
+        text: "Total number of drive off incidents.",
+        icon: LogOut,
+        tint: "bg-[rgba(69,139,115,0.1)]",
+        iconColor: "text-[#458b73]",
+        filter: () => incidents.filter((i) => i.incidentType === "Drive Off"),
+      },
+      {
+        title: "Avg Time to Site",
+        value: loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`,
+        text: "Average response time from incident spotted to unit on site.",
+        icon: Clock,
+        tint: "bg-[rgba(77,173,168,0.1)]",
+        iconColor: "text-[#4dada8]",
+      },
+      {
+        title: "Avg Time to Recover",
+        value: loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`,
+        text: "Average time from unit on site to incident cleared.",
+        icon: TimerReset,
+        tint: "bg-[rgba(54,116,181,0.15)]",
+        iconColor: "text-[#3674b5]",
       },
     ];
 
@@ -748,130 +962,27 @@
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
           {statsCards.map((stat, index) => (
-            <div
+            <StatCard
               key={index}
-              className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => {
-                const filtered = stat.filter();
-                if (filtered.length)
-                  openDrillDown({ title: stat.title, incidents: filtered });
-              }}
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <div className={`p-2 rounded-lg shrink-0 ${stat.bgColor}`}>
-                  <stat.icon className={`w-4 h-4 ${stat.color}`} />
-                </div>
-                <div>
-                  <h5 className="font-bold! text-sm text-gray-800">{stat.title}</h5>
-                  <p className="text-[10px] font-medium text-gray-400">
-                    {stat.text}
-                  </p>
-                </div>
-              </div>
-              <span className="text-xl font-bold text-gray-800">
-                {stat.value}
-              </span>
-            </div>
+              title={stat.title}
+              value={stat.value}
+              text={stat.text}
+              icon={stat.icon}
+              tint={stat.tint}
+              iconColor={stat.iconColor}
+              onClick={
+                stat.filter
+                  ? () => {
+                      const filtered = stat.filter();
+                      if (filtered.length)
+                        openDrillDown({ title: stat.title, incidents: filtered });
+                    }
+                  : undefined
+              }
+            />
           ))}
-        </div>
-
-        {/* Metric Cards Row 2 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
-          <div
-            className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => {
-              const filtered = incidents.filter(
-                (i) => i.incidentType === "Drive Off",
-              );
-              if (filtered.length)
-                openDrillDown({ title: "Drive Off", incidents: filtered });
-            }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-cyan-500 to-cyan-600">
-                <LogOut className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h5 className="font-bold! text-sm text-gray-800">Drive Off</h5>
-                <p className="text-[10px] font-medium text-gray-400">
-                  Total number of drive off incidents.
-                </p>
-              </div>
-            </div>
-            <span className="text-xl font-bold text-gray-800">
-              {loading ? "..." : (stats?.incidentsByType?.["Drive Off"] || 0).toString()}
-            </span>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-teal-400 to-teal-500">
-                <Clock className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h5 className="font-bold! text-sm text-gray-800">Avg Time to Site</h5>
-                <p className="text-[10px] font-medium text-gray-400">
-                  Average response time from incident spotted to unit on site.
-                </p>
-              </div>
-            </div>
-            <span className="text-xl font-bold text-gray-800">
-              {loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`}
-            </span>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-blue-400 to-blue-500">
-                <TimerReset className="w-4 h-4 text-white " />
-              </div>
-              <div>
-                <h5 className="font-bold! text-sm text-gray-800">Avg Time to Recover</h5>
-                <p className="text-[10px] font-medium text-gray-400">
-                  Average time from unit on site to incident cleared.
-                </p>
-              </div>
-            </div>
-            <span className="text-xl font-bold text-gray-800">
-              {loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`}
-            </span>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`p-2 rounded-lg shrink-0 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "bg-linear-to-b from-red-400 to-red-500" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "bg-linear-to-b from-amber-400 to-amber-500" : "bg-linear-to-b from-green-400 to-green-500"}`}>
-                <TrendingUp className={`w-4 h-4 ${!uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 80 ? "text-white" : !uptimeLoading && parseFloat(uptimeData?.totals?.avgUptimePct) < 90 ? "text-white" : "text-white"}`} />
-              </div>
-              <div>
-                <h5 className="font-bold! text-sm text-gray-800">Avg Camera Uptime</h5>
-                <p className="text-[10px] font-medium text-gray-400">
-                  Average camera uptime across the scheme (last 30 days).
-                </p>
-              </div>
-            </div>
-            <span className="text-xl font-bold text-gray-800">
-              {uptimeLoading ? "..." : `${uptimeData?.totals?.avgUptimePct ?? "100.0"}%`}
-            </span>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-md p-4 hover:shadow-lg transition-shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-lg shrink-0 bg-linear-to-b from-rose-500 to-rose-600">
-                <TrendingDown className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h5 className="font-bold! text-sm text-gray-800">Avg Camera Downtime</h5>
-                <p className="text-[10px] font-medium text-gray-400">
-                  Average camera downtime across the scheme (last 30 days).
-                </p>
-              </div>
-            </div>
-            <span className="text-xl font-bold text-gray-800">
-              {uptimeLoading ? "..." : `${(100 - parseFloat(uptimeData?.totals?.avgUptimePct ?? 100)).toFixed(1)}%`}
-            </span>
-          </div>
         </div>
 
         {loading ? (
@@ -880,58 +991,32 @@
           </div>
         ) : (
           <div ref={dashboardRef}>
-            {/* Live Incidents Link Card */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-              <div
-                onClick={() => navigate(`${basePath}/live-incidents`)}
-                className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
-              >
-                <div className=" px-6 py-4 flex items-center gap-3">
-                  <div className="w-10 h-10rounded-full flex items-center justify-center">
-                    <Radio className="w-6 h-6 text-red-500" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-semibold text-xl">Live Incidents</span>
-                    <p className="text-xs font-medium text-gray-400">
-                      View and monitor live incidents for your scheme
-                    </p>
-                  </div>
-                  {liveIncidentsLoading ? (
-                    <span className="loading loading-spinner loading-sm text-white"></span>
-                  ) : (
-                    <span className="bg-red-500 text-white px-4 py-1 rounded-full text-md font-semibold">
-                      {liveIncidents.length} Active
-                    </span>
-                  )}
-                  <Eye className="w-6 h-6 text-red-500" />
-                </div>
-              </div>
+            {/* Camera Overview alongside the two live link cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10 items-start">
+              <CameraOverviewCard
+                uptimePct={uptimeData?.totals?.avgUptimePct}
+                hasData={uptimeData?.cameras?.length > 0}
+                loading={uptimeLoading}
+              />
 
-              <div
-                onClick={() => navigate(`${basePath}/cctv-faults`)}
-                className=" bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
-              >
-                <div className=" px-6 py-4 flex items-center gap-3">
-                  <div className="w-10 h-10rounded-full flex items-center justify-center">
-                    <Cctv className="w-6 h-6 text-red-500" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-semibold text-xl">
-                      Live Camera Fault
-                    </span>
-                    <p className="text-xs font-medium text-gray-400">
-                      View and monitor live camera fault for your scheme
-                    </p>
-                  </div>
-                  {cctvFaultsLoading ? (
-                    <span className="loading loading-spinner loading-sm text-white"></span>
-                  ) : (
-                    <span className="bg-red-500 text-white px-4 py-1 rounded-full text-md font-semibold">
-                      {liveCCTVFaults.length} Fault
-                    </span>
-                  )}
-                  <Eye className="w-6 h-6 text-red-500" />
-                </div>
+              <div className="grid gap-6">
+                <LiveLinkCard
+                  title="Live CCTV Faults"
+                  description="View and monitor live camera fault for your scheme"
+                  icon={Cctv}
+                  countLabel={`${liveCCTVFaults.length} CCTV Fault`}
+                  loading={cctvFaultsLoading}
+                  onClick={() => navigate(`${basePath}/cctv-faults`)}
+                />
+
+                <LiveLinkCard
+                  title="Live Incidents"
+                  description="View and monitor live incidents for your scheme"
+                  icon={Radio}
+                  countLabel={`${liveIncidents.length} Live Incidents`}
+                  loading={liveIncidentsLoading}
+                  onClick={() => navigate(`${basePath}/live-incidents`)}
+                />
               </div>
             </div>
 
