@@ -79,8 +79,10 @@ const IncidentReportFormPage = () => {
     standDown: false,
   });
 
-  // A drive off has no attendance to time, so Time On Site / Time Cleared are
-  // hidden and never saved — see isDriveOff for the full reasoning.
+  // A drive off often has no attendance to time, so Time On Site / Time
+  // Cleared are optional here — but still shown and saved when known. They're
+  // excluded from the Time to Site / Time to Recover averages elsewhere via
+  // isDriveOff, regardless of whether these are filled in.
   const driveOff = isDriveOff(formData);
 
   useEffect(() => {
@@ -488,19 +490,6 @@ const IncidentReportFormPage = () => {
         collarNumber: formData.collarNumber.trim(),
         cameraNumber: formData.cameraNumber.trim(),
         description: formData.description.trim(),
-        // The inputs are hidden for a drive off, but they can still hold
-        // values typed before the type/fault was switched over — and on an
-        // edit, the derived fields may already exist on the stored document.
-        // Clear both so the saved report can't report an attendance it never
-        // had. (calculateTimeDifferences only ever sets these, never clears.)
-        ...(driveOff
-          ? {
-              timeOnSite: "",
-              timeCleared: "",
-              timeSpottedToOn: "",
-              timeOnsiteToCleared: "",
-            }
-          : {}),
       };
       const dataWithTimings = calculateTimeDifferences(trimmedData);
 
@@ -1452,44 +1441,41 @@ const IncidentReportFormPage = () => {
           />
         </div>
 
-        {/* A drive off is away before there's anything to attend or clear, so
-            these two don't apply — hiding them also keeps Time to Site and
-            Time to Recover from being derived for this report. */}
-        {!driveOff && (
-          <>
-            <div>
-              <label className="label">
-                <span className="label-text font-semibold mb-2">
-                  Time On Site <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <input
-                type="time"
-                name="timeOnSite"
-                value={formData.timeOnSite}
-                onChange={handleChange}
-                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                required
-              />
-            </div>
+        {/* A drive off often has no attendance to time, so these are optional
+            for it — but still shown and saved when staff know them. They're
+            left out of the Time to Site / Time to Recover averages elsewhere
+            via isDriveOff, not by being blank here. */}
+        <div>
+          <label className="label">
+            <span className="label-text font-semibold mb-2">
+              Time On Site {!driveOff && <span className="text-red-500">*</span>}
+            </span>
+          </label>
+          <input
+            type="time"
+            name="timeOnSite"
+            value={formData.timeOnSite}
+            onChange={handleChange}
+            className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required={!driveOff}
+          />
+        </div>
 
-            <div>
-              <label className="label">
-                <span className="label-text font-semibold mb-2">
-                  Time Cleared <span className="text-red-500">*</span>
-                </span>
-              </label>
-              <input
-                type="time"
-                name="timeCleared"
-                value={formData.timeCleared}
-                onChange={handleChange}
-                className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-                required
-              />
-            </div>
-          </>
-        )}
+        <div>
+          <label className="label">
+            <span className="label-text font-semibold mb-2">
+              Time Cleared {!driveOff && <span className="text-red-500">*</span>}
+            </span>
+          </label>
+          <input
+            type="time"
+            name="timeCleared"
+            value={formData.timeCleared}
+            onChange={handleChange}
+            className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
+            required={!driveOff}
+          />
+        </div>
       </div>
 
       {/* Closed Log and Fault */}
