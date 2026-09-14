@@ -1502,6 +1502,112 @@ function generateA66UptimeReportPDF(reportData) {
   });
 }
 
+/**
+ * Builds and sends the A66 daily CCTV uptime report email (PDF attached).
+ * Shared by the scheduled function and the temporary manual-trigger endpoint
+ * below so both paths are guaranteed to behave identically.
+ */
+async function sendA66UptimeReportEmail() {
+  const reportData = await computeA66UptimeReport();
+  const pdfBuffer = await generateA66UptimeReportPDF(reportData);
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: SMTP_USER,
+      pass: smtpPass.value(),
+    },
+  });
+
+  const dateStr = reportData.windowEnd.toISOString().slice(0, 10);
+  const pdfFilename = `a66-cctv-uptime-report-${dateStr}.pdf`;
+
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0;">A66 CCTV Uptime Report</h1>
+        <p style="margin: 5px 0 0 0; font-size: 14px;">Last 24 hours</p>
+      </div>
+      <div style="padding: 20px; background-color: #f9fafb;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Average Uptime:</td>
+            <td style="padding: 8px 0; color: #111827;">${reportData.totals.avgUptimePct}%</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Total Outages:</td>
+            <td style="padding: 8px 0; color: #111827;">${reportData.totals.totalOutages}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Live Faults:</td>
+            <td style="padding: 8px 0; color: #111827;">${reportData.totals.liveFaults}</td>
+          </tr>
+        </table>
+        <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">
+          Full per-camera breakdown is attached as a PDF.
+        </p>
+      </div>
+      <div style="background-color: #374151; color: white; padding: 15px; text-align: center; font-size: 12px;">
+        <p style="margin: 0;">This is an automated notification from LENSE by Chellan</p>
+      </div>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: SMTP_SENDER,
+    to: A66_UPTIME_REPORT_RECIPIENT,
+    subject: `A66 CCTV Uptime Report - ${dateStr}`,
+    html: emailHtml,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+
+  console.log(`A66 daily CCTV uptime report sent for ${dateStr}`);
+  return reportData;
+}
+
+exports.sendA66DailyCCTVUptimeReport = onSchedule(
+  {
+    schedule: "0 9 * * *",
+    timezone: "Europe/London",
+    region: "europe-west2",
+    secrets: [smtpPass],
+  },
+  async () => {
+    await sendA66UptimeReportEmail();
+  },
+);
+
+// ─── TEMPORARY: manual trigger for verifying the A66 uptime report ─────────
+// Hit once via browser/curl with ?key=..., inspect the email/PDF, then
+// DELETE this exports.triggerA66UptimeReportManually block (see Task 7).
+exports.triggerA66UptimeReportManually = onRequest(
+  { secrets: [smtpPass] },
+  async (req, res) => {
+    const SECRET = "a66-uptime-verify-2026";
+    if (req.query.key !== SECRET) {
+      res.status(403).send("Forbidden");
+      return;
+    }
+    try {
+      const reportData = await sendA66UptimeReportEmail();
+      res
+        .status(200)
+        .send(
+          `Sent. Avg uptime ${reportData.totals.avgUptimePct}%, outages ${reportData.totals.totalOutages}, live faults ${reportData.totals.liveFaults}`,
+        );
+    } catch (err) {
+      console.error("Manual A66 uptime report trigger failed:", err);
+      res.status(500).send(String(err));
+    }
+  },
+);
+
 // ─── One-time backfill: set isPureIncident on all existing incidentReports ───
 // Trigger once via: https://<region>-<project>.cloudfunctions.net/backfillPureIncident
 // Protected by a secret key — pass ?key=YOUR_SECRET in the URL.
