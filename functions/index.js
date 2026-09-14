@@ -14,6 +14,7 @@ const {
   WIDELOAD_REPORT_SCHEMES,
   WIDELOAD_REPORT_RECIPIENT,
   CCTV_FAULT_ALERT_RECIPIENTS,
+  A66_UPTIME_REPORT_RECIPIENT,
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
@@ -1135,6 +1136,453 @@ exports.scheduledFirestoreBackup = onSchedule(
     console.log(`Firestore backup successful: ${outputUri}`);
   }
 );
+
+// ─── A66 daily CCTV uptime report ──────────────────────────────────────────
+
+const A66_SCHEME_ID = "A66-WJ";
+// Mirrors the camera list for A66-WJ in src/utils/schemes.js (THIRD_PARTY_SCHEMES).
+// Duplicated here (not imported) since functions/ is CommonJS and can't import
+// the frontend's ES module — same convention as generateIncidentPDF mirroring
+// pdfGenerator.js.
+const A66_CAMERAS = Array.from({ length: 20 }, (_, i) => `CAM ${i + 1}`);
+
+/**
+ * Aggregates A66's CCTV fault reports over the trailing 24 hours into
+ * per-camera uptime stats, mirroring the math in getCCTVUptimeData
+ * (src/services/clientDataService.js) but fixed to a 24h window and using
+ * the Admin SDK. Returns fault reference ids per camera so the PDF can mark
+ * exactly which fault(s) affected it.
+ */
+async function computeA66UptimeReport() {
+  const windowEnd = new Date();
+  const windowStart = new Date(windowEnd.getTime() - 24 * 60 * 60 * 1000);
+  const windowStartMs = windowStart.getTime();
+  const periodMs = windowEnd.getTime() - windowStartMs;
+
+  // No createdAt filter here (unlike the original version) — we need to see
+  // faults that started before the window but are still open or just closed,
+  // so their down-time can be clipped into the window below. The existing
+  // schemeIds+createdAt composite index still covers this ordered query.
+  const snap = await admin
+    .firestore()
+    .collection("cctvFaultsReports")
+    .where("schemeIds", "array-contains", A66_SCHEME_ID)
+    .orderBy("createdAt", "desc")
+    .limit(1000)
+    .get();
+
+  const cameraMap = {};
+  for (const cam of A66_CAMERAS) {
+    cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false, faultRefs: [] };
+  }
+
+  const now = Date.now();
+  for (const docSnap of snap.docs) {
+    const data = docSnap.data();
+    const createdMs = data.createdAt?.toMillis?.();
+    if (createdMs === undefined) continue;
+
+    const isLive = data.status === "live";
+    const isCompleted = data.status === "completed" && data.completedAt;
+    if (!isLive && !isCompleted) continue;
+
+    // A fault fully resolved before the window even started is irrelevant here.
+    const faultEndMs = isLive ? now : data.completedAt.toMillis();
+    if (faultEndMs < windowStartMs) continue;
+
+    const cam = data.camera || "Unknown";
+    if (!cameraMap[cam]) continue; // not one of A66's known cameras
+
+    // Clip the down-time contribution to the trailing 24h window, so a fault
+    // that started days ago but is still open (or just closed) is counted
+    // only for the portion of it that falls inside this report's window.
+    const clippedStartMs = Math.max(createdMs, windowStartMs);
+    const downMs = Math.max(0, faultEndMs - clippedStartMs);
+
+    if (isLive) cameraMap[cam].liveFault = true;
+    if (downMs > 0) cameraMap[cam].totalDownMs += downMs;
+    cameraMap[cam].outages += 1;
+    if (data.referenceId) cameraMap[cam].faultRefs.push(data.referenceId);
+  }
+
+  const cameras = Object.entries(cameraMap).map(([name, stats]) => {
+    const downMins = Math.round(stats.totalDownMs / 60000);
+    const uptimePct = Math.max(
+      0,
+      Math.min(100, ((periodMs - stats.totalDownMs) / periodMs) * 100),
+    );
+    const mttrMins =
+      stats.outages > 0 ? Math.round(stats.totalDownMs / stats.outages / 60000) : null;
+    return {
+      name,
+      uptimePct: parseFloat(uptimePct.toFixed(1)),
+      downMins,
+      outages: stats.outages,
+      mttrMins,
+      liveFault: stats.liveFault,
+      faultRefs: stats.faultRefs,
+    };
+  });
+
+  // Faulted cameras first (worst first, matching the dashboard's convention),
+  // then numerically by camera number.
+  cameras.sort((a, b) => {
+    const aFaulted = a.faultRefs.length > 0;
+    const bFaulted = b.faultRefs.length > 0;
+    if (aFaulted !== bFaulted) return aFaulted ? -1 : 1;
+    const aNum = parseInt(a.name.replace(/\D/g, ""), 10) || 0;
+    const bNum = parseInt(b.name.replace(/\D/g, ""), 10) || 0;
+    return aNum - bNum;
+  });
+
+  const withMttr = cameras.filter((c) => c.mttrMins !== null);
+  const totals = {
+    avgUptimePct: cameras.length
+      ? parseFloat((cameras.reduce((s, c) => s + c.uptimePct, 0) / cameras.length).toFixed(1))
+      : 100,
+    totalOutages: cameras.reduce((s, c) => s + c.outages, 0),
+    avgMttrMins: withMttr.length
+      ? Math.round(withMttr.reduce((s, c) => s + c.mttrMins, 0) / withMttr.length)
+      : null,
+    liveFaults: cameras.filter((c) => c.liveFault).length,
+  };
+
+  return { windowStart, windowEnd, cameras, totals };
+}
+
+/**
+ * Generates a PDF buffer for the A66 daily CCTV uptime report using pdfkit.
+ * Visual style mirrors generateIncidentPDF (header/logo, teal section
+ * headers, label/value rows) but with a per-camera table instead of
+ * incident fields.
+ */
+function generateA66UptimeReportPDF(reportData) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      bufferPages: true,
+    });
+    const buffers = [];
+    doc.on("data", (chunk) => buffers.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(buffers)));
+    doc.on("error", reject);
+
+    const MM = 2.8346;
+    const PW = 595.28;
+    const PH = 841.89;
+    const M = 20 * MM;
+    const CW = PW - M * 2;
+    const TEAL = "#00BAA8";
+
+    const now = new Date();
+    const genDate = now.toLocaleDateString("en-GB");
+    const genTime = now.toLocaleTimeString("en-GB");
+    const fmtRange = (d) =>
+      `${d.toLocaleDateString("en-GB")} ${d.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+
+    let y = 50 * MM;
+    doc.on("pageAdded", () => {
+      y = 20 * MM;
+      doc.y = y;
+    });
+    const sync = () => {
+      doc.y = y;
+    };
+    const checkBreak = (neededMM = 14) => {
+      if (y + neededMM * MM > PH - 15 * MM) {
+        doc.addPage();
+        y = 20 * MM;
+        doc.y = y;
+      }
+    };
+
+    // ── HEADER ──
+    doc.rect(0, 0, PW, 40 * MM).fill("#FFFFFF");
+    const logoW = 50 * MM;
+    const logoH = 25 * MM;
+    const logoX = (PW - logoW) / 2;
+    try {
+      doc.image(Buffer.from(LOGO_B64, "base64"), logoX, 5 * MM, {
+        width: logoW,
+        height: logoH,
+      });
+    } catch {
+      // fallback — white space only
+    }
+    doc
+      .fontSize(14)
+      .fillColor("#000000")
+      .font("Helvetica-Bold")
+      .text("LENSE BY CHELLAN", 0, 35 * MM, { align: "center", width: PW, lineBreak: false });
+
+    // ── TITLE BANNER ──
+    doc.rect(M, y - 5 * MM, CW, 12 * MM).fill("#F0F0F0");
+    doc
+      .fontSize(14)
+      .fillColor("#000000")
+      .font("Helvetica-Bold")
+      .text("A66 - WJ Scheme 1 — CCTV Uptime Report", M + 5 * MM, y + 1 * MM, {
+        width: CW,
+        lineBreak: false,
+      });
+    y += 15 * MM;
+    sync();
+
+    doc
+      .fontSize(10)
+      .fillColor("#646464")
+      .font("Helvetica")
+      .text(
+        `Report Window: ${fmtRange(reportData.windowStart)} - ${fmtRange(reportData.windowEnd)}`,
+        M,
+        y,
+        { lineBreak: false },
+      );
+    y += 6 * MM;
+    sync();
+
+    doc
+      .fontSize(9)
+      .fillColor("#787878")
+      .font("Helvetica")
+      .text(`Generated: ${genDate} at ${genTime}`, M, y, { lineBreak: false });
+    y += 10 * MM;
+    sync();
+
+    doc.moveTo(M, y).lineTo(PW - M, y).strokeColor(TEAL).lineWidth(0.5).stroke();
+    y += 12 * MM;
+    sync();
+
+    // ── HELPERS ──
+    const addSectionHeader = (title) => {
+      checkBreak(14);
+      doc.rect(M, y - 2 * MM, CW, 8 * MM).fill(TEAL);
+      doc
+        .fontSize(10)
+        .fillColor("#FFFFFF")
+        .font("Helvetica-Bold")
+        .text(title, M + 3 * MM, y + 2 * MM, { width: CW - 6 * MM, lineBreak: false });
+      y += 12 * MM;
+      sync();
+      doc.fillColor("#000000");
+    };
+
+    const addField = (label, value) => {
+      if (value === undefined || value === null || value === "") return;
+      checkBreak(7);
+      const rowY = y;
+      doc
+        .fontSize(10)
+        .fillColor("#3C3C3C")
+        .font("Helvetica-Bold")
+        .text(`${label}:`, M, rowY, { width: 49 * MM, lineBreak: false });
+      doc
+        .font("Helvetica")
+        .fillColor("#000000")
+        .text(value.toString(), M + 50 * MM, rowY, { width: CW - 50 * MM });
+      y = Math.max(doc.y, rowY + 7 * MM) + 0.5 * MM;
+      sync();
+    };
+
+    // ── SUMMARY ──
+    addSectionHeader("SUMMARY");
+    addField("Average Uptime", `${reportData.totals.avgUptimePct}%`);
+    addField("Average Downtime", `${(100 - reportData.totals.avgUptimePct).toFixed(1)}%`);
+    addField("Total Outages", reportData.totals.totalOutages);
+    addField(
+      "Average MTTR",
+      reportData.totals.avgMttrMins !== null ? `${reportData.totals.avgMttrMins} mins` : "N/A",
+    );
+    y += 3 * MM;
+    sync();
+
+    // ── PER-CAMERA BREAKDOWN ──
+    addSectionHeader("PER-CAMERA BREAKDOWN");
+
+    const cols = [
+      { label: "Camera", x: 0, width: 65 },
+      { label: "Uptime %", x: 65, width: 55 },
+      { label: "Downtime", x: 120, width: 65 },
+      { label: "Outages", x: 185, width: 50 },
+      { label: "MTTR", x: 235, width: 50 },
+      { label: "Status", x: 285, width: CW - 285 },
+    ];
+
+    const drawTableHeaderRow = () => {
+      checkBreak(8);
+      doc.fontSize(9).fillColor("#3C3C3C").font("Helvetica-Bold");
+      cols.forEach((c) => {
+        doc.text(c.label, M + c.x, y, { width: c.width, lineBreak: false });
+      });
+      y += 7 * MM;
+      sync();
+      doc
+        .moveTo(M, y - 1 * MM)
+        .lineTo(PW - M, y - 1 * MM)
+        .strokeColor("#C8C8C8")
+        .lineWidth(0.3)
+        .stroke();
+      doc.font("Helvetica").fillColor("#000000");
+    };
+
+    drawTableHeaderRow();
+
+    const MAX_SHOWN_REFS = 3;
+    reportData.cameras.forEach((cam) => {
+      let status = "Online";
+      if (cam.faultRefs.length > 0) {
+        const shown = cam.faultRefs.slice(0, MAX_SHOWN_REFS).join(", ");
+        const extra =
+          cam.faultRefs.length > MAX_SHOWN_REFS
+            ? `, +${cam.faultRefs.length - MAX_SHOWN_REFS} more`
+            : "";
+        status = `Fault Reported (Ref: ${shown}${extra})`;
+      }
+
+      doc.fontSize(9).font("Helvetica");
+      const statusHeightPt = doc.heightOfString(status, { width: cols[5].width });
+      const neededMM = Math.max(7, statusHeightPt / MM + 2);
+
+      const pageCountBefore = doc.bufferedPageRange().count;
+      checkBreak(neededMM);
+      if (doc.bufferedPageRange().count !== pageCountBefore) {
+        drawTableHeaderRow();
+      }
+
+      const rowY = y;
+      doc.fontSize(9).fillColor("#000000");
+      doc.text(cam.name, M + cols[0].x, rowY, { width: cols[0].width, lineBreak: false });
+      doc.text(`${cam.uptimePct}%`, M + cols[1].x, rowY, { width: cols[1].width, lineBreak: false });
+      doc.text(`${cam.downMins}m`, M + cols[2].x, rowY, { width: cols[2].width, lineBreak: false });
+      doc.text(String(cam.outages), M + cols[3].x, rowY, { width: cols[3].width, lineBreak: false });
+      doc.text(cam.mttrMins !== null ? `${cam.mttrMins}m` : "-", M + cols[4].x, rowY, {
+        width: cols[4].width,
+        lineBreak: false,
+      });
+      doc
+        .fillColor(cam.faultRefs.length > 0 ? "#B91C1C" : "#15803D")
+        .text(status, M + cols[5].x, rowY, { width: cols[5].width });
+      doc.fillColor("#000000");
+
+      y = Math.max(doc.y, rowY + 7 * MM) + 0.5 * MM;
+      sync();
+    });
+
+    // ── FOOTER on every page ──
+    const range = doc.bufferedPageRange();
+    const totalPages = range.count;
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(range.start + i);
+      doc
+        .moveTo(M, PH - 10 * MM)
+        .lineTo(PW - M, PH - 10 * MM)
+        .strokeColor("#C8C8C8")
+        .lineWidth(0.3)
+        .stroke();
+      doc
+        .fontSize(8)
+        .fillColor("#808080")
+        .font("Helvetica")
+        .text(`Generated on ${genDate} at ${genTime}`, M, PH - 7 * MM, {
+          width: CW / 2,
+          lineBreak: false,
+        });
+      doc.text(`Page ${i + 1} of ${totalPages}`, M + CW / 2, PH - 7 * MM, {
+        align: "right",
+        width: CW / 2,
+        lineBreak: false,
+      });
+    }
+
+    doc.end();
+  });
+}
+
+/**
+ * Builds and sends the A66 daily CCTV uptime report email (PDF attached).
+ * Shared by the scheduled function and the temporary manual-trigger endpoint
+ * below so both paths are guaranteed to behave identically.
+ */
+async function sendA66UptimeReportEmail() {
+  const reportData = await computeA66UptimeReport();
+  const pdfBuffer = await generateA66UptimeReportPDF(reportData);
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: SMTP_USER,
+      pass: smtpPass.value(),
+    },
+  });
+
+  const dateStr = reportData.windowEnd.toISOString().slice(0, 10);
+  const pdfFilename = `a66-cctv-uptime-report-${dateStr}.pdf`;
+
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0;">A66 CCTV Uptime Report</h1>
+        <p style="margin: 5px 0 0 0; font-size: 14px;">Last 24 hours</p>
+      </div>
+      <div style="padding: 20px; background-color: #f9fafb;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Average Uptime:</td>
+            <td style="padding: 8px 0; color: #111827;">${reportData.totals.avgUptimePct}%</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Total Outages:</td>
+            <td style="padding: 8px 0; color: #111827;">${reportData.totals.totalOutages}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Live Faults:</td>
+            <td style="padding: 8px 0; color: #111827;">${reportData.totals.liveFaults}</td>
+          </tr>
+        </table>
+        <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">
+          Full per-camera breakdown is attached as a PDF.
+        </p>
+      </div>
+      <div style="background-color: #374151; color: white; padding: 15px; text-align: center; font-size: 12px;">
+        <p style="margin: 0;">This is an automated notification from LENSE by Chellan</p>
+      </div>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: SMTP_SENDER,
+    to: A66_UPTIME_REPORT_RECIPIENT,
+    subject: `A66 CCTV Uptime Report - ${dateStr}`,
+    html: emailHtml,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      },
+    ],
+  });
+
+  console.log(`A66 daily CCTV uptime report sent for ${dateStr}`);
+  return reportData;
+}
+
+exports.sendA66DailyCCTVUptimeReport = onSchedule(
+  {
+    schedule: "0 9 * * *",
+    timezone: "Europe/London",
+    region: "europe-west2",
+    secrets: [smtpPass],
+  },
+  async () => {
+    await sendA66UptimeReportEmail();
+  },
+);
+
 // ─── One-time backfill: set isPureIncident on all existing incidentReports ───
 // Trigger once via: https://<region>-<project>.cloudfunctions.net/backfillPureIncident
 // Protected by a secret key — pass ?key=YOUR_SECRET in the URL.
