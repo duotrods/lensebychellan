@@ -121,7 +121,9 @@ const WIDELOAD_REPORT_RECIPIENT = "david@chellan.co.uk";
 //Testing WideLoad report recipients
 // const WIDELOAD_REPORT_RECIPIENT = "rroduot@gmail.com";
 
-
+// Recipient for the automated daily A66 CCTV uptime report.
+// Placeholder until real A66/WJ contacts are confirmed for this report.
+const A66_UPTIME_REPORT_RECIPIENT = "rroduot@gmail.com";
 
 // SMTP sender address
 const SMTP_SENDER = '"LENSE by Chellan" <alerts@chellan.co.uk>';
@@ -136,6 +138,7 @@ module.exports = {
   AVERA_REPORT_RECIPIENT,
   LENSEASSIST_REPORT_RECIPIENT,
   CCTV_FAULT_ALERT_RECIPIENTS,
+  A66_UPTIME_REPORT_RECIPIENT,
   SMTP_SENDER,
   SMTP_USER,
 };
