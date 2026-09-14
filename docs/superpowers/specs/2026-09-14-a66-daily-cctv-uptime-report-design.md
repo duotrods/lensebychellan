@@ -127,6 +127,31 @@ y > 270 per `functions/index.js` and `pdfGenerator.js:194-231`):
 
 No frontend files change — this is a backend-only scheduled job with no UI surface.
 
+## Cost & resource impact
+
+This feature sits entirely inside existing free tiers; the estimated marginal cost is effectively
+$0/month. Approximate figures below (GCP/Firebase pricing can shift — re-check the current pricing
+page if this needs to be a formal budget number):
+
+- **Firestore reads**: one query/day (`cctvFaultsReports` filtered by `schemeIds` + 24h
+  `createdAt`). Firestore bills per document *returned*, so cost tracks A66's actual daily fault
+  volume, not collection size. Realistic case (0–10 faults/day) ≈ 300 reads/month, a fraction of a
+  cent at $0.06/100k reads. Worst case (hitting the 500-doc cap every day) ≈ 15,000 reads/month ≈
+  $0.009/month.
+- **Firestore writes**: none — unlike the dashboard's `getCCTVUptimeData`, this job doesn't write
+  to `cctvUptimeCache`, so no added write cost or storage growth.
+- **Cloud Function invocations/compute**: 30 invocations/month (once daily) against a 2M/month
+  free tier; a few seconds of compute per run, well inside the free GB-seconds allowance.
+- **Cloud Scheduler**: `onSchedule` provisions a Scheduler job under the hood — this becomes a
+  second job in the project alongside `scheduledFirestoreBackup`. Free tier is 3 jobs *per billing
+  account* (not per project), so this is free unless other Firebase/GCP projects on the same
+  billing account already have scheduled jobs eating into that allowance — worth a one-time check.
+- **Email**: sent via the existing `alerts@chellan.co.uk` Gmail SMTP transport, no new config. One
+  extra email/day is negligible against Gmail's daily send caps (500/day regular, 2,000/day
+  Workspace).
+- **Storage**: the PDF is generated in memory and attached directly to the email — never written
+  to Cloud Storage or Firestore, so no incremental storage cost over time.
+
 ## Out of scope
 
 - Any other scheme getting the same report (this spec is A66-only; generalizing later is a
