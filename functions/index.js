@@ -1583,31 +1583,6 @@ exports.sendA66DailyCCTVUptimeReport = onSchedule(
   },
 );
 
-// ─── TEMPORARY: manual trigger for verifying the A66 uptime report ─────────
-// Hit once via browser/curl with ?key=..., inspect the email/PDF, then
-// DELETE this exports.triggerA66UptimeReportManually block (see Task 7).
-exports.triggerA66UptimeReportManually = onRequest(
-  { secrets: [smtpPass] },
-  async (req, res) => {
-    const SECRET = "a66-uptime-verify-2026";
-    if (req.query.key !== SECRET) {
-      res.status(403).send("Forbidden");
-      return;
-    }
-    try {
-      const reportData = await sendA66UptimeReportEmail();
-      res
-        .status(200)
-        .send(
-          `Sent. Avg uptime ${reportData.totals.avgUptimePct}%, outages ${reportData.totals.totalOutages}, live faults ${reportData.totals.liveFaults}`,
-        );
-    } catch (err) {
-      console.error("Manual A66 uptime report trigger failed:", err);
-      res.status(500).send(String(err));
-    }
-  },
-);
-
 // ─── One-time backfill: set isPureIncident on all existing incidentReports ───
 // Trigger once via: https://<region>-<project>.cloudfunctions.net/backfillPureIncident
 // Protected by a secret key — pass ?key=YOUR_SECRET in the URL.
