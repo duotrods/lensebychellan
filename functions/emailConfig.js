@@ -70,7 +70,7 @@ const RECIPIENTS = {
 
   // Placeholder until real A66/WJ contacts are confirmed for this report —
   // same in both environments for now.
-  A66_UPTIME_REPORT_RECIPIENT: "wayne@chellan.co.uk, david@chellan.co.uk",
+  A66_UPTIME_REPORT_RECIPIENT: "Dean.shore@wjsunstone.com, david@chellan.co.uk",
 };
 
 // ─────────────────────────────────────────────────────────────────────────
