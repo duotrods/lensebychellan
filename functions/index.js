@@ -1573,10 +1573,11 @@ async function sendA66UptimeReportEmail() {
 
 exports.sendA66DailyCCTVUptimeReport = onSchedule(
   {
-    schedule: "0 9 * * *",
+    schedule: "0 8 * * *",
     timezone: "Europe/London",
     region: "europe-west2",
     secrets: [smtpPass],
+    memory: "512MiB",
   },
   async () => {
     await sendA66UptimeReportEmail();
