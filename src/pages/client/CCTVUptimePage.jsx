@@ -6,9 +6,7 @@ import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCamera,
-  faClock,
   faTriangleExclamation,
-  faArrowTrendUp,
   faRotateRight,
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -38,18 +36,164 @@ const uptimeTextColor = (pct) => {
   return "text-red-600";
 };
 
-const KPICard = ({ icon, label, value, sub, iconColor }) => (
-  <div className="bg-white rounded-xl shadow p-5 flex items-start gap-4">
-    <div className={`p-3 rounded-lg ${iconColor} shrink-0`}>
-      <FontAwesomeIcon icon={icon} className="w-5 h-5 text-white" />
+// Shared card shell — matches NewClientDashboard's StatCard shell so every
+// stat/metric card in the client app shares one visual language: a flat
+// white surface with a soft shadow that lifts slightly on hover.
+const CARD_SHELL =
+  "bg-white rounded-[10px] shadow-[0px_1px_4px_0px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-[0px_2px_10px_0px_rgba(0,0,0,0.14)]";
+
+// One stat block within CameraOverviewCard's grid — icon tile + title, then
+// a big value and caption. Same visual language as StatCard, minus its own
+// outer shell, since it's one of four columns sharing that card.
+const StatBlock = ({ icon, label, value, sub, tint, iconColor }) => (
+  <div>
+    <div className="flex items-center gap-3 mb-2">
+      <div
+        className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
+      >
+        <FontAwesomeIcon icon={icon} className={`w-5 h-5 ${iconColor}`} />
+      </div>
+      <h5
+        className="font-poppins font-medium! text-base text-[#191d23] leading-none truncate min-w-0"
+        title={label}
+      >
+        {label}
+      </h5>
     </div>
-    <div className="min-w-0">
-      <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
-      {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
-    </div>
+    <p className="font-inter font-medium text-[32px] leading-[1.2] text-black/70">
+      {value}
+    </p>
+    {sub && (
+      <p className="mt-3.5 text-xs leading-normal text-[#637381]">{sub}</p>
+    )}
   </div>
 );
+
+// Meter gradients run worst → best, so the colour the fill *ends* on reads as
+// the health of the number. Uptime climbs red → green; downtime is reversed,
+// since a small downtime bar is the good case. Matches NewClientDashboard's
+// Camera Overview panel exactly.
+const UPTIME_GRADIENT =
+  "linear-gradient(to right, #ff8080 0%, #ffcf96 49%, #95e45d 100%)";
+const DOWNTIME_GRADIENT =
+  "linear-gradient(to right, #95e45d 0%, #ffcf96 51%, #ff8080 100%)";
+
+// Segmented meter: the gradient always spans the full track and a grey block
+// masks the unfilled tail, so a 40% bar shows only the red/amber part of the
+// ramp rather than a squashed copy of the whole thing.
+const CameraMeter = ({ label, value, pct, gradient, caption, empty }) => {
+  const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+  return (
+    <div>
+      <p className="font-poppins font-light text-base uppercase text-[#191d23]">
+        {label}
+      </p>
+      <p className="mt-2.5 font-inter font-medium text-[32px] leading-[1.2] text-black/70">
+        {value}
+      </p>
+      <div className="mt-4 max-w-[248px]">
+        <div className="relative h-[14px]">
+          {!empty && (
+            <span
+              className="absolute top-0 -translate-x-1/2 border-x-[6px] border-x-transparent border-t-[8px] border-t-[#191d23]"
+              style={{ left: `${clamped}%` }}
+            />
+          )}
+        </div>
+        {/* Track is grey by default; the gradient only paints over it when
+            there's real data, so "no data" can't read as a full green bar. */}
+        <div
+          className="relative h-2.5 overflow-hidden bg-[#d9d9d9]"
+          style={empty ? undefined : { backgroundImage: gradient }}
+        >
+          {!empty && (
+            <div
+              className="absolute inset-y-0 right-0 bg-[#d9d9d9]"
+              style={{ width: `${100 - clamped}%` }}
+            />
+          )}
+          <div className="absolute inset-y-0 left-1/4 w-px bg-white" />
+          <div className="absolute inset-y-0 left-1/2 w-px bg-white" />
+          <div className="absolute inset-y-0 left-3/4 w-px bg-white" />
+        </div>
+      </div>
+      <p className="mt-3.5 text-xs leading-normal text-[#637381]">{caption}</p>
+    </div>
+  );
+};
+
+// Wide panel with all four uptime metrics in one card: the two camera meters
+// first, then Total Outages and Avg MTTR as two more columns beside them,
+// each divided by a vertical rule (and a top rule where they wrap to a new
+// row at the sm breakpoint). Driven by this page's own selected date range
+// instead of the dashboard's fixed 30 days.
+const CameraOverviewCard = ({
+  uptimePct,
+  hasData,
+  loading,
+  rangeDays,
+  totalOutages,
+  liveFaults,
+  avgMttrMins,
+}) => {
+  const parsed = parseFloat(uptimePct);
+  const uptime = Number.isFinite(parsed) ? parsed : 0;
+  const downtime = 100 - uptime;
+  const empty = !loading && !hasData;
+  const show = (value) => (loading ? "..." : empty ? "—" : value);
+  return (
+    <div className={`${CARD_SHELL} p-8`}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <CameraMeter
+          label="Average Camera Uptime"
+          value={show(`${uptime.toFixed(1)}%`)}
+          pct={loading || empty ? 0 : uptime}
+          gradient={UPTIME_GRADIENT}
+          empty={loading || empty}
+          caption={
+            empty
+              ? "No camera uptime recorded for this scheme yet."
+              : `Average camera uptime across the scheme (last ${rangeDays} days).`
+          }
+        />
+        <div className="sm:border-l sm:border-[#ededed] sm:pl-8">
+          <CameraMeter
+            label="Average Camera Downtime"
+            value={show(`${downtime.toFixed(1)}%`)}
+            pct={loading || empty ? 0 : downtime}
+            gradient={DOWNTIME_GRADIENT}
+            empty={loading || empty}
+            caption={
+              empty
+                ? "No camera downtime recorded for this scheme yet."
+                : `Average camera downtime across the scheme (last ${rangeDays} days).`
+            }
+          />
+        </div>
+        <div className="sm:border-t sm:border-[#ededed] sm:pt-8 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-8">
+          <StatBlock
+            icon={faTriangleExclamation}
+            label="Total Outages"
+            value={loading ? "—" : totalOutages}
+            sub={liveFaults > 0 ? `${liveFaults} currently live` : "None active"}
+            tint={liveFaults > 0 ? "bg-red-500/10" : "bg-gray-400/10"}
+            iconColor={liveFaults > 0 ? "text-red-500" : "text-gray-400"}
+          />
+        </div>
+        <div className="sm:border-t sm:border-l sm:border-[#ededed] sm:pt-8 sm:pl-8 lg:border-t-0 lg:pt-0 lg:pl-8">
+          <StatBlock
+            icon={faCamera}
+            label="Avg MTTR"
+            value={loading ? "—" : avgMttrMins != null ? fmtDowntime(avgMttrMins) : "N/A"}
+            sub="Mean time to resolve"
+            tint="bg-purple-500/10"
+            iconColor="text-purple-500"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const CCTVUptimePage = () => {
   const { userProfile } = useAuth();
@@ -133,43 +277,17 @@ const CCTVUptimePage = () => {
           </div>
         )}
 
-        {/* KPI Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            icon={faArrowTrendUp}
-            label="Avg Uptime"
-            value={loading ? "—" : `${totals.avgUptimePct ?? "100.0"}%`}
-            sub={`Last ${dateRange} days`}
-            iconColor={
-              loading || parseFloat(totals.avgUptimePct) >= 99
-                ? "bg-green-500"
-                : parseFloat(totals.avgUptimePct) >= 95
-                ? "bg-amber-400"
-                : "bg-red-500"
-            }
-          />
-          <KPICard
-            icon={faClock}
-            label="Avg Downtime"
-            value={loading ? "—" : `${(100 - parseFloat(totals.avgUptimePct ?? 100)).toFixed(1)}%`}
-            sub={`${totals.totalOutages ?? 0} fault${totals.totalOutages !== 1 ? "s" : ""}`}
-            iconColor="bg-blue-500"
-          />
-          <KPICard
-            icon={faTriangleExclamation}
-            label="Total Outages"
-            value={loading ? "—" : (totals.totalOutages ?? 0)}
-            sub={totals.liveFaults > 0 ? `${totals.liveFaults} currently live` : "None active"}
-            iconColor={totals.liveFaults > 0 ? "bg-red-500" : "bg-gray-400"}
-          />
-          <KPICard
-            icon={faCamera}
-            label="Avg MTTR"
-            value={loading ? "—" : totals.avgMttrMins != null ? fmtDowntime(totals.avgMttrMins) : "N/A"}
-            sub="Mean time to resolve"
-            iconColor="bg-purple-500"
-          />
-        </div>
+        {/* Camera Overview — uptime, downtime, total outages, and avg MTTR
+            all in one card. */}
+        <CameraOverviewCard
+          uptimePct={totals.avgUptimePct}
+          hasData={cameras.length > 0}
+          loading={loading}
+          rangeDays={dateRange}
+          totalOutages={totals.totalOutages ?? 0}
+          liveFaults={totals.liveFaults ?? 0}
+          avgMttrMins={totals.avgMttrMins}
+        />
 
         {/* Camera Table */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
