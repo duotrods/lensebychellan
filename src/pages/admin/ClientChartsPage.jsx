@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { staffService } from "../../services/staffService";
 import { clientDataService } from "../../services/clientDataService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
-import { SCHEMES, getInternalSchemeIds, extractSchemeId } from "../../utils/schemes";
+import { SCHEMES, extractSchemeId } from "../../utils/schemes";
 import { transformDataForChart } from "../../utils/chartData";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faChartBar,
-  faArrowTrendUp,
-  faTriangleExclamation,
   faCalendar,
   faDownload,
   faFilter,
@@ -138,26 +134,6 @@ const ClientChartsPage = () => {
   const chartTimeSeries = statsQuery.data?.timeSeriesData ?? [];
   const loading = statsQuery.isLoading;
 
-  // Cards count internal schemes only — excludes third-party (and demo) data.
-  // No date/scheme dependency, so this is fetched once and cached.
-  const formCountsQuery = useQuery({
-    queryKey: ["allFormsCountByType", "internal"],
-    queryFn: () => staffService.getAllFormsCountByType(getInternalSchemeIds()),
-  });
-
-  useEffect(() => {
-    if (formCountsQuery.isError) {
-      console.warn('Could not load form counts:', formCountsQuery.error);
-    }
-  }, [formCountsQuery.isError, formCountsQuery.error]);
-
-  const formCounts = formCountsQuery.data ?? {
-    cctvCheckTotal: 0,
-    incidentReportTotal: 0,
-    assetDamageTotal: 0,
-    dailyLogsTotal: 0,
-  };
-
   // Export charts as PDF — layout/drawing lives in utils/pdfChartExport so
   // every "Export Charts" button in the app shares one design.
   const handleExportPDF = async () => {
@@ -165,7 +141,7 @@ const ClientChartsPage = () => {
     toast.loading('Generating PDF...', { id: 'export-pdf' });
 
     try {
-      const statsText = `Total Incidents: ${stats.incident} | Total Reports: ${stats.total}`;
+      const statsText = `Total Incidents: ${chartStats?.totalIncidents || 0}`;
 
       const charts = [
         { data: timeToSiteData, title: 'Time to Site (mins)', key: 'timeToSite' },
@@ -199,15 +175,6 @@ const ClientChartsPage = () => {
     } finally {
       setIsExporting(false);
     }
-  };
-
-  // Statistics - use aggregation counts for cards (consistent with other pages)
-  const stats = {
-    total: formCounts.cctvCheckTotal + formCounts.incidentReportTotal + formCounts.assetDamageTotal + formCounts.dailyLogsTotal,
-    cctvCheck: formCounts.cctvCheckTotal,
-    incident: formCounts.incidentReportTotal,
-    assetDamage: formCounts.assetDamageTotal,
-    dailyLogs: formCounts.dailyLogsTotal,
   };
 
   // Extract chart data — pre-aggregated server-side, just reshaped for recharts.
@@ -365,69 +332,6 @@ const ClientChartsPage = () => {
           </div>
         ) : (
           <>
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Total Reports</p>
-                    <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
-                  </div>
-                  <div className="bg-gray-100 p-3 rounded-lg">
-                    <FontAwesomeIcon icon={faChartBar} className="w-6 h-6 text-gray-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Incidents</p>
-                    <p className="text-3xl font-bold text-teal-600 mt-1">{stats.incident}</p>
-                  </div>
-                  <div className="bg-teal-100 p-3 rounded-lg">
-                    <FontAwesomeIcon icon={faTriangleExclamation} className="w-6 h-6 text-teal-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Asset Damage</p>
-                    <p className="text-3xl font-bold text-orange-600 mt-1">{stats.assetDamage}</p>
-                  </div>
-                  <div className="bg-orange-100 p-3 rounded-lg">
-                    <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-orange-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">Daily Logs</p>
-                    <p className="text-3xl font-bold text-green-600 mt-1">{stats.dailyLogs}</p>
-                  </div>
-                  <div className="bg-green-100 p-3 rounded-lg">
-                    <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-500 text-sm">CCTV Checks</p>
-                    <p className="text-3xl font-bold text-purple-600 mt-1">{stats.cctvCheck}</p>
-                  </div>
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <FontAwesomeIcon icon={faArrowTrendUp} className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Incident Analytics Charts Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                         {/* Chart 9: Time to Site */}

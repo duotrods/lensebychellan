@@ -23,9 +23,41 @@ import {
   faChevronLeft,
   faChevronRight,
   faTrashCan,
+  faVideoSlash,
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
+
+// Shared card shell + stat card — matches NewClientDashboard's StatCard so
+// every stat card in the app shares one visual language: a tinted icon tile
+// + title, a full-bleed rule, then a big value and caption.
+const CARD_SHELL =
+  "bg-white rounded-[10px] shadow-[0px_1px_4px_0px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-[0px_2px_10px_0px_rgba(0,0,0,0.14)]";
+
+const StatCard = ({ title, value, text, icon, tint, iconColor }) => (
+  <div className={CARD_SHELL}>
+    <div className="flex items-center gap-3 px-[22px] pt-4 pb-[15px]">
+      <div
+        className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
+      >
+        <FontAwesomeIcon icon={icon} className={`w-5 h-5 ${iconColor}`} />
+      </div>
+      <h5
+        className="font-poppins font-medium! text-base text-[#191d23] leading-none truncate min-w-0"
+        title={title}
+      >
+        {title}
+      </h5>
+    </div>
+    <div className="h-px bg-[#ededed]" />
+    <div className="px-[22px] pt-2.5 pb-4">
+      <p className="font-inter font-medium text-[32px] leading-[1.2] text-black/70">
+        {value}
+      </p>
+      <p className="mt-3.5 text-xs leading-normal text-[#637381]">{text}</p>
+    </div>
+  </div>
+);
 
 // Module-level variable — survives component unmount/remount, no serialization needed.
 // Only browse-pagination state needs restoring: React Query's own cache already
@@ -68,6 +100,7 @@ const ThirdPartyReportsPage = () => {
     'Incident Report': 'incident',
     'Asset Damage':    'asset-damage',
     'Daily Logs':      'daily-occurrence',
+    'CCTV Faults':     'cctv-faults',
   };
 
   useEffect(() => {
@@ -230,6 +263,7 @@ const ThirdPartyReportsPage = () => {
     incidentReportTotal: 0,
     assetDamageTotal: 0,
     dailyLogsTotal: 0,
+    cctvFaultsTotal: 0,
   };
 
   const typeCountQuery = useQuery({
@@ -326,30 +360,39 @@ const ThirdPartyReportsPage = () => {
     });
   };
 
+  // Same pill style as the admin User Management role badges — tinted
+  // background + matching icon + label in one rounded-full span, instead of
+  // a separate icon next to a daisyUI badge.
   const getFormTypeIcon = (type) => {
-    switch (type) {
-      case "Incident Report":
-        return <FontAwesomeIcon icon={faTriangleExclamation} className="w-5 h-5 text-orange-500" />;
-      case "CCTV Check":
-        return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-green-500" />;
-      case "Daily Logs":
-        return <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-blue-500" />;
-      case "Asset Damage":
-        return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-red-500" />;
-      default:
-        return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-gray-500" />;
-    }
+    const icons = {
+      "Incident Report": faTriangleExclamation,
+      "CCTV Check": faEye,
+      "Daily Logs": faCalendar,
+      "Asset Damage": faFileLines,
+      "CCTV Faults": faVideoSlash,
+    };
+    return icons[type] || faFileLines;
   };
 
-  const getFormTypeBadge = (type) => {
-    const badges = {
-      "Incident Report": "badge-warning",
-      "Asset Damage": "badge-error",
-      "Daily Logs": "badge-info",
-      "CCTV Check": "badge-success",
+  const getFormTypeColor = (type) => {
+    const colors = {
+      "Incident Report": "bg-orange-100 text-orange-700",
+      "Asset Damage": "bg-red-100 text-red-700",
+      "Daily Logs": "bg-blue-100 text-blue-700",
+      "CCTV Check": "bg-green-100 text-green-700",
+      "CCTV Faults": "bg-fuchsia-100 text-fuchsia-700",
     };
-    return badges[type] || "badge-ghost";
+    return colors[type] || "bg-gray-100 text-gray-700";
   };
+
+  const renderFormTypeBadge = (type) => (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getFormTypeColor(type)}`}
+    >
+      <FontAwesomeIcon icon={getFormTypeIcon(type)} className="w-3.5 h-3.5" />
+      {type}
+    </span>
+  );
 
   // Get scheme(s) from form - handles different form structures
   const getFormScheme = (report) => {
@@ -431,6 +474,7 @@ const ThirdPartyReportsPage = () => {
         "Incident Report": "incidentReports",
         "Asset Damage": "assetDamageReports",
         "Daily Logs": "dailyOccurrenceReports",
+        "CCTV Faults": "cctvFaultsReports",
       };
       const collectionName = collectionMap[reportToDelete.type];
 
@@ -467,6 +511,7 @@ const ThirdPartyReportsPage = () => {
     incident: formCounts.incidentReportTotal,
     assetDamage: formCounts.assetDamageTotal,
     dailyLogs: formCounts.dailyLogsTotal,
+    cctvFaults: formCounts.cctvFaultsTotal,
   };
 
   return (
@@ -479,66 +524,47 @@ const ThirdPartyReportsPage = () => {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Total Reports</p>
-                <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
-              </div>
-              <div className="bg-gray-100 p-3 rounded-lg">
-                <FontAwesomeIcon icon={faFileLines} className="w-6 h-6 text-gray-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">CCTV Checks</p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">{stats.cctvCheck}</p>
-              </div>
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <FontAwesomeIcon icon={faCamera} className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Incidents</p>
-                <p className="text-3xl font-bold text-teal-600 mt-1">{stats.incident}</p>
-              </div>
-              <div className="bg-teal-100 p-3 rounded-lg">
-                <FontAwesomeIcon icon={faFileLines} className="w-6 h-6 text-teal-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Asset Damage</p>
-                <p className="text-3xl font-bold text-orange-600 mt-1">{stats.assetDamage}</p>
-              </div>
-              <div className="bg-orange-100 p-3 rounded-lg">
-                <FontAwesomeIcon icon={faTriangleExclamation} className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 text-sm">Daily Logs</p>
-                <p className="text-3xl font-bold text-blue-600 mt-1">{stats.dailyLogs}</p>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
+          <StatCard
+            icon={faFileLines}
+            tint="bg-brand-500/10"
+            iconColor="text-brand-500"
+            title="Total Reports"
+            value={stats.total}
+            text="Every form submitted by third party staff."
+          />
+          <StatCard
+            icon={faCamera}
+            tint="bg-purple-500/10"
+            iconColor="text-purple-500"
+            title="CCTV Checks"
+            value={stats.cctvCheck}
+            text="CCTV camera check forms submitted."
+          />
+          <StatCard
+            icon={faFileLines}
+            tint="bg-teal-500/10"
+            iconColor="text-teal-500"
+            title="Incidents"
+            value={stats.incident}
+            text="Incident reports submitted by third party staff."
+          />
+          <StatCard
+            icon={faTriangleExclamation}
+            tint="bg-orange-500/10"
+            iconColor="text-orange-500"
+            title="Asset Damage"
+            value={stats.assetDamage}
+            text="Reports with asset or property damage."
+          />
+          <StatCard
+            icon={faVideoSlash}
+            tint="bg-fuchsia-500/10"
+            iconColor="text-fuchsia-500"
+            title="CCTV Faults"
+            value={stats.cctvFaults}
+            text="Camera fault reports submitted by third party staff."
+          />
         </div>
 
         {/* Filters */}
@@ -581,7 +607,7 @@ const ThirdPartyReportsPage = () => {
               <option value="CCTV Check">CCTV Check</option>
               <option value="Incident Report">Incident Report</option>
               <option value="Asset Damage">Asset Damage</option>
-              <option value="Daily Logs">Daily Logs</option>
+              <option value="CCTV Faults">CCTV Faults</option>
             </select>
 
             {/* Filter by Company */}
@@ -639,10 +665,7 @@ const ThirdPartyReportsPage = () => {
                       <tr key={report.id} className="hover:bg-gray-50">
                         <td>
                           <div className="flex items-center gap-2">
-                            {getFormTypeIcon(report.type)}
-                            <span className={`badge ${getFormTypeBadge(report.type)} badge-sm`}>
-                              {(report.type || '').toUpperCase()}
-                            </span>
+                            {renderFormTypeBadge(report.type)}
                           </div>
                         </td>
                         <td className="font-mono text-sm font-semibold">
