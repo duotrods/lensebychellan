@@ -19,27 +19,25 @@
     Legend,
     ResponsiveContainer,
   } from "recharts";
+  import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
   import {
-    AlertTriangle,
-    Calendar,
-    Download,
-    Radio,
-    CameraOff,
-    Wrench,
-    ShieldAlert,
-    TriangleAlert,
-    Clock,
-    TimerReset,
-    CarFront,
-    Cctv,
-    VenusAndMars,
-    Car,
-    BarChart3,
-    PieChart as PieChartIcon,
-    LogOut,
-    History,
-    X,
-  } from "lucide-react";
+    faTriangleExclamation,
+    faCalendar,
+    faDownload,
+    faTowerBroadcast,
+    faWrench,
+    faShieldHalved,
+    faClock,
+    faStopwatch,
+    faCarSide,
+    faVideo,
+    faCar,
+    faChartBar,
+    faChartPie,
+    faRightFromBracket,
+    faClockRotateLeft,
+    faXmark,
+  } from "@fortawesome/free-solid-svg-icons";
   import { getActiveSchemeName } from "../../utils/schemes";
   import { transformDataForChart } from "../../utils/chartData";
   import { isDriveOff } from "../../utils/incidentStats";
@@ -112,7 +110,7 @@
                       : "bg-gray-100 text-gray-400 hover:text-gray-600"
                   }`}
                 >
-                  <BarChart3 className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faChartBar} className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
@@ -124,7 +122,7 @@
                       : "bg-gray-100 text-gray-400 hover:text-gray-600"
                   }`}
                 >
-                  <PieChartIcon className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faChartPie} className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -197,7 +195,6 @@
   // across every card in a row regardless of how long the caption wraps.
   const StatCard = memo(
     ({ title, value, text, icon, tint, iconColor, onClick }) => {
-      const Icon = icon;
       return (
         <div
           className={`${CARD_SHELL} ${onClick ? "cursor-pointer" : ""}`}
@@ -207,7 +204,7 @@
             <div
               className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
             >
-              <Icon className={`w-5 h-5 ${iconColor}`} />
+              <FontAwesomeIcon icon={icon} className={`w-5 h-5 ${iconColor}`} />
             </div>
             <h5
               className="font-poppins font-medium! text-base text-[#191d23] leading-none truncate min-w-0"
@@ -341,7 +338,6 @@
     loading,
     onClick,
   }) => {
-    const Icon = icon;
     return (
       <div
         onClick={onClick}
@@ -362,7 +358,7 @@
           <span className="loading loading-spinner loading-sm text-red-500"></span>
         ) : (
           <span className="flex items-center gap-2 h-[38px] px-5 rounded-[80px] bg-[rgba(255,0,0,0.1)] text-red-600 font-poppins font-medium text-xs whitespace-nowrap shrink-0">
-            <Icon className="w-[18px] h-[18px] shrink-0" />
+            <FontAwesomeIcon icon={icon} className="w-[18px] h-[18px] shrink-0" />
             {countLabel}
           </span>
         )}
@@ -709,7 +705,7 @@
         title: "Incidents",
         value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
         text: "Excluding Free Recovery, Drive off and Incursions.",
-        icon: AlertTriangle,
+        icon: faTriangleExclamation,
         tint: "bg-[rgba(242,96,118,0.1)]",
         iconColor: "text-[#f26076]",
         filter: () =>
@@ -725,7 +721,7 @@
         title: "Asset Damage",
         value: loading ? "..." : (stats?.assetDamage || 0).toString(),
         text: "Incidents with reported asset or property damage.",
-        icon: ShieldAlert,
+        icon: faShieldHalved,
         tint: "bg-[rgba(255,151,96,0.1)]",
         iconColor: "text-[#ff9760]",
         filter: () =>
@@ -742,7 +738,7 @@
           ? "..."
           : (Number(stats?.incidentsByType?.["Free Recovery"]) || 0).toString(),
         text: "Total number of free recovery incidents.",
-        icon: Wrench,
+        icon: faWrench,
         tint: "bg-[rgba(112,59,59,0.1)]",
         iconColor: "text-[#703b3b]",
         filter: () =>
@@ -757,7 +753,7 @@
               (stats?.incidentsByType?.["Incursion"] || 0)
             ).toString(),
         text: "Total number of incursions recorded.",
-        icon: CarFront,
+        icon: faCarSide,
         tint: "bg-[rgba(116,69,119,0.1)]",
         iconColor: "text-[#744577]",
         filter: () =>
@@ -769,7 +765,7 @@
         title: "Incursion (G.B)",
         value: loading ? "..." : (stats?.incursionToGainAdvantage || 0).toString(),
         text: "Total number of incursions to gain benifit.",
-        icon: Car,
+        icon: faCar,
         tint: "bg-[rgba(84,89,172,0.1)]",
         iconColor: "text-[#5459ac]",
         filter: () =>
@@ -781,7 +777,7 @@
           ? "..."
           : (stats?.incidentsByType?.["Drive Off"] || 0).toString(),
         text: "Total number of drive off incidents.",
-        icon: LogOut,
+        icon: faRightFromBracket,
         tint: "bg-[rgba(69,139,115,0.1)]",
         iconColor: "text-[#458b73]",
         filter: () => incidents.filter((i) => i.incidentType === "Drive Off"),
@@ -790,7 +786,7 @@
         title: "Avg Time to Site",
         value: loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`,
         text: "Average response time from incident spotted to unit on site.",
-        icon: Clock,
+        icon: faClock,
         tint: "bg-[rgba(77,173,168,0.1)]",
         iconColor: "text-[#4dada8]",
       },
@@ -798,7 +794,7 @@
         title: "Avg Time to Recover",
         value: loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`,
         text: "Average time from unit on site to incident cleared.",
-        icon: TimerReset,
+        icon: faStopwatch,
         tint: "bg-[rgba(54,116,181,0.15)]",
         iconColor: "text-[#3674b5]",
       },
@@ -876,7 +872,7 @@
               disabled={isExporting || loading}
               className="flex items-center gap-2 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-teal-600 hover:shadow-md transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              <Download className="w-4 h-4" />
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
               <span className="">Export Charts</span>
             </button>
 
@@ -885,7 +881,7 @@
                 onClick={() => setShowDatePicker(!showDatePicker)}
                 className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
               >
-                <Calendar className="w-4 h-4 text-teal-600 shrink-0" />
+                <FontAwesomeIcon icon={faCalendar} className="w-4 h-4 text-teal-600 shrink-0" />
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-medium text-gray-700">
                     {dateRange[0].startDate.toLocaleDateString("en-GB")}
@@ -934,7 +930,7 @@
                     : "bg-white border-gray-200"
                 }`}
               >
-                <History className="w-4 h-4 text-teal-600 shrink-0" />
+                <FontAwesomeIcon icon={faClockRotateLeft} className="w-4 h-4 text-teal-600 shrink-0" />
                 <span className="text-sm font-medium text-gray-700">
                   All Time
                 </span>
@@ -954,7 +950,7 @@
                   title="Clear All Time — back to last 30 days"
                   className="flex items-center justify-center w-9 h-9 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:text-red-500 hover:border-red-200 text-gray-400 transition-colors cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -1003,7 +999,7 @@
                 <LiveLinkCard
                   title="Live CCTV Faults"
                   description="View and monitor live camera fault for your scheme"
-                  icon={Cctv}
+                  icon={faVideo}
                   countLabel={`${liveCCTVFaults.length} CCTV Fault`}
                   loading={cctvFaultsLoading}
                   onClick={() => navigate(`${basePath}/cctv-faults`)}
@@ -1012,7 +1008,7 @@
                 <LiveLinkCard
                   title="Live Incidents"
                   description="View and monitor live incidents for your scheme"
-                  icon={Radio}
+                  icon={faTowerBroadcast}
                   countLabel={`${liveIncidents.length} Live Incidents`}
                   loading={liveIncidentsLoading}
                   onClick={() => navigate(`${basePath}/live-incidents`)}

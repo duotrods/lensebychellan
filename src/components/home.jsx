@@ -1,10 +1,11 @@
 import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  ChartNoAxesCombined,
-  FileSpreadsheet,
-  ShieldCheck,
-  UsersRound,
-} from "lucide-react";
+  faChartBar,
+  faFileExcel,
+  faShieldHalved,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 
 import { Link } from "react-router-dom";
 
@@ -49,7 +50,7 @@ const home = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center space-y-4">
               <div className="bg-brand-50 w-20 h-20 flex items-center justify-center rounded-full">
-                <ChartNoAxesCombined className="text-brand-500 w-8 h-8" />
+                <FontAwesomeIcon icon={faChartBar} className="text-brand-500 w-8 h-8" />
               </div>
               <h6 className="text-center font-bold text-gray-800">
                 Live scheme dashboard
@@ -58,7 +59,7 @@ const home = () => {
 
             <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center space-y-4">
               <div className="bg-brand-50 w-20 h-20 flex items-center justify-center rounded-full">
-                <FileSpreadsheet className="text-brand-500 w-8 h-8" />
+                <FontAwesomeIcon icon={faFileExcel} className="text-brand-500 w-8 h-8" />
               </div>
               <h6 className="text-center font-bold text-gray-800">
                 Automated KPI Reports
@@ -67,7 +68,7 @@ const home = () => {
 
             <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center space-y-4">
               <div className="bg-brand-50 w-20 h-20 flex items-center justify-center rounded-full">
-                <ShieldCheck className="text-brand-500 w-8 h-8" />
+                <FontAwesomeIcon icon={faShieldHalved} className="text-brand-500 w-8 h-8" />
               </div>
               <h6 className="text-center font-bold text-gray-800">
                 Secure Communications
@@ -76,7 +77,7 @@ const home = () => {
 
             <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center space-y-4">
               <div className="bg-brand-50 w-20 h-20 flex items-center justify-center rounded-full">
-                <UsersRound className="text-brand-500" />
+                <FontAwesomeIcon icon={faUsers} className="text-brand-500 w-8 h-8" />
               </div>
               <h6 className="text-center font-bold text-gray-800">
                 Role-based Access

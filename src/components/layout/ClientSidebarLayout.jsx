@@ -2,24 +2,25 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  LayoutDashboard,
-  FileText,
-  Video,
-  LogOut,
-  HelpCircle,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Menu,
-  MonitorCheck,
-  FolderOpen,
-  Sparkles,
-  ChevronDown,
-  TrafficCone,
-  Signpost,
-  Camera,
-  Car,
-} from "lucide-react";
+  faTableCells,
+  faFileLines,
+  faVideo,
+  faRightFromBracket,
+  faCircleQuestion,
+  faAnglesLeft,
+  faAnglesRight,
+  faBars,
+  faDesktop,
+  faFolderOpen,
+  faWandMagicSparkles,
+  faChevronDown,
+  faRoadBarrier,
+  faSignsPost,
+  faCamera,
+  faCar,
+} from "@fortawesome/free-solid-svg-icons";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import SchemeSwitcher from "../client/SchemeSwitcher";
@@ -41,7 +42,7 @@ const NavLinkItem = ({ item, collapsed, active, textClassName = "text-gray-700" 
       active ? "bg-teal-500 text-white" : `${textClassName} hover:bg-gray-100`
     } ${collapsed ? 'justify-center' : ''}`}
   >
-    <item.icon className="w-5 h-5 shrink-0" />
+    <FontAwesomeIcon icon={item.icon} className="w-5 h-5 shrink-0" />
     {!collapsed && <span className="font-medium">{item.name}</span>}
   </Link>
 );
@@ -56,7 +57,7 @@ const ComingSoonItem = ({ item, collapsed, showIcon = true, showName = false }) 
       title={`${item.name} — Coming soon`}
       className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-400 cursor-default select-none ${collapsed ? 'justify-center' : showIcon || showName ? 'justify-between' : 'justify-start'}`}
     >
-      {showIcon && <item.icon className="w-5 h-5 shrink-0" />}
+      {showIcon && <FontAwesomeIcon icon={item.icon} className="w-5 h-5 shrink-0" />}
       {!collapsed && showName && <span className="font-medium flex-1">{item.name}</span>}
       {!collapsed && (
         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 whitespace-nowrap">
@@ -94,23 +95,23 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
         {
           name: "Dashboard",
           path: basePath,
-          icon: LayoutDashboard,
+          icon: faTableCells,
           exact: true,
         },
         {
           name: "Reports",
           path: `${basePath}/reports`,
-          icon: FileText,
+          icon: faFileLines,
         },
         {
           name: "CCTV Recordings",
           path: `${basePath}/cctv-recordings`,
-          icon: Video,
+          icon: faVideo,
         },
         {
           name: "CCTV Uptime",
           path: `${basePath}/cctv-uptime`,
-          icon: MonitorCheck,
+          icon: faDesktop,
         },
       ],
     },
@@ -122,8 +123,8 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
         role === USER_ROLES.THIRDPARTYCLIENT
           ? []
           : [
-              { name: "Dashboard", icon: LayoutDashboard },
-              // { name: "Reports", icon: FileText },
+              { name: "Dashboard", icon: faTableCells },
+              // { name: "Reports", icon: faFileLines },
             ],
     },
     {
@@ -135,12 +136,12 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
               {
                 name: "Body Cam",
                 path: `${basePath}/body-cam`,
-                icon: Camera,
+                icon: faCamera,
               },
               {
                 name: "Dash Cam",
                 path: `${basePath}/dash-cam`,
-                icon: Car,
+                icon: faCar,
               },
             ],
     },
@@ -150,7 +151,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       comingSoon:
         role === USER_ROLES.THIRDPARTYCLIENT
           ? []
-          : [{ name: "Dashboard", icon: TrafficCone }],
+          : [{ name: "Dashboard", icon: faRoadBarrier }],
     },
     {
       label: "VMS Dashboard",
@@ -158,7 +159,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       comingSoon:
         role === USER_ROLES.THIRDPARTYCLIENT
           ? []
-          : [{ name: "Dashboard", icon: Signpost }],
+          : [{ name: "Dashboard", icon: faSignsPost }],
     },
   ];
 
@@ -166,12 +167,12 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const standaloneItems =
     role === USER_ROLES.THIRDPARTYCLIENT
       ? []
-      : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: FolderOpen, emphasize: true }];
+      : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: faFolderOpen, emphasize: true }];
 
   const standaloneComingSoon =
     role === USER_ROLES.THIRDPARTYCLIENT || isThirdPartyActiveScheme
       ? []
-      : [{ name: "Lense Assist", icon: Sparkles }];
+      : [{ name: "Lense Assist", icon: faWandMagicSparkles }];
 
   const [expandedGroups, setExpandedGroups] = useState(() => {
     let persisted = {};
@@ -289,7 +290,8 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                     className="w-full flex items-center justify-between px-3 mb-2 text-sm font-semibold text-gray-700 uppercase tracking-wide hover:text-gray-900 transition-colors"
                   >
                     <span>{group.label}</span>
-                    <ChevronDown
+                    <FontAwesomeIcon
+                      icon={faChevronDown}
                       className={`w-3.5 h-3.5 shrink-0 transition-transform ${isGroupCollapsed ? '-rotate-90' : ''}`}
                     />
                   </button>
@@ -353,7 +355,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
           >
-            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            {collapsed ? <FontAwesomeIcon icon={faAnglesRight} className="w-5 h-5" /> : <FontAwesomeIcon icon={faAnglesLeft} className="w-5 h-5" />}
             {!collapsed && <span className="text-sm">Collapse</span>}
           </button>
         </div>
@@ -388,7 +390,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
             title={collapsed ? 'Help' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
           >
-            <HelpCircle className="w-5 h-5 shrink-0" />
+            <FontAwesomeIcon icon={faCircleQuestion} className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="font-medium">Help</span>}
           </button>
           <button
@@ -396,7 +398,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
             title={collapsed ? 'Logout' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
           >
-            <LogOut className="w-5 h-5 shrink-0" />
+            <FontAwesomeIcon icon={faRightFromBracket} className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="font-medium">Logout</span>}
           </button>
         </div>
@@ -407,7 +409,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
         {/* Mobile top bar */}
         <div className="md:hidden bg-white border-b px-5 py-3 flex items-center gap-3 shrink-0">
           <button onClick={() => setMobileOpen(true)} className="p-1 rounded-lg hover:bg-gray-100">
-            <Menu className="w-6 h-6 text-gray-600" />
+            <FontAwesomeIcon icon={faBars} className="w-6 h-6 text-gray-600" />
           </button>
           <img src={headerLogo} alt="Lens by Chellan" className="h-7" />
         </div>

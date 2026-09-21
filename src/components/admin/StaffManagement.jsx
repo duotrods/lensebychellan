@@ -3,23 +3,24 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  MdRefresh,
-  MdPerson,
-  MdArchive,
-  MdUnarchive,
-  MdMail,
-  MdVerifiedUser,
-  MdChevronLeft,
-  MdChevronRight,
-  MdBusiness,
-  MdHandshake,
-  MdDelete,
-} from "react-icons/md";
+  faRotateRight,
+  faUser,
+  faBoxArchive,
+  faBoxOpen,
+  faEnvelope,
+  faUserCheck,
+  faChevronLeft,
+  faChevronRight,
+  faBuilding,
+  faHandshake,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
 
 const ROLE_TABS = [
-  { key: "staff", label: "Internal Staff", icon: MdBusiness },
-  { key: "thirdpartystaff", label: "Third Party Staff", icon: MdHandshake },
+  { key: "staff", label: "Internal Staff", icon: faBuilding },
+  { key: "thirdpartystaff", label: "Third Party Staff", icon: faHandshake },
 ];
 
 const STATUS_FILTERS = [
@@ -173,7 +174,7 @@ const StaffManagement = () => {
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
         >
-          <MdRefresh className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <FontAwesomeIcon icon={faRotateRight} className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
@@ -190,7 +191,7 @@ const StaffManagement = () => {
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
-            <Icon className="w-4 h-4" />
+            <FontAwesomeIcon icon={Icon} className="w-4 h-4" />
             {label} ({countsQuery.data?.[key] ?? "…"})
           </button>
         ))}
@@ -250,7 +251,7 @@ const StaffManagement = () => {
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <MdRefresh className="w-8 h-8 text-gray-400 animate-spin mb-2" />
+                      <FontAwesomeIcon icon={faRotateRight} className="w-8 h-8 text-gray-400 animate-spin mb-2" />
                       <p className="text-gray-500">Loading staff users...</p>
                     </div>
                   </td>
@@ -259,7 +260,7 @@ const StaffManagement = () => {
                 <tr>
                   <td colSpan="5" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <MdPerson className="w-12 h-12 text-gray-300 mb-2" />
+                      <FontAwesomeIcon icon={faUser} className="w-12 h-12 text-gray-300 mb-2" />
                       <p className="text-gray-500">
                         {filterStatus === "archived"
                           ? `No archived ${roleTab === "staff" ? "internal" : "third-party"} staff users`
@@ -276,7 +277,7 @@ const StaffManagement = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
-                          <MdPerson className="w-5 h-5 text-teal-600" />
+                          <FontAwesomeIcon icon={faUser} className="w-5 h-5 text-teal-600" />
                         </div>
                         <div>
                           <p className="font-medium text-gray-800">
@@ -292,13 +293,13 @@ const StaffManagement = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <MdMail className="w-4 h-4 text-gray-400" />
+                        <FontAwesomeIcon icon={faEnvelope} className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600">{user.email}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <MdVerifiedUser className="w-4 h-4 text-blue-500" />
+                        <FontAwesomeIcon icon={faUserCheck} className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium text-blue-700 capitalize">
                           {user.role}
                         </span>
@@ -307,7 +308,7 @@ const StaffManagement = () => {
                     <td className="px-6 py-4">
                       {user.isArchived ? (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                          <MdArchive className="w-3 h-3" />
+                          <FontAwesomeIcon icon={faBoxArchive} className="w-3 h-3" />
                           Archived
                         </span>
                       ) : (
@@ -325,7 +326,7 @@ const StaffManagement = () => {
                             className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors disabled:opacity-50"
                             title="Unarchive user"
                           >
-                            <MdUnarchive className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faBoxOpen} className="w-4 h-4" />
                             Unarchive
                           </button>
                         ) : (
@@ -335,7 +336,7 @@ const StaffManagement = () => {
                             className="flex items-center gap-1 px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors disabled:opacity-50"
                             title="Archive user"
                           >
-                            <MdArchive className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faBoxArchive} className="w-4 h-4" />
                             Archive
                           </button>
                         )}
@@ -346,7 +347,7 @@ const StaffManagement = () => {
                             className="flex items-center gap-1 px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors disabled:opacity-50"
                             title="Delete user"
                           >
-                            <MdDelete className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
                             Delete
                           </button>
                         )}
@@ -371,7 +372,7 @@ const StaffManagement = () => {
                 disabled={currentPage === 1}
                 className="btn btn-sm btn-outline"
               >
-                <MdChevronLeft className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
               </button>
               <span className="text-sm font-medium">
                 Page {currentPage} of {totalPages}
@@ -381,7 +382,7 @@ const StaffManagement = () => {
                 disabled={!hasMore || currentPage === totalPages}
                 className="btn btn-sm btn-outline"
               >
-                <MdChevronRight className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -424,7 +425,7 @@ const StaffManagement = () => {
                   </>
                 ) : (
                   <>
-                    <MdDelete className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
                     Delete User
                   </>
                 )}

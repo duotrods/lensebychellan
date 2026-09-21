@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLiveIncidents, usePaginatedCompletedIncidents } from '../../hooks/useLiveIncidents';
-import { Eye, Download, Radio, CheckCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faDownload, faTowerBroadcast, faCircleCheck, faArrowLeft, faChevronLeft, faChevronRight, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { getActiveSchemeName } from "../../utils/schemes";
@@ -93,7 +94,7 @@ const LiveIncidentsPage = () => {
             onClick={() => navigate(basePath)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
           </button>
           <div>
             <h4 className=" font-bold text-gray-800">
@@ -129,7 +130,7 @@ const LiveIncidentsPage = () => {
               <div className="flex flex-col">
                 <div className="bg-linear-to-br from-red-500 to-red-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                    <Radio className="w-6 h-6 text-red-500" />
+                    <FontAwesomeIcon icon={faTowerBroadcast} className="w-6 h-6 text-red-500" />
                   </div>
                   <span className="text-white font-semibold text-2xl">Live Incidents</span>
                   <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -168,7 +169,7 @@ const LiveIncidentsPage = () => {
                               className="p-1.5 rounded text-blue-400 hover:text-blue-300"
                               title="View Details"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                             </button>
                           </div>
                           {incident.incidentType && (
@@ -187,7 +188,7 @@ const LiveIncidentsPage = () => {
               <div className="flex flex-col">
                 <div className="bg-linear-to-br from-brand-500 to-brand-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
+                    <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 text-green-600" />
                   </div>
                   <span className="text-white font-semibold text-2xl">Completed Incidents</span>
                   <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -198,7 +199,7 @@ const LiveIncidentsPage = () => {
                 <div className="bg-white shadow-xs rounded-b-lg flex-1 overflow-hidden border border-t-0 border-gray-100">
                   {completedLoading ? (
                     <div className="p-6 flex justify-center">
-                      <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                      <FontAwesomeIcon icon={faSpinner} className="w-6 h-6 animate-spin text-teal-500" />
                     </div>
                   ) : completedIncidents.length === 0 ? (
                     <div className="p-6 text-center text-slate-400">
@@ -235,13 +236,13 @@ const LiveIncidentsPage = () => {
                                     className="p-1.5 hover:bg-gray-200 rounded text-purple-500 hover:text-purple-600"
                                     title="Download PDF"
                                   >
-                                    <Download className="w-4 h-4" />
+                                    <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                                   </button>
                                   <button
                                     className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
                                     title="View Details"
                                   >
-                                    <Eye className="w-4 h-4" />
+                                    <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -273,7 +274,7 @@ const LiveIncidentsPage = () => {
                               disabled={currentPage === 1}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronLeft className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronLeft} className="w-5 h-5" />
                             </button>
                             <span className="text-sm font-medium px-2">
                               {currentPage} / {totalPages}
@@ -283,7 +284,7 @@ const LiveIncidentsPage = () => {
                               disabled={currentPage === totalPages}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronRight className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronRight} className="w-5 h-5" />
                             </button>
                           </div>
                         </div>

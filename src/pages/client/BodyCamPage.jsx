@@ -5,19 +5,20 @@ import { clientDataService } from "../../services/clientDataService";
 import { staffService } from "../../services/staffService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import FootageUploadDrawer from "../../components/client/FootageUploadDrawer";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Download,
-  Video,
-  Search,
-  Clock,
-  Camera,
-  Play,
-  MapPin,
-  Hash,
-  ChevronLeft,
-  ChevronRight,
-  Upload,
-} from "lucide-react";
+  faDownload,
+  faVideo,
+  faMagnifyingGlass,
+  faClock,
+  faCamera,
+  faPlay,
+  faLocationDot,
+  faHashtag,
+  faChevronLeft,
+  faChevronRight,
+  faUpload,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { formatFileSize, formatDocumentDate } from "../../utils/documents";
 import { getActiveSchemeName } from "../../utils/schemes";
@@ -91,7 +92,7 @@ const BodyCamPage = () => {
             onClick={() => setDrawerOpen(true)}
             className="inline-flex items-center gap-2 h-10 px-4 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors shrink-0"
           >
-            <Upload className="w-4 h-4" />
+            <FontAwesomeIcon icon={faUpload} className="w-4 h-4" />
             Upload footage
           </button>
         </div>
@@ -99,7 +100,7 @@ const BodyCamPage = () => {
         {/* Search */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
+            <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
             <input
               type="text"
               placeholder="Search by staff or date..."
@@ -152,7 +153,7 @@ const BodyCamPage = () => {
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                            <Video className="w-12 h-12 text-gray-500" />
+                            <FontAwesomeIcon icon={faVideo} className="w-12 h-12 text-gray-500" />
                             <span className="text-xs text-gray-400">
                               Hover to preview
                             </span>
@@ -162,7 +163,7 @@ const BodyCamPage = () => {
                         {/* File type indicator — bottom left */}
                         <div className="absolute bottom-2 left-2">
                           <span className="flex items-center gap-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                            <Video className="w-3 h-3" />
+                            <FontAwesomeIcon icon={faVideo} className="w-3 h-3" />
                             1
                           </span>
                         </div>
@@ -186,7 +187,7 @@ const BodyCamPage = () => {
 
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Clock className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faClock} className="w-4 h-4" />
                             <span>
                               {video.date || formatDocumentDate(video.uploadedAt)}
                             </span>
@@ -199,13 +200,13 @@ const BodyCamPage = () => {
                           </div>
 
                           <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <MapPin className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faLocationDot} className="w-4 h-4" />
                             <span>Submitted by {video.staffName || "Staff"}</span>
                           </div>
 
                           {video.incidentReferenceNumber && (
                             <div className="flex items-center gap-2 text-sm text-gray-500">
-                              <Hash className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faHashtag} className="w-4 h-4" />
                               <span>{video.incidentReferenceNumber}</span>
                             </div>
                           )}
@@ -221,7 +222,7 @@ const BodyCamPage = () => {
                             onClick={() => setSelectedVideo(video)}
                             className="btn btn-sm btn-brand flex-1"
                           >
-                            <Play className="w-4 h-4 mr-1" />
+                            <FontAwesomeIcon icon={faPlay} className="w-4 h-4 mr-1" />
                             View
                           </button>
                           <a
@@ -231,7 +232,7 @@ const BodyCamPage = () => {
                             className="btn btn-sm btn-outline"
                             title="Download"
                           >
-                            <Download className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                           </a>
                           
                         </div>
@@ -257,7 +258,7 @@ const BodyCamPage = () => {
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
                       Page {currentPage} of {totalPages}
@@ -269,7 +270,7 @@ const BodyCamPage = () => {
                       disabled={currentPage === totalPages}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -277,7 +278,7 @@ const BodyCamPage = () => {
             </>
           ) : (
             <div className="p-12 text-center">
-              <Camera className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <FontAwesomeIcon icon={faCamera} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No body cam footage found</p>
               <p className="text-gray-400 text-sm mt-2">
                 Try adjusting your search
@@ -357,7 +358,7 @@ const BodyCamPage = () => {
                   rel="noopener noreferrer"
                   className="btn btn-brand flex-1"
                 >
-                  <Download className="w-4 h-4 mr-2" />
+                  <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
                   Download
                 </a>
                 

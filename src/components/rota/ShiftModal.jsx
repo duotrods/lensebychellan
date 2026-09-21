@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { X, Check, Ban, Clock, CopyPlus } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark, faCheck, faBan, faClock, faClone } from "@fortawesome/free-solid-svg-icons";
 import { parseDateStr } from "../../utils/rota";
 
 const OPTIONS = [
@@ -111,14 +112,14 @@ const ShiftModal = ({
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-4 h-4" />
+            <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
           </button>
         </div>
 
         {isPendingHoliday && (
           <div className="mt-4 p-3 rounded-lg bg-gray-50 border-[1.5px] border-gray-200">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-              <Clock className="w-3.5 h-3.5" />
+              <FontAwesomeIcon icon={faClock} className="w-3.5 h-3.5" />
               Holiday requested — pending approval
             </p>
             {canApprove ? (
@@ -128,14 +129,14 @@ const ShiftModal = ({
                   onClick={() => onApprove?.()}
                   className="flex-1 flex items-center justify-center gap-1.5 bg-red-500 text-white font-semibold text-sm py-2 rounded-lg hover:bg-red-600"
                 >
-                  <Check className="w-4 h-4" /> Approve
+                  <FontAwesomeIcon icon={faCheck} className="w-4 h-4" /> Approve
                 </button>
                 <button
                   type="button"
                   onClick={() => onReject?.()}
                   className="flex-1 flex items-center justify-center gap-1.5 bg-white border-[1.5px] border-gray-300 text-gray-600 font-semibold text-sm py-2 rounded-lg hover:border-gray-400"
                 >
-                  <Ban className="w-4 h-4" /> Reject
+                  <FontAwesomeIcon icon={faBan} className="w-4 h-4" /> Reject
                 </button>
               </div>
             ) : (
@@ -208,7 +209,7 @@ const ShiftModal = ({
           <div className="flex flex-col gap-2 mt-3 p-3 rounded-lg bg-gray-50 border-[1.5px] border-gray-200">
             <div className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                <CopyPlus className="w-3.5 h-3.5 shrink-0" />
+                <FontAwesomeIcon icon={faClone} className="w-3.5 h-3.5 shrink-0" />
                 <span>Also apply to other dates</span>
               </label>
               <div className="flex gap-2 shrink-0">

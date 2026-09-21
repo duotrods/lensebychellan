@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { payPeriodLabel } from "../../utils/rota";
 
 const RotaPeriodNav = ({ period, onPrevPeriod, onNextPeriod, onToday }) => {
@@ -11,7 +12,7 @@ const RotaPeriodNav = ({ period, onPrevPeriod, onNextPeriod, onToday }) => {
           className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-500"
           title="Previous period"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
         </button>
         <span className="text-sm font-semibold px-2 min-w-[170px] text-center">
           {payPeriodLabel(period)}
@@ -22,7 +23,7 @@ const RotaPeriodNav = ({ period, onPrevPeriod, onNextPeriod, onToday }) => {
           className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-500"
           title="Next period"
         >
-          <ChevronRight className="w-4 h-4" />
+          <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
         </button>
         <button
           type="button"

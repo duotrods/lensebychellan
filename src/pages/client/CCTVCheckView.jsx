@@ -2,12 +2,13 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  ArrowLeft,
-  CheckCircle,
-  XCircle,
-  Download,
-} from "lucide-react";
+  faArrowLeft,
+  faCircleCheck,
+  faCircleXmark,
+  faDownload,
+} from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../hooks/useAuth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../config/firebase";
@@ -95,18 +96,18 @@ const CCTVCheckView = () => {
         <div className="mb-3">
           {isNone ? (
             <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="w-5 h-5" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5" />
               <span className="font-semibold">NONE</span>
             </div>
           ) : isAllWorking ? (
             <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="w-5 h-5" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5" />
               <span className="font-semibold">All Working Correctly</span>
             </div>
           ) : hasIssues ? (
             <div>
               <div className="flex items-center gap-2 text-orange-600 mb-2">
-                <XCircle className="w-5 h-5" />
+                <FontAwesomeIcon icon={faCircleXmark} className="w-5 h-5" />
                 <span className="font-semibold">Issues Reported:</span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -143,7 +144,7 @@ const CCTVCheckView = () => {
                   <div className="mb-3">
                     {bsAllWorking ? (
                       <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle className="w-5 h-5" />
+                        <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5" />
                         <span className="font-semibold">
                           All Working Correctly
                         </span>
@@ -151,7 +152,7 @@ const CCTVCheckView = () => {
                     ) : bsHasIssues ? (
                       <div>
                         <div className="flex items-center mt-2 gap-2 text-orange-600 mb-2">
-                          <XCircle className="w-5 h-5" />
+                          <FontAwesomeIcon icon={faCircleXmark} className="w-5 h-5" />
                           <span className="font-semibold">
                             Blackspot issues:
                           </span>
@@ -234,7 +235,7 @@ const CCTVCheckView = () => {
               onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">
@@ -251,7 +252,7 @@ const CCTVCheckView = () => {
               onClick={handleDownloadPDF}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              <Download className="w-4 h-4" />
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
               PDF
             </button>
           </div>
@@ -304,7 +305,7 @@ const CCTVCheckView = () => {
           {form.certified && (
             <div className="p-6 bg-green-50 rounded-xl border border-green-200">
               <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle className="w-5 h-5 shrink-0" />
+                <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5 shrink-0" />
                 <span className="font-semibold">
                   {form.certificationText ||
                     "I certify that a full CCTV check of all schemes has been completed."}

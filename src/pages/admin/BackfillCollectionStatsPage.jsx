@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { staffService } from "../../services/staffService";
-import { CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCircleCheck,
+  faSpinner,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Counters maintained by the hybrid system. `nondemo: true` means we also seed
 // the "excluding demo" variant that the dashboards read.
@@ -58,7 +63,7 @@ const BackfillCollectionStatsPage = () => {
 
       {allDone && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-center gap-2 text-green-700 font-medium">
-          <CheckCircle2 className="w-5 h-5" />
+          <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5" />
           All counters seeded.
         </div>
       )}
@@ -76,19 +81,19 @@ const BackfillCollectionStatsPage = () => {
                 {!result && <span className="text-gray-400">Pending</span>}
                 {result?.status === "running" && (
                   <span className="flex items-center gap-1 text-blue-500">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Running...
+                    <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" /> Running...
                   </span>
                 )}
                 {result?.status === "done" && (
                   <span className="flex items-center gap-1 text-green-600 font-medium">
-                    <CheckCircle2 className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4" />
                     total {result.total}
                     {result.nonDemo !== null && ` · non-demo ${result.nonDemo}`}
                   </span>
                 )}
                 {result?.status === "error" && (
                   <span className="flex items-center gap-1 text-red-500">
-                    <AlertTriangle className="w-4 h-4" /> {result.error}
+                    <FontAwesomeIcon icon={faTriangleExclamation} className="w-4 h-4" /> {result.error}
                   </span>
                 )}
               </div>
@@ -102,7 +107,7 @@ const BackfillCollectionStatsPage = () => {
         disabled={running}
         className="px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center gap-2 transition-colors"
       >
-        {running && <Loader2 className="w-4 h-4 animate-spin" />}
+        {running && <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />}
         {running ? "Running..." : "Run Backfill"}
       </button>
     </div>

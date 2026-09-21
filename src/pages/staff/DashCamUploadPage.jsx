@@ -3,7 +3,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import { uploadFileToR2 } from "../../utils/r2Upload";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
-import { Upload, Video, X, Trash2, Eye } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUpload, faVideo, faXmark, faEye } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { isDemoUser, DEMO_SCHEME_ID, getSchemesForUser, extractSchemeId } from "../../utils/schemes";
 
@@ -335,7 +336,8 @@ const DashCamUploadPage = () => {
                     disabled={uploadingFile}
                   />
                   <label htmlFor="dashcam-video-upload" className="cursor-pointer">
-                    <Upload
+                    <FontAwesomeIcon
+                      icon={faUpload}
                       className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-teal-500" : "text-gray-400"}`}
                     />
                     <p className="text-gray-600 mb-2">
@@ -362,7 +364,7 @@ const DashCamUploadPage = () => {
                   <div className="mt-4">
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3 flex-1">
-                        <Video className="w-5 h-5 text-teal-600" />
+                        <FontAwesomeIcon icon={faVideo} className="w-5 h-5 text-teal-600" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-800 truncate">
                             {selectedFile.name}
@@ -390,7 +392,7 @@ const DashCamUploadPage = () => {
                           onClick={() => setSelectedFile(null)}
                           className="btn btn-sm btn-ghost text-red-500"
                         >
-                          <X className="w-4 h-4" />
+                          <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -428,7 +430,7 @@ const DashCamUploadPage = () => {
                     </>
                   ) : (
                     <>
-                      <Upload className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faUpload} className="w-4 h-4" />
                       Upload File
                     </>
                   )}
@@ -501,13 +503,13 @@ const DashCamUploadPage = () => {
                               }
                               className="btn btn-sm bg-teal-500 text-white hover:bg-teal-600 border-none"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                             </button>
                             {/* <button
                               onClick={() => handleDeleteUpload(upload.id)}
                               className="btn btn-sm btn-outline text-red-500 hover:bg-red-50"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              delete icon here (faTrashCan not imported — add it if re-enabling this button)
                             </button> */}
                           </div>
                         </td>

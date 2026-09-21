@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { Video, X } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faVideo, faXmark } from "@fortawesome/free-solid-svg-icons";
 
 const CCTVCheckReminder = ({ onDismiss, basePath = '/dashboard/staff' }) => {
   const navigate = useNavigate();
@@ -21,13 +22,13 @@ const CCTVCheckReminder = ({ onDismiss, basePath = '/dashboard/staff' }) => {
             className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
             aria-label="Close"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <FontAwesomeIcon icon={faXmark} className="w-5 h-5 text-gray-500" />
           </button>
 
           {/* Icon */}
           <div className="flex justify-center mb-6">
             <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center">
-              <Video className="w-10 h-10 text-teal-600" />
+              <FontAwesomeIcon icon={faVideo} className="w-10 h-10 text-teal-600" />
             </div>
           </div>
 

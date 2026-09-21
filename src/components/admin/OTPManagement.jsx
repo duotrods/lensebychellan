@@ -4,19 +4,20 @@ import { toast } from "react-hot-toast";
 import { otpService } from "../../services/otpService";
 import { useAuth } from "../../hooks/useAuth";
 import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Copy,
-  Plus,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Users,
-  Building2,
-  Camera,
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-} from "lucide-react";
+  faCopy,
+  faPlus,
+  faCircleCheck,
+  faCircleXmark,
+  faRotateRight,
+  faUsers,
+  faBuilding,
+  faCamera,
+  faChevronLeft,
+  faChevronRight,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
 
 // 'byCompany: true' = OTP is tied to a company (Staff, LiveOp, CCTVOp)
 // 'byCompany: false' = OTP is tied to a scheme (Client only)
@@ -340,7 +341,7 @@ const OTPManagement = () => {
     if (status === "used") {
       return (
         <span className="flex items-center gap-1 text-sm text-gray-500">
-          <XCircle className="w-4 h-4" />
+          <FontAwesomeIcon icon={faCircleXmark} className="w-4 h-4" />
           Used
         </span>
       );
@@ -348,14 +349,14 @@ const OTPManagement = () => {
     if (status === "expired") {
       return (
         <span className="flex items-center gap-1 text-sm text-red-500">
-          <XCircle className="w-4 h-4" />
+          <FontAwesomeIcon icon={faCircleXmark} className="w-4 h-4" />
           Expired
         </span>
       );
     }
     return (
       <span className="flex items-center gap-1 text-sm text-green-600">
-        <CheckCircle className="w-4 h-4" />
+        <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4" />
         Available
       </span>
     );
@@ -421,7 +422,7 @@ const OTPManagement = () => {
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <FontAwesomeIcon icon={faRotateRight} className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
           <button
@@ -434,7 +435,7 @@ const OTPManagement = () => {
             }
             className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-teal-500"
           >
-            <Plus className="w-4 h-4" />
+            <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
             Generate New Code
           </button>
         </div>
@@ -450,7 +451,7 @@ const OTPManagement = () => {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          <Building2 className="w-5 h-5" />
+          <FontAwesomeIcon icon={faBuilding} className="w-5 h-5" />
           Client Access Codes
         </button>
         <button
@@ -461,7 +462,7 @@ const OTPManagement = () => {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          <Camera className="w-5 h-5" />
+          <FontAwesomeIcon icon={faCamera} className="w-5 h-5" />
           CCTV Operator Codes
         </button>
         <button
@@ -472,7 +473,7 @@ const OTPManagement = () => {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          <Users className="w-5 h-5" />
+          <FontAwesomeIcon icon={faUsers} className="w-5 h-5" />
           Staff/Live Operator Invite Codes
         </button>
         <button
@@ -483,7 +484,7 @@ const OTPManagement = () => {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          <Building2 className="w-5 h-5" />
+          <FontAwesomeIcon icon={faBuilding} className="w-5 h-5" />
           Third Party Codes
         </button>
       </div>
@@ -580,7 +581,7 @@ const OTPManagement = () => {
                           onClick={() => copyToClipboard(otp.otpCode)}
                           className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
                         >
-                          <Copy className="w-4 h-4" />
+                          <FontAwesomeIcon icon={faCopy} className="w-4 h-4" />
                           Copy
                         </button>
                       </td>
@@ -605,7 +606,7 @@ const OTPManagement = () => {
                             onClick={() => copyToClipboard(c.code)}
                             className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
                           >
-                            <Copy className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faCopy} className="w-4 h-4" />
                             Copy
                           </button>
                         </td>
@@ -646,7 +647,7 @@ const OTPManagement = () => {
                             onClick={() => copyToClipboard(code.inviteCode)}
                             className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
                           >
-                            <Copy className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faCopy} className="w-4 h-4" />
                             Copy
                           </button>
                         </td>
@@ -675,7 +676,7 @@ const OTPManagement = () => {
                 disabled={clientCurrentPage === 1}
                 className="btn btn-sm btn-outline"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
               </button>
               <span className="text-sm font-medium">
                 Page {clientCurrentPage} of {clientTotalPages}
@@ -687,7 +688,7 @@ const OTPManagement = () => {
                 }
                 className="btn btn-sm btn-outline"
               >
-                <ChevronRight className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -705,7 +706,7 @@ const OTPManagement = () => {
                 disabled={staffCurrentPage === 1}
                 className="btn btn-sm btn-outline"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
               </button>
               <span className="text-sm font-medium">
                 Page {staffCurrentPage} of {staffTotalPages}
@@ -715,7 +716,7 @@ const OTPManagement = () => {
                 disabled={!staffHasMore || staffCurrentPage === staffTotalPages}
                 className="btn btn-sm btn-outline"
               >
-                <ChevronRight className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -733,7 +734,7 @@ const OTPManagement = () => {
                 disabled={cctvCurrentPage === 1}
                 className="btn btn-sm btn-outline"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
               </button>
               <span className="text-sm font-medium">
                 Page {cctvCurrentPage} of {cctvTotalPages}
@@ -743,7 +744,7 @@ const OTPManagement = () => {
                 disabled={!cctvHasMore || cctvCurrentPage === cctvTotalPages}
                 className="btn btn-sm btn-outline"
               >
-                <ChevronRight className="w-4 h-4" />
+                <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -838,7 +839,7 @@ const OTPManagement = () => {
               disabled={tpLoading}
               className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors disabled:opacity-50"
             >
-              {tpLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {tpLoading ? <FontAwesomeIcon icon={faRotateRight} className="w-4 h-4 animate-spin" /> : <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />}
               Generate Code
             </button>
           </form>
@@ -852,7 +853,7 @@ const OTPManagement = () => {
             </div>
             {tpCodesLoading ? (
               <div className="p-12 text-center">
-                <RefreshCw className="w-6 h-6 animate-spin text-teal-500 mx-auto" />
+                <FontAwesomeIcon icon={faRotateRight} className="w-6 h-6 animate-spin text-teal-500 mx-auto" />
               </div>
             ) : tpCurrentCodes.length === 0 ? (
               <div className="p-12 text-center text-gray-400">
@@ -930,14 +931,14 @@ const OTPManagement = () => {
                                 onClick={() => copyToClipboard(c.code)}
                                 className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
                               >
-                                <Copy className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faCopy} className="w-4 h-4" />
                                 Copy
                               </button>
                               <button
                                 onClick={() => handleDeleteTpCode(c.code)}
                                 className="flex items-center gap-1 text-sm text-red-500 hover:text-red-600"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
                                 Delete
                               </button>
                             </div>
@@ -958,7 +959,7 @@ const OTPManagement = () => {
                     disabled={tpPage === 0}
                     className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     Previous
                   </button>
                   <button
@@ -967,7 +968,7 @@ const OTPManagement = () => {
                     className="flex items-center gap-1 px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
-                    <ChevronRight className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                   </button>
                 </div>
               </div>

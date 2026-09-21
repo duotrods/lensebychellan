@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { Users } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUsers } from "@fortawesome/free-solid-svg-icons";
 import { rotaService } from "../../services/rotaService";
 
 const initials = (name) =>
@@ -103,7 +104,7 @@ const RotaTeamManager = ({ staff, loading }) => {
           disabled={submitting}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-500 text-white text-sm font-semibold hover:bg-teal-600 disabled:opacity-50"
         >
-          <Users className="w-4 h-4" />
+          <FontAwesomeIcon icon={faUsers} className="w-4 h-4" />
           Add staff
         </button>
       </form>

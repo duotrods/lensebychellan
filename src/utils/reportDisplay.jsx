@@ -1,10 +1,11 @@
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  FileText,
-  AlertTriangle,
-  Calendar,
-  Eye,
-  Package,
-} from "lucide-react";
+  faFileLines,
+  faTriangleExclamation,
+  faCalendar,
+  faEye,
+  faBox,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Presentation helpers shared by the client Reports page (table, modal, cards).
 // Kept in one place so the page component stays focused on data/pagination logic.
@@ -83,17 +84,17 @@ export const getReportDisplayTime = (report) => {
 export const getReportTypeIcon = (type) => {
   switch (type) {
     case "incident":
-      return <AlertTriangle className="w-5 h-5 text-orange-500" />;
+      return <FontAwesomeIcon icon={faTriangleExclamation} className="w-5 h-5 text-orange-500" />;
     case "asset-damage":
-      return <Package className="w-5 h-5 text-red-500" />;
+      return <FontAwesomeIcon icon={faBox} className="w-5 h-5 text-red-500" />;
     case "daily-occurrence":
-      return <Calendar className="w-5 h-5 text-blue-500" />;
+      return <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-blue-500" />;
     case "cctv-check":
-      return <Eye className="w-5 h-5 text-green-500" />;
+      return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-green-500" />;
     case "cctv-faults":
-      return <Eye className="w-5 h-5 text-purple-500" />;
+      return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-purple-500" />;
     default:
-      return <FileText className="w-5 h-5 text-gray-500" />;
+      return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-gray-500" />;
   }
 };
 

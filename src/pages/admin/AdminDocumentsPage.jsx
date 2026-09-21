@@ -2,24 +2,25 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { staffService } from "../../services/staffService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Download,
-  FileSpreadsheet,
-  FileText,
-  FileType2,
-  Image as ImageIcon,
-  Link2,
-  File,
-  Search,
-  Filter,
-  FolderOpen,
-  Clock,
-  Eye,
-  Trash2,
-  X,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+  faDownload,
+  faFileExcel,
+  faFileLines,
+  faFileWord,
+  faImage,
+  faLink,
+  faFile,
+  faMagnifyingGlass,
+  faFilter,
+  faFolderOpen,
+  faClock,
+  faEye,
+  faTrashCan,
+  faXmark,
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import {
   DOCUMENT_CATEGORIES,
@@ -46,16 +47,16 @@ const excludeDemo = (docs) =>
 
 const FileIcon = ({ type, className }) => {
   if (type === "excel")
-    return <FileSpreadsheet className={`${className} text-emerald-600`} />;
+    return <FontAwesomeIcon icon={faFileExcel} className={`${className} text-emerald-600`} />;
   if (type === "pdf")
-    return <FileText className={`${className} text-red-500`} />;
+    return <FontAwesomeIcon icon={faFileLines} className={`${className} text-red-500`} />;
   if (type === "word")
-    return <FileType2 className={`${className} text-blue-600`} />;
+    return <FontAwesomeIcon icon={faFileWord} className={`${className} text-blue-600`} />;
   if (type === "image")
-    return <ImageIcon className={`${className} text-purple-500`} />;
+    return <FontAwesomeIcon icon={faImage} className={`${className} text-purple-500`} />;
   if (type === "link")
-    return <Link2 className={`${className} text-teal-600`} />;
-  return <File className={`${className} text-gray-500`} />;
+    return <FontAwesomeIcon icon={faLink} className={`${className} text-teal-600`} />;
+  return <FontAwesomeIcon icon={faFile} className={`${className} text-gray-500`} />;
 };
 
 const CategoryBadge = ({ category }) => {
@@ -86,7 +87,7 @@ const EmbedViewer = ({ doc, onClose }) => (
     >
       <div className="flex items-center justify-between px-5 py-3 border-b">
         <div className="flex items-center gap-2 min-w-0">
-          <Link2 className="w-5 h-5 text-teal-600 shrink-0" />
+          <FontAwesomeIcon icon={faLink} className="w-5 h-5 text-teal-600 shrink-0" />
           <h3 className="font-semibold text-gray-800 truncate">{doc.title}</h3>
           <span className="text-[11px] font-medium text-teal-600 shrink-0">
             Live · read-only
@@ -105,7 +106,7 @@ const EmbedViewer = ({ doc, onClose }) => (
             onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-700"
           >
-            <X className="w-5 h-5" />
+            <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -126,7 +127,7 @@ const DeleteConfirmModal = ({ doc, deleting, onConfirm, onCancel }) => (
       {/* Icon */}
       <div className="flex justify-center mb-4">
         <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center">
-          <Trash2 className="w-7 h-7 text-red-500" />
+          <FontAwesomeIcon icon={faTrashCan} className="w-7 h-7 text-red-500" />
         </div>
       </div>
 
@@ -146,7 +147,7 @@ const DeleteConfirmModal = ({ doc, deleting, onConfirm, onCancel }) => (
           disabled={deleting}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <X className="w-4 h-4" />
+          <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
           Cancel
         </button>
         <button
@@ -154,7 +155,7 @@ const DeleteConfirmModal = ({ doc, deleting, onConfirm, onCancel }) => (
           disabled={deleting}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors disabled:bg-red-700 disabled:cursor-not-allowed"
         >
-          <Trash2 className="w-4 h-4" />
+          <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
           {deleting ? "Deleting…" : "Delete"}
         </button>
       </div>
@@ -313,7 +314,7 @@ const AdminDocumentsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by document title..."
@@ -353,7 +354,7 @@ const AdminDocumentsPage = () => {
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
-            <Filter className="w-4 h-4" />
+            <FontAwesomeIcon icon={faFilter} className="w-4 h-4" />
             <span>
               {isSearchMode
                 ? `${currentDocs.length} result${currentDocs.length !== 1 ? "s" : ""} for "${search}"${
@@ -376,7 +377,7 @@ const AdminDocumentsPage = () => {
             </div>
           ) : currentDocs.length === 0 ? (
             <div className="text-center py-12">
-              <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <FontAwesomeIcon icon={faFolderOpen} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No documents found</p>
             </div>
           ) : (
@@ -424,7 +425,7 @@ const AdminDocumentsPage = () => {
                           </td>
                           <td className="text-sm">
                             <div className="flex items-center gap-1.5 text-gray-500">
-                              <Clock className="w-3.5 h-3.5" />
+                              <FontAwesomeIcon icon={faClock} className="w-3.5 h-3.5" />
                               {formatDocumentDate(doc.uploadedAt)}
                             </div>
                           </td>
@@ -441,7 +442,7 @@ const AdminDocumentsPage = () => {
                                   className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
                                   title="View"
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                                 </button>
                               ) : (
                                 <a
@@ -451,7 +452,7 @@ const AdminDocumentsPage = () => {
                                   className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
                                   title="Download"
                                 >
-                                  <Download className="w-4 h-4" />
+                                  <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                                 </a>
                               )}
                               <button
@@ -459,7 +460,7 @@ const AdminDocumentsPage = () => {
                                 className="btn btn-sm btn-ghost text-red-600 hover:text-red-800"
                                 title="Delete"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -484,7 +485,7 @@ const AdminDocumentsPage = () => {
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
                       Page {currentPage}
@@ -495,7 +496,7 @@ const AdminDocumentsPage = () => {
                       disabled={!hasMore}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

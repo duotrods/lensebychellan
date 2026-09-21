@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { CalendarDays, Wallet } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCalendarDays, faWallet } from "@fortawesome/free-solid-svg-icons";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import RotaGrid from "../../components/rota/RotaGrid";
 import ShiftModal from "../../components/rota/ShiftModal";
@@ -19,8 +20,8 @@ import {
 } from "../../utils/rota";
 
 const TABS = [
-  { key: "rota", label: "Rota", icon: CalendarDays },
-  { key: "tally", label: "Hours & Pay", icon: Wallet },
+  { key: "rota", label: "Rota", icon: faCalendarDays },
+  { key: "tally", label: "Hours & Pay", icon: faWallet },
 ];
 
 const StaffRotaPage = () => {
@@ -128,7 +129,7 @@ const StaffRotaPage = () => {
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <FontAwesomeIcon icon={Icon} className="w-4 h-4" />
               {label}
             </button>
           ))}

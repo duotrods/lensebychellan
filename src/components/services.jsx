@@ -1,5 +1,6 @@
 import React from "react";
-import { FileText, Camera, Lock, Video } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCamera } from "@fortawesome/free-solid-svg-icons";
 import roadImage from "../assets/stpdvhcle.jpg";
 import cctvImage from "../assets/cctvhighway.jpg";
 import temprycctv from "../assets/temprycctv.jpg";
@@ -28,7 +29,7 @@ const services = () => {
                   Highway CCTV Monitoring
                 </h5>
                 <span className="text-3xl">
-                  <Camera />
+                  <FontAwesomeIcon icon={faCamera} />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
@@ -45,7 +46,7 @@ const services = () => {
                   Temporary CCTV Hire
                 </h5>
                 <span className="text-3xl">
-                  <Camera />
+                  <FontAwesomeIcon icon={faCamera} />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
@@ -60,7 +61,7 @@ const services = () => {
                   Compound Monitoring
                 </h5>
                 <span className="text-3xl">
-                  <Camera />
+                  <FontAwesomeIcon icon={faCamera} />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
@@ -75,7 +76,7 @@ const services = () => {
                   Stop Vehicle Detection
                 </h5>
                 <span className="text-3xl">
-                  <Camera />
+                  <FontAwesomeIcon icon={faCamera} />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
@@ -90,7 +91,7 @@ const services = () => {
                   Software Development
                 </h5>
                 <span className="text-3xl">
-                  <Camera />
+                  <FontAwesomeIcon icon={faCamera} />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">
@@ -105,7 +106,7 @@ const services = () => {
                   Analytics
                 </h5>
                 <span className="text-3xl">
-                  <Camera />
+                  <FontAwesomeIcon icon={faCamera} />
                 </span>
               </div>
               <div className=" rounded-lg items-center justify-center">

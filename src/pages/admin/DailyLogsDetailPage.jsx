@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, Calendar, Clock, MapPin, X } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faDownload, faCalendar, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from '../../hooks/useAuth';
 import { staffService } from '../../services/staffService';
 import AdminSidebarLayout from '../../components/layout/AdminSidebarLayout';
@@ -115,7 +116,7 @@ const DailyLogsDetailPage = () => {
               onClick={() => navigate(backPath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">Daily Occurrence Report Details</h3>
@@ -126,7 +127,7 @@ const DailyLogsDetailPage = () => {
             onClick={handleDownloadPDF}
             className="btn bg-blue-500 text-white hover:bg-blue-600 border-none"
           >
-            <Download className="w-4 h-4 mr-2" />
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
             Download PDF
           </button>
         </div>
@@ -145,7 +146,7 @@ const DailyLogsDetailPage = () => {
                 <div key={index} className="border-2 border-gray-200 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-blue-600" />
+                      <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-blue-600" />
                       <h4 className="text-lg font-bold text-gray-800">
                         Occurrence #{index + 1}
                       </h4>
@@ -155,7 +156,7 @@ const DailyLogsDetailPage = () => {
                       className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
                       title="Remove this occurrence"
                     >
-                      <X className="w-5 h-5" />
+                      <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
                     </button>
                   </div>
 
@@ -218,7 +219,7 @@ const DailyLogsDetailPage = () => {
               ))
             ) : (
               <div className="text-center py-12">
-                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <FontAwesomeIcon icon={faCalendar} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">No occurrences recorded</p>
               </div>
             )}

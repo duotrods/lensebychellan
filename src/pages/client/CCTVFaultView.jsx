@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faCamera, faCalendar, faClock, faUser, faMessage, faCircleCheck, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { clientDataService } from '../../services/clientDataService';
 import { useAuth } from '../../hooks/useAuth';
 import { USER_ROLES } from '../../utils/constants';
@@ -130,7 +131,7 @@ const CCTVFaultView = () => {
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
           </button>
           <div>
             <h3 className="text-2xl font-bold text-gray-800">
@@ -147,7 +148,7 @@ const CCTVFaultView = () => {
           {/* Status Banner */}
           {fault.status === 'completed' ? (
             <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-lg">
-              <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 text-green-500 shrink-0" />
               <div>
                 <p className="font-semibold text-green-700">Fault Resolved</p>
                 <p className="text-sm text-green-600">
@@ -160,7 +161,7 @@ const CCTVFaultView = () => {
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-lg">
-              <Camera className="w-6 h-6 text-red-500 shrink-0" />
+              <FontAwesomeIcon icon={faCamera} className="w-6 h-6 text-red-500 shrink-0" />
               <div>
                 <p className="font-semibold text-red-700">Camera Fault — Live</p>
                 <p className="text-sm text-red-500">
@@ -173,7 +174,7 @@ const CCTVFaultView = () => {
           {/* Client Acknowledgment */}
           {fault.clientAcknowledged && (
             <div className="flex items-center gap-3 p-4 bg-teal-50 border border-teal-100 rounded-lg">
-              <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5 text-teal-500 shrink-0" />
               <p className="font-semibold text-teal-700 text-sm">You have acknowledged this fault.</p>
             </div>
           )}
@@ -185,7 +186,7 @@ const CCTVFaultView = () => {
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Date</label>
                   <p className="text-gray-800 mt-0.5">{fault.date || 'N/A'}</p>
@@ -193,7 +194,7 @@ const CCTVFaultView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faClock} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Time</label>
                   <p className="text-gray-800 mt-0.5">{fault.time || 'N/A'}</p>
@@ -201,7 +202,7 @@ const CCTVFaultView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <Camera className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCamera} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Camera</label>
                   <p className="text-gray-800 mt-0.5">{fault.camera || 'N/A'}</p>
@@ -209,7 +210,7 @@ const CCTVFaultView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faUser} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Reported By</label>
                   <p className="text-gray-800 mt-0.5">
@@ -219,7 +220,7 @@ const CCTVFaultView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <Camera className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCamera} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Scheme</label>
                   <p className="text-gray-800 mt-0.5">{fault.scheme || 'N/A'}</p>
@@ -232,7 +233,7 @@ const CCTVFaultView = () => {
           {fault.comments && (
             <div>
               <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2 flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
+                <FontAwesomeIcon icon={faMessage} className="w-5 h-5" />
                 Fault Description
               </h4>
               <p className="text-gray-700 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap leading-relaxed">
@@ -252,15 +253,15 @@ const CCTVFaultView = () => {
                   className="w-full flex items-center justify-between gap-2 text-left mb-2"
                 >
                   <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5" />
+                    <FontAwesomeIcon icon={faMessage} className="w-5 h-5" />
                     Notes
                     <span className="text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
                       {fault.clientNotes?.length || (fault.clientNote ? 1 : 0)}
                     </span>
                   </h4>
                   {threadOpen
-                    ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                    : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+                    ? <FontAwesomeIcon icon={faChevronUp} className="w-4 h-4 text-gray-400 shrink-0" />
+                    : <FontAwesomeIcon icon={faChevronDown} className="w-4 h-4 text-gray-400 shrink-0" />}
                 </button>
                 {threadOpen && (
                   <div className="bg-gray-50 rounded-lg px-4 pb-3 border border-gray-100">

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { LogOut, X } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faRightFromBracket, faXmark } from "@fortawesome/free-solid-svg-icons";
 
 const LogoutConfirmModal = ({ onConfirm, onCancel, noteEnabled = false }) => {
   const [note, setNote] = useState("");
@@ -17,7 +18,7 @@ const LogoutConfirmModal = ({ onConfirm, onCancel, noteEnabled = false }) => {
         {/* Icon */}
         <div className="flex justify-center mb-4">
           <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center">
-            <LogOut className="w-7 h-7 text-red-500" />
+            <FontAwesomeIcon icon={faRightFromBracket} className="w-7 h-7 text-red-500" />
           </div>
         </div>
 
@@ -54,7 +55,7 @@ const LogoutConfirmModal = ({ onConfirm, onCancel, noteEnabled = false }) => {
             disabled={loggingOut}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <X className="w-4 h-4" />
+            <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
             Cancel
           </button>
           <button
@@ -62,7 +63,7 @@ const LogoutConfirmModal = ({ onConfirm, onCancel, noteEnabled = false }) => {
             disabled={loggingOut}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors disabled:bg-red-700 disabled:cursor-not-allowed"
           >
-            <LogOut className="w-4 h-4" />
+            <FontAwesomeIcon icon={faRightFromBracket} className="w-4 h-4" />
             {loggingOut ? "Logging out..." : "Log out"}
           </button>
         </div>

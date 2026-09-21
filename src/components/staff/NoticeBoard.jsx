@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import { staffService } from '../../services/staffService';
 import { useAuth } from '../../hooks/useAuth';
 import { isAnyThirdParty } from '../../utils/roleHelpers';
@@ -58,7 +59,7 @@ const NoticeBoard = ({ isOpen, onClose }) => {
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
           >
-            <X className="w-6 h-6" />
+            <FontAwesomeIcon icon={faXmark} className="w-6 h-6" />
           </button>
 
           <div className="flex items-center gap-3 mb-2">

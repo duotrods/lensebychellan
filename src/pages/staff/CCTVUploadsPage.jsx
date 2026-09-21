@@ -3,17 +3,16 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Upload,
-  Video,
-  X,
-  Check,
-  AlertCircle,
-  Calendar,
-  Clock,
-  Trash2,
-  Eye,
-} from "lucide-react";
+  faUpload,
+  faVideo,
+  faXmark,
+  faCheck,
+  faCircleExclamation,
+  faTrashCan,
+  faEye,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import {
   isDemoUser,
@@ -441,7 +440,8 @@ const CCTVUploadsPage = () => {
                     disabled={uploadingFiles}
                   />
                   <label htmlFor="video-upload" className="cursor-pointer">
-                    <Upload
+                    <FontAwesomeIcon
+                      icon={faUpload}
                       className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-teal-500" : "text-gray-400"}`}
                     />
                     <p className="text-gray-600 mb-2">
@@ -473,7 +473,7 @@ const CCTVUploadsPage = () => {
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                       >
                         <div className="flex items-center gap-3 flex-1">
-                          <Video className="w-5 h-5 text-teal-600" />
+                          <FontAwesomeIcon icon={faVideo} className="w-5 h-5 text-teal-600" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-800 truncate">
                               {file.name}
@@ -503,7 +503,7 @@ const CCTVUploadsPage = () => {
                             onClick={() => removeFile(index)}
                             className="btn btn-sm btn-ghost text-red-500"
                           >
-                            <X className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                           </button>
                         )}
                       </div>
@@ -545,7 +545,7 @@ const CCTVUploadsPage = () => {
                     </>
                   ) : (
                     <>
-                      <Upload className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faUpload} className="w-4 h-4" />
                       Upload Files
                     </>
                   )}
@@ -557,29 +557,29 @@ const CCTVUploadsPage = () => {
           {/* Upload Tips */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center gap-2 mb-4">
-              <AlertCircle className="w-5 h-5 text-yellow-500" />
+              <FontAwesomeIcon icon={faCircleExclamation} className="w-5 h-5 text-yellow-500" />
               <h5 className="font-bold text-gray-800">Upload Guidelines</h5>
             </div>
 
             <ul className="space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Maximum file size: 500MB per video</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Supported formats: MP4, AVI, MOV, MKV</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Include camera number and exact time</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Link to incident report if applicable</span>
               </li>
               <li className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                 <span>Add description for easy identification</span>
               </li>
             </ul>
@@ -672,13 +672,13 @@ const CCTVUploadsPage = () => {
                               }
                               className="btn btn-sm bg-teal-500 text-white hover:bg-teal-600 border-none"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteUpload(upload.id)}
                               className="btn btn-sm btn-outline text-red-500 hover:bg-red-50"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
                             </button>
                           </div>
                         </td>

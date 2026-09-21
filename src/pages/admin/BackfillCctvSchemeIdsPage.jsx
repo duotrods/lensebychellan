@@ -2,7 +2,12 @@ import { useState } from "react";
 import { collection, getDocs, writeBatch, doc } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { deriveCCTVSchemeIds } from "../../utils/cctvSchemeIds";
-import { CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCircleCheck,
+  faSpinner,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Firestore allows up to 500 writes per batch.
 const BATCH_LIMIT = 500;
@@ -98,7 +103,7 @@ const BackfillCctvSchemeIdsPage = () => {
       {result && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-green-700">
           <div className="flex items-center gap-2 font-medium mb-1">
-            <CheckCircle2 className="w-5 h-5" />
+            <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5" />
             Backfill complete.
           </div>
           <p className="text-sm">
@@ -119,7 +124,7 @@ const BackfillCctvSchemeIdsPage = () => {
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center gap-2 text-red-600">
-          <AlertTriangle className="w-5 h-5" /> {error}
+          <FontAwesomeIcon icon={faTriangleExclamation} className="w-5 h-5" /> {error}
         </div>
       )}
 
@@ -128,7 +133,7 @@ const BackfillCctvSchemeIdsPage = () => {
         disabled={running}
         className="px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center gap-2 transition-colors"
       >
-        {running && <Loader2 className="w-4 h-4 animate-spin" />}
+        {running && <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />}
         {running ? "Running backfill..." : "Run Backfill"}
       </button>
     </div>

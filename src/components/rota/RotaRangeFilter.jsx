@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { DateRangePicker } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
-import { CalendarDays, X } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCalendarDays, faXmark } from "@fortawesome/free-solid-svg-icons";
 
 // Approximate width of the 2-month horizontal picker; used to keep the popup on-screen.
 const PICKER_WIDTH = 656;
@@ -73,7 +74,7 @@ const RotaRangeFilter = ({ period, range, onChange, onClear }) => {
             : "bg-white border-gray-200 text-teal-600 hover:shadow-md"
         }`}
       >
-        <CalendarDays className="w-4 h-4" />
+        <FontAwesomeIcon icon={faCalendarDays} className="w-4 h-4" />
         {range && (
           <span>
             {range.start.toLocaleDateString("en-GB")} – {range.end.toLocaleDateString("en-GB")}
@@ -88,7 +89,7 @@ const RotaRangeFilter = ({ period, range, onChange, onClear }) => {
           title="Clear date filter"
           className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-400 hover:bg-gray-600 text-white flex items-center justify-center"
         >
-          <X className="w-2.5 h-2.5" />
+          <FontAwesomeIcon icon={faXmark} className="w-2.5 h-2.5" />
         </button>
       )}
 

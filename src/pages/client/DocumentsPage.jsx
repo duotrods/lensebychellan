@@ -7,24 +7,25 @@ import { uploadFileToR2 } from "../../utils/r2Upload";
 import { getActiveSchemeName } from "../../utils/schemes";
 import { USER_ROLES } from "../../utils/constants";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Download,
-  FileSpreadsheet,
-  FileText,
-  FileType2,
-  Image as ImageIcon,
-  Link2,
-  File,
-  Search,
-  Filter,
-  FolderOpen,
-  Clock,
-  Eye,
-  X,
-  Upload,
-  ChevronDown,
-  Check,
-} from "lucide-react";
+  faDownload,
+  faFileExcel,
+  faFileLines,
+  faFileWord,
+  faImage,
+  faLink,
+  faFile,
+  faMagnifyingGlass,
+  faFilter,
+  faFolderOpen,
+  faClock,
+  faEye,
+  faXmark,
+  faUpload,
+  faChevronDown,
+  faCheck,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import {
   DOCUMENT_CATEGORIES,
@@ -37,16 +38,16 @@ const CATEGORIES = ["All", ...DOCUMENT_CATEGORIES];
 
 const FileIcon = ({ type, className }) => {
   if (type === "excel")
-    return <FileSpreadsheet className={`${className} text-emerald-600`} />;
+    return <FontAwesomeIcon icon={faFileExcel} className={`${className} text-emerald-600`} />;
   if (type === "pdf")
-    return <FileText className={`${className} text-red-500`} />;
+    return <FontAwesomeIcon icon={faFileLines} className={`${className} text-red-500`} />;
   if (type === "word")
-    return <FileType2 className={`${className} text-blue-600`} />;
+    return <FontAwesomeIcon icon={faFileWord} className={`${className} text-blue-600`} />;
   if (type === "image")
-    return <ImageIcon className={`${className} text-purple-500`} />;
+    return <FontAwesomeIcon icon={faImage} className={`${className} text-purple-500`} />;
   if (type === "link")
-    return <Link2 className={`${className} text-teal-600`} />;
-  return <File className={`${className} text-gray-500`} />;
+    return <FontAwesomeIcon icon={faLink} className={`${className} text-teal-600`} />;
+  return <FontAwesomeIcon icon={faFile} className={`${className} text-gray-500`} />;
 };
 
 const CategoryBadge = ({ category }) => {
@@ -95,7 +96,8 @@ const CategoryDropdown = ({ value, onChange }) => {
       >
         {value}
       </button>
-      <ChevronDown
+      <FontAwesomeIcon
+        icon={faChevronDown}
         className={`w-4 h-4 text-teal-600 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-transform ${open ? "rotate-180" : ""}`}
       />
       {open && (
@@ -115,7 +117,7 @@ const CategoryDropdown = ({ value, onChange }) => {
               }`}
             >
               {c}
-              {c === value && <Check className="w-4 h-4 text-teal-600" />}
+              {c === value && <FontAwesomeIcon icon={faCheck} className="w-4 h-4 text-teal-600" />}
             </button>
           ))}
         </div>
@@ -136,7 +138,7 @@ const EmbedViewer = ({ doc, onClose }) => (
     >
       <div className="flex items-center justify-between px-5 py-3 border-b">
         <div className="flex items-center gap-2 min-w-0">
-          <Link2 className="w-5 h-5 text-teal-600 shrink-0" />
+          <FontAwesomeIcon icon={faLink} className="w-5 h-5 text-teal-600 shrink-0" />
           <h3 className="font-semibold text-gray-800 truncate">{doc.title}</h3>
           <span className="text-[11px] font-medium text-teal-600 shrink-0">
             Live · read-only
@@ -155,7 +157,7 @@ const EmbedViewer = ({ doc, onClose }) => (
             onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-700"
           >
-            <X className="w-5 h-5" />
+            <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -326,7 +328,7 @@ const DocumentsPage = () => {
               onClick={() => setDrawerOpen(true)}
               className="inline-flex items-center gap-2 h-10 px-4 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors shrink-0"
             >
-              <Upload className="w-4 h-4" />
+              <FontAwesomeIcon icon={faUpload} className="w-4 h-4" />
               Upload
             </button>
           )}
@@ -335,7 +337,7 @@ const DocumentsPage = () => {
         {/* Filters + Search */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <FontAwesomeIcon icon={faFilter} className="w-4 h-4 text-gray-400" />
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
@@ -351,7 +353,7 @@ const DocumentsPage = () => {
             ))}
           </div>
           <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <FontAwesomeIcon icon={faMagnifyingGlass} className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search documents..."
@@ -368,7 +370,7 @@ const DocumentsPage = () => {
             <div className="py-16 text-center text-gray-400">Loading…</div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center text-gray-400">
-              <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <FontAwesomeIcon icon={faFolderOpen} className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p>No documents available.</p>
             </div>
           ) : (
@@ -423,7 +425,7 @@ const DocumentsPage = () => {
                       </td>
                       <td className="px-4 py-4 hidden sm:table-cell">
                         <div className="flex items-center gap-1.5 text-sm text-gray-400">
-                          <Clock className="w-3.5 h-3.5" />
+                          <FontAwesomeIcon icon={faClock} className="w-3.5 h-3.5" />
                           {formatDocumentDate(doc.uploadedAt)}
                         </div>
                       </td>
@@ -441,7 +443,7 @@ const DocumentsPage = () => {
                               onClick={() => setViewing(doc)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                               View
                             </button>
                           ) : (
@@ -451,7 +453,7 @@ const DocumentsPage = () => {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
                             >
-                              <Download className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                               Download
                             </a>
                           )}
@@ -484,7 +486,7 @@ const DocumentsPage = () => {
                 className="p-1.5 text-gray-400 hover:text-gray-600"
                 aria-label="Close"
               >
-                <X className="w-5 h-5" />
+                <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
               </button>
             </div>
 
@@ -543,7 +545,7 @@ const DocumentsPage = () => {
                     className="p-1.5 text-gray-400 hover:text-red-500 shrink-0"
                     aria-label="Remove file"
                   >
-                    <X className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
@@ -560,7 +562,7 @@ const DocumentsPage = () => {
                       : "border-gray-300 hover:border-teal-400 hover:bg-gray-50"
                   }`}
                 >
-                  <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                  <FontAwesomeIcon icon={faUpload} className="w-5 h-5 text-gray-400 mb-1" />
                   <p className="text-sm font-medium text-gray-700">
                     Drop a file, or click to browse
                   </p>

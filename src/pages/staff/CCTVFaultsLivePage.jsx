@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CameraOff, Edit, CheckCircle2, Eye, MessageSquare, Send, Loader2 } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPen, faCircleCheck, faEye, faMessage, faPaperPlane, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 import { useAuth } from "../../hooks/useAuth";
@@ -83,7 +84,7 @@ const NoteThread = ({ notes, legacyNote, faultId, onNotesUpdated }) => {
                   disabled={saving || !editText.trim()}
                   className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
                 >
-                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  {saving ? <FontAwesomeIcon icon={faSpinner} className="w-3.5 h-3.5 animate-spin" /> : <FontAwesomeIcon icon={faPaperPlane} className="w-3.5 h-3.5" />}
                 </button>
                 <button
                   onClick={cancelEdit}
@@ -183,7 +184,7 @@ const CCTVFaultsLivePageInner = () => {
           </div>
         ) : faults.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-            <CheckCircle2 className="w-12 h-12 text-green-300 mb-3" />
+            <FontAwesomeIcon icon={faCircleCheck} className="w-12 h-12 text-green-300 mb-3" />
             <p className="text-lg font-semibold text-gray-500">All clear</p>
             <p className="text-sm">No live CCTV faults at the moment</p>
           </div>
@@ -251,7 +252,7 @@ const CCTVFaultsLivePageInner = () => {
                         {fault.clientAcknowledged ? (
                           <div className="inline-flex flex-col items-center gap-0.5">
                             <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-1 rounded-full">
-                              <Eye className="w-3 h-3" />
+                              <FontAwesomeIcon icon={faEye} className="w-3 h-3" />
                               Seen
                             </span>
                             {(() => {
@@ -282,7 +283,7 @@ const CCTVFaultsLivePageInner = () => {
                             className="inline-flex items-center gap-1.5 px-3 py-2 bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold rounded-lg transition-colors"
                             title="View / Mark Complete"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <FontAwesomeIcon icon={faPen} className="w-3.5 h-3.5" />
                             View / Complete
                           </button>
                           <button
@@ -293,7 +294,7 @@ const CCTVFaultsLivePageInner = () => {
                                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                             }`}
                           >
-                            <MessageSquare className="w-3.5 h-3.5" />
+                            <FontAwesomeIcon icon={faMessage} className="w-3.5 h-3.5" />
                             Notes {noteCount > 0 && `(${noteCount})`}
                           </button>
                         </div>
@@ -332,8 +333,8 @@ const CCTVFaultsLivePageInner = () => {
                                 className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors"
                               >
                                 {savingNote[fault.id]
-                                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                                  : <Send className="w-4 h-4" />}
+                                  ? <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
+                                  : <FontAwesomeIcon icon={faPaperPlane} className="w-4 h-4" />}
                               </button>
                             </div>
                           </div>

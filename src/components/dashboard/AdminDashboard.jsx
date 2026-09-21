@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { firestoreService } from '../../services/firestoreService';
 import { useAuth } from '../../hooks/useAuth';
-import { Key, Users } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faKey, faUsers } from "@fortawesome/free-solid-svg-icons";
 import UserManagement from '../admin/UserManagement';
 import LoginLogs from '../admin/LoginLogs';
 
@@ -30,14 +31,14 @@ const AdminDashboard = () => {
             onClick={() => navigate('/dashboard/admin/otp-management')}
             className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
           >
-            <Key className="w-4 h-4" />
+            <FontAwesomeIcon icon={faKey} className="w-4 h-4" />
             Manage Access Codes
           </button>
           <button
             onClick={() => navigate('/dashboard/admin/scheme-assignment')}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
-            <Users className="w-4 h-4" />
+            <FontAwesomeIcon icon={faUsers} className="w-4 h-4" />
             Assign Schemes
           </button>
         </div>

@@ -5,18 +5,19 @@ import {
   useLiveCCTVFaults,
   usePaginatedCCTVFaults,
 } from "../../hooks/useCCTVFaults";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Eye,
-  Camera,
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  CheckCircle,
-  MessageSquare,
-} from "lucide-react";
+  faEye,
+  faCamera,
+  faArrowLeft,
+  faChevronLeft,
+  faChevronRight,
+  faChevronDown,
+  faChevronUp,
+  faSpinner,
+  faCircleCheck,
+  faMessage,
+} from "@fortawesome/free-solid-svg-icons";
 import { getActiveSchemeName } from "../../utils/schemes";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 
@@ -113,7 +114,7 @@ const CCTVFaultsPage = () => {
               onClick={() => navigate(basePath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h4 className="font-bold text-gray-800">
@@ -146,7 +147,7 @@ const CCTVFaultsPage = () => {
             <div className="flex flex-col">
               <div className="bg-linear-to-br from-red-500 to-red-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                  <Camera className="w-6 h-6 text-red-500" />
+                  <FontAwesomeIcon icon={faCamera} className="w-6 h-6 text-red-500" />
                 </div>
                 <span className="text-white font-semibold text-2xl">
                   Live Faults
@@ -159,7 +160,7 @@ const CCTVFaultsPage = () => {
               <div className="bg-white shadow-xs rounded-b-lg flex-1 overflow-hidden border border-t-0 border-gray-100">
                 {liveLoading ? (
                   <div className="p-6 flex justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-red-400" />
+                    <FontAwesomeIcon icon={faSpinner} className="w-6 h-6 animate-spin text-red-400" />
                   </div>
                 ) : liveFaults.length === 0 ? (
                   <div className="p-6 text-center text-slate-400">
@@ -201,7 +202,7 @@ const CCTVFaultsPage = () => {
                               className="p-1.5 rounded text-blue-400 hover:text-blue-300"
                               title="View Details"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                             </button>
                           </div>
 
@@ -219,9 +220,9 @@ const CCTVFaultsPage = () => {
                                 onClick={(e) => toggleNotes(fault.id, e)}
                                 className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 rounded px-1.5 py-0.5 transition-colors mb-2"
                               >
-                                <MessageSquare className="w-3.5 h-3.5" />
+                                <FontAwesomeIcon icon={faMessage} className="w-3.5 h-3.5" />
                                 <span>{noteCount} {noteCount === 1 ? "note" : "notes"}</span>
-                                {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                {isOpen ? <FontAwesomeIcon icon={faChevronUp} className="w-3 h-3" /> : <FontAwesomeIcon icon={faChevronDown} className="w-3 h-3" />}
                               </button>
                               {isOpen && (
                                 <NoteThread
@@ -243,7 +244,7 @@ const CCTVFaultsPage = () => {
             <div className="flex flex-col">
               <div className="bg-linear-to-br from-brand-500 to-brand-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
+                  <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 text-green-600" />
                 </div>
                 <span className="text-white font-semibold text-2xl">
                   Resolved Faults
@@ -256,7 +257,7 @@ const CCTVFaultsPage = () => {
               <div className="bg-white shadow-xs rounded-b-lg flex-1 overflow-hidden border border-t-0 border-gray-100">
                 {resolvedLoading ? (
                   <div className="p-6 flex justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                    <FontAwesomeIcon icon={faSpinner} className="w-6 h-6 animate-spin text-teal-500" />
                   </div>
                 ) : resolvedFaults.length === 0 ? (
                   <div className="p-6 text-center text-slate-400">
@@ -299,7 +300,7 @@ const CCTVFaultsPage = () => {
                                 className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
                                 title="View Details"
                               >
-                                <Eye className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                               </button>
                             </div>
 
@@ -317,9 +318,9 @@ const CCTVFaultsPage = () => {
                                   onClick={(e) => toggleNotes(fault.id, e)}
                                   className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 rounded px-1.5 py-0.5 transition-colors mb-2"
                                 >
-                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <FontAwesomeIcon icon={faMessage} className="w-3.5 h-3.5" />
                                   <span>{noteCount} {noteCount === 1 ? "note" : "notes"}</span>
-                                  {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                  {isOpen ? <FontAwesomeIcon icon={faChevronUp} className="w-3 h-3" /> : <FontAwesomeIcon icon={faChevronDown} className="w-3 h-3" />}
                                 </button>
                                 {isOpen && (
                                   <NoteThread
@@ -348,7 +349,7 @@ const CCTVFaultsPage = () => {
                             disabled={currentPage === 1}
                             className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
-                            <ChevronLeft className="w-5 h-5" />
+                            <FontAwesomeIcon icon={faChevronLeft} className="w-5 h-5" />
                           </button>
                           <span className="text-sm font-medium px-2">
                             {currentPage} / {totalPages}
@@ -358,7 +359,7 @@ const CCTVFaultsPage = () => {
                             disabled={currentPage >= totalPages}
                             className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
-                            <ChevronRight className="w-5 h-5" />
+                            <FontAwesomeIcon icon={faChevronRight} className="w-5 h-5" />
                           </button>
                         </div>
                       </div>

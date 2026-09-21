@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { Download, GripHorizontal } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDownload, faGripLines } from "@fortawesome/free-solid-svg-icons";
 import {
   DndContext,
   closestCenter,
@@ -124,7 +125,7 @@ const StaffColumnHeader = ({ staffMember, canReorder }) => {
       {...(canReorder ? listeners : {})}
     >
       <span className="inline-flex items-center justify-center gap-1">
-        {canReorder && <GripHorizontal className="w-3 h-3 text-gray-300 shrink-0" />}
+        {canReorder && <FontAwesomeIcon icon={faGripLines} className="w-3 h-3 text-gray-300 shrink-0" />}
         {staffMember.name}
       </span>
     </th>
@@ -328,7 +329,7 @@ const RotaGrid = ({
             onClick={onDownloadCsv}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-medium"
           >
-            <Download className="w-4 h-4" />
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
             CSV
           </button>
         </div>

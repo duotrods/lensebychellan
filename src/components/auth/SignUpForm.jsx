@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { authService } from "../../services/authService";
 import { getAuthErrorMessage } from "../../utils/errorHandling";
 import { USER_ROLES, ROLE_LABELS } from "../../utils/constants";
@@ -199,7 +200,7 @@ const SignUpForm = () => {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-600 transition-colors"
               tabIndex={-1}
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? <FontAwesomeIcon icon={faEyeSlash} className="w-5 h-5" /> : <FontAwesomeIcon icon={faEye} className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -225,7 +226,7 @@ const SignUpForm = () => {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-600 transition-colors"
               tabIndex={-1}
             >
-              {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showConfirmPassword ? <FontAwesomeIcon icon={faEyeSlash} className="w-5 h-5" /> : <FontAwesomeIcon icon={faEye} className="w-5 h-5" />}
             </button>
           </div>
         </div>

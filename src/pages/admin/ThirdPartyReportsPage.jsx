@@ -10,19 +10,20 @@ import {
 } from "../../utils/schemes";
 import { decorateForm, excludeDemoScheme } from "../../utils/reportMapping";
 import { useLiveReports } from "../../hooks/useLiveReports";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  FileText,
-  Camera,
-  Calendar,
-  AlertTriangle,
-  Eye,
-  Download,
-  Filter,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-} from "lucide-react";
+  faFileLines,
+  faCamera,
+  faCalendar,
+  faTriangleExclamation,
+  faEye,
+  faDownload,
+  faFilter,
+  faMagnifyingGlass,
+  faChevronLeft,
+  faChevronRight,
+  faTrashCan,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 
@@ -328,15 +329,15 @@ const ThirdPartyReportsPage = () => {
   const getFormTypeIcon = (type) => {
     switch (type) {
       case "Incident Report":
-        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
+        return <FontAwesomeIcon icon={faTriangleExclamation} className="w-5 h-5 text-orange-500" />;
       case "CCTV Check":
-        return <Eye className="w-5 h-5 text-green-500" />;
+        return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-green-500" />;
       case "Daily Logs":
-        return <Calendar className="w-5 h-5 text-blue-500" />;
+        return <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-blue-500" />;
       case "Asset Damage":
-        return <FileText className="w-5 h-5 text-red-500" />;
+        return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-red-500" />;
       default:
-        return <FileText className="w-5 h-5 text-gray-500" />;
+        return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-gray-500" />;
     }
   };
 
@@ -486,7 +487,7 @@ const ThirdPartyReportsPage = () => {
                 <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
               </div>
               <div className="bg-gray-100 p-3 rounded-lg">
-                <FileText className="w-6 h-6 text-gray-600" />
+                <FontAwesomeIcon icon={faFileLines} className="w-6 h-6 text-gray-600" />
               </div>
             </div>
           </div>
@@ -498,7 +499,7 @@ const ThirdPartyReportsPage = () => {
                 <p className="text-3xl font-bold text-purple-600 mt-1">{stats.cctvCheck}</p>
               </div>
               <div className="bg-purple-100 p-3 rounded-lg">
-                <Camera className="w-6 h-6 text-purple-600" />
+                <FontAwesomeIcon icon={faCamera} className="w-6 h-6 text-purple-600" />
               </div>
             </div>
           </div>
@@ -510,7 +511,7 @@ const ThirdPartyReportsPage = () => {
                 <p className="text-3xl font-bold text-teal-600 mt-1">{stats.incident}</p>
               </div>
               <div className="bg-teal-100 p-3 rounded-lg">
-                <FileText className="w-6 h-6 text-teal-600" />
+                <FontAwesomeIcon icon={faFileLines} className="w-6 h-6 text-teal-600" />
               </div>
             </div>
           </div>
@@ -522,7 +523,7 @@ const ThirdPartyReportsPage = () => {
                 <p className="text-3xl font-bold text-orange-600 mt-1">{stats.assetDamage}</p>
               </div>
               <div className="bg-orange-100 p-3 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-orange-600" />
+                <FontAwesomeIcon icon={faTriangleExclamation} className="w-6 h-6 text-orange-600" />
               </div>
             </div>
           </div>
@@ -534,7 +535,7 @@ const ThirdPartyReportsPage = () => {
                 <p className="text-3xl font-bold text-blue-600 mt-1">{stats.dailyLogs}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-lg">
-                <Calendar className="w-6 h-6 text-blue-600" />
+                <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
@@ -545,7 +546,7 @@ const ThirdPartyReportsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by reference ID or staff name..."
@@ -599,7 +600,7 @@ const ThirdPartyReportsPage = () => {
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
-            <Filter className="w-4 h-4" />
+            <FontAwesomeIcon icon={faFilter} className="w-4 h-4" />
             <span>
               {isSearchMode
                 ? `Page ${searchPage} — ${searchResults.length} search result${searchResults.length !== 1 ? 's' : ''}`
@@ -616,7 +617,7 @@ const ThirdPartyReportsPage = () => {
             </div>
           ) : currentReports.length === 0 ? (
             <div className="text-center py-12">
-              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <FontAwesomeIcon icon={faFileLines} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No reports found</p>
             </div>
           ) : (
@@ -687,21 +688,21 @@ const ThirdPartyReportsPage = () => {
                               className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
                               title="View"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDownloadPDF(report)}
                               className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
                               title="Download PDF"
                             >
-                              <Download className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteClick(report)}
                               className="btn btn-sm btn-ghost text-red-600 hover:text-red-800"
                               title="Delete"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -723,7 +724,7 @@ const ThirdPartyReportsPage = () => {
                       disabled={searchPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">Page {searchPage}</span>
                     <button
@@ -731,7 +732,7 @@ const ThirdPartyReportsPage = () => {
                       disabled={!searchHasMore}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -749,7 +750,7 @@ const ThirdPartyReportsPage = () => {
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
                       Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ''}
@@ -759,7 +760,7 @@ const ThirdPartyReportsPage = () => {
                       disabled={!hasMore || (totalPages > 0 && currentPage >= totalPages)}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

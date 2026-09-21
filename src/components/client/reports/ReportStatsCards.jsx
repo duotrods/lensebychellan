@@ -1,14 +1,13 @@
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  FileText,
-  AlertTriangle,
-  Calendar,
-  Wrench,
-  ShieldAlert,
-  CameraOff,
-  Car,
-  Hammer,
-  TriangleAlert,
-} from "lucide-react";
+  faFileLines,
+  faTriangleExclamation,
+  faWrench,
+  faShieldHalved,
+  faVideoSlash,
+  faCar,
+  faHammer,
+} from "@fortawesome/free-solid-svg-icons";
 
 // The two rows of clickable summary cards at the top of the Reports page.
 // Each card drives a filter via onCardClick(type, sub?).
@@ -30,35 +29,35 @@ const ReportStatsCards = ({ reportStats, onCardClick }) => (
     {/* Row 1: Report Type Counts */}
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
       <Card
-        icon={<FileText className="w-3.5 h-3.5 text-brand-500" />}
+        icon={<FontAwesomeIcon icon={faFileLines} className="w-3.5 h-3.5 text-brand-500" />}
         hoverBorder="hover:border-brand-500"
         label="Total Reports"
         value={reportStats.total}
         onClick={() => onCardClick("all")}
       />
       {/* <Card
-        icon={<Calendar className="w-3.5 h-3.5 text-blue-500" />}
+        icon: calendar icon here (faCalendar not imported — add it if re-enabling this card)
         hoverBorder="hover:border-blue-500"
         label="Daily Logs"
         value={reportStats.dailyOccurrence}
         onClick={() => onCardClick("daily-occurrence")}
       /> */}
       <Card
-        icon={<TriangleAlert className="w-3.5 h-3.5 text-amber-500" />}
+        icon={<FontAwesomeIcon icon={faTriangleExclamation} className="w-3.5 h-3.5 text-amber-500" />}
         hoverBorder="hover:border-amber-500"
         label="Incursion to Gain Benifit"
         value={reportStats.incursionToGainAdvantage}
         onClick={() => onCardClick("incident", "gain-advantage")}
       />
       <Card
-        icon={<AlertTriangle className="w-3.5 h-3.5 text-orange-500" />}
+        icon={<FontAwesomeIcon icon={faTriangleExclamation} className="w-3.5 h-3.5 text-orange-500" />}
         hoverBorder="hover:border-orange-500"
         label="Incidents"
         value={reportStats.pureIncident}
         onClick={() => onCardClick("incident", "pure")}
       />
       <Card
-        icon={<CameraOff className="w-3.5 h-3.5 text-purple-500" />}
+        icon={<FontAwesomeIcon icon={faVideoSlash} className="w-3.5 h-3.5 text-purple-500" />}
         hoverBorder="hover:border-purple-500"
         label="CCTV Faults"
         value={reportStats.cctvFaults}
@@ -69,28 +68,28 @@ const ReportStatsCards = ({ reportStats, onCardClick }) => (
     {/* Row 2: Incident Metrics */}
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       <Card
-        icon={<Wrench className="w-3.5 h-3.5 text-green-500" />}
+        icon={<FontAwesomeIcon icon={faWrench} className="w-3.5 h-3.5 text-green-500" />}
         hoverBorder="hover:border-green-500"
         label="Free Recovery"
         value={reportStats.freeRecovery}
         onClick={() => onCardClick("incident", "free-recovery")}
       />
       <Card
-        icon={<ShieldAlert className="w-3.5 h-3.5 text-red-500" />}
+        icon={<FontAwesomeIcon icon={faShieldHalved} className="w-3.5 h-3.5 text-red-500" />}
         hoverBorder="hover:border-red-500"
         label="Incursions"
         value={reportStats.incursions}
         onClick={() => onCardClick("incident", "incursion")}
       />
       <Card
-        icon={<Car className="w-3.5 h-3.5 text-blue-500" />}
+        icon={<FontAwesomeIcon icon={faCar} className="w-3.5 h-3.5 text-blue-500" />}
         hoverBorder="hover:border-blue-500"
         label="Vehicles Dispatched"
         value={reportStats.vehiclesDispatched}
         onClick={() => onCardClick("incident")}
       />
       <Card
-        icon={<Hammer className="w-3.5 h-3.5 text-yellow-500" />}
+        icon={<FontAwesomeIcon icon={faHammer} className="w-3.5 h-3.5 text-yellow-500" />}
         hoverBorder="hover:border-yellow-500"
         label="Asset Damage"
         value={reportStats.incidentAssetDamage}

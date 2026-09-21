@@ -1,4 +1,5 @@
-import { Download } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDownload } from "@fortawesome/free-solid-svg-icons";
 import {
   formatDate,
   formatTime,
@@ -74,7 +75,7 @@ const ReportDetailModal = ({ report, onClose, onDownload }) => {
               onClick={() => onDownload(report)}
               className="btn btn-brand flex-1"
             >
-              <Download className="w-4 h-4 mr-2" />
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
               Download Report
             </button>
             <button onClick={onClose} className="btn btn-outline flex-1">

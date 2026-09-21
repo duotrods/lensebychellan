@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveOperatorIncidents, usePaginatedCompletedIncidentsForOperator } from '../../hooks/useLiveOperatorIncidents';
-import { Eye, Download, Radio, CheckCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faDownload, faTowerBroadcast, faCircleCheck, faChevronLeft, faChevronRight, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 
@@ -109,7 +110,7 @@ const LiveOperatorDashboard = () => {
               <div className="flex flex-col">
                 <div className="bg-linear-to-br from-red-500 to-red-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                    <Radio className="w-6 h-6 text-red-500" />
+                    <FontAwesomeIcon icon={faTowerBroadcast} className="w-6 h-6 text-red-500" />
                   </div>
                   <span className="text-white font-semibold text-2xl">Live Incidents</span>
                   <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -153,7 +154,7 @@ const LiveOperatorDashboard = () => {
                                 className="p-1.5 rounded text-blue-400 hover:text-blue-300"
                                 title="View Details"
                               >
-                                <Eye className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                               </button>
                             </div>
                             {incident.incidentType && (
@@ -176,7 +177,7 @@ const LiveOperatorDashboard = () => {
                               disabled={liveCurrentPage === 1}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronLeft className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronLeft} className="w-5 h-5" />
                             </button>
                             <span className="text-sm font-medium px-2">
                               {liveCurrentPage} / {liveTotalPages}
@@ -186,7 +187,7 @@ const LiveOperatorDashboard = () => {
                               disabled={liveCurrentPage === liveTotalPages}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronRight className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronRight} className="w-5 h-5" />
                             </button>
                           </div>
                         </div>
@@ -200,7 +201,7 @@ const LiveOperatorDashboard = () => {
               <div className="flex flex-col">
                 <div className="bg-linear-to-br from-brand-500 to-brand-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
+                    <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 text-green-600" />
                   </div>
                   <span className="text-white font-semibold text-2xl">Completed Incidents</span>
                   <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -211,7 +212,7 @@ const LiveOperatorDashboard = () => {
                 <div className="bg-white shadow-xs rounded-b-lg flex-1 overflow-hidden border border-t-0 border-gray-100">
                   {completedLoading ? (
                     <div className="p-6 flex justify-center">
-                      <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                      <FontAwesomeIcon icon={faSpinner} className="w-6 h-6 animate-spin text-teal-500" />
                     </div>
                   ) : completedIncidents.length === 0 ? (
                     <div className="p-6 text-center text-slate-400">
@@ -248,13 +249,13 @@ const LiveOperatorDashboard = () => {
                                     className="p-1.5 hover:bg-gray-200 rounded text-purple-500 hover:text-purple-600"
                                     title="Download PDF"
                                   >
-                                    <Download className="w-4 h-4" />
+                                    <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                                   </button>
                                   <button
                                     className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
                                     title="View Details"
                                   >
-                                    <Eye className="w-4 h-4" />
+                                    <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -286,7 +287,7 @@ const LiveOperatorDashboard = () => {
                               disabled={currentPage === 1}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronLeft className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronLeft} className="w-5 h-5" />
                             </button>
                             <span className="text-sm font-medium px-2">
                               {currentPage} / {totalPages}
@@ -296,7 +297,7 @@ const LiveOperatorDashboard = () => {
                               disabled={currentPage === totalPages}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronRight className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronRight} className="w-5 h-5" />
                             </button>
                           </div>
                         </div>

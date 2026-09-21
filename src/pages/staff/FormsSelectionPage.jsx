@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { FileText, Camera, Calendar } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFileLines, faCamera, faCalendar } from '@fortawesome/free-solid-svg-icons';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
 import { getStaffBasePath } from '../../utils/constants';
 
@@ -13,7 +14,7 @@ const FormsSelectionPage = () => {
     {
       title: 'Incident Sheet',
       description: 'Report highway incidents and traffic disruptions',
-      icon: FileText,
+      icon: faFileLines,
       color: 'from-teal-400 to-teal-500',
       bgColor: 'bg-teal-50',
       path: `${basePath}/forms/incident-report`
@@ -21,7 +22,7 @@ const FormsSelectionPage = () => {
     {
       title: 'Daily Occurrence Sheet',
       description: 'Log daily activities and routine observations',
-      icon: Calendar,
+      icon: faCalendar,
       color: 'from-blue-400 to-blue-500',
       bgColor: 'bg-blue-50',
       path: `${basePath}/forms/daily-occurence`
@@ -29,7 +30,7 @@ const FormsSelectionPage = () => {
     {
       title: 'Camera Check Sheet',
       description: 'Verify CCTV camera operational status',
-      icon: Camera,
+      icon: faCamera,
       color: 'from-purple-400 to-purple-500',
       bgColor: 'bg-purple-50',
       path: `${basePath}/forms/cctv-check`
@@ -64,7 +65,7 @@ const FormsSelectionPage = () => {
               <div className="relative">
                 {/* Icon */}
                 <div className={`w-16 h-16 ${form.bgColor} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                  <form.icon className="w-8 h-8 text-teal-600" />
+                  <FontAwesomeIcon icon={form.icon} className="w-8 h-8 text-teal-600" />
                 </div>
 
                 {/* Title */}

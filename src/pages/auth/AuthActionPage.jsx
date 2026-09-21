@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { applyActionCode, verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
 import { auth } from '../../config/firebase';
-import { CheckCircle, XCircle, Loader2, Mail, KeyRound } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleCheck, faCircleXmark, faSpinner, faEnvelope, faKey } from "@fortawesome/free-solid-svg-icons";
 import headerLogo from '../../assets/headerlogo.svg';
 
 const AuthActionPage = () => {
@@ -133,11 +134,11 @@ const AuthActionPage = () => {
   const getIcon = () => {
     switch (mode) {
       case 'verifyEmail':
-        return <Mail className="w-8 h-8" />;
+        return <FontAwesomeIcon icon={faEnvelope} className="w-8 h-8" />;
       case 'resetPassword':
-        return <KeyRound className="w-8 h-8" />;
+        return <FontAwesomeIcon icon={faKey} className="w-8 h-8" />;
       default:
-        return <Mail className="w-8 h-8" />;
+        return <FontAwesomeIcon icon={faEnvelope} className="w-8 h-8" />;
     }
   };
 
@@ -164,7 +165,7 @@ const AuthActionPage = () => {
           {/* Loading State */}
           {status === 'loading' && (
             <div className="text-center">
-              <Loader2 className="w-12 h-12 text-teal-500 animate-spin mx-auto mb-4" />
+              <FontAwesomeIcon icon={faSpinner} className="w-12 h-12 text-teal-500 animate-spin mx-auto mb-4" />
               <p className="text-gray-600">Processing your request...</p>
             </div>
           )}
@@ -173,7 +174,7 @@ const AuthActionPage = () => {
           {status === 'success' && (
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-10 h-10 text-green-500" />
+                <FontAwesomeIcon icon={faCircleCheck} className="w-10 h-10 text-green-500" />
               </div>
               <p className="text-gray-700 mb-6">{message}</p>
               <button
@@ -189,7 +190,7 @@ const AuthActionPage = () => {
           {status === 'error' && (
             <div className="text-center">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <XCircle className="w-10 h-10 text-red-500" />
+                <FontAwesomeIcon icon={faCircleXmark} className="w-10 h-10 text-red-500" />
               </div>
               <p className="text-gray-700 mb-6">{message}</p>
               <button
@@ -251,7 +252,7 @@ const AuthActionPage = () => {
               >
                 {isResetting ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <FontAwesomeIcon icon={faSpinner} className="w-5 h-5 animate-spin" />
                     Resetting...
                   </>
                 ) : (

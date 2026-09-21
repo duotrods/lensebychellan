@@ -3,7 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
-import { Camera, Clock, AlertTriangle, TrendingUp, RefreshCw } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCamera,
+  faClock,
+  faTriangleExclamation,
+  faArrowTrendUp,
+  faRotateRight,
+} from "@fortawesome/free-solid-svg-icons";
 
 const DATE_RANGES = [
   { label: "7 days", value: 7 },
@@ -31,10 +38,10 @@ const uptimeTextColor = (pct) => {
   return "text-red-600";
 };
 
-const KPICard = ({ icon: Icon, label, value, sub, iconColor }) => (
+const KPICard = ({ icon, label, value, sub, iconColor }) => (
   <div className="bg-white rounded-xl shadow p-5 flex items-start gap-4">
     <div className={`p-3 rounded-lg ${iconColor} shrink-0`}>
-      <Icon className="w-5 h-5 text-white" />
+      <FontAwesomeIcon icon={icon} className="w-5 h-5 text-white" />
     </div>
     <div className="min-w-0">
       <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">{label}</p>
@@ -114,7 +121,7 @@ const CCTVUptimePage = () => {
               title={cooldown > 0 ? `Refresh available in ${cooldown}s` : "Refresh"}
               className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-40"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <FontAwesomeIcon icon={faRotateRight} className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               {cooldown > 0 && <span className="text-xs tabular-nums">{cooldown}s</span>}
             </button>
           </div>
@@ -129,7 +136,7 @@ const CCTVUptimePage = () => {
         {/* KPI Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
-            icon={TrendingUp}
+            icon={faArrowTrendUp}
             label="Avg Uptime"
             value={loading ? "—" : `${totals.avgUptimePct ?? "100.0"}%`}
             sub={`Last ${dateRange} days`}
@@ -142,21 +149,21 @@ const CCTVUptimePage = () => {
             }
           />
           <KPICard
-            icon={Clock}
+            icon={faClock}
             label="Avg Downtime"
             value={loading ? "—" : `${(100 - parseFloat(totals.avgUptimePct ?? 100)).toFixed(1)}%`}
             sub={`${totals.totalOutages ?? 0} fault${totals.totalOutages !== 1 ? "s" : ""}`}
             iconColor="bg-blue-500"
           />
           <KPICard
-            icon={AlertTriangle}
+            icon={faTriangleExclamation}
             label="Total Outages"
             value={loading ? "—" : (totals.totalOutages ?? 0)}
             sub={totals.liveFaults > 0 ? `${totals.liveFaults} currently live` : "None active"}
             iconColor={totals.liveFaults > 0 ? "bg-red-500" : "bg-gray-400"}
           />
           <KPICard
-            icon={Camera}
+            icon={faCamera}
             label="Avg MTTR"
             value={loading ? "—" : totals.avgMttrMins != null ? fmtDowntime(totals.avgMttrMins) : "N/A"}
             sub="Mean time to resolve"
@@ -175,14 +182,14 @@ const CCTVUptimePage = () => {
 
           {loading && (
             <div className="flex items-center justify-center py-16 text-gray-400">
-              <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+              <FontAwesomeIcon icon={faRotateRight} className="w-5 h-5 animate-spin mr-2" />
               <span className="text-sm">Loading uptime data…</span>
             </div>
           )}
 
           {!loading && cameras.length === 0 && !error && (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <Camera className="w-10 h-10 mb-3 opacity-40" />
+              <FontAwesomeIcon icon={faCamera} className="w-10 h-10 mb-3 opacity-40" />
               <p className="text-sm font-medium">No fault data in this period</p>
               <p className="text-xs mt-1">All cameras appear to be running at 100% uptime</p>
             </div>

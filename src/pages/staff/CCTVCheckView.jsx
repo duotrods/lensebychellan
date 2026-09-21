@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  ArrowLeft,
-  Edit,
-  CheckCircle,
-  XCircle,
-  Download,
-} from "lucide-react";
+  faArrowLeft,
+  faPen,
+  faCircleCheck,
+  faCircleXmark,
+  faDownload,
+} from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../hooks/useAuth";
 import { getStaffBasePath } from "../../utils/constants";
 import { staffService } from "../../services/staffService";
@@ -107,18 +108,18 @@ const CCTVCheckView = () => {
         <div className="mb-3">
           {isNone ? (
             <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="w-5 h-5" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5" />
               <span className="font-semibold">NONE</span>
             </div>
           ) : isAllWorking ? (
             <div className="flex items-center gap-2 mt-4 text-green-600">
-              <CheckCircle className="w-4 h-4" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4" />
               <span className="font-semibold">All Working Correctly</span>
             </div>
           ) : hasIssues ? (
             <div>
               <div className="flex items-center gap-2 text-orange-600 mb-2">
-                <XCircle className="w-5 h-5" />
+                <FontAwesomeIcon icon={faCircleXmark} className="w-5 h-5" />
                 <span className="font-semibold">Issues Reported:</span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -213,7 +214,7 @@ const CCTVCheckView = () => {
               onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">
@@ -230,14 +231,14 @@ const CCTVCheckView = () => {
               onClick={handleDownloadPDF}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              <Download className="w-4 h-4" />
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
               PDF
             </button>
             <button
               onClick={handleEdit}
               className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
             >
-              <Edit className="w-4 h-4" />
+              <FontAwesomeIcon icon={faPen} className="w-4 h-4" />
               Edit
             </button>
           </div>
@@ -290,7 +291,7 @@ const CCTVCheckView = () => {
           {form.certified && (
             <div className="p-6 bg-green-50 rounded-xl border border-green-200">
               <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle className="w-5 h-5 shrink-0" />
+                <FontAwesomeIcon icon={faCircleCheck} className="w-5 h-5 shrink-0" />
                 <span className="font-semibold">
                   {form.certificationText ||
                     "I certify that a full CCTV check of all schemes has been completed."}

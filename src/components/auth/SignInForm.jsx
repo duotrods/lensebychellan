@@ -1,7 +1,8 @@
     import { useState, useEffect, useRef } from "react";
     import { useNavigate, useLocation, Link } from "react-router-dom";
     import { toast } from "react-hot-toast";
-    import { Eye, EyeOff } from "lucide-react";
+    import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+    import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
     import { authService } from "../../services/authService";
     import { firestoreService } from "../../services/firestoreService";
     import { getAuthErrorMessage } from "../../utils/errorHandling";
@@ -134,7 +135,7 @@
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <FontAwesomeIcon icon={faEyeSlash} className="w-5 h-5" /> : <FontAwesomeIcon icon={faEye} className="w-5 h-5" />}
                 </button>
               </div>
             </div>

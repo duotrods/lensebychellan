@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
-import { AlertTriangle, X } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
 
 // Slide-in panel listing the incidents behind a clicked chart bar/metric.
 // Rendered in a portal so it never affects page scroll. Presentation only —
@@ -42,7 +43,7 @@ const DrillDownSidebar = ({ drillDown, onClose, onNavigate }) => {
               className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: "rgba(255,255,255,0.2)" }}
             >
-              <AlertTriangle className="w-4 h-4 text-white" />
+              <FontAwesomeIcon icon={faTriangleExclamation} className="w-4 h-4 text-white" />
             </div>
             <div>
               <h4 className="text-base font-bold text-white leading-tight">
@@ -61,7 +62,7 @@ const DrillDownSidebar = ({ drillDown, onClose, onNavigate }) => {
             onClick={onClose}
             className="drilldown-close-btn flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
           >
-            <X className="w-4 h-4 text-white" />
+            <FontAwesomeIcon icon={faXmark} className="w-4 h-4 text-white" />
           </button>
         </div>
 

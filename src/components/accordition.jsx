@@ -1,6 +1,7 @@
 import React from "react";
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 
 const accordition = () => {
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -39,9 +40,9 @@ const accordition = () => {
                   {faq.question}
                 </span>
                 {openFaq === idx ? (
-                  <ChevronUp size={20} />
+                  <FontAwesomeIcon icon={faChevronUp} className="w-5 h-5" />
                 ) : (
-                  <ChevronDown size={20} />
+                  <FontAwesomeIcon icon={faChevronDown} className="w-5 h-5" />
                 )}
               </button>
               {openFaq === idx && (

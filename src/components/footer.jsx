@@ -1,5 +1,7 @@
 import React from "react";
-import { Phone, Mail, MapPin, Linkedin } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPhone, faEnvelope, faLocationDot } from "@fortawesome/free-solid-svg-icons";
+import { faLinkedin } from "@fortawesome/free-brands-svg-icons";
 import whiteLogo from "../assets/Logo White.svg";
 
 const footer = () => {
@@ -13,15 +15,15 @@ const footer = () => {
             </div>
             <div className="space-y-2 text-sm text-gray-400">
               <div className="flex items-center gap-2">
-                <Phone size={16} />
+                <FontAwesomeIcon icon={faPhone} className="w-4 h-4" />
                 <span>01392 276046</span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail size={16} />
+                <FontAwesomeIcon icon={faEnvelope} className="w-4 h-4" />
                 <span>admin@chellean.co.uk</span>
               </div>
               <div className="flex items-start gap-2">
-                <MapPin size={16} className="mt-1" />
+                <FontAwesomeIcon icon={faLocationDot} className="w-4 h-4 mt-1" />
                 <span>
                   Chellan Highways Hub, Orbital
                   <br />
@@ -90,7 +92,7 @@ const footer = () => {
             <h4 className="font-semibold mb-4">Socials</h4>
             <div className="flex gap-3">
               <div className="w-10 h-10 bg-blue-600 rounded flex items-center justify-center">
-                <Linkedin />
+                <FontAwesomeIcon icon={faLinkedin} className="w-5 h-5" />
               </div>
               {/* <div className="w-10 h-10 bg-blue-400 rounded flex items-center justify-center">
                 <span className="text-xs">CE</span>

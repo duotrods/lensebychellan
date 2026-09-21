@@ -2,23 +2,23 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  LayoutDashboard,
-  KeyRound,
-  FolderKanban,
-  FileText,
-  BarChart3,
-  LogOut,
-  HelpCircle,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Menu,
-  Hash,
-  Building2,
-  PieChart,
-  FolderOpen,
-  CalendarDays,
-} from "lucide-react";
+  faTableCells,
+  faKey,
+  faFolderTree,
+  faFileLines,
+  faChartBar,
+  faRightFromBracket,
+  faCircleQuestion,
+  faAnglesLeft,
+  faAnglesRight,
+  faBars,
+  faBuilding,
+  faChartPie,
+  faFolderOpen,
+  faCalendarDays,
+} from "@fortawesome/free-solid-svg-icons";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import LogoutConfirmModal from "./LogoutConfirmModal";
@@ -50,48 +50,48 @@ const AdminSidebarLayout = ({ children }) => {
     {
       name: "Dashboard",
       path: "/dashboard/admin",
-      icon: LayoutDashboard,
+      icon: faTableCells,
       exact: true,
     },
     {
       name: "Access Code",
       path: "/dashboard/admin/otp-management",
-      icon: KeyRound,
+      icon: faKey,
     },
     {
       name: "Assign Schemes",
       path: "/dashboard/admin/scheme-assignment",
-      icon: FolderKanban,
+      icon: faFolderTree,
     },
     {
       name: "Staff Rota",
       path: "/dashboard/admin/rota",
-      icon: CalendarDays,
+      icon: faCalendarDays,
     },
     {
       name: "Staff Reports",
       path: "/dashboard/admin/staff-reports",
-      icon: FileText,
+      icon: faFileLines,
     },
     {
       name: "Documents",
       path: "/dashboard/admin/documents",
-      icon: FolderOpen,
+      icon: faFolderOpen,
     },
     {
       name: "Client Charts",
       path: "/dashboard/admin/client-charts",
-      icon: BarChart3,
+      icon: faChartBar,
     },
     {
       name: "Third Party Reports",
       path: "/dashboard/admin/thirdparty-reports",
-      icon: Building2,
+      icon: faBuilding,
     },
     {
       name: "Third Party Charts",
       path: "/dashboard/admin/thirdparty-charts",
-      icon: PieChart,
+      icon: faChartPie,
     },
   ];
 
@@ -137,7 +137,7 @@ const AdminSidebarLayout = ({ children }) => {
                   : "text-gray-700 hover:bg-gray-100"
               } ${collapsed ? 'justify-center' : ''}`}
             >
-              <item.icon className="w-5 h-5 shrink-0" />
+              <FontAwesomeIcon icon={item.icon} className="w-5 h-5 shrink-0" />
               {!collapsed && <span className="font-medium">{item.name}</span>}
             </Link>
           ))}
@@ -150,7 +150,7 @@ const AdminSidebarLayout = ({ children }) => {
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
           >
-            {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            {collapsed ? <FontAwesomeIcon icon={faAnglesRight} className="w-5 h-5" /> : <FontAwesomeIcon icon={faAnglesLeft} className="w-5 h-5" />}
             {!collapsed && <span className="text-sm">Collapse</span>}
           </button>
         </div>
@@ -183,7 +183,7 @@ const AdminSidebarLayout = ({ children }) => {
             title={collapsed ? 'Help' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
           >
-            <HelpCircle className="w-5 h-5 shrink-0" />
+            <FontAwesomeIcon icon={faCircleQuestion} className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="font-medium">Help</span>}
           </button>
           <button
@@ -191,7 +191,7 @@ const AdminSidebarLayout = ({ children }) => {
             title={collapsed ? 'Logout' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors ${collapsed ? 'justify-center' : ''}`}
           >
-            <LogOut className="w-5 h-5 shrink-0" />
+            <FontAwesomeIcon icon={faRightFromBracket} className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="font-medium">Logout</span>}
           </button>
         </div>
@@ -202,7 +202,7 @@ const AdminSidebarLayout = ({ children }) => {
         {/* Mobile top bar */}
         <div className="md:hidden bg-white border-b px-5 py-3 flex items-center gap-3 shrink-0">
           <button onClick={() => setMobileOpen(true)} className="p-1 rounded-lg hover:bg-gray-100">
-            <Menu className="w-6 h-6 text-gray-600" />
+            <FontAwesomeIcon icon={faBars} className="w-6 h-6 text-gray-600" />
           </button>
           <img src={headerLogo} alt="Lens by Chellan" className="h-7" />
         </div>

@@ -1,5 +1,6 @@
 import React from "react";
-import { CircleCheck } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import cctvRoomImage from "../assets/chellancctvroom2.jpg";
 
 const whyus = () => {
@@ -25,19 +26,19 @@ const whyus = () => {
               needs as part of the service. Including the ability to:
             </p>
             <div className="flex gap-4 mb-4">
-              <CircleCheck strokeWidth={3} className="text-brand-500" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 shrink-0 text-brand-500" />
               <p className="font-semibold">
                 Track performance for live and past schemes
               </p>
             </div>
             <div className="flex gap-4 mb-4">
-              <CircleCheck strokeWidth={3} className="text-brand-500" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 shrink-0 text-brand-500" />
               <p className="font-semibold">
                 View graphs of incident trends, uptime, and efficiency
               </p>
             </div>
             <div className="flex gap-4 mb-12">
-              <CircleCheck strokeWidth={3} className="text-brand-500" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 shrink-0 text-brand-500" />
               <p className="font-semibold">
                 Generate and download custom performance reports
               </p>

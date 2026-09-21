@@ -3,19 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Camera,
-  Search,
-  Filter,
-  Download,
-  Play,
-  Calendar,
-  MapPin,
-  Video,
-  Image,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+  faCamera,
+  faMagnifyingGlass,
+  faFilter,
+  faDownload,
+  faPlay,
+  faCalendar,
+  faLocationDot,
+  faVideo,
+  faImage,
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";
 import { getActiveSchemeName } from "../../utils/schemes";
 import { isVideoFile, isImageFile } from "../../utils/fileType";
@@ -191,7 +192,7 @@ const CCTVRecordingsPage = () => {
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search — now includes reference ID */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search by reference ID, camera, description..."
@@ -203,7 +204,7 @@ const CCTVRecordingsPage = () => {
 
             {/* Date Filter */}
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gray-500" />
+              <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-gray-500" />
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
@@ -218,7 +219,7 @@ const CCTVRecordingsPage = () => {
 
             {/* Camera Filter */}
             <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-500" />
+              <FontAwesomeIcon icon={faFilter} className="w-5 h-5 text-gray-500" />
               <select
                 value={cameraFilter}
                 onChange={(e) => setCameraFilter(e.target.value)}
@@ -277,7 +278,7 @@ const CCTVRecordingsPage = () => {
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                            <Video className="w-12 h-12 text-gray-500" />
+                            <FontAwesomeIcon icon={faVideo} className="w-12 h-12 text-gray-500" />
                             <span className="text-xs text-gray-400">
                               Hover to preview
                             </span>
@@ -295,13 +296,13 @@ const CCTVRecordingsPage = () => {
                         <div className="absolute bottom-2 left-2 flex gap-1">
                           {videos > 0 && (
                             <span className="flex items-center gap-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                              <Video className="w-3 h-3" />
+                              <FontAwesomeIcon icon={faVideo} className="w-3 h-3" />
                               {videos}
                             </span>
                           )}
                           {images > 0 && (
                             <span className="flex items-center gap-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                              <Image className="w-3 h-3" />
+                              <FontAwesomeIcon icon={faImage} className="w-3 h-3" />
                               {images}
                             </span>
                           )}
@@ -321,7 +322,7 @@ const CCTVRecordingsPage = () => {
 
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Calendar className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faCalendar} className="w-4 h-4" />
                             <span>{formatDate(recording.dateTime)}</span>
                             <span className="text-gray-400">•</span>
                             <span>{formatTime(recording.dateTime)}</span>
@@ -329,7 +330,7 @@ const CCTVRecordingsPage = () => {
 
                           {recording.cameraNumber && (
                             <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Camera className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faCamera} className="w-4 h-4" />
                               <span>Camera {recording.cameraNumber}</span>
                             </div>
                           )}
@@ -341,7 +342,7 @@ const CCTVRecordingsPage = () => {
                           )}
 
                           <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <MapPin className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faLocationDot} className="w-4 h-4" />
                             <span>
                               Submitted by{" "}
                               {recording.submittedBy?.name ||
@@ -357,7 +358,7 @@ const CCTVRecordingsPage = () => {
                             onClick={() => handleViewRecording(recording)}
                             className="btn btn-sm btn-brand flex-1"
                           >
-                            <Play className="w-4 h-4 mr-1" />
+                            <FontAwesomeIcon icon={faPlay} className="w-4 h-4 mr-1" />
                             View
                           </button>
                           <button
@@ -365,7 +366,7 @@ const CCTVRecordingsPage = () => {
                             className="btn btn-sm btn-outline"
                             title="Download files"
                           >
-                            <Download className="w-4 h-4" />
+                            <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -390,7 +391,7 @@ const CCTVRecordingsPage = () => {
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
                       Page {currentPage} of {totalPages}
@@ -402,7 +403,7 @@ const CCTVRecordingsPage = () => {
                       disabled={currentPage === totalPages}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -410,7 +411,7 @@ const CCTVRecordingsPage = () => {
             </>
           ) : (
             <div className="p-12 text-center">
-              <Video className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <FontAwesomeIcon icon={faVideo} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No recordings found</p>
               <p className="text-gray-400 text-sm mt-2">
                 Try adjusting your search or filter criteria
@@ -469,7 +470,7 @@ const CCTVRecordingsPage = () => {
               ) : (
                 <div className="bg-gray-900 aspect-video rounded-lg flex items-center justify-center mb-6">
                   <div className="text-center text-white">
-                    <Play className="w-20 h-20 mx-auto mb-4 opacity-50" />
+                    <FontAwesomeIcon icon={faPlay} className="w-20 h-20 mx-auto mb-4 opacity-50" />
                     <p className="text-lg">No File Available</p>
                   </div>
                 </div>
@@ -553,9 +554,9 @@ const CCTVRecordingsPage = () => {
                           >
                             <div className="flex items-center gap-3">
                               {isVideo ? (
-                                <Video className="w-5 h-5 text-gray-500" />
+                                <FontAwesomeIcon icon={faVideo} className="w-5 h-5 text-gray-500" />
                               ) : (
-                                <Image className="w-5 h-5 text-gray-500" />
+                                <FontAwesomeIcon icon={faImage} className="w-5 h-5 text-gray-500" />
                               )}
                               <div>
                                 <span className="text-sm font-medium">
@@ -580,7 +581,7 @@ const CCTVRecordingsPage = () => {
                                 toast.success("Downloading file...");
                               }}
                             >
-                              <Download className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                             </button>
                           </div>
                         );
@@ -595,7 +596,7 @@ const CCTVRecordingsPage = () => {
                   onClick={() => handleDownloadRecording(selectedRecording)}
                   className="btn btn-brand flex-1"
                 >
-                  <Download className="w-4 h-4 mr-2" />
+                  <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
                   Download All Files
                 </button>
                 <button

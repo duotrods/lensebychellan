@@ -1,13 +1,13 @@
 import {
-  MdAdminPanelSettings,
-  MdManageAccounts,
-  MdPerson,
-  MdHandshake,
-  MdBusiness,
-  MdVideocam,
-  MdCameraAlt,
-  MdSupportAgent,
-} from "react-icons/md";
+  faUserShield,
+  faUserGear,
+  faUser,
+  faHandshake,
+  faBuilding,
+  faVideo,
+  faCamera,
+  faHeadset,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Shared across User Management and Login Logs so role badges look the same everywhere.
 export const ROLE_BADGE = {
@@ -23,13 +23,13 @@ export const ROLE_BADGE = {
 };
 
 export const ROLE_ICON = {
-  admin: MdAdminPanelSettings,
-  staff: MdManageAccounts,
-  client: MdPerson,
-  liveoperator: MdSupportAgent,
-  cctvfaultoperator: MdCameraAlt,
-  thirdpartystaff: MdHandshake,
-  thirdpartyclient: MdBusiness,
-  thirdpartyliveoperator: MdVideocam,
-  thirdpartycctvoperator: MdCameraAlt,
+  admin: faUserShield,
+  staff: faUserGear,
+  client: faUser,
+  liveoperator: faHeadset,
+  cctvfaultoperator: faCamera,
+  thirdpartystaff: faHandshake,
+  thirdpartyclient: faBuilding,
+  thirdpartyliveoperator: faVideo,
+  thirdpartycctvoperator: faCamera,
 };

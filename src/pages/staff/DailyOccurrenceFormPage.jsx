@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { ArrowLeft, X, Plus } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faXmark, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
@@ -205,7 +206,7 @@ const DailyOccurrenceFormPage = () => {
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
           </button>
           <h2 className="text-2xl font-bold text-gray-800">
             {editId ? "Edit Daily Occurrence Sheet" : "Daily Occurrence Sheet"}
@@ -233,7 +234,7 @@ const DailyOccurrenceFormPage = () => {
                 onClick={addOccurrence}
                 className="btn btn-sm btn-outline gap-2"
               >
-                <Plus className="w-4 h-4" />
+                <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
                 Add Occurrence
               </button>
             </div>
@@ -250,7 +251,7 @@ const DailyOccurrenceFormPage = () => {
                       onClick={() => removeOccurrence(index)}
                       className="absolute top-4 right-4 text-red-500 hover:text-red-700"
                     >
-                      <X className="w-5 h-5" />
+                      <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
                     </button>
                   )}
 

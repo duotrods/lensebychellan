@@ -2,7 +2,14 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { ArrowLeft, Download, Image, Video, X } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowLeft,
+  faDownload,
+  faImage,
+  faVideo,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { clientDataService } from "../../services/clientDataService";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
 import { generateReportPDF } from "../../utils/pdfGenerator";
@@ -107,7 +114,7 @@ const IncidentReportView = () => {
               onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <div className="flex items-center gap-3">
@@ -135,7 +142,7 @@ const IncidentReportView = () => {
               onClick={handleDownloadPDF}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              <Download className="w-4 h-4" />
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
               PDF
             </button>
           </div>
@@ -244,7 +251,7 @@ const IncidentReportView = () => {
                                 className="absolute bottom-2 right-2 p-2 bg-white/80 rounded-lg hover:bg-white transition-colors"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <Download className="w-4 h-4 text-gray-700" />
+                                <FontAwesomeIcon icon={faDownload} className="w-4 h-4 text-gray-700" />
                               </a>
                             </div>
                           ) : (
@@ -262,7 +269,7 @@ const IncidentReportView = () => {
                                 className="absolute bottom-2 right-2 p-2 bg-white/80 rounded-lg hover:bg-white transition-colors"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <Download className="w-4 h-4 text-gray-700" />
+                                <FontAwesomeIcon icon={faDownload} className="w-4 h-4 text-gray-700" />
                               </a>
                             </>
                           )
@@ -272,9 +279,9 @@ const IncidentReportView = () => {
                             className="w-full h-48 bg-gray-100 rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300"
                           >
                             {isVideoFile(file) ? (
-                              <Video className="w-8 h-8 text-gray-400" />
+                              <FontAwesomeIcon icon={faVideo} className="w-8 h-8 text-gray-400" />
                             ) : (
-                              <Image className="w-8 h-8 text-gray-400" />
+                              <FontAwesomeIcon icon={faImage} className="w-8 h-8 text-gray-400" />
                             )}
                             <span className="text-sm text-gray-500">
                               Click to load {isVideoFile(file) ? "video" : "image"}
@@ -690,7 +697,7 @@ const IncidentReportView = () => {
                                 className="absolute bottom-2 right-2 p-2 bg-white/80 rounded-lg hover:bg-white transition-colors"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <Download className="w-4 h-4 text-gray-700" />
+                                <FontAwesomeIcon icon={faDownload} className="w-4 h-4 text-gray-700" />
                               </a>
                             </div>
                           ) : (
@@ -708,7 +715,7 @@ const IncidentReportView = () => {
                                 className="absolute bottom-2 right-2 p-2 bg-white/80 rounded-lg hover:bg-white transition-colors"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <Download className="w-4 h-4 text-gray-700" />
+                                <FontAwesomeIcon icon={faDownload} className="w-4 h-4 text-gray-700" />
                               </a>
                             </>
                           )
@@ -718,9 +725,9 @@ const IncidentReportView = () => {
                             className="w-full h-48 bg-gray-100 rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-gray-200 transition-colors border-2 border-dashed border-gray-300"
                           >
                             {isVideoFile(file) ? (
-                              <Video className="w-8 h-8 text-gray-400" />
+                              <FontAwesomeIcon icon={faVideo} className="w-8 h-8 text-gray-400" />
                             ) : (
-                              <Image className="w-8 h-8 text-gray-400" />
+                              <FontAwesomeIcon icon={faImage} className="w-8 h-8 text-gray-400" />
                             )}
                             <span className="text-sm text-gray-500">
                               Click to load {isVideoFile(file) ? "video" : "image"}
@@ -772,7 +779,7 @@ const IncidentReportView = () => {
             onClick={() => setViewingFile(null)}
             className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
           >
-            <X className="w-6 h-6 text-white" />
+            <FontAwesomeIcon icon={faXmark} className="w-6 h-6 text-white" />
           </button>
           {viewingFile.isVideo ? (
             <video
@@ -797,7 +804,7 @@ const IncidentReportView = () => {
             className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
-            <Download className="w-4 h-4" />
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
             Download
           </a>
         </div>

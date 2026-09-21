@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { ArrowLeft, Download, Edit, Trash2 } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faDownload, faPen, faTrashCan } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../hooks/useAuth";
 import { getStaffBasePath } from "../../utils/constants";
 import { staffService } from "../../services/staffService";
@@ -120,7 +121,7 @@ const IncidentReportView = () => {
               onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">
@@ -137,7 +138,7 @@ const IncidentReportView = () => {
               onClick={handleDownloadPDF}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              <Download className="w-4 h-4" />
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
               PDF
             </button>
             {!report.standDown && (
@@ -145,7 +146,7 @@ const IncidentReportView = () => {
                 onClick={handleEdit}
                 className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
               >
-                <Edit className="w-4 h-4" />
+                <FontAwesomeIcon icon={faPen} className="w-4 h-4" />
                 Edit
               </button>
             )}
@@ -153,7 +154,7 @@ const IncidentReportView = () => {
               onClick={handleDelete}
               className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
-              <Trash2 className="w-4 h-4" />
+              <FontAwesomeIcon icon={faTrashCan} className="w-4 h-4" />
               Delete
             </button>
           </div>
@@ -513,7 +514,7 @@ const IncidentReportView = () => {
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    <Download className="w-4 h-4 text-gray-600" />
+                    <FontAwesomeIcon icon={faDownload} className="w-4 h-4 text-gray-600" />
                     <span className="text-sm text-gray-800">
                       {file.fileName}
                     </span>

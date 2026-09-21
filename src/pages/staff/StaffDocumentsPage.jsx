@@ -3,18 +3,19 @@ import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import { uploadFileToR2 } from "../../utils/r2Upload";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Upload,
-  Download,
-  Link2,
-  Search,
-  FolderOpen,
-  Filter,
-  User,
-  Clock,
-  X,
-  Plus,
-} from "lucide-react";
+  faUpload,
+  faDownload,
+  faLink,
+  faMagnifyingGlass,
+  faFolderOpen,
+  faFilter,
+  faUser,
+  faClock,
+  faXmark,
+  faPlus,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { isDemoUser, DEMO_SCHEME_ID, SCHEMES } from "../../utils/schemes";
 import {
@@ -225,7 +226,7 @@ const StaffDocumentsPage = () => {
             onClick={() => setDrawerOpen(true)}
             className="inline-flex items-center gap-2 h-10 px-4 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600 transition-colors shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
             New document
           </button>
         </div>
@@ -233,7 +234,7 @@ const StaffDocumentsPage = () => {
         {/* Filters + Search */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <FontAwesomeIcon icon={faFilter} className="w-4 h-4 text-gray-400" />
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
@@ -249,7 +250,7 @@ const StaffDocumentsPage = () => {
             ))}
           </div>
           <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <FontAwesomeIcon icon={faMagnifyingGlass} className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search documents..."
@@ -266,7 +267,7 @@ const StaffDocumentsPage = () => {
             <div className="py-16 text-center text-gray-400">Loading…</div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center text-gray-400">
-              <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <FontAwesomeIcon icon={faFolderOpen} className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p>No documents yet.</p>
             </div>
           ) : (
@@ -322,13 +323,13 @@ const StaffDocumentsPage = () => {
                       </td>
                       <td className="px-4 py-4 hidden lg:table-cell">
                         <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                          <User className="w-3.5 h-3.5" />
+                          <FontAwesomeIcon icon={faUser} className="w-3.5 h-3.5" />
                           {doc.uploadedBy?.name || "—"}
                         </div>
                       </td>
                       <td className="px-4 py-4 hidden sm:table-cell">
                         <div className="flex items-center gap-1.5 text-sm text-gray-400">
-                          <Clock className="w-3.5 h-3.5" />
+                          <FontAwesomeIcon icon={faClock} className="w-3.5 h-3.5" />
                           {formatDocumentDate(doc.uploadedAt)}
                         </div>
                       </td>
@@ -341,7 +342,7 @@ const StaffDocumentsPage = () => {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
                             >
-                              <Link2 className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faLink} className="w-4 h-4" />
                               Open
                             </a>
                           ) : (
@@ -351,7 +352,7 @@ const StaffDocumentsPage = () => {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
                             >
-                              <Download className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                               Download
                             </a>
                           )}
@@ -384,7 +385,7 @@ const StaffDocumentsPage = () => {
                 className="p-1.5 text-gray-400 hover:text-gray-600"
                 aria-label="Close"
               >
-                <X className="w-5 h-5" />
+                <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
               </button>
             </div>
 
@@ -465,7 +466,7 @@ const StaffDocumentsPage = () => {
                     className="p-1.5 text-gray-400 hover:text-red-500 shrink-0"
                     aria-label="Remove file"
                   >
-                    <X className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
@@ -482,7 +483,7 @@ const StaffDocumentsPage = () => {
                       : "border-gray-300 hover:border-teal-400 hover:bg-gray-50"
                   }`}
                 >
-                  <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                  <FontAwesomeIcon icon={faUpload} className="w-5 h-5 text-gray-400 mb-1" />
                   <p className="text-sm font-medium text-gray-700">
                     Drop a file, or click to browse
                   </p>

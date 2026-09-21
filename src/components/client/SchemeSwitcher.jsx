@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Building2 } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBuilding } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
@@ -39,7 +40,7 @@ const SchemeSwitcher = () => {
 
   return (
     <div className="flex items-center gap-2">
-      <Building2 className="w-5 h-5 text-gray-500" />
+      <FontAwesomeIcon icon={faBuilding} className="w-5 h-5 text-gray-500" />
       <select
         value={userProfile.activeSchemeId || ''}
         onChange={handleSchemeChange}

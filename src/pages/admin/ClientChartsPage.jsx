@@ -5,16 +5,17 @@ import { clientDataService } from "../../services/clientDataService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import { SCHEMES, getInternalSchemeIds, extractSchemeId } from "../../utils/schemes";
 import { transformDataForChart } from "../../utils/chartData";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  BarChart3,
-  TrendingUp,
-  AlertTriangle,
-  Calendar,
-  Download,
-  Filter,
-  History,
-  X,
-} from "lucide-react";
+  faChartBar,
+  faArrowTrendUp,
+  faTriangleExclamation,
+  faCalendar,
+  faDownload,
+  faFilter,
+  faClockRotateLeft,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import {
   BarChart,
@@ -258,7 +259,7 @@ const ClientChartsPage = () => {
         <div className="bg-white rounded-xl shadow-md p-6 mb-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4 flex-1">
-              <Filter className="w-5 h-5 text-gray-400" />
+              <FontAwesomeIcon icon={faFilter} className="w-5 h-5 text-gray-400" />
               <select
                 value={selectedScheme}
                 onChange={(e) => setSelectedScheme(e.target.value)}
@@ -279,7 +280,7 @@ const ClientChartsPage = () => {
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 >
-                  <Calendar className="w-5 h-5 text-teal-600" />
+                  <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-teal-600" />
                   <div className="flex items-center gap-2 text-sm">
                     <span className="font-medium text-gray-700">
                       {dateRange[0].startDate.toLocaleDateString('en-GB')}
@@ -324,7 +325,7 @@ const ClientChartsPage = () => {
                     : "bg-white border-gray-200"
                 }`}
               >
-                <History className="w-5 h-5 text-teal-600" />
+                <FontAwesomeIcon icon={faClockRotateLeft} className="w-5 h-5 text-teal-600" />
                 <span className="text-sm font-medium text-gray-700">All Time</span>
               </button>
 
@@ -342,7 +343,7 @@ const ClientChartsPage = () => {
                   title="Clear All Time — back to last 30 days"
                   className="flex items-center justify-center w-9 h-9 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:text-red-500 hover:border-red-200 text-gray-400 transition-colors cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                 </button>
               )}
 
@@ -351,7 +352,7 @@ const ClientChartsPage = () => {
                 disabled={isExporting || loading}
                 className="flex items-center gap-2 bg-teal-500 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-teal-600 hover:shadow-md transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                <Download className="w-5 h-5" />
+                <FontAwesomeIcon icon={faDownload} className="w-5 h-5" />
                 <span className="font-medium">Export Charts</span>
               </button>
             </div>
@@ -373,7 +374,7 @@ const ClientChartsPage = () => {
                     <p className="text-3xl font-bold text-gray-800 mt-1">{stats.total}</p>
                   </div>
                   <div className="bg-gray-100 p-3 rounded-lg">
-                    <BarChart3 className="w-6 h-6 text-gray-600" />
+                    <FontAwesomeIcon icon={faChartBar} className="w-6 h-6 text-gray-600" />
                   </div>
                 </div>
               </div>
@@ -385,7 +386,7 @@ const ClientChartsPage = () => {
                     <p className="text-3xl font-bold text-teal-600 mt-1">{stats.incident}</p>
                   </div>
                   <div className="bg-teal-100 p-3 rounded-lg">
-                    <AlertTriangle className="w-6 h-6 text-teal-600" />
+                    <FontAwesomeIcon icon={faTriangleExclamation} className="w-6 h-6 text-teal-600" />
                   </div>
                 </div>
               </div>
@@ -397,7 +398,7 @@ const ClientChartsPage = () => {
                     <p className="text-3xl font-bold text-orange-600 mt-1">{stats.assetDamage}</p>
                   </div>
                   <div className="bg-orange-100 p-3 rounded-lg">
-                    <Calendar className="w-6 h-6 text-orange-600" />
+                    <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-orange-600" />
                   </div>
                 </div>
               </div>
@@ -409,7 +410,7 @@ const ClientChartsPage = () => {
                     <p className="text-3xl font-bold text-green-600 mt-1">{stats.dailyLogs}</p>
                   </div>
                   <div className="bg-green-100 p-3 rounded-lg">
-                    <Calendar className="w-6 h-6 text-green-600" />
+                    <FontAwesomeIcon icon={faCalendar} className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
               </div>
@@ -421,7 +422,7 @@ const ClientChartsPage = () => {
                     <p className="text-3xl font-bold text-purple-600 mt-1">{stats.cctvCheck}</p>
                   </div>
                   <div className="bg-purple-100 p-3 rounded-lg">
-                    <TrendingUp className="w-6 h-6 text-purple-600" />
+                    <FontAwesomeIcon icon={faArrowTrendUp} className="w-6 h-6 text-purple-600" />
                   </div>
                 </div>
               </div>

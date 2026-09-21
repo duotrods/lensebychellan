@@ -6,18 +6,18 @@ import { useAuth } from "../../hooks/useAuth";
 import { ROLE_LABELS } from "../../utils/constants";
 import { ROLE_BADGE, ROLE_ICON } from "../../utils/roleBadge";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrashCan, faBoxArchive, faBoxOpen } from "@fortawesome/free-solid-svg-icons";
-import { faTrashCan as faTrashCanRegular } from "@fortawesome/free-regular-svg-icons";
 import {
-  MdFilterAlt,
-  MdInventory2,
-  MdPerson,
-  MdArchive,
-  MdCheckCircle,
-  MdSchedule,
-  MdChevronLeft,
-  MdChevronRight,
-} from "react-icons/md";
+  faTrashCan,
+  faBoxArchive,
+  faBoxOpen,
+  faFilter,
+  faBoxesStacked,
+  faUser,
+  faCircleCheck,
+  faClock,
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
 
 const ROLE_FILTERS = [
   { key: "all", label: "All roles" },
@@ -160,26 +160,26 @@ const UserManagement = () => {
   const renderStatus = (user) =>
     user.isArchived ? (
       <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-        <MdArchive className="w-3 h-3" />
+        <FontAwesomeIcon icon={faBoxArchive} className="w-3 h-3" />
         <span className="hidden sm:inline">Archived</span>
       </span>
     ) : user.emailVerified ? (
       <span className="inline-flex items-center gap-1 px-2 py-1 bg-sky-100 text-sky-600 rounded-full text-xs font-medium">
-        <MdCheckCircle className="w-3 h-3" />
+        <FontAwesomeIcon icon={faCircleCheck} className="w-3 h-3" />
         <span className="hidden sm:inline">Verified</span>
       </span>
     ) : (
       <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-        <MdSchedule className="w-3 h-3" />
+        <FontAwesomeIcon icon={faClock} className="w-3 h-3" />
         <span className="hidden sm:inline">Pending</span>
       </span>
     );
 
   const renderRoleBadge = (role) => {
-    const Icon = ROLE_ICON[role] || MdPerson;
+    const Icon = ROLE_ICON[role] || faUser;
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium capitalize ${ROLE_BADGE[role] || "bg-gray-100 text-gray-700"}`}>
-        <Icon className="w-3.5 h-3.5" />
+        <FontAwesomeIcon icon={Icon} className="w-3.5 h-3.5" />
         {ROLE_LABELS[role] || role}
       </span>
     );
@@ -215,7 +215,7 @@ const UserManagement = () => {
           className="p-1 rounded-lg text-red-600 hover:bg-red-50"
           title="Delete user"
         >
-          <FontAwesomeIcon icon={faTrashCanRegular} className="w-2 h-2" />
+          <FontAwesomeIcon icon={faTrashCan} className="w-2 h-2" />
         </button>
       </div>
     );
@@ -227,7 +227,7 @@ const UserManagement = () => {
         <h3 className="text-xl font-bold text-gray-800">User Management</h3>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-auto sm:min-w-44">
-            <MdFilterAlt className="w-5 h-5 text-brand-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+            <FontAwesomeIcon icon={faFilter} className="w-5 h-5 text-brand-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
             <select
               value={roleFilter}
               onChange={(e) => handleRoleFilterChange(e.target.value)}
@@ -239,7 +239,7 @@ const UserManagement = () => {
             </select>
           </div>
           <div className="relative w-full sm:w-auto sm:min-w-44">
-            <MdInventory2 className="w-5 h-5 text-brand-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+            <FontAwesomeIcon icon={faBoxesStacked} className="w-5 h-5 text-brand-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
             <select
               value={statusFilter}
               onChange={(e) => handleStatusFilterChange(e.target.value)}
@@ -330,7 +330,7 @@ const UserManagement = () => {
               disabled={currentPage === 1 || loading}
               className="btn btn-sm btn-outline"
             >
-              <MdChevronLeft className="w-4 h-4" />
+              <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
             </button>
             <span className="text-sm font-medium">
               Page {currentPage} of {totalPages}
@@ -340,7 +340,7 @@ const UserManagement = () => {
               disabled={!hasMore || currentPage === totalPages || loading}
               className="btn btn-sm btn-outline"
             >
-              <MdChevronRight className="w-4 h-4" />
+              <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
             </button>
           </div>
         </div>

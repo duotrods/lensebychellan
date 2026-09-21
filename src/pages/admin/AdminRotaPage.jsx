@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { CalendarDays, Wallet, Users, CalendarPlus, Clock } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCalendarDays,
+  faWallet,
+  faUsers,
+  faCalendarPlus,
+  faClock,
+} from "@fortawesome/free-solid-svg-icons";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import RotaGrid from "../../components/rota/RotaGrid";
 import ShiftModal from "../../components/rota/ShiftModal";
@@ -26,10 +33,10 @@ import {
 } from "../../utils/rota";
 
 const TABS = [
-  { key: "rota", label: "Rota", icon: CalendarDays },
-  { key: "tally", label: "Hours & Pay", icon: Wallet },
-  { key: "team", label: "Team", icon: Users },
-  { key: "holidays", label: "Bank Holidays", icon: CalendarPlus },
+  { key: "rota", label: "Rota", icon: faCalendarDays },
+  { key: "tally", label: "Hours & Pay", icon: faWallet },
+  { key: "team", label: "Team", icon: faUsers },
+  { key: "holidays", label: "Bank Holidays", icon: faCalendarPlus },
 ];
 
 const AdminRotaPage = () => {
@@ -178,7 +185,7 @@ const AdminRotaPage = () => {
     <AdminSidebarLayout>
       <div className="border-b border-gray-200 bg-white px-6 pt-4">
         <nav className="flex gap-1">
-          {TABS.map(({ key, label, icon: Icon }) => (
+          {TABS.map(({ key, label, icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
@@ -188,7 +195,7 @@ const AdminRotaPage = () => {
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <FontAwesomeIcon icon={icon} className="w-4 h-4" />
               {label}
               {key === "rota" && pendingHolidays.length > 0 && (
                 <span className="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[11px] font-bold">
@@ -209,7 +216,7 @@ const AdminRotaPage = () => {
                 onClick={goToEarliestPending}
                 className="w-full mb-4 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium hover:bg-red-100"
               >
-                <Clock className="w-4 h-4 shrink-0" />
+                <FontAwesomeIcon icon={faClock} className="w-4 h-4 shrink-0" />
                 {pendingHolidays.length} holiday{" "}
                 {pendingHolidays.length === 1 ? "request" : "requests"} awaiting approval — click to
                 view the earliest.

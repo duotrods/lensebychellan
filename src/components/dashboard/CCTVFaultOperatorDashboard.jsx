@@ -5,20 +5,21 @@ import {
   useStaffLiveCCTVFaults,
   usePaginatedCCTVFaults,
 } from "../../hooks/useCCTVFaults";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Eye,
-  CameraOff,
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  Clock,
-  CheckCircle2,
-  Send,
-  MessageSquare,
-} from "lucide-react";
+  faEye,
+  faVideoSlash,
+  faArrowLeft,
+  faChevronLeft,
+  faChevronRight,
+  faChevronDown,
+  faChevronUp,
+  faSpinner,
+  faClock,
+  faCircleCheck,
+  faPaperPlane,
+  faMessage,
+} from "@fortawesome/free-solid-svg-icons";
 import { USER_ROLES } from "../../utils/constants";
 import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 import { clientDataService } from "../../services/clientDataService";
@@ -188,7 +189,7 @@ const LiveCameraFaultsPage = ({
               onClick={() => navigate("/dashboard/client")}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h4 className="font-bold text-gray-800">
@@ -228,7 +229,7 @@ const LiveCameraFaultsPage = ({
               <div className="flex flex-col">
                 <div className="bg-linear-to-br from-red-500 to-red-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                    <CameraOff className="w-6 h-6 text-red-500" />
+                    <FontAwesomeIcon icon={faVideoSlash} className="w-6 h-6 text-red-500" />
                   </div>
                   <span className="text-white font-semibold text-2xl">
                     Live Faults
@@ -275,7 +276,7 @@ const LiveCameraFaultsPage = ({
                               className="p-1.5 rounded text-blue-400 hover:text-blue-300"
                               title="View Details"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                             </button>
                           </div>
 
@@ -309,7 +310,7 @@ const LiveCameraFaultsPage = ({
                                   className={`flex items-center gap-2 text-xs mb-2 rounded px-1.5 py-0.5 transition-colors ${newNote ? "text-red-500 bg-red-50 hover:bg-red-100" : "text-gray-500 hover:text-gray-700"}`}
                                 >
                                   <span className="relative">
-                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    <FontAwesomeIcon icon={faMessage} className="w-3.5 h-3.5" />
                                     {newNote && (
                                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
                                     )}
@@ -318,9 +319,9 @@ const LiveCameraFaultsPage = ({
                                     {count} {count === 1 ? "note" : "notes"}
                                   </span>
                                   {isOpen ? (
-                                    <ChevronUp className="w-3 h-3" />
+                                    <FontAwesomeIcon icon={faChevronUp} className="w-3 h-3" />
                                   ) : (
-                                    <ChevronDown className="w-3 h-3" />
+                                    <FontAwesomeIcon icon={faChevronDown} className="w-3 h-3" />
                                   )}
                                 </button>
                               ) : null;
@@ -336,7 +337,7 @@ const LiveCameraFaultsPage = ({
                             {fault.clientAcknowledged ? (
                               <>
                                 <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-2">
-                                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                  <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4 shrink-0" />
                                   <span>Acknowledged</span>
                                 </div>
                                 {/* Chat input for CCTV operators */}
@@ -370,9 +371,9 @@ const LiveCameraFaultsPage = ({
                                       className="p-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg disabled:opacity-50 transition-colors"
                                     >
                                       {savingNote[fault.id] ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <FontAwesomeIcon icon={faSpinner} className="w-4 h-4 animate-spin" />
                                       ) : (
-                                        <Send className="w-4 h-4" />
+                                        <FontAwesomeIcon icon={faPaperPlane} className="w-4 h-4" />
                                       )}
                                     </button>
                                   </div>
@@ -426,7 +427,7 @@ const LiveCameraFaultsPage = ({
               <div className="flex flex-col">
                 <div className="bg-linear-to-br from-brand-500 to-brand-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-brand-500" />
+                    <FontAwesomeIcon icon={faClock} className="w-6 h-6 text-brand-500" />
                   </div>
                   <span className="text-white font-semibold text-2xl">
                     Fault History
@@ -439,7 +440,7 @@ const LiveCameraFaultsPage = ({
                 <div className="bg-white shadow-xs rounded-b-lg flex-1 overflow-hidden border border-t-0 border-gray-100">
                   {historyLoading ? (
                     <div className="p-6 flex justify-center">
-                      <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                      <FontAwesomeIcon icon={faSpinner} className="w-6 h-6 animate-spin text-teal-500" />
                     </div>
                   ) : historyFaults.length === 0 ? (
                     <div className="p-6 text-center text-slate-400">
@@ -480,7 +481,7 @@ const LiveCameraFaultsPage = ({
                                 className="p-1.5 hover:bg-gray-200 rounded text-blue-400 hover:text-blue-500"
                                 title="View Details"
                               >
-                                <Eye className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                               </button>
                             </div>
                             <div className="flex items-center justify-between mt-1">
@@ -492,7 +493,8 @@ const LiveCameraFaultsPage = ({
                               </p>
                               <div className="flex items-center gap-2">
                                 {fault.clientAcknowledged && (
-                                  <CheckCircle2
+                                  <FontAwesomeIcon
+                                    icon={faCircleCheck}
                                     className="w-4 h-4 text-green-500"
                                     title="Client acknowledged"
                                   />
@@ -525,7 +527,7 @@ const LiveCameraFaultsPage = ({
                               disabled={currentPage === 1}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronLeft className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronLeft} className="w-5 h-5" />
                             </button>
                             <span className="text-sm font-medium px-2">
                               {currentPage} / {totalPages}
@@ -535,7 +537,7 @@ const LiveCameraFaultsPage = ({
                               disabled={currentPage === totalPages}
                               className="p-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                              <ChevronRight className="w-5 h-5" />
+                              <FontAwesomeIcon icon={faChevronRight} className="w-5 h-5" />
                             </button>
                           </div>
                         </div>

@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, Camera, Check, X } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faDownload, faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { staffService } from '../../services/staffService';
 import AdminSidebarLayout from '../../components/layout/AdminSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
@@ -70,7 +71,7 @@ const CCTVCheckDetailPage = () => {
 
         {hasAllWorking ? (
           <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg mb-4">
-            <Check className="w-5 h-5 text-green-600" />
+            <FontAwesomeIcon icon={faCheck} className="w-5 h-5 text-green-600" />
             <span className="font-medium text-green-800">All cameras working correctly</span>
           </div>
         ) : nonWorkingCameras.length > 0 ? (
@@ -79,7 +80,7 @@ const CCTVCheckDetailPage = () => {
             <div className="flex flex-wrap gap-2">
               {nonWorkingCameras.map((camera, index) => (
                 <span key={index} className="badge badge-lg bg-red-100 text-red-700 flex items-center gap-1">
-                  <X className="w-3 h-3" />
+                  <FontAwesomeIcon icon={faXmark} className="w-3 h-3" />
                   {camera}
                 </span>
               ))}
@@ -125,7 +126,7 @@ const CCTVCheckDetailPage = () => {
               onClick={() => navigate(backPath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">CCTV Check Form Details</h3>
@@ -136,7 +137,7 @@ const CCTVCheckDetailPage = () => {
             onClick={handleDownloadPDF}
             className="btn bg-blue-500 text-white hover:bg-blue-600 border-none"
           >
-            <Download className="w-4 h-4 mr-2" />
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
             Download PDF
           </button>
         </div>
@@ -189,7 +190,7 @@ const CCTVCheckDetailPage = () => {
           {report.certified && (
             <div className="mb-8 pb-8 border-b">
               <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg">
-                <Check className="w-5 h-5 text-green-600 shrink-0" />
+                <FontAwesomeIcon icon={faCheck} className="w-5 h-5 text-green-600 shrink-0" />
                 <span className="font-medium text-green-800">
                   {report.certificationText ||
                     'I certify that a full CCTV check of all schemes has been completed.'}
@@ -258,12 +259,12 @@ const CCTVCheckDetailPage = () => {
                       <p className="text-sm text-purple-600 font-semibold uppercase mb-2">A417 Status</p>
                       {a417AllWorking ? (
                         <div className="flex items-center gap-2 text-green-600">
-                          <Check className="w-5 h-5" />
+                          <FontAwesomeIcon icon={faCheck} className="w-5 h-5" />
                           <span className="font-medium">All Working</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-red-600">
-                          <X className="w-5 h-5" />
+                          <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
                           <span className="font-medium">{a417Issues} Issues</span>
                         </div>
                       )}
@@ -273,12 +274,12 @@ const CCTVCheckDetailPage = () => {
                       <p className="text-sm text-blue-600 font-semibold uppercase mb-2">A11/A47 Status</p>
                       {kierCoreAllWorking ? (
                         <div className="flex items-center gap-2 text-green-600">
-                          <Check className="w-5 h-5" />
+                          <FontAwesomeIcon icon={faCheck} className="w-5 h-5" />
                           <span className="font-medium">All Working</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-red-600">
-                          <X className="w-5 h-5" />
+                          <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
                           <span className="font-medium">{kierCoreIssues} Issues</span>
                         </div>
                       )}
@@ -288,12 +289,12 @@ const CCTVCheckDetailPage = () => {
                       <p className="text-sm text-teal-600 font-semibold uppercase mb-2">M3 Jct 9 Status</p>
                       {m3Jct9AllWorking ? (
                         <div className="flex items-center gap-2 text-green-600">
-                          <Check className="w-5 h-5" />
+                          <FontAwesomeIcon icon={faCheck} className="w-5 h-5" />
                           <span className="font-medium">All Working</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-red-600">
-                          <X className="w-5 h-5" />
+                          <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
                           <span className="font-medium">{m3Jct9Issues} Issues</span>
                         </div>
                       )}

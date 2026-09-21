@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Camera, Calendar, Clock, User, MessageSquare, CheckCircle2, Edit, Radio, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faCamera, faCalendar, faClock, faUser, faMessage, faCircleCheck, faPen, faTowerBroadcast, faEye, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { staffService } from '../../services/staffService';
 import StaffSidebarLayout from '../../components/layout/StaffSidebarLayout';
 import { useAuth } from '../../hooks/useAuth';
@@ -120,7 +121,7 @@ const CCTVFaultsView = () => {
               onClick={() => navigate(-1)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">CCTV Fault Report</h3>
@@ -134,7 +135,7 @@ const CCTVFaultsView = () => {
             onClick={() => navigate(`${basePath}/forms/cctv-faults?edit=${id}`)}
             className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
           >
-            <Edit className="w-4 h-4" />
+            <FontAwesomeIcon icon={faPen} className="w-4 h-4" />
             Edit / Complete
           </button>
         </div>
@@ -143,7 +144,7 @@ const CCTVFaultsView = () => {
           {/* Status Banner */}
           {fault.status === 'completed' ? (
             <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-lg">
-              <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+              <FontAwesomeIcon icon={faCircleCheck} className="w-6 h-6 text-green-500 shrink-0" />
               <div>
                 <p className="font-semibold text-green-700">Fault Resolved</p>
                 <p className="text-sm text-green-600">
@@ -156,7 +157,7 @@ const CCTVFaultsView = () => {
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-100 rounded-lg">
-              <Radio className="w-5 h-5 text-red-500 animate-pulse shrink-0" />
+              <FontAwesomeIcon icon={faTowerBroadcast} className="w-5 h-5 text-red-500 animate-pulse shrink-0" />
               <div>
                 <p className="font-semibold text-red-700">Camera Fault — Live</p>
                 <p className="text-sm text-red-500">
@@ -174,7 +175,7 @@ const CCTVFaultsView = () => {
                 className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
               >
                 <div className="flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-teal-500 shrink-0" />
+                  <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-teal-500 shrink-0" />
                   <p className="font-semibold text-teal-700 text-sm">Client Acknowledged</p>
                   {(() => {
                     const count = fault.clientNotes?.length || (fault.clientNote ? 1 : 0);
@@ -186,8 +187,8 @@ const CCTVFaultsView = () => {
                   })()}
                 </div>
                 {notesOpen
-                  ? <ChevronUp className="w-4 h-4 text-teal-400 shrink-0" />
-                  : <ChevronDown className="w-4 h-4 text-teal-400 shrink-0" />}
+                  ? <FontAwesomeIcon icon={faChevronUp} className="w-4 h-4 text-teal-400 shrink-0" />
+                  : <FontAwesomeIcon icon={faChevronDown} className="w-4 h-4 text-teal-400 shrink-0" />}
               </button>
               {notesOpen && (
                 <div className="px-4 pb-4 border-t border-teal-100">
@@ -200,7 +201,7 @@ const CCTVFaultsView = () => {
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-lg">
-              <Eye className="w-5 h-5 text-gray-400 shrink-0" />
+              <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-gray-400 shrink-0" />
               <p className="text-sm text-gray-500">Client has not yet acknowledged this fault.</p>
             </div>
           )}
@@ -210,7 +211,7 @@ const CCTVFaultsView = () => {
             <h4 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Report Details</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="flex items-start gap-3">
-                <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Date</label>
                   <p className="text-gray-800 mt-0.5">{fault.date || 'N/A'}</p>
@@ -218,7 +219,7 @@ const CCTVFaultsView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faClock} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Time</label>
                   <p className="text-gray-800 mt-0.5">{fault.time || 'N/A'}</p>
@@ -226,7 +227,7 @@ const CCTVFaultsView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <Camera className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCamera} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Camera</label>
                   <p className="text-gray-800 mt-0.5">{fault.camera || 'N/A'}</p>
@@ -234,7 +235,7 @@ const CCTVFaultsView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faUser} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Reported By</label>
                   <p className="text-gray-800 mt-0.5">
@@ -244,7 +245,7 @@ const CCTVFaultsView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <Camera className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faCamera} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">Blackspot Camera</label>
                   <p className="text-gray-800 mt-0.5">
@@ -258,7 +259,7 @@ const CCTVFaultsView = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <Radio className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                <FontAwesomeIcon icon={faTowerBroadcast} className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <label className="text-sm font-semibold text-gray-500">TSS Informed</label>
                   <p className="text-gray-800 mt-0.5">
@@ -277,7 +278,7 @@ const CCTVFaultsView = () => {
           {fault.comments && (
             <div>
               <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2 flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
+                <FontAwesomeIcon icon={faMessage} className="w-5 h-5" />
                 Fault Description
               </h4>
               <p className="text-gray-700 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap leading-relaxed">

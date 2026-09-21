@@ -1,4 +1,5 @@
-import { X, Check } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark, faCheck } from "@fortawesome/free-solid-svg-icons";
 import warningIcon from "../../assets/warning.svg";
 
 const WarningConfirmModal = ({
@@ -30,7 +31,7 @@ const WarningConfirmModal = ({
             disabled={confirming}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <X className="w-4 h-4" />
+            <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
             {cancelLabel}
           </button>
           <button
@@ -39,7 +40,7 @@ const WarningConfirmModal = ({
             disabled={confirming}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Check className="w-4 h-4" />
+            <FontAwesomeIcon icon={faCheck} className="w-4 h-4" />
             {confirmLabel}
           </button>
         </div>

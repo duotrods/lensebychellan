@@ -5,7 +5,14 @@ import { db } from "../../config/firebase";
 import { THIRD_PARTY_SCHEMES } from "../../utils/schemes";
 import { referenceIdService } from "../../services/referenceIdService";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
-import { Hash, RotateCcw, Pencil, CheckCircle2, AlertTriangle } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faHashtag,
+  faRotateLeft,
+  faPen,
+  faCircleCheck,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 
 const FORM_TYPES = [
@@ -147,7 +154,7 @@ const CounterRow = ({ counterName, label, prefix, suffix }) => {
             title="Set to specific value"
             className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-500"
           >
-            <Pencil className="w-4 h-4" />
+            <FontAwesomeIcon icon={faPen} className="w-4 h-4" />
           </button>
           <button
             onClick={handleReset}
@@ -155,7 +162,7 @@ const CounterRow = ({ counterName, label, prefix, suffix }) => {
             title="Reset to 0"
             className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-red-400 disabled:opacity-50"
           >
-            <RotateCcw className="w-4 h-4" />
+            <FontAwesomeIcon icon={faRotateLeft} className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -171,14 +178,14 @@ const ReferenceIdManagerPage = () => {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-1">
-            <Hash className="w-6 h-6 text-teal-500" />
+            <FontAwesomeIcon icon={faHashtag} className="w-6 h-6 text-teal-500" />
             <h3 className="text-xl font-bold text-gray-800">Reference ID Manager</h3>
           </div>
           <p className="text-gray-500 text-sm mb-4">
             View and reset reference ID counters. Each counter is isolated — changing one does not affect any other.
           </p>
           <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <FontAwesomeIcon icon={faTriangleExclamation} className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
               Resetting a counter means the next form submission will start from 01 again.
               Existing documents are not changed — only future IDs are affected.
@@ -198,7 +205,8 @@ const ReferenceIdManagerPage = () => {
                 </span>
                 <span className="font-semibold text-gray-800">{label}</span>
               </div>
-              <CheckCircle2
+              <FontAwesomeIcon
+                icon={faCircleCheck}
                 className={`w-4 h-4 transition-transform ${openType === type ? "rotate-180 text-teal-500" : "text-gray-300"}`}
               />
             </button>

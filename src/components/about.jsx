@@ -1,9 +1,3 @@
-import {
-  ChartNoAxesCombined,
-  FileSpreadsheet,
-  ShieldCheck,
-  UsersRound,
-} from "lucide-react";
 import cctvRoomImage from "../assets/chellancctvroom.jpg";
 
 const about = () => {

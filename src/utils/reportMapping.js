@@ -1,14 +1,20 @@
-import { Camera, FileText, AlertTriangle, Calendar, Eye } from "lucide-react";
+import {
+  faCamera,
+  faFileLines,
+  faTriangleExclamation,
+  faCalendar,
+  faEye,
+} from "@fortawesome/free-solid-svg-icons";
 import { DEMO_SCHEME_ID } from "./schemes";
 
 // Shared across StaffReportsPage, ThirdPartyReportsPage, and the live-reports
 // hook so the type→icon/color mapping (and demo-scheme exclusion) can't drift.
 export const FORM_TYPE_META = {
-  "CCTV Check Sheet": { type: "CCTV Check", icon: Camera, color: "bg-purple-100 text-purple-600" },
-  "Incident Report": { type: "Incident Report", icon: FileText, color: "bg-teal-100 text-teal-600" },
-  "Asset Damage": { type: "Asset Damage", icon: AlertTriangle, color: "bg-orange-100 text-orange-600" },
-  "Daily Occurrence": { type: "Daily Logs", icon: Calendar, color: "bg-blue-100 text-blue-600" },
-  "CCTV Faults": { type: "CCTV Faults", icon: Eye, color: "bg-pink-100 text-pink-600" },
+  "CCTV Check Sheet": { type: "CCTV Check", icon: faCamera, color: "bg-purple-100 text-purple-600" },
+  "Incident Report": { type: "Incident Report", icon: faFileLines, color: "bg-teal-100 text-teal-600" },
+  "Asset Damage": { type: "Asset Damage", icon: faTriangleExclamation, color: "bg-orange-100 text-orange-600" },
+  "Daily Occurrence": { type: "Daily Logs", icon: faCalendar, color: "bg-blue-100 text-blue-600" },
+  "CCTV Faults": { type: "CCTV Faults", icon: faEye, color: "bg-pink-100 text-pink-600" },
 };
 
 // Maps a Firestore collection name to the raw `type` label used above.

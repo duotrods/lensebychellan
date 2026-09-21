@@ -4,26 +4,27 @@ import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
 import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  Building2,
-  Plus,
-  Trash2,
-  RefreshCw,
-  User,
-  Archive,
-  ArchiveRestore,
-  ChevronLeft,
-  ChevronRight,
-  Radio,
-  CameraOff,
-  LayoutGrid,
-  Users,
-} from "lucide-react";
+  faBuilding,
+  faPlus,
+  faTrashCan,
+  faRotateRight,
+  faUser,
+  faBoxArchive,
+  faBoxOpen,
+  faChevronLeft,
+  faChevronRight,
+  faTowerBroadcast,
+  faVideoSlash,
+  faTableCellsLarge,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 
 const ROLE_CONFIG = {
-  client: { label: "Client", color: "teal", icon: User },
-  liveoperator: { label: "Live Operator", color: "blue", icon: Radio },
-  cctvfaultoperator: { label: "CCTV Operator", color: "pink", icon: CameraOff },
+  client: { label: "Client", color: "teal", icon: faUser },
+  liveoperator: { label: "Live Operator", color: "blue", icon: faTowerBroadcast },
+  cctvfaultoperator: { label: "CCTV Operator", color: "pink", icon: faVideoSlash },
 };
 
 const SchemeAssignment = () => {
@@ -283,7 +284,7 @@ const SchemeAssignment = () => {
           disabled={loading || overviewLoading}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
         >
-          <RefreshCw className={`w-4 h-4 ${loading || overviewLoading ? "animate-spin" : ""}`} />
+          <FontAwesomeIcon icon={faRotateRight} className={`w-4 h-4 ${loading || overviewLoading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
@@ -298,7 +299,7 @@ const SchemeAssignment = () => {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          <Users className="w-4 h-4" />
+          <FontAwesomeIcon icon={faUsers} className="w-4 h-4" />
           Client Assignments
         </button>
         <button
@@ -309,7 +310,7 @@ const SchemeAssignment = () => {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          <CameraOff className="w-4 h-4" />
+          <FontAwesomeIcon icon={faVideoSlash} className="w-4 h-4" />
           CCTV Operator Assignments
         </button>
         <button
@@ -320,7 +321,7 @@ const SchemeAssignment = () => {
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          <LayoutGrid className="w-4 h-4" />
+          <FontAwesomeIcon icon={faTableCellsLarge} className="w-4 h-4" />
           Scheme Overview
         </button>
       </div>
@@ -340,7 +341,7 @@ const SchemeAssignment = () => {
                       : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  <User className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faUser} className="w-4 h-4" />
                   Clients
                 </button>
                 <button
@@ -351,7 +352,7 @@ const SchemeAssignment = () => {
                       : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  <Users className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faUsers} className="w-4 h-4" />
                   Third Party Clients
                 </button>
               </>
@@ -365,7 +366,7 @@ const SchemeAssignment = () => {
                       : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  <CameraOff className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faVideoSlash} className="w-4 h-4" />
                   CCTV Operators
                 </button>
                 <button
@@ -376,7 +377,7 @@ const SchemeAssignment = () => {
                       : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  <CameraOff className="w-4 h-4" />
+                  <FontAwesomeIcon icon={faVideoSlash} className="w-4 h-4" />
                   Third Party CCTV Operators
                 </button>
               </>
@@ -427,7 +428,7 @@ const SchemeAssignment = () => {
                     <tr>
                       <td colSpan="6" className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center justify-center">
-                          <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mb-2" />
+                          <FontAwesomeIcon icon={faRotateRight} className="w-8 h-8 text-gray-400 animate-spin mb-2" />
                           <p className="text-gray-500">Loading users...</p>
                         </div>
                       </td>
@@ -436,7 +437,7 @@ const SchemeAssignment = () => {
                     <tr>
                       <td colSpan="6" className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center justify-center">
-                          <User className="w-12 h-12 text-gray-300 mb-2" />
+                          <FontAwesomeIcon icon={faUser} className="w-12 h-12 text-gray-300 mb-2" />
                           <p className="text-gray-500">No users found</p>
                         </div>
                       </td>
@@ -469,7 +470,7 @@ const SchemeAssignment = () => {
                                   key={sid}
                                   className="flex items-center gap-1 px-2 py-1 bg-teal-50 text-teal-700 rounded text-sm"
                                 >
-                                  <Building2 className="w-3 h-3" />
+                                  <FontAwesomeIcon icon={faBuilding} className="w-3 h-3" />
                                   <span>{user.schemeNames?.[sid] || sid}</span>
                                   {effectiveSchemeIds.length > 1 && user.schemeIds?.includes(sid) && (
                                     <button
@@ -478,7 +479,7 @@ const SchemeAssignment = () => {
                                       className="ml-1 hover:text-red-600 transition-colors"
                                       title="Remove scheme"
                                     >
-                                      <Trash2 className="w-3 h-3" />
+                                      <FontAwesomeIcon icon={faTrashCan} className="w-3 h-3" />
                                     </button>
                                   )}
                                 </div>
@@ -490,7 +491,7 @@ const SchemeAssignment = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1 text-sm">
-                            <Building2 className="w-4 h-4 text-blue-500" />
+                            <FontAwesomeIcon icon={faBuilding} className="w-4 h-4 text-blue-500" />
                             <span className="font-medium text-blue-700">
                               {user.activeSchemeId || user.schemeId || "None"}
                             </span>
@@ -499,7 +500,7 @@ const SchemeAssignment = () => {
                         <td className="px-6 py-4">
                           {user.isArchived ? (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                              <Archive className="w-3 h-3" />
+                              <FontAwesomeIcon icon={faBoxArchive} className="w-3 h-3" />
                               Archived
                             </span>
                           ) : (
@@ -516,7 +517,7 @@ const SchemeAssignment = () => {
                                 disabled={actionLoading || loading}
                                 className="flex items-center gap-1 px-3 py-1 bg-teal-500 hover:bg-teal-600 text-white rounded text-sm transition-colors"
                               >
-                                <Plus className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
                                 Assign
                               </button>
                             )}
@@ -526,7 +527,7 @@ const SchemeAssignment = () => {
                                 disabled={actionLoading || loading}
                                 className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
                               >
-                                <ArchiveRestore className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faBoxOpen} className="w-4 h-4" />
                                 Unarchive
                               </button>
                             ) : (
@@ -535,7 +536,7 @@ const SchemeAssignment = () => {
                                 disabled={actionLoading || loading}
                                 className="flex items-center gap-1 px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors"
                               >
-                                <Archive className="w-4 h-4" />
+                                <FontAwesomeIcon icon={faBoxArchive} className="w-4 h-4" />
                                 Archive
                               </button>
                             )}
@@ -566,7 +567,7 @@ const SchemeAssignment = () => {
                     disabled={currentPage === 1}
                     className="btn btn-sm btn-outline"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                   </button>
                   <span className="text-sm font-medium">
                     Page {currentPage} of {totalPages}
@@ -576,7 +577,7 @@ const SchemeAssignment = () => {
                     disabled={!hasMore || currentPage === totalPages}
                     className="btn btn-sm btn-outline"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -590,12 +591,12 @@ const SchemeAssignment = () => {
         <div>
           {overviewLoading ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mb-2" />
+              <FontAwesomeIcon icon={faRotateRight} className="w-8 h-8 text-gray-400 animate-spin mb-2" />
               <p className="text-gray-500">Loading scheme overview...</p>
             </div>
           ) : schemeOverview.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <Building2 className="w-12 h-12 text-gray-300 mb-2" />
+              <FontAwesomeIcon icon={faBuilding} className="w-12 h-12 text-gray-300 mb-2" />
               <p className="text-gray-500">No users assigned to any scheme yet</p>
             </div>
           ) : (
@@ -605,7 +606,7 @@ const SchemeAssignment = () => {
                   {/* Scheme Header */}
                   <div className="bg-teal-600 px-5 py-4">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-5 h-5 text-teal-200" />
+                      <FontAwesomeIcon icon={faBuilding} className="w-5 h-5 text-teal-200" />
                       <div>
                         <p className="font-bold text-white text-lg leading-tight">{scheme.id}</p>
                         <p className="text-teal-100 text-sm">{scheme.shortName} · {scheme.contractor}</p>
@@ -621,14 +622,14 @@ const SchemeAssignment = () => {
                   {/* Users by role */}
                   <div className="divide-y divide-gray-100">
                     {[
-                      { role: "client", users: clients, label: "Clients", Icon: User, badgeClass: "bg-teal-100 text-teal-700" },
-                      { role: "liveoperator", users: liveOperators, label: "Live Operators", Icon: Radio, badgeClass: "bg-blue-100 text-blue-700" },
-                      { role: "cctvfaultoperator", users: cctvOperators, label: "CCTV Operators", Icon: CameraOff, badgeClass: "bg-pink-100 text-pink-700" },
+                      { role: "client", users: clients, label: "Clients", Icon: faUser, badgeClass: "bg-teal-100 text-teal-700" },
+                      { role: "liveoperator", users: liveOperators, label: "Live Operators", Icon: faTowerBroadcast, badgeClass: "bg-blue-100 text-blue-700" },
+                      { role: "cctvfaultoperator", users: cctvOperators, label: "CCTV Operators", Icon: faVideoSlash, badgeClass: "bg-pink-100 text-pink-700" },
                     ].map(({ role, users: roleUsers, label, Icon, badgeClass }) => (
                       roleUsers.length > 0 && (
                         <div key={role} className="px-5 py-3">
                           <p className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                            <Icon className="w-3 h-3" />
+                            <FontAwesomeIcon icon={Icon} className="w-3 h-3" />
                             {label}
                           </p>
                           <div className="space-y-1.5">
@@ -730,12 +731,12 @@ const SchemeAssignment = () => {
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <FontAwesomeIcon icon={faRotateRight} className="w-4 h-4 animate-spin" />
                       Assigning...
                     </>
                   ) : (
                     <>
-                      <Plus className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
                       Assign Scheme
                     </>
                   )}

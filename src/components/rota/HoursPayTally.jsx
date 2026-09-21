@@ -1,4 +1,5 @@
-import { Download } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDownload } from "@fortawesome/free-solid-svg-icons";
 import RotaPeriodNav from "./RotaPeriodNav";
 import RotaRangeFilter from "./RotaRangeFilter";
 import { fmtNum, sumRows, tallyForPeriod } from "../../utils/rota";
@@ -54,7 +55,7 @@ const HoursPayTally = ({
             onClick={onDownloadCsv}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-medium"
           >
-            <Download className="w-4 h-4" />
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
             CSV
           </button>
         </div>

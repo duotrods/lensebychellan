@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, FileText } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faDownload } from "@fortawesome/free-solid-svg-icons";
 import { staffService } from '../../services/staffService';
 import LiveOperatorSidebarLayout from '../../components/layout/LiveOperatorSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
@@ -87,7 +88,7 @@ const IncidentDetailPage = () => {
               onClick={() => navigate('/dashboard/liveoperator')}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">Incident Report Details</h3>
@@ -98,7 +99,7 @@ const IncidentDetailPage = () => {
             onClick={handleDownloadPDF}
             className="btn bg-blue-500 text-white hover:bg-blue-600 border-none"
           >
-            <Download className="w-4 h-4 mr-2" />
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
             Download PDF
           </button>
         </div>

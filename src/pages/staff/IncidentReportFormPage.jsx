@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { ArrowLeft, Upload, X, ChevronRight } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faUpload, faXmark, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { useAuth } from "../../hooks/useAuth";
 import { getStaffBasePath } from "../../utils/constants";
@@ -754,7 +755,7 @@ const IncidentReportFormPage = () => {
             accept="image/*,video/*"
           />
           <label htmlFor="file-upload" className="cursor-pointer">
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <FontAwesomeIcon icon={faUpload} className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-teal-600 font-semibold mb-1">Browse Files</p>
             <p className="text-gray-500 text-sm">Drag and drop files here</p>
           </label>
@@ -773,7 +774,7 @@ const IncidentReportFormPage = () => {
                     onClick={() => removeExistingFile(index)}
                     className="text-red-500 hover:text-red-700 shrink-0 ml-2"
                   >
-                    <X className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -794,7 +795,7 @@ const IncidentReportFormPage = () => {
                     onClick={() => removeFile(index)}
                     className="text-red-500 hover:text-red-700"
                   >
-                    <X className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -825,7 +826,7 @@ const IncidentReportFormPage = () => {
             ) : (
               <>
                 Create Live Incident
-                <ChevronRight className="w-5 h-5" />
+                <FontAwesomeIcon icon={faChevronRight} className="w-5 h-5" />
               </>
             )}
           </button>
@@ -1603,7 +1604,7 @@ const IncidentReportFormPage = () => {
                           onClick={() => removeVehicle(index)}
                           className="btn btn-sm btn-ghost text-red-500"
                         >
-                          <X className="w-4 h-4" />
+                          <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                         </button>
                       )}
                     </td>
@@ -1662,7 +1663,7 @@ const IncidentReportFormPage = () => {
             accept="image/*,video/*,.pdf"
           />
           <label htmlFor="file-upload-step2" className="cursor-pointer">
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <FontAwesomeIcon icon={faUpload} className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-teal-600 font-semibold mb-1">Browse Files</p>
             <p className="text-gray-500 text-sm">Drag and drop files here</p>
           </label>
@@ -1681,7 +1682,7 @@ const IncidentReportFormPage = () => {
                     onClick={() => removeExistingFile(index)}
                     className="text-red-500 hover:text-red-700 shrink-0 ml-2"
                   >
-                    <X className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -1702,7 +1703,7 @@ const IncidentReportFormPage = () => {
                     onClick={() => removeFile(index)}
                     className="text-red-500 hover:text-red-700"
                   >
-                    <X className="w-4 h-4" />
+                    <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -1773,7 +1774,7 @@ const IncidentReportFormPage = () => {
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
           </button>
           <h2 className="text-2xl font-bold text-gray-800">
             {editId
@@ -1817,7 +1818,7 @@ const IncidentReportFormPage = () => {
                 onClick={cancelPairMismatch}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
                 Cancel
               </button>
               <button

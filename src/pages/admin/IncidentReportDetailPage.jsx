@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, Download, FileText, Calendar, User, MapPin, AlertTriangle } from 'lucide-react';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faDownload, faFileLines } from "@fortawesome/free-solid-svg-icons";
 import { staffService } from '../../services/staffService';
 import AdminSidebarLayout from '../../components/layout/AdminSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
@@ -87,7 +88,7 @@ const IncidentReportDetailPage = () => {
               onClick={() => navigate(backPath)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
             </button>
             <div>
               <h3 className="text-2xl font-bold text-gray-800">Incident Report Details</h3>
@@ -98,7 +99,7 @@ const IncidentReportDetailPage = () => {
             onClick={handleDownloadPDF}
             className="btn bg-blue-500 text-white hover:bg-blue-600 border-none"
           >
-            <Download className="w-4 h-4 mr-2" />
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4 mr-2" />
             Download PDF
           </button>
         </div>
@@ -350,7 +351,7 @@ const IncidentReportDetailPage = () => {
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    <FileText className="w-5 h-5 text-teal-600" />
+                    <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-teal-600" />
                     <span className="text-sm font-medium text-gray-800">{file.fileName}</span>
                   </a>
                 ))}

@@ -5,16 +5,17 @@ import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import { useLiveClientReports } from "../../hooks/useLiveClientReports";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  FileText,
-  Calendar,
-  Search,
-  Filter,
-  Download,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+  faFileLines,
+  faCalendar,
+  faMagnifyingGlass,
+  faFilter,
+  faDownload,
+  faEye,
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 import { getActiveSchemeName } from "../../utils/schemes";
@@ -458,7 +459,7 @@ const ReportsPage = () => {
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             {/* Search */}
             <div className="w-full md:w-72 relative shrink-0">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search by reference ID or staff name..."
@@ -489,7 +490,7 @@ const ReportsPage = () => {
 
             {/* Date Range Filter */}
             <div className="flex flex-wrap items-center gap-2 flex-1">
-              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+              <FontAwesomeIcon icon={faCalendar} className="w-4 h-4 text-gray-400 shrink-0" />
               <input
                 type="date"
                 value={dateFilter.startDate}
@@ -531,7 +532,7 @@ const ReportsPage = () => {
 
             {/* Filter */}
             <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-500" />
+              <FontAwesomeIcon icon={faFilter} className="w-5 h-5 text-gray-500" />
               <select
                 value={filterType}
                 onChange={(e) => {
@@ -647,14 +648,14 @@ const ReportsPage = () => {
                               className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
                               title="View Report"
                             >
-                              <Eye className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDownloadReport(report)}
                               className="btn btn-sm btn-ghost text-green-600 hover:text-green-800"
                               title="Download Report"
                             >
-                              <Download className="w-4 h-4" />
+                              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -677,7 +678,7 @@ const ReportsPage = () => {
                       disabled={searchPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">Page {searchPage}</span>
                     <button
@@ -685,7 +686,7 @@ const ReportsPage = () => {
                       disabled={!searchHasMore}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -707,7 +708,7 @@ const ReportsPage = () => {
                       disabled={currentPage === 1}
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-medium">
                       Page {currentPage}
@@ -721,7 +722,7 @@ const ReportsPage = () => {
                       }
                       className="btn btn-sm btn-outline"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -729,7 +730,7 @@ const ReportsPage = () => {
             </>
           ) : (
             <div className="p-12 text-center">
-              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <FontAwesomeIcon icon={faFileLines} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No reports found</p>
               <p className="text-gray-400 text-sm mt-2">
                 Try adjusting your search or filter criteria

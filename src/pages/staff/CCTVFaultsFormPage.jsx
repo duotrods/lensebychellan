@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft, faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
@@ -248,7 +249,7 @@ const CCTVFaultsFormPage = () => {
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <FontAwesomeIcon icon={faArrowLeft} className="w-6 h-6 text-gray-600" />
           </button>
           <h2 className="text-2xl font-bold text-gray-800">
             {editId ? "Edit CCTV Fault Report" : "CCTV Fault Report"}
@@ -269,7 +270,7 @@ const CCTVFaultsFormPage = () => {
                 <span className="text-sm font-semibold text-gray-600">Status:</span>
                 {reportMeta.status === "completed" ? (
                   <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 bg-green-100 px-3 py-1 rounded-full">
-                    <CheckCircle2 className="w-4 h-4" /> Completed
+                    <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4" /> Completed
                     {reportMeta.completedBy?.name && (
                       <span className="font-normal text-green-600 ml-1">by {reportMeta.completedBy.name}</span>
                     )}
@@ -283,7 +284,7 @@ const CCTVFaultsFormPage = () => {
               {reportMeta.clientAcknowledged && (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                    <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4 text-teal-500 shrink-0" />
                     <span className="text-sm font-semibold text-gray-600">Client acknowledged</span>
                   </div>
                   {(() => {
@@ -511,7 +512,7 @@ const CCTVFaultsFormPage = () => {
                 disabled={completing}
                 className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors font-semibold flex items-center gap-2"
               >
-                <CheckCircle2 className="w-4 h-4" />
+                <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4" />
                 {completing ? "Marking Complete..." : "Mark as Complete"}
               </button>
             )}

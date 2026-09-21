@@ -5,7 +5,8 @@ import { uploadFileToR2 } from "../../utils/r2Upload";
 import { isVideoFile } from "../../utils/fileType";
 import { getActiveSchemeName } from "../../utils/schemes";
 import { formatFileSize } from "../../utils/documents";
-import { Upload, Video, X } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUpload, faVideo, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 
 const CONFIG = {
@@ -146,7 +147,7 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
             className="p-1.5 text-gray-400 hover:text-gray-600"
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <FontAwesomeIcon icon={faXmark} className="w-5 h-5" />
           </button>
         </div>
 
@@ -214,7 +215,7 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
           {selectedFile ? (
             <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
               <div className="flex items-center gap-3 min-w-0">
-                <Video className="w-5 h-5 text-teal-600 shrink-0" />
+                <FontAwesomeIcon icon={faVideo} className="w-5 h-5 text-teal-600 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">
                     {selectedFile.name}
@@ -229,7 +230,7 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
                 className="p-1.5 text-gray-400 hover:text-red-500 shrink-0"
                 aria-label="Remove file"
               >
-                <X className="w-4 h-4" />
+                <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
               </button>
             </div>
           ) : (
@@ -246,7 +247,7 @@ const FootageUploadDrawer = ({ open, onClose, type, onUploaded }) => {
                   : "border-gray-300 hover:border-teal-400 hover:bg-gray-50"
               }`}
             >
-              <Upload className="w-5 h-5 text-gray-400 mb-1" />
+              <FontAwesomeIcon icon={faUpload} className="w-5 h-5 text-gray-400 mb-1" />
               <p className="text-sm font-medium text-gray-700">
                 Drop a video, or click to browse
               </p>

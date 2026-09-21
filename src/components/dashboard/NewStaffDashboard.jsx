@@ -3,24 +3,23 @@
   import { useAuth } from "../../hooks/useAuth";
   import { staffService } from "../../services/staffService";
   import NoticeBoard from "../staff/NoticeBoard";
+  import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
   import {
-    FileText,
-    Camera,
-    Calendar,
-    AlertTriangle,
-    Eye,
-    Edit,
-    Download,
-    Search,
-    Filter,
-    ChevronLeft,
-    ChevronRight,
-    Radio,
-    CheckCircle,
-    Forward,
-    FilePlus,
-    FilePlus2,
-  } from "lucide-react";
+    faFileLines,
+    faCamera,
+    faCalendar,
+    faTriangleExclamation,
+    faEye,
+    faPen,
+    faDownload,
+    faMagnifyingGlass,
+    faFilter,
+    faChevronLeft,
+    faChevronRight,
+    faTowerBroadcast,
+    faCircleCheck,
+    faFileImport,
+  } from "@fortawesome/free-solid-svg-icons";
   import { toast } from "react-hot-toast";
   import { generateReportPDF } from "../../utils/pdfGenerator";
   import {
@@ -325,28 +324,28 @@
         title: "Incident Report Form",
         count: stats?.incidentReportTotal || 0,
         subtitle: "Total Submissions",
-        icon: FileText,
+        icon: faFileLines,
         color: "from-amber-400 to-amber-500",
       },
       {
         title: "CCTV Check Sheet",
         count: stats?.cctvCheckTotal || 0,
         subtitle: "Total Submissions",
-        icon: Camera,
+        icon: faCamera,
         color: "from-teal-500 to-teal-600",
       },
       {
         title: "Daily Occurence",
         count: stats?.dailyLogsTotal || 0,
         subtitle: "Total Submissions",
-        icon: Calendar,
+        icon: faCalendar,
         color: "from-blue-500 to-blue-600",
       },
       {
         title: "CCTV Faults",
         count: stats?.cctvFaultsTotal || 0,
         subtitle: "Total Submissions",
-        icon: Eye,
+        icon: faEye,
         color: "from-pink-500 to-pink-600",
       },
     ];
@@ -369,17 +368,17 @@
     const getFormTypeIcon = (type) => {
       switch (type) {
         case "Incident Report":
-          return <AlertTriangle className="w-5 h-5 text-amber-500" />;
+          return <FontAwesomeIcon icon={faTriangleExclamation} className="w-5 h-5 text-amber-500" />;
         case "CCTV Check Sheet":
-          return <Eye className="w-5 h-5 text-green-500" />;
+          return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-green-500" />;
         case "Daily Occurrence":
-          return <Calendar className="w-5 h-5 text-blue-500" />;
+          return <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-blue-500" />;
         case "Asset Damage":
-          return <FileText className="w-5 h-5 text-red-500" />;
+          return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-red-500" />;
         case "CCTV Faults":
-          return <Eye className="w-5 h-5 text-pink-500" />;
+          return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-pink-500" />;
         default:
-          return <FileText className="w-5 h-5 text-gray-500" />;
+          return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-gray-500" />;
       }
     };
 
@@ -610,7 +609,7 @@
                       <div
                         className={`w-9 h-9 rounded-lg bg-linear-to-br ${card.color} flex items-center justify-center shrink-0`}
                       >
-                        <card.icon className="w-4 h-4 text-white" />
+                        <FontAwesomeIcon icon={card.icon} className="w-4 h-4 text-white" />
                       </div>
                       <h5 className="text-sm font-medium text-gray-600 leading-tight">
                         {card.title}
@@ -634,7 +633,7 @@
                 <div className="flex flex-col md:flex-row gap-4">
                   {/* Search */}
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 z-10 pointer-events-none" />
+                    <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 z-10 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search by reference ID or staff name..."
@@ -668,7 +667,7 @@
 
                   {/* Filter */}
                   <div className="flex items-center gap-2">
-                    <Filter className="w-5 h-5 text-gray-500" />
+                    <FontAwesomeIcon icon={faFilter} className="w-5 h-5 text-gray-500" />
                     <select
                       value={filterType}
                       onChange={(e) => handleFilterChange(e.target.value)}
@@ -709,7 +708,7 @@
                       ) : currentForms.length === 0 ? (
                         <tr>
                           <td colSpan="7" className="text-center py-12">
-                            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                            <FontAwesomeIcon icon={faFileLines} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                             <p className="text-gray-500 text-lg">
                               No forms found
                             </p>
@@ -785,7 +784,7 @@
                                   form.type === "CCTV Faults") &&
                                   form.status === "live" && (
                                     <div className="badge badge-error badge-soft">
-                                      <Radio className="w-4 h-4 text-red-500" />
+                                      <FontAwesomeIcon icon={faTowerBroadcast} className="w-4 h-4 text-red-500" />
                                       Live
                                     </div>
                                   )}
@@ -793,7 +792,7 @@
                                   form.clientAcknowledged &&
                                   form.status !== "completed" && (
                                     <div className="badge badge-info badge-soft">
-                                      <Eye className="w-4 h-4 text-blue-500" />
+                                      <FontAwesomeIcon icon={faEye} className="w-4 h-4 text-blue-500" />
                                       Client Seen
                                     </div>
                                   )}
@@ -801,7 +800,7 @@
                                   form.type === "CCTV Faults") &&
                                   form.status === "completed" && (
                                     <div className="badge badge-success badge-soft">
-                                      <CheckCircle className="w-4 h-4 text-brand-400" />
+                                      <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4 text-brand-400" />
                                       Completed
                                     </div>
                                   )}
@@ -817,7 +816,7 @@
                                     className="btn btn-sm btn-ghost text-red-500 hover:text-red-800"
                                     title="Edit"
                                   >
-                                    <FilePlus2 className="w-4 h-4" />
+                                    <FontAwesomeIcon icon={faFileImport} className="w-4 h-4" />
                                   </button>
                                 ) : (
                                   <button
@@ -825,7 +824,7 @@
                                     className="btn btn-sm btn-ghost text-green-600 hover:text-green-800"
                                     title="Edit"
                                   >
-                                    <Edit className="w-4 h-4" />
+                                    <FontAwesomeIcon icon={faPen} className="w-4 h-4" />
                                   </button>
                                 )}
                                 <button
@@ -833,7 +832,7 @@
                                   className="btn btn-sm btn-ghost text-blue-600 hover:text-blue-800"
                                   title="View"
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                                 </button>
 
                                 <button
@@ -841,7 +840,7 @@
                                   className="btn btn-sm btn-ghost text-purple-600 hover:text-purple-800"
                                   title="Download PDF"
                                 >
-                                  <Download className="w-4 h-4" />
+                                  <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
                                 </button>
                               </div>
                             </td>
@@ -865,7 +864,7 @@
                         disabled={searchPage === 1}
                         className="btn btn-sm btn-outline"
                       >
-                        <ChevronLeft className="w-4 h-4" />
+                        <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                       </button>
                       <span className="text-sm font-medium">Page {searchPage}</span>
                       <button
@@ -873,7 +872,7 @@
                         disabled={!searchHasMore}
                         className="btn btn-sm btn-outline"
                       >
-                        <ChevronRight className="w-4 h-4" />
+                        <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -891,7 +890,7 @@
                         disabled={currentPage === 1}
                         className="btn btn-sm btn-outline"
                       >
-                        <ChevronLeft className="w-4 h-4" />
+                        <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
                       </button>
                       <span className="text-sm font-medium">
                         Page {currentPage}
@@ -902,7 +901,7 @@
                         disabled={!hasMore}
                         className="btn btn-sm btn-outline"
                       >
-                        <ChevronRight className="w-4 h-4" />
+                        <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
