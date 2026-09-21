@@ -116,6 +116,29 @@ export function splitShiftAcrossDates(dateStr, shift) {
   return portions;
 }
 
+// Default hours a holiday day taken consumes from a staff member's holiday
+// allowance, matching the app's existing standard shift length. Admins can
+// override this per holiday day in ShiftModal; legacy docs (saved before
+// that was possible) have no holidayHours field and fall back to this.
+export const HOURS_PER_HOLIDAY_DAY = 12;
+
+// holidayShifts: raw rotaShifts docs with type === "holiday", unbounded by
+// pay period (see useAllHolidayShifts). Only approved holidays count toward
+// the allowance — same rule tallyForPeriod already uses below: pending
+// requests are excluded, and legacy docs with no status field are treated
+// as approved. Each shift's own holidayHours is used (falling back to
+// HOURS_PER_HOLIDAY_DAY for legacy docs saved before that field existed),
+// so a half-day holiday deducts less than a full day.
+export function sumApprovedHolidayHoursByStaff(holidayShifts) {
+  const totals = {};
+  holidayShifts.forEach((shift) => {
+    if (shift.status === "pending") return;
+    const hours = shift.holidayHours ?? HOURS_PER_HOLIDAY_DAY;
+    totals[shift.staffId] = (totals[shift.staffId] || 0) + hours;
+  });
+  return totals;
+}
+
 export function rateForDate(bankHolidays, dateStr) {
   const bh = bankHolidayFor(bankHolidays, dateStr);
   if (!bh) return { multiplier: 1, label: "standard" };
@@ -124,7 +147,12 @@ export function rateForDate(bankHolidays, dateStr) {
 }
 
 // staff: [{id, name}], shifts: { [`${staffId}__${date}`]: {type, hours, status} }
-export function tallyForPeriod(staff, shifts, bankHolidays, period) {
+// allTimeHolidayHoursUsedByStaff: { [staffId]: hours } from
+// sumApprovedHolidayHoursByStaff, unbounded by `period` — a holiday allowance
+// is a running balance, not a per-pay-period figure, so it's computed from a
+// staff member's whole holiday history, not just the shifts visible in this
+// period.
+export function tallyForPeriod(staff, shifts, bankHolidays, period, allTimeHolidayHoursUsedByStaff = {}) {
   const rows = staff.map((p) => ({
     id: p.id,
     name: p.name,
@@ -136,6 +164,13 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period) {
     sickDays: 0,
     totalHours: 0,
     weightedHours: 0,
+    // null means "no allowance set" — kept distinct from 0 so the UI can
+    // show "—" instead of a misleading "0 hours remaining".
+    holidayHoursAllowance: p.holidayHoursAllowance ?? null,
+    holidayHoursRemaining:
+      p.holidayHoursAllowance != null
+        ? p.holidayHoursAllowance - (allTimeHolidayHoursUsedByStaff[p.id] ?? 0)
+        : null,
   }));
   const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
 
@@ -240,8 +275,8 @@ export function buildRotaCsvRows(staff, shifts, bankHolidays, period) {
   return rows;
 }
 
-export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
-  const rows2 = tallyForPeriod(staff, shifts, bankHolidays, period);
+export function buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHolidayHoursUsedByStaff = {}) {
+  const rows2 = tallyForPeriod(staff, shifts, bankHolidays, period, allTimeHolidayHoursUsedByStaff);
   const header = [
     "Staff",
     "Standard hrs",
@@ -253,6 +288,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
     "Total hrs worked",
     "Holiday premium (BH + Xmas)",
     "Weighted hrs (for pay)",
+    "Holiday hrs remaining",
   ];
   return [
     [`Pay period: ${payPeriodLabel(period)}`],
@@ -268,6 +304,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
       fmtNum(r.totalHours),
       fmtNum(r.weightedHours - r.totalHours),
       fmtNum(r.weightedHours),
+      r.holidayHoursRemaining != null ? fmtNum(r.holidayHoursRemaining) : "",
     ]),
     [
       "All staff",
@@ -280,6 +317,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period) {
       fmtNum(sumRows(rows2, "totalHours")),
       fmtNum(sumRows(rows2, "weightedHours") - sumRows(rows2, "totalHours")),
       fmtNum(sumRows(rows2, "weightedHours")),
+      "",
     ],
   ];
 }

@@ -2353,9 +2353,25 @@ class ClientDataService {
     return results.slice(0, 10);
   }
 
-  async getCCTVUptimeData(schemeId, dateRange = 30, force = false) {
+  // dateRangeInput is either a number of days to look back from now (legacy
+  // callers, e.g. CCTVUptimePage's 7/30/90-day presets), or an explicit
+  // { startDate, endDate } Date pair (the client dashboard's date picker,
+  // which can select "All Time" or any custom range, not just a trailing
+  // N-day window). Both resolve to a concrete start/end below so the rest of
+  // the function only deals with one shape.
+  async getCCTVUptimeData(schemeId, dateRangeInput = 30, force = false) {
     const CACHE_TTL_MS = 15 * 60 * 1000;
-    const cacheRef = doc(db, "cctvUptimeCache", `${schemeId}_${dateRange}d`);
+
+    const isCustomRange = dateRangeInput !== null && typeof dateRangeInput === "object";
+    const rangeEnd = isCustomRange ? (dateRangeInput.endDate ?? new Date()) : new Date();
+    const rangeStart = isCustomRange
+      ? dateRangeInput.startDate
+      : new Date(rangeEnd.getTime() - dateRangeInput * 24 * 60 * 60 * 1000);
+
+    const cacheKey = isCustomRange
+      ? `${schemeId}_${rangeStart.toISOString().slice(0, 10)}_${rangeEnd.toISOString().slice(0, 10)}`
+      : `${schemeId}_${dateRangeInput}d`;
+    const cacheRef = doc(db, "cctvUptimeCache", cacheKey);
 
     if (!force) {
       try {
@@ -2371,9 +2387,7 @@ class ClientDataService {
       }
     }
 
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - dateRange);
-    const cutoffTs = Timestamp.fromDate(cutoff);
+    const cutoffTs = Timestamp.fromDate(rangeStart);
 
     const q = query(
       collection(db, "cctvFaultsReports"),
@@ -2402,8 +2416,8 @@ class ClientDataService {
       };
     });
 
-    const periodMs = dateRange * 24 * 60 * 60 * 1000;
-    const now = Date.now();
+    const periodMs = rangeEnd.getTime() - rangeStart.getTime();
+    const now = rangeEnd.getTime();
 
     const cameraMap = {};
     const tpScheme = THIRD_PARTY_SCHEMES.find((s) => s.id === schemeId);
@@ -2475,7 +2489,14 @@ class ClientDataService {
     };
 
     // Write result to shared Firestore cache (fire-and-forget, non-blocking)
-    setDoc(cacheRef, { cameras, totals, cachedAt: serverTimestamp(), schemeId, dateRange }).catch(() => {});
+    setDoc(cacheRef, {
+      cameras,
+      totals,
+      cachedAt: serverTimestamp(),
+      schemeId,
+      rangeStart: rangeStart.toISOString(),
+      rangeEnd: rangeEnd.toISOString(),
+    }).catch(() => {});
 
     return { cameras, totals };
   }

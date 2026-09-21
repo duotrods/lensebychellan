@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalendarDays, faWallet } from "@fortawesome/free-solid-svg-icons";
@@ -7,12 +7,18 @@ import RotaGrid from "../../components/rota/RotaGrid";
 import ShiftModal from "../../components/rota/ShiftModal";
 import HoursPayTally from "../../components/rota/HoursPayTally";
 import { useAuth } from "../../hooks/useAuth";
-import { useRotaStaff, useBankHolidays, useRotaShifts } from "../../hooks/useRota";
+import {
+  useRotaStaff,
+  useBankHolidays,
+  useRotaShifts,
+  useAllHolidayShifts,
+} from "../../hooks/useRota";
 import { rotaService } from "../../services/rotaService";
 import {
   addDays,
   buildRotaCsvRows,
   buildTallyCsvRows,
+  sumApprovedHolidayHoursByStaff,
   datesAvailableForDuplicate,
   downloadCsv,
   fmt,
@@ -35,6 +41,14 @@ const StaffRotaPage = () => {
   const { staff } = useRotaStaff();
   const { bankHolidays } = useBankHolidays();
   const { shifts } = useRotaShifts(period.start, period.end);
+  const { holidayShifts } = useAllHolidayShifts();
+
+  // Holiday hours used, all-time and per staff member — feeds "holiday hours
+  // remaining" in the Hours & Pay tally, same as the admin rota page.
+  const allTimeHolidayHoursUsedByStaff = useMemo(
+    () => sumApprovedHolidayHoursByStaff(holidayShifts),
+    [holidayShifts],
+  );
 
   // Changing periods invalidates any sub-range filter from the previous period.
   const goPrevPeriod = () => {
@@ -92,7 +106,12 @@ const StaffRotaPage = () => {
     try {
       const value =
         shift.type === "holiday"
-          ? { type: "holiday", hours: 0, status: "pending" }
+          ? {
+              type: "holiday",
+              hours: 0,
+              status: "pending",
+              holidayHours: shift.holidayHours ?? undefined,
+            }
           : { type: shift.type, hours: shift.hours };
       await rotaService.setShift(targetStaffId, dateStr, value, currentUser?.uid);
       toast.success("Shift duplicated");
@@ -111,7 +130,7 @@ const StaffRotaPage = () => {
   const handleDownloadTallyCsv = () => {
     downloadCsv(
       `hours_and_pay_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
-      buildTallyCsvRows(staff, shifts, bankHolidays, period),
+      buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHolidayHoursUsedByStaff),
     );
   };
 
@@ -181,6 +200,7 @@ const StaffRotaPage = () => {
             onRangeChange={setCustomRange}
             onClearRange={() => setCustomRange(null)}
             onDownloadCsv={handleDownloadTallyCsv}
+            allTimeHolidayHoursUsedByStaff={allTimeHolidayHoursUsedByStaff}
           />
         )}
       </div>

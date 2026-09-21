@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -20,12 +20,14 @@ import {
   useBankHolidays,
   useRotaShifts,
   usePendingHolidays,
+  useAllHolidayShifts,
 } from "../../hooks/useRota";
 import { rotaService } from "../../services/rotaService";
 import {
   addDays,
   buildRotaCsvRows,
   buildTallyCsvRows,
+  sumApprovedHolidayHoursByStaff,
   datesAvailableForDuplicate,
   downloadCsv,
   fmt,
@@ -51,6 +53,14 @@ const AdminRotaPage = () => {
   const { bankHolidays, loading: bankHolidaysLoading } = useBankHolidays();
   const { shifts } = useRotaShifts(period.start, period.end);
   const { pending: pendingHolidays } = usePendingHolidays();
+  const { holidayShifts } = useAllHolidayShifts();
+
+  // Holiday hours used, all-time and per staff member — feeds each row's
+  // "holiday hours remaining" in the Hours & Pay tally and Team roster.
+  const allTimeHolidayHoursUsedByStaff = useMemo(
+    () => sumApprovedHolidayHoursByStaff(holidayShifts),
+    [holidayShifts],
+  );
 
   // One-time, idempotent backfill so pre-existing staff (added before the
   // drag-to-reorder feature) get a sortOrder and don't disappear once
@@ -67,6 +77,15 @@ const AdminRotaPage = () => {
       await rotaService.reorderStaff(orderedStaffIds);
     } catch (error) {
       toast.error(error.message || "Failed to save new staff order");
+    }
+  };
+
+  const handleUpdateHolidayAllowance = async (staffId, hours) => {
+    try {
+      await rotaService.updateHolidayAllowance(staffId, hours);
+      toast.success("Holiday hours allowance updated");
+    } catch (error) {
+      toast.error(error.message || "Failed to update holiday hours allowance");
     }
   };
 
@@ -126,7 +145,12 @@ const AdminRotaPage = () => {
     try {
       const value =
         shift.type === "holiday"
-          ? { type: "holiday", hours: 0, status: "approved" }
+          ? {
+              type: "holiday",
+              hours: 0,
+              status: "approved",
+              holidayHours: shift.holidayHours ?? undefined,
+            }
           : { type: shift.type, hours: shift.hours };
       await rotaService.setShift(targetStaffId, dateStr, value, currentUser?.uid);
       toast.success("Shift duplicated");
@@ -177,7 +201,7 @@ const AdminRotaPage = () => {
   const handleDownloadTallyCsv = () => {
     downloadCsv(
       `hours_and_pay_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
-      buildTallyCsvRows(staff, shifts, bankHolidays, period),
+      buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHolidayHoursUsedByStaff),
     );
   };
 
@@ -269,10 +293,18 @@ const AdminRotaPage = () => {
             onRangeChange={setCustomRange}
             onClearRange={() => setCustomRange(null)}
             onDownloadCsv={handleDownloadTallyCsv}
+            allTimeHolidayHoursUsedByStaff={allTimeHolidayHoursUsedByStaff}
           />
         )}
 
-        {activeTab === "team" && <RotaTeamManager staff={staff} loading={staffLoading} />}
+        {activeTab === "team" && (
+          <RotaTeamManager
+            staff={staff}
+            loading={staffLoading}
+            holidayHoursUsedByStaff={allTimeHolidayHoursUsedByStaff}
+            onUpdateAllowance={handleUpdateHolidayAllowance}
+          />
+        )}
         {activeTab === "holidays" && (
           <RotaBankHolidaysManager bankHolidays={bankHolidays} loading={bankHolidaysLoading} />
         )}

@@ -77,6 +77,9 @@ export function useRotaShifts(periodStart, periodEnd) {
             hours: s.hours,
             // status only meaningful for holidays; missing => treat as approved (legacy).
             status: s.status ?? null,
+            // holidayHours only meaningful for holidays; missing => legacy doc, treated
+            // as HOURS_PER_HOLIDAY_DAY (see sumApprovedHolidayHoursByStaff in utils/rota).
+            holidayHours: s.holidayHours ?? null,
             updatedBy: s.updatedBy ?? null,
           };
         });
@@ -93,6 +96,33 @@ export function useRotaShifts(periodStart, periodEnd) {
   }, [startKey, endKey]);
 
   return { shifts, loading, error };
+}
+
+// Every holiday shift ever recorded, across every staff member and pay
+// period — feeds sumApprovedHolidayHoursByStaff so a holiday hours
+// allowance can be computed as a running balance, not a per-period figure.
+export function useAllHolidayShifts() {
+  const [holidayShifts, setHolidayShifts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const unsubscribe = rotaService.subscribeToAllHolidayShifts(
+      (docs) => {
+        setHolidayShifts(docs);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error in all-holiday-shifts subscription:", err);
+        setError(err);
+        setLoading(false);
+      },
+    );
+    return () => unsubscribe?.();
+  }, []);
+
+  return { holidayShifts, loading, error };
 }
 
 // Admin-facing: all holiday shifts still awaiting approval, across every period

@@ -285,7 +285,7 @@
   // the service returns "100.0" for a scheme with zero cameras, so keying off
   // the percentage alone would paint a full green bar for a scheme that has no
   // cameras to report on at all.
-  const CameraOverviewCard = ({ uptimePct, hasData, loading }) => {
+  const CameraOverviewCard = ({ uptimePct, hasData, loading, rangeLabel }) => {
     const parsed = parseFloat(uptimePct);
     const uptime = Number.isFinite(parsed) ? parsed : 0;
     const downtime = 100 - uptime;
@@ -306,7 +306,7 @@
             caption={
               empty
                 ? "No camera uptime recorded for this scheme yet."
-                : "Average camera uptime across the scheme (last 30 days)."
+                : `Average camera uptime across the scheme (${rangeLabel}).`
             }
           />
           <div className="sm:border-l sm:border-[#ededed] sm:pl-8">
@@ -319,7 +319,7 @@
               caption={
                 empty
                   ? "No camera downtime recorded for this scheme yet."
-                  : "Average camera downtime across the scheme (last 30 days)."
+                  : `Average camera downtime across the scheme (${rangeLabel}).`
               }
             />
           </div>
@@ -485,10 +485,17 @@
     // Cached query for uptime — the underlying data already has its own
     // 15-min server-side cache (cctvUptimeCache), so matching that here
     // avoids re-fetching client-side before the server cache would even change.
+    // Tracks the same start/end range as the rest of the dashboard (including
+    // "All Time" and any custom picked range), not a fixed 30-day window, so
+    // the numbers and their caption always describe the same period.
     const { data: uptimeData, isLoading: uptimeLoading } = useQuery({
-      queryKey: ["cctvUptime", schemeId],
-      queryFn: () => clientDataService.getCCTVUptimeData(schemeId, 30),
-      enabled: !!schemeId,
+      queryKey: ["cctvUptime", schemeId, startDate, endDate],
+      queryFn: () =>
+        clientDataService.getCCTVUptimeData(schemeId, {
+          startDate: dateRange[0].startDate,
+          endDate: dateRange[0].endDate,
+        }),
+      enabled: !!schemeId && !!startDate && !!endDate,
       staleTime: 15 * 60 * 1000,
     });
 
@@ -849,6 +856,16 @@
       dateRange[0].startDate.getTime() ===
       startOfDay(earliestIncidentDate || new Date("2020-01-01")).getTime();
 
+    // Describes whatever range is currently selected — "All Time", the exact
+    // dates for a custom pick, or "last 30 days" for the default window —
+    // so captions never claim a fixed period that doesn't match the data.
+    const uptimeRangeLabel = isAllTimeRange
+      ? "all time"
+      : dateRange[0].startDate.toDateString() === addDays(new Date(), -30).toDateString() &&
+          dateRange[0].endDate.toDateString() === new Date().toDateString()
+        ? "last 30 days"
+        : `${dateRange[0].startDate.toLocaleDateString("en-GB")} – ${dateRange[0].endDate.toLocaleDateString("en-GB")}`;
+
     return (
       <div className="max-w-[1600px] mx-auto px-4">
         {/* Header with Date Filter */}
@@ -993,6 +1010,7 @@
                 uptimePct={uptimeData?.totals?.avgUptimePct}
                 hasData={uptimeData?.cameras?.length > 0}
                 loading={uptimeLoading}
+                rangeLabel={uptimeRangeLabel}
               />
 
               <div className="grid gap-6">

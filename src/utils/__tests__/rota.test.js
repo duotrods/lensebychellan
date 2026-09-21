@@ -10,6 +10,8 @@ import {
   datesAvailableForDuplicate,
   buildTallyCsvRows,
   shiftCellText,
+  sumApprovedHolidayHoursByStaff,
+  HOURS_PER_HOLIDAY_DAY,
 } from "../rota";
 
 // Regression coverage for a timezone bug: fmt() used to go through
@@ -305,5 +307,69 @@ describe("shiftCellText", () => {
 
   it("notes worked hours on a holiday", () => {
     expect(shiftCellText({ type: "holiday", hours: 2 })).toBe("Holiday (+2h worked)");
+  });
+});
+
+describe("sumApprovedHolidayHoursByStaff", () => {
+  it("sums each shift's own holidayHours, excludes pending ones", () => {
+    const holidayShifts = [
+      { staffId: "s1", date: "2026-03-05", status: "approved", holidayHours: 6 },
+      { staffId: "s1", date: "2026-03-06", holidayHours: 12 }, // legacy: no status => approved
+      { staffId: "s1", date: "2026-03-07", status: "pending", holidayHours: 12 }, // excluded
+    ];
+    expect(sumApprovedHolidayHoursByStaff(holidayShifts)).toEqual({ s1: 18 });
+  });
+
+  it("falls back to HOURS_PER_HOLIDAY_DAY for legacy docs with no holidayHours field", () => {
+    const holidayShifts = [
+      { staffId: "s1", date: "2026-03-05", status: "approved" },
+      { staffId: "s1", date: "2026-03-06", status: "approved" },
+    ];
+    expect(sumApprovedHolidayHoursByStaff(holidayShifts)).toEqual({
+      s1: 2 * HOURS_PER_HOLIDAY_DAY,
+    });
+  });
+
+  it("groups totals by staff member independently", () => {
+    const holidayShifts = [
+      { staffId: "s1", date: "2026-03-05", status: "approved", holidayHours: 4 },
+      { staffId: "s2", date: "2026-03-05", status: "approved", holidayHours: 8 },
+      { staffId: "s2", date: "2026-03-06", status: "approved", holidayHours: 12 },
+    ];
+    expect(sumApprovedHolidayHoursByStaff(holidayShifts)).toEqual({ s1: 4, s2: 20 });
+  });
+
+  it("returns an empty object for no holiday shifts", () => {
+    expect(sumApprovedHolidayHoursByStaff([])).toEqual({});
+  });
+});
+
+describe("tallyForPeriod holiday hours allowance", () => {
+  const staff = [{ id: "s1", name: "Dave", holidayHoursAllowance: 80 }];
+  const period = getPayPeriod(new Date(2026, 2, 15)); // 28 Feb - 27 Mar 2026
+
+  it("is null when the staff member has no allowance set", () => {
+    const noAllowanceStaff = [{ id: "s1", name: "Dave" }];
+    const [row] = tallyForPeriod(noAllowanceStaff, {}, [], period, { s1: 36 });
+    expect(row.holidayHoursAllowance).toBeNull();
+    expect(row.holidayHoursRemaining).toBeNull();
+  });
+
+  it("subtracts the all-time used-hours total from the allowance", () => {
+    const [row] = tallyForPeriod(staff, {}, [], period, { s1: 36 });
+    expect(row.holidayHoursAllowance).toBe(80);
+    expect(row.holidayHoursRemaining).toBe(80 - 36);
+  });
+
+  it("is unaffected by the visible pay period — used hours come from the all-time map, not `shifts`", () => {
+    // No shifts in this period's `shifts` map at all, but the all-time map
+    // still shows 60 hours used elsewhere — remaining reflects that, not 0.
+    const [row] = tallyForPeriod(staff, {}, [], period, { s1: 60 });
+    expect(row.holidayHoursRemaining).toBe(80 - 60);
+  });
+
+  it("defaults used hours to 0 when the staff member has no entry in the map", () => {
+    const [row] = tallyForPeriod(staff, {}, [], period, {});
+    expect(row.holidayHoursRemaining).toBe(80);
   });
 });

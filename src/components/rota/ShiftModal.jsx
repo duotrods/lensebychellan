@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark, faCheck, faBan, faClock, faClone } from "@fortawesome/free-solid-svg-icons";
-import { parseDateStr } from "../../utils/rota";
+import { parseDateStr, HOURS_PER_HOLIDAY_DAY } from "../../utils/rota";
 
 const OPTIONS = [
   { value: "day", label: "Day — starts 06:00", dot: "bg-yellow-400" },
@@ -32,11 +32,24 @@ const ShiftModal = ({
 }) => {
   const [type, setType] = useState(pendingCell?.existing?.type ?? null);
   const [hours, setHours] = useState(pendingCell?.existing?.hours ?? 12);
+  // Hours deducted from the staff member's holiday allowance for this one
+  // holiday day — separate from `hours` above (hours actually worked despite
+  // being on holiday). Defaults to HOURS_PER_HOLIDAY_DAY (12).
+  const [holidayHours, setHolidayHours] = useState(
+    pendingCell?.existing?.type === "holiday"
+      ? (pendingCell.existing.holidayHours ?? HOURS_PER_HOLIDAY_DAY)
+      : HOURS_PER_HOLIDAY_DAY,
+  );
   const [selectedDuplicates, setSelectedDuplicates] = useState([]);
 
   useEffect(() => {
     setType(pendingCell?.existing?.type ?? null);
     setHours(pendingCell?.existing?.hours ?? 12);
+    setHolidayHours(
+      pendingCell?.existing?.type === "holiday"
+        ? (pendingCell.existing.holidayHours ?? HOURS_PER_HOLIDAY_DAY)
+        : HOURS_PER_HOLIDAY_DAY,
+    );
     setSelectedDuplicates([]);
   }, [pendingCell]);
 
@@ -65,6 +78,11 @@ const ShiftModal = ({
   const handleTypeSelect = (value) => {
     if (value === "holiday" && type !== "holiday") {
       setHours(pendingCell?.existing?.type === "holiday" ? (pendingCell.existing.hours ?? 0) : 0);
+      setHolidayHours(
+        pendingCell?.existing?.type === "holiday"
+          ? (pendingCell.existing.holidayHours ?? HOURS_PER_HOLIDAY_DAY)
+          : HOURS_PER_HOLIDAY_DAY,
+      );
     } else if (HOURLY_TYPES.includes(value) && (type === "holiday" || type === "sick")) {
       setHours(pendingCell?.existing?.hours ?? 12);
     }
@@ -84,7 +102,16 @@ const ShiftModal = ({
       // Hours worked while on holiday — 0 is the common case, unlike the
       // hourly shift types where a shift always has some minimum length.
       const worked = Math.max(0, Math.min(24, Number(hours) || 0));
-      onSave({ type, hours: worked, duplicateDates: selectedDuplicates });
+      const rawHolidayHours = Number(holidayHours);
+      const holidayHoursValue = Number.isNaN(rawHolidayHours)
+        ? HOURS_PER_HOLIDAY_DAY
+        : Math.max(0, Math.min(24, rawHolidayHours));
+      onSave({
+        type,
+        hours: worked,
+        holidayHours: holidayHoursValue,
+        duplicateDates: selectedDuplicates,
+      });
     } else {
       const clamped = Math.max(0.5, Math.min(24, Number(hours) || 12));
       onSave({ type, hours: clamped, duplicateDates: selectedDuplicates });
@@ -164,6 +191,44 @@ const ShiftModal = ({
             </button>
           ))}
         </div>
+
+        {type === "holiday" && (
+          <div className="flex flex-col gap-2 mt-3 p-3 rounded-lg bg-gray-50 border-[1.5px] border-gray-200">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-gray-500">
+                Holiday hours (deducted from allowance)
+              </label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  value={holidayHours}
+                  onChange={(e) => setHolidayHours(e.target.value)}
+                  className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <span className="text-xs text-gray-500">hrs</span>
+              </div>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {QUICK_HOURS.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setHolidayHours(h)}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${
+                    String(holidayHours) === String(h)
+                      ? "bg-teal-500 border-teal-500 text-white"
+                      : "border-gray-200 text-gray-500 hover:border-teal-400 hover:text-teal-600"
+                  }`}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div
           className={`flex flex-col gap-2 mt-3 p-3 rounded-lg bg-gray-50 border-[1.5px] border-gray-200 transition-opacity ${

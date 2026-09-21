@@ -14,9 +14,16 @@ const initials = (name) =>
 
 // staff/loading are lifted from the parent page's useRotaStaff() call so this
 // component doesn't open a second, redundant onSnapshot listener.
-const RotaTeamManager = ({ staff, loading }) => {
+// holidayHoursUsedByStaff/onUpdateAllowance are likewise lifted — the used-hours
+// map comes from AdminRotaPage's useAllHolidayShifts(), computed once and
+// shared with the Hours & Pay tally rather than re-fetched here.
+const RotaTeamManager = ({ staff, loading, holidayHoursUsedByStaff = {}, onUpdateAllowance }) => {
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // In-progress allowance edits, keyed by staffId — only staff members with
+  // an active edit have an entry here; everyone else reads straight from
+  // the live `staff` prop.
+  const [allowanceDrafts, setAllowanceDrafts] = useState({});
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -32,6 +39,31 @@ const RotaTeamManager = ({ staff, loading }) => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleAllowanceChange = (staffId, value) => {
+    setAllowanceDrafts((prev) => ({ ...prev, [staffId]: value }));
+  };
+
+  const handleAllowanceBlur = (member) => {
+    const draft = allowanceDrafts[member.id];
+    if (draft === undefined) return; // field was never touched
+    setAllowanceDrafts((prev) => {
+      const next = { ...prev };
+      delete next[member.id];
+      return next;
+    });
+
+    const trimmed = draft.trim();
+    const nextValue = trimmed === "" ? null : Number(trimmed);
+    if (trimmed !== "" && (Number.isNaN(nextValue) || nextValue < 0)) {
+      toast.error("Holiday hours must be a positive number");
+      return;
+    }
+
+    const currentValue = member.holidayHoursAllowance ?? null;
+    if (nextValue === currentValue) return; // unchanged, nothing to save
+    onUpdateAllowance?.(member.id, nextValue);
   };
 
   const handleRemove = async (member) => {
@@ -50,7 +82,7 @@ const RotaTeamManager = ({ staff, loading }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow overflow-hidden max-w-2xl">
+    <div className="bg-white rounded-xl shadow overflow-hidden max-w-3xl">
       <div className="px-6 py-4 border-b">
         <h2 className="text-base font-semibold text-gray-800">Team</h2>
         <p className="text-xs text-gray-500 mt-0.5">
@@ -67,25 +99,57 @@ const RotaTeamManager = ({ staff, loading }) => {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {staff.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between px-3.5 py-2.5 border border-gray-100 rounded-xl bg-gray-50"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-teal-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                    {initials(p.name)}
-                  </div>
-                  <span className="font-medium text-sm text-gray-800">{p.name}</span>
-                </div>
-                <button
-                  onClick={() => handleRemove(p)}
-                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+            {staff.map((p) => {
+              const usedHours = holidayHoursUsedByStaff[p.id] ?? 0;
+              const remaining =
+                p.holidayHoursAllowance != null
+                  ? p.holidayHoursAllowance - usedHours
+                  : null;
+              const draftValue =
+                allowanceDrafts[p.id] ?? (p.holidayHoursAllowance ?? "");
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between px-3.5 py-2.5 border border-gray-100 rounded-xl bg-gray-50 gap-3 flex-wrap"
                 >
-                  Remove
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-teal-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      {initials(p.name)}
+                    </div>
+                    <span className="font-medium text-sm text-gray-800 truncate">
+                      {p.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                      Holiday hrs
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={draftValue}
+                        onChange={(e) => handleAllowanceChange(p.id, e.target.value)}
+                        onBlur={() => handleAllowanceBlur(p)}
+                        placeholder="—"
+                        className="w-16 text-center text-sm border border-gray-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                    </label>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                      Remaining:{" "}
+                      <span className="font-semibold text-gray-700">
+                        {remaining != null ? `${remaining}h` : "—"}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => handleRemove(p)}
+                      className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

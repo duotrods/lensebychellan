@@ -63,6 +63,15 @@ class RotaService {
     return batch.commit();
   }
 
+  // Admin-only: set (or clear, by passing null) a staff member's holiday
+  // hours allowance. "Used" is never stored here — it's always computed
+  // fresh from approved holiday shifts (see subscribeToAllHolidayShifts).
+  async updateHolidayAllowance(staffId, hours) {
+    return updateDoc(doc(db, "rotaStaff", staffId), {
+      holidayHoursAllowance: hours,
+    });
+  }
+
   async removeStaffMember(staffId) {
     const shiftsQuery = query(
       collection(db, "rotaShifts"),
@@ -111,7 +120,7 @@ class RotaService {
     );
   }
 
-  async setShift(staffId, dateStr, { type, hours, status }, updatedBy) {
+  async setShift(staffId, dateStr, { type, hours, status, holidayHours }, updatedBy) {
     return setDoc(doc(db, "rotaShifts", `${staffId}_${dateStr}`), {
       staffId,
       date: dateStr,
@@ -119,6 +128,10 @@ class RotaService {
       hours,
       // status only carried for holidays (pending/approved); omitted otherwise.
       ...(status ? { status } : {}),
+      // holidayHours: hours deducted from the allowance for this holiday day
+      // (defaults to HOURS_PER_HOLIDAY_DAY when unset). Only meaningful for
+      // type === "holiday"; omitted otherwise.
+      ...(holidayHours != null ? { holidayHours } : {}),
       updatedAt: serverTimestamp(),
       updatedBy: updatedBy ?? null,
     });
@@ -126,7 +139,7 @@ class RotaService {
 
   // Duplicate the same shift value across multiple dates for one staff member
   // in a single atomic write (used by ShiftModal's "also apply to other dates").
-  async setShiftBulk(staffId, dateStrs, { type, hours, status }, updatedBy) {
+  async setShiftBulk(staffId, dateStrs, { type, hours, status, holidayHours }, updatedBy) {
     const batch = writeBatch(db);
     dateStrs.forEach((dateStr) => {
       batch.set(doc(db, "rotaShifts", `${staffId}_${dateStr}`), {
@@ -135,6 +148,7 @@ class RotaService {
         type,
         hours,
         ...(status ? { status } : {}),
+        ...(holidayHours != null ? { holidayHours } : {}),
         updatedAt: serverTimestamp(),
         updatedBy: updatedBy ?? null,
       });
@@ -157,6 +171,25 @@ class RotaService {
       collection(db, "rotaShifts"),
       where("type", "==", "holiday"),
       where("status", "==", "pending"),
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        callback(snapshot.docs.map((d) => d.data()));
+      },
+      (error) => onError?.(error),
+    );
+  }
+
+  // Every holiday shift ever recorded, across every staff member and every
+  // pay period — used to compute how much of each person's holiday hours
+  // allowance remains (see sumApprovedHolidayHoursByStaff in utils/rota.js).
+  // Unfiltered by status: pending vs. approved is decided client-side, same
+  // as subscribeToPendingHolidays/tallyForPeriod already do.
+  subscribeToAllHolidayShifts(callback, onError) {
+    const q = query(
+      collection(db, "rotaShifts"),
+      where("type", "==", "holiday"),
     );
     return onSnapshot(
       q,
