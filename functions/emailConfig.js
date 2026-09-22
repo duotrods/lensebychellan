@@ -64,7 +64,7 @@ const RECIPIENTS = {
     default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
   },
 
-  AVERA_REPORT_RECIPIENT: "jack.gander-compton@wjsuntone.com, david@chellan.co.uk, wayne@chellan.co.uk",
+  AVERA_REPORT_RECIPIENT: "jack.gander-compton@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk",
   LENSEASSIST_REPORT_RECIPIENT: "admin@chellan.co.uk",
   WIDELOAD_REPORT_RECIPIENT: "david@chellan.co.uk",
 
