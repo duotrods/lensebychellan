@@ -72,6 +72,17 @@ class RotaService {
     });
   }
 
+  // Admin-only: set (or clear, by passing null) the date a staff member's
+  // holiday allowance counts "used" hours from. Holidays dated before this
+  // are excluded from the allowance calculation (see
+  // sumApprovedHolidayHoursByStaff in utils/rota.js) — moving it forward is
+  // how an admin resets someone's balance without deleting shift history.
+  async updateHolidayAllowanceStartDate(staffId, dateStr) {
+    return updateDoc(doc(db, "rotaStaff", staffId), {
+      holidayAllowanceStartDate: dateStr,
+    });
+  }
+
   async removeStaffMember(staffId) {
     const shiftsQuery = query(
       collection(db, "rotaShifts"),

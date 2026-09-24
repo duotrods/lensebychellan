@@ -85,8 +85,8 @@ const HoursPayTally = ({
                 <th className="text-right px-4 py-3 font-medium" title="Approved holiday days taken within this pay period only">
                   Holiday days (period)
                 </th>
-                <th className="text-right px-4 py-3 font-medium" title="Holiday allowance remaining based on every approved holiday ever taken, not just this period">
-                  Holiday hrs remaining (all-time)
+                <th className="text-right px-4 py-3 font-medium" title="Holiday allowance remaining, counting every approved holiday since each staff member's reset date (set in Team) — or all-time if they don't have one">
+                  Holiday hrs remaining
                 </th>
                 <th className="text-right px-4 py-3 font-medium">Sick days</th>
                 <th className="text-right px-4 py-3 font-medium">Total hrs worked</th>

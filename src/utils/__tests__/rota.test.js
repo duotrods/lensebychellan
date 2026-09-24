@@ -342,6 +342,37 @@ describe("sumApprovedHolidayHoursByStaff", () => {
   it("returns an empty object for no holiday shifts", () => {
     expect(sumApprovedHolidayHoursByStaff([])).toEqual({});
   });
+
+  it("excludes holidays dated before a staff member's holidayAllowanceStartDate", () => {
+    const holidayShifts = [
+      { staffId: "s1", date: "2026-01-10", status: "approved", holidayHours: 12 }, // before reset
+      { staffId: "s1", date: "2026-03-05", status: "approved", holidayHours: 6 }, // on the reset date
+      { staffId: "s1", date: "2026-03-06", status: "approved", holidayHours: 12 }, // after
+    ];
+    const staff = [{ id: "s1", holidayAllowanceStartDate: "2026-03-05" }];
+    expect(sumApprovedHolidayHoursByStaff(holidayShifts, staff)).toEqual({ s1: 18 });
+  });
+
+  it("counts all-time when a staff member has no reset date set", () => {
+    const holidayShifts = [
+      { staffId: "s1", date: "2025-01-01", status: "approved", holidayHours: 12 },
+      { staffId: "s1", date: "2026-03-06", status: "approved", holidayHours: 12 },
+    ];
+    const staff = [{ id: "s1" }];
+    expect(sumApprovedHolidayHoursByStaff(holidayShifts, staff)).toEqual({ s1: 24 });
+  });
+
+  it("applies each staff member's own reset date independently", () => {
+    const holidayShifts = [
+      { staffId: "s1", date: "2026-01-10", status: "approved", holidayHours: 12 },
+      { staffId: "s2", date: "2026-01-10", status: "approved", holidayHours: 12 },
+    ];
+    const staff = [
+      { id: "s1", holidayAllowanceStartDate: "2026-02-01" }, // excludes s1's Jan holiday
+      { id: "s2" }, // no reset date — s2's Jan holiday still counts
+    ];
+    expect(sumApprovedHolidayHoursByStaff(holidayShifts, staff)).toEqual({ s2: 12 });
+  });
 });
 
 describe("tallyForPeriod holiday hours allowance", () => {

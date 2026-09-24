@@ -55,11 +55,13 @@ const AdminRotaPage = () => {
   const { pending: pendingHolidays } = usePendingHolidays();
   const { holidayShifts } = useAllHolidayShifts();
 
-  // Holiday hours used, all-time and per staff member — feeds each row's
-  // "holiday hours remaining" in the Hours & Pay tally and Team roster.
-  const allTimeHolidayHoursUsedByStaff = useMemo(
-    () => sumApprovedHolidayHoursByStaff(holidayShifts),
-    [holidayShifts],
+  // Holiday hours used, per staff member — feeds each row's "holiday hours
+  // remaining" in the Hours & Pay tally and Team roster. Bounded by each
+  // staff member's own holidayAllowanceStartDate when they have one set
+  // (unset = all-time, same as before that field existed).
+  const holidayHoursUsedByStaff = useMemo(
+    () => sumApprovedHolidayHoursByStaff(holidayShifts, staff),
+    [holidayShifts, staff],
   );
 
   // One-time, idempotent backfill so pre-existing staff (added before the
@@ -86,6 +88,15 @@ const AdminRotaPage = () => {
       toast.success("Holiday hours allowance updated");
     } catch (error) {
       toast.error(error.message || "Failed to update holiday hours allowance");
+    }
+  };
+
+  const handleUpdateHolidayAllowanceStartDate = async (staffId, dateStr) => {
+    try {
+      await rotaService.updateHolidayAllowanceStartDate(staffId, dateStr);
+      toast.success(dateStr ? "Holiday allowance reset date updated" : "Holiday allowance reset date cleared");
+    } catch (error) {
+      toast.error(error.message || "Failed to update holiday allowance reset date");
     }
   };
 
@@ -201,7 +212,7 @@ const AdminRotaPage = () => {
   const handleDownloadTallyCsv = () => {
     downloadCsv(
       `hours_and_pay_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
-      buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHolidayHoursUsedByStaff),
+      buildTallyCsvRows(staff, shifts, bankHolidays, period, holidayHoursUsedByStaff),
     );
   };
 
@@ -293,7 +304,7 @@ const AdminRotaPage = () => {
             onRangeChange={setCustomRange}
             onClearRange={() => setCustomRange(null)}
             onDownloadCsv={handleDownloadTallyCsv}
-            allTimeHolidayHoursUsedByStaff={allTimeHolidayHoursUsedByStaff}
+            allTimeHolidayHoursUsedByStaff={holidayHoursUsedByStaff}
           />
         )}
 
@@ -301,8 +312,9 @@ const AdminRotaPage = () => {
           <RotaTeamManager
             staff={staff}
             loading={staffLoading}
-            holidayHoursUsedByStaff={allTimeHolidayHoursUsedByStaff}
+            holidayHoursUsedByStaff={holidayHoursUsedByStaff}
             onUpdateAllowance={handleUpdateHolidayAllowance}
+            onUpdateAllowanceStartDate={handleUpdateHolidayAllowanceStartDate}
           />
         )}
         {activeTab === "holidays" && (

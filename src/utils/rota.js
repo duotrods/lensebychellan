@@ -129,10 +129,25 @@ export const HOURS_PER_HOLIDAY_DAY = 12;
 // as approved. Each shift's own holidayHours is used (falling back to
 // HOURS_PER_HOLIDAY_DAY for legacy docs saved before that field existed),
 // so a half-day holiday deducts less than a full day.
-export function sumApprovedHolidayHoursByStaff(holidayShifts) {
+//
+// staff: [{id, holidayAllowanceStartDate}] — when a staff member has a start
+// date set, holidays dated before it are excluded, so an admin can "reset"
+// someone's balance by moving the date forward without deleting any shift
+// history. Unset (null/undefined) means no lower bound — every approved
+// holiday counts, same as before this field existed.
+export function sumApprovedHolidayHoursByStaff(holidayShifts, staff = []) {
+  const startDateByStaffId = {};
+  staff.forEach((p) => {
+    if (p.holidayAllowanceStartDate) startDateByStaffId[p.id] = p.holidayAllowanceStartDate;
+  });
+
   const totals = {};
   holidayShifts.forEach((shift) => {
     if (shift.status === "pending") return;
+    const startDate = startDateByStaffId[shift.staffId];
+    // Date strings are "YYYY-MM-DD" (see fmt()), so lexicographic comparison
+    // sorts the same as chronological order.
+    if (startDate && shift.date < startDate) return;
     const hours = shift.holidayHours ?? HOURS_PER_HOLIDAY_DAY;
     totals[shift.staffId] = (totals[shift.staffId] || 0) + hours;
   });

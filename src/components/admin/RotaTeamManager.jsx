@@ -17,13 +17,22 @@ const initials = (name) =>
 // holidayHoursUsedByStaff/onUpdateAllowance are likewise lifted — the used-hours
 // map comes from AdminRotaPage's useAllHolidayShifts(), computed once and
 // shared with the Hours & Pay tally rather than re-fetched here.
-const RotaTeamManager = ({ staff, loading, holidayHoursUsedByStaff = {}, onUpdateAllowance }) => {
+const RotaTeamManager = ({
+  staff,
+  loading,
+  holidayHoursUsedByStaff = {},
+  onUpdateAllowance,
+  onUpdateAllowanceStartDate,
+}) => {
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // In-progress allowance edits, keyed by staffId — only staff members with
   // an active edit have an entry here; everyone else reads straight from
   // the live `staff` prop.
   const [allowanceDrafts, setAllowanceDrafts] = useState({});
+  // Same pattern for the reset-date field, kept separate since it saves
+  // independently of the hours field.
+  const [startDateDrafts, setStartDateDrafts] = useState({});
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -64,6 +73,25 @@ const RotaTeamManager = ({ staff, loading, holidayHoursUsedByStaff = {}, onUpdat
     const currentValue = member.holidayHoursAllowance ?? null;
     if (nextValue === currentValue) return; // unchanged, nothing to save
     onUpdateAllowance?.(member.id, nextValue);
+  };
+
+  const handleStartDateChange = (staffId, value) => {
+    setStartDateDrafts((prev) => ({ ...prev, [staffId]: value }));
+  };
+
+  const handleStartDateBlur = (member) => {
+    const draft = startDateDrafts[member.id];
+    if (draft === undefined) return; // field was never touched
+    setStartDateDrafts((prev) => {
+      const next = { ...prev };
+      delete next[member.id];
+      return next;
+    });
+
+    const nextValue = draft === "" ? null : draft;
+    const currentValue = member.holidayAllowanceStartDate ?? null;
+    if (nextValue === currentValue) return; // unchanged, nothing to save
+    onUpdateAllowanceStartDate?.(member.id, nextValue);
   };
 
   const handleRemove = async (member) => {
@@ -107,6 +135,8 @@ const RotaTeamManager = ({ staff, loading, holidayHoursUsedByStaff = {}, onUpdat
                   : null;
               const draftValue =
                 allowanceDrafts[p.id] ?? (p.holidayHoursAllowance ?? "");
+              const startDateValue =
+                startDateDrafts[p.id] ?? (p.holidayAllowanceStartDate ?? "");
               return (
                 <div
                   key={p.id}
@@ -132,6 +162,19 @@ const RotaTeamManager = ({ staff, loading, holidayHoursUsedByStaff = {}, onUpdat
                         onBlur={() => handleAllowanceBlur(p)}
                         placeholder="—"
                         className="w-16 text-center text-sm border border-gray-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                    </label>
+                    <label
+                      className="flex items-center gap-1.5 text-xs text-gray-500"
+                      title="Holidays before this date no longer count toward the allowance — set this to reset the balance without deleting rota history. Leave blank to count all-time."
+                    >
+                      Since
+                      <input
+                        type="date"
+                        value={startDateValue}
+                        onChange={(e) => handleStartDateChange(p.id, e.target.value)}
+                        onBlur={() => handleStartDateBlur(p)}
+                        className="text-sm border border-gray-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-teal-400"
                       />
                     </label>
                     <span className="text-xs text-gray-500 whitespace-nowrap">

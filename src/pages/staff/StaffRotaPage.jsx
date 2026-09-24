@@ -43,11 +43,12 @@ const StaffRotaPage = () => {
   const { shifts } = useRotaShifts(period.start, period.end);
   const { holidayShifts } = useAllHolidayShifts();
 
-  // Holiday hours used, all-time and per staff member — feeds "holiday hours
-  // remaining" in the Hours & Pay tally, same as the admin rota page.
+  // Holiday hours used, per staff member — feeds "holiday hours remaining" in
+  // the Hours & Pay tally, same as the admin rota page. Bounded by each staff
+  // member's own holidayAllowanceStartDate when set (unset = all-time).
   const allTimeHolidayHoursUsedByStaff = useMemo(
-    () => sumApprovedHolidayHoursByStaff(holidayShifts),
-    [holidayShifts],
+    () => sumApprovedHolidayHoursByStaff(holidayShifts, staff),
+    [holidayShifts, staff],
   );
 
   // Changing periods invalidates any sub-range filter from the previous period.
