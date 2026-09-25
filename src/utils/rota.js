@@ -154,6 +154,32 @@ export function sumApprovedHolidayHoursByStaff(holidayShifts, staff = []) {
   return totals;
 }
 
+// One holiday year, in days — a reset is due exactly this many days after a
+// staff member's holidayAllowanceStartDate. Kept as a whole-year constant
+// (not calendar-aware) so the math below stays simple; a day either way
+// around a leap year doesn't matter for a 7-day warning window.
+const HOLIDAY_RESET_CYCLE_DAYS = 365;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// staff: [{id, name, holidayAllowanceStartDate}]. Returns staff members
+// whose next reset (start date + one year) is due within 7 days, or already
+// overdue — sorted soonest-first — so an admin can be warned before an
+// allowance quietly rolls over. Staff with no start date set are skipped:
+// there's nothing scheduled to reset for them.
+export function getStaffDueForHolidayReset(staff, today = new Date()) {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return staff
+    .filter((p) => p.holidayAllowanceStartDate)
+    .map((p) => {
+      const start = parseDateStr(p.holidayAllowanceStartDate);
+      const nextReset = new Date(start.getTime() + HOLIDAY_RESET_CYCLE_DAYS * MS_PER_DAY);
+      const daysUntil = Math.round((nextReset.getTime() - todayStart.getTime()) / MS_PER_DAY);
+      return { id: p.id, name: p.name, nextResetDate: fmt(nextReset), daysUntil };
+    })
+    .filter((r) => r.daysUntil <= 7)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+}
+
 export function rateForDate(bankHolidays, dateStr) {
   const bh = bankHolidayFor(bankHolidays, dateStr);
   if (!bh) return { multiplier: 1, label: "standard" };

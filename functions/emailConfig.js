@@ -9,8 +9,8 @@
  * Every recipient constant in this file (INCIDENT_ALERT_RECIPIENTS,
  * CCTV_FAULT_ALERT_RECIPIENTS, AVERA_REPORT_RECIPIENT,
  * LENSEASSIST_REPORT_RECIPIENT, WIDELOAD_REPORT_RECIPIENT,
- * A66_UPTIME_REPORT_RECIPIENT) is derived from whichever `RECIPIENTS` object
- * ends up defined.
+ * A66_UPTIME_REPORT_RECIPIENT, HOLIDAY_RESET_ALERT_RECIPIENT) is derived
+ * from whichever `RECIPIENTS` object ends up defined.
  */
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -71,6 +71,11 @@ const RECIPIENTS = {
   // Placeholder until real A66/WJ contacts are confirmed for this report —
   // same in both environments for now.
   A66_UPTIME_REPORT_RECIPIENT: "Dean.shore@wjsunstone.com, david@chellan.co.uk",
+
+  // Rota admin reminder: a staff member's holiday hours allowance is 7 days
+  // (or fewer) from its yearly reset. Same address in both environments —
+  // there's no per-scheme variant of this one.
+  HOLIDAY_RESET_ALERT_RECIPIENT: "rroduot@gmail.com",
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -106,6 +111,7 @@ const RECIPIENTS = {
 //   LENSEASSIST_REPORT_RECIPIENT: "rroduot@gmail.com",
 //   WIDELOAD_REPORT_RECIPIENT: "rroduot@gmail.com",
 //   A66_UPTIME_REPORT_RECIPIENT: "rroduot@gmail.com",
+//   HOLIDAY_RESET_ALERT_RECIPIENT: "rroduot@gmail.com",
 // };
 
 const {
@@ -115,6 +121,7 @@ const {
   LENSEASSIST_REPORT_RECIPIENT,
   WIDELOAD_REPORT_RECIPIENT,
   A66_UPTIME_REPORT_RECIPIENT,
+  HOLIDAY_RESET_ALERT_RECIPIENT,
 } = RECIPIENTS;
 
 // Scheme lists below are not recipient addresses — same in both environments.
@@ -141,6 +148,7 @@ module.exports = {
   LENSEASSIST_REPORT_RECIPIENT,
   CCTV_FAULT_ALERT_RECIPIENTS,
   A66_UPTIME_REPORT_RECIPIENT,
+  HOLIDAY_RESET_ALERT_RECIPIENT,
   SMTP_SENDER,
   SMTP_USER,
 };

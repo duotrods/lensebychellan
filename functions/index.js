@@ -15,6 +15,7 @@ const {
   WIDELOAD_REPORT_RECIPIENT,
   CCTV_FAULT_ALERT_RECIPIENTS,
   A66_UPTIME_REPORT_RECIPIENT,
+  HOLIDAY_RESET_ALERT_RECIPIENT,
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
@@ -1581,6 +1582,103 @@ exports.sendA66DailyCCTVUptimeReport = onSchedule(
   },
   async () => {
     await sendA66UptimeReportEmail();
+  },
+);
+
+// ─── Rota: holiday allowance reset reminder ───
+
+// One holiday year, in days. Mirrors getStaffDueForHolidayReset in
+// src/utils/rota.js — duplicated rather than shared since that file is an
+// ESM frontend module and this is a CommonJS Cloud Function (same split as
+// this file's PDF generators mirroring the frontend's jsPDF version).
+const HOLIDAY_RESET_CYCLE_DAYS = 365;
+const MS_PER_DAY_RESET = 24 * 60 * 60 * 1000;
+
+function getStaffDueForHolidayResetBackend(staff, today = new Date()) {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return staff
+    .filter((p) => p.holidayAllowanceStartDate)
+    .map((p) => {
+      const [y, m, d] = p.holidayAllowanceStartDate.split("-").map(Number);
+      const start = new Date(y, m - 1, d);
+      const nextReset = new Date(start.getTime() + HOLIDAY_RESET_CYCLE_DAYS * MS_PER_DAY_RESET);
+      const daysUntil = Math.round((nextReset.getTime() - todayStart.getTime()) / MS_PER_DAY_RESET);
+      return {
+        id: p.id,
+        name: p.name,
+        nextResetDate: nextReset.toISOString().slice(0, 10),
+        daysUntil,
+      };
+    })
+    .filter((r) => r.daysUntil <= 7)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+}
+
+/**
+ * Emails the admin when a staff member's holiday allowance is exactly 7 days
+ * from resetting (Since date + 1 year) — the same threshold the in-app
+ * banner uses (see getStaffDueForHolidayReset in src/utils/rota.js), so
+ * there's only one "7 days" rule to keep in sync, not two. Fires once, on
+ * the exact 7-day mark, rather than every day the staff member is inside
+ * that window — this function runs daily, so a >=0-days-until-7 filter
+ * would otherwise resend the same warning up to 8 times per person.
+ */
+async function sendHolidayResetReminderEmail() {
+  const db = admin.firestore();
+  const snapshot = await db.collection("rotaStaff").get();
+  const staff = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  const dueToday = getStaffDueForHolidayResetBackend(staff).filter((r) => r.daysUntil === 7);
+  if (dueToday.length === 0) {
+    console.log("Holiday reset reminder: no staff hit the 7-day mark today.");
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: SMTP_USER,
+      pass: smtpPass.value(),
+    },
+  });
+
+  const rows = dueToday.map((r) => `<li>${r.name} — resets on ${r.nextResetDate}</li>`).join("");
+
+  await transporter.sendMail({
+    from: SMTP_SENDER,
+    to: HOLIDAY_RESET_ALERT_RECIPIENT,
+    subject: `Holiday allowance reset in 7 days — ${dueToday.map((r) => r.name).join(", ")}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f59e0b; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0;">Holiday Allowance Reset Reminder</h1>
+        </div>
+        <div style="padding: 20px; background-color: #f9fafb;">
+          <p style="color: #374151;">The following staff member(s) will have their holiday hours allowance reset in 7 days:</p>
+          <ul style="color: #111827;">${rows}</ul>
+          <p style="margin-top: 20px; color: #6b7280; font-size: 13px;">
+            Manage this in the Rota &rsaquo; Team tab.
+          </p>
+        </div>
+        <div style="background-color: #374151; color: white; padding: 15px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">This is an automated notification from LENSE by Chellan</p>
+        </div>
+      </div>
+    `,
+  });
+
+  console.log(`Holiday reset reminder sent for: ${dueToday.map((r) => r.name).join(", ")}`);
+}
+
+exports.sendHolidayResetReminder = onSchedule(
+  {
+    schedule: "0 8 * * *",
+    timezone: "Europe/London",
+    region: "europe-west2",
+    secrets: [smtpPass],
+  },
+  async () => {
+    await sendHolidayResetReminderEmail();
   },
 );
 

@@ -7,6 +7,7 @@ import {
   faUsers,
   faCalendarPlus,
   faClock,
+  faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import RotaGrid from "../../components/rota/RotaGrid";
@@ -28,6 +29,7 @@ import {
   buildRotaCsvRows,
   buildTallyCsvRows,
   sumApprovedHolidayHoursByStaff,
+  getStaffDueForHolidayReset,
   datesAvailableForDuplicate,
   downloadCsv,
   fmt,
@@ -63,6 +65,11 @@ const AdminRotaPage = () => {
     () => sumApprovedHolidayHoursByStaff(holidayShifts, staff),
     [holidayShifts, staff],
   );
+
+  // Staff members whose holiday allowance is due to reset (Since date + 1
+  // year) within 7 days, or already overdue — surfaced as a banner + Team
+  // tab badge so an admin notices before it quietly rolls over.
+  const staffDueForReset = useMemo(() => getStaffDueForHolidayReset(staff), [staff]);
 
   // One-time, idempotent backfill so pre-existing staff (added before the
   // drag-to-reorder feature) get a sortOrder and don't disappear once
@@ -237,12 +244,40 @@ const AdminRotaPage = () => {
                   {pendingHolidays.length}
                 </span>
               )}
+              {key === "team" && staffDueForReset.length > 0 && (
+                <span className="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[11px] font-bold">
+                  {staffDueForReset.length}
+                </span>
+              )}
             </button>
           ))}
         </nav>
       </div>
 
       <div className="p-6">
+        {staffDueForReset.length > 0 && activeTab !== "team" && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("team")}
+            className="w-full mb-4 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 text-left"
+          >
+            <FontAwesomeIcon icon={faTriangleExclamation} className="w-4 h-4 shrink-0" />
+            <span>
+              {staffDueForReset.map((r, i) => (
+                <span key={r.id}>
+                  {i > 0 && ", "}
+                  <strong>{r.name}</strong>
+                  {r.daysUntil < 0
+                    ? ` (holiday allowance reset overdue by ${-r.daysUntil} day${-r.daysUntil === 1 ? "" : "s"})`
+                    : r.daysUntil === 0
+                      ? " (holiday allowance resets today)"
+                      : ` (holiday allowance resets in ${r.daysUntil} day${r.daysUntil === 1 ? "" : "s"}, ${r.nextResetDate})`}
+                </span>
+              ))}
+              {" — click to review in Team."}
+            </span>
+          </button>
+        )}
         {activeTab === "rota" && (
           <>
             {pendingHolidays.length > 0 && (

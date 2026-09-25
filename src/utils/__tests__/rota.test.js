@@ -11,6 +11,7 @@ import {
   buildTallyCsvRows,
   shiftCellText,
   sumApprovedHolidayHoursByStaff,
+  getStaffDueForHolidayReset,
   HOURS_PER_HOLIDAY_DAY,
 } from "../rota";
 
@@ -402,5 +403,44 @@ describe("tallyForPeriod holiday hours allowance", () => {
   it("defaults used hours to 0 when the staff member has no entry in the map", () => {
     const [row] = tallyForPeriod(staff, {}, [], period, {});
     expect(row.holidayHoursRemaining).toBe(80);
+  });
+});
+
+describe("getStaffDueForHolidayReset", () => {
+  const today = new Date(2026, 2, 15); // 15 Mar 2026
+
+  it("skips staff with no holidayAllowanceStartDate set", () => {
+    const staff = [{ id: "s1", name: "Dave" }];
+    expect(getStaffDueForHolidayReset(staff, today)).toEqual([]);
+  });
+
+  it("includes a staff member whose reset falls within the next 7 days", () => {
+    // 365 days after 2025-03-15 lands exactly on `today` (2026-03-15).
+    const staff = [{ id: "s1", name: "Dave", holidayAllowanceStartDate: "2025-03-15" }];
+    const [row] = getStaffDueForHolidayReset(staff, today);
+    expect(row.id).toBe("s1");
+    expect(row.daysUntil).toBe(0);
+  });
+
+  it("excludes a staff member whose reset is more than 7 days away", () => {
+    const staff = [{ id: "s1", name: "Dave", holidayAllowanceStartDate: "2025-06-01" }];
+    expect(getStaffDueForHolidayReset(staff, today)).toEqual([]);
+  });
+
+  it("includes a staff member whose reset date has already passed (overdue)", () => {
+    const staff = [{ id: "s1", name: "Dave", holidayAllowanceStartDate: "2025-01-01" }];
+    const [row] = getStaffDueForHolidayReset(staff, today);
+    expect(row.daysUntil).toBeLessThan(0);
+  });
+
+  it("sorts most-overdue-first, then soonest-upcoming", () => {
+    const staff = [
+      { id: "s1", name: "Dave", holidayAllowanceStartDate: "2025-06-01" }, // far out — excluded
+      { id: "s2", name: "Wayne", holidayAllowanceStartDate: "2025-01-01" }, // well overdue
+      { id: "s3", name: "Rod", holidayAllowanceStartDate: "2025-03-18" }, // due in 3 days
+    ];
+    const due = getStaffDueForHolidayReset(staff, today);
+    expect(due.map((r) => r.id)).toEqual(["s2", "s3"]);
+    expect(due[0].daysUntil).toBeLessThan(due[1].daysUntil);
   });
 });
