@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark, faCheck, faBan, faClock, faClone } from "@fortawesome/free-solid-svg-icons";
-import { parseDateStr, HOURS_PER_HOLIDAY_DAY } from "../../utils/rota";
+import { parseDateStr, HOURS_PER_HOLIDAY_DAY, resolveHolidayHours } from "../../utils/rota";
 
 const OPTIONS = [
   { value: "day", label: "Day — starts 06:00", dot: "bg-yellow-400" },
@@ -30,27 +30,30 @@ const ShiftModal = ({
   onReject,
   duplicateDateOptions = [],
 }) => {
+  // An existing holiday's two hour figures, split the same way the grid and
+  // tally read them (see resolveHolidayHours) — so a holiday saved before
+  // holidayHours existed opens as "12 holiday hours, 0 worked" and is
+  // re-saved in the current shape.
+  const existingHoliday =
+    pendingCell?.existing?.type === "holiday" ? resolveHolidayHours(pendingCell.existing) : null;
+  const initialHours = existingHoliday ? existingHoliday.worked : (pendingCell?.existing?.hours ?? 12);
+  const initialHolidayHours = existingHoliday?.holidayHours ?? HOURS_PER_HOLIDAY_DAY;
+
   const [type, setType] = useState(pendingCell?.existing?.type ?? null);
-  const [hours, setHours] = useState(pendingCell?.existing?.hours ?? 12);
+  const [hours, setHours] = useState(initialHours);
   // Hours deducted from the staff member's holiday allowance for this one
   // holiday day — separate from `hours` above (hours actually worked despite
   // being on holiday). Defaults to HOURS_PER_HOLIDAY_DAY (12).
-  const [holidayHours, setHolidayHours] = useState(
-    pendingCell?.existing?.type === "holiday"
-      ? (pendingCell.existing.holidayHours ?? HOURS_PER_HOLIDAY_DAY)
-      : HOURS_PER_HOLIDAY_DAY,
-  );
+  const [holidayHours, setHolidayHours] = useState(initialHolidayHours);
   const [selectedDuplicates, setSelectedDuplicates] = useState([]);
 
   useEffect(() => {
     setType(pendingCell?.existing?.type ?? null);
-    setHours(pendingCell?.existing?.hours ?? 12);
-    setHolidayHours(
-      pendingCell?.existing?.type === "holiday"
-        ? (pendingCell.existing.holidayHours ?? HOURS_PER_HOLIDAY_DAY)
-        : HOURS_PER_HOLIDAY_DAY,
-    );
+    setHours(initialHours);
+    setHolidayHours(initialHolidayHours);
     setSelectedDuplicates([]);
+    // initialHours/initialHolidayHours are derived from pendingCell.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingCell]);
 
   if (!pendingCell) return null;
@@ -77,14 +80,11 @@ const ShiftModal = ({
   // typing after selecting it doesn't wipe what was just entered.
   const handleTypeSelect = (value) => {
     if (value === "holiday" && type !== "holiday") {
-      setHours(pendingCell?.existing?.type === "holiday" ? (pendingCell.existing.hours ?? 0) : 0);
-      setHolidayHours(
-        pendingCell?.existing?.type === "holiday"
-          ? (pendingCell.existing.holidayHours ?? HOURS_PER_HOLIDAY_DAY)
-          : HOURS_PER_HOLIDAY_DAY,
-      );
+      setHours(existingHoliday ? existingHoliday.worked : 0);
+      setHolidayHours(initialHolidayHours);
     } else if (HOURLY_TYPES.includes(value) && (type === "holiday" || type === "sick")) {
-      setHours(pendingCell?.existing?.hours ?? 12);
+      // A holiday's stored hours aren't a shift length — don't carry them over.
+      setHours(existingHoliday ? 12 : (pendingCell?.existing?.hours || 12));
     }
     setType(value);
   };

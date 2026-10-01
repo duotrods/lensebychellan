@@ -25,9 +25,9 @@ import {
   dayLabel,
   eachDate,
   fmt,
-  HOURS_PER_HOLIDAY_DAY,
   isSameDay,
   monthLabel,
+  resolveHolidayHours,
 } from "../../utils/rota";
 
 const PILL_STYLES = {
@@ -62,6 +62,7 @@ const isPendingHoliday = (shift) =>
 const ShiftPill = ({ shift, canEdit, onClick }) => {
   let styleKey = shift?.type && PILL_STYLES[shift.type] ? shift.type : "off";
   if (isPendingHoliday(shift)) styleKey = "holidayPending";
+  const holiday = shift?.type === "holiday" ? resolveHolidayHours(shift) : null;
   return (
     <button
       type="button"
@@ -76,10 +77,10 @@ const ShiftPill = ({ shift, canEdit, onClick }) => {
       {HOURLY_TYPES.includes(styleKey) && (
         <span className="text-[10px] font-semibold opacity-75 mt-0.5">{shift.hours}h</span>
       )}
-      {shift?.type === "holiday" && (
+      {holiday && (
         <span className="text-[10px] font-semibold opacity-75 mt-0.5">
-          {shift.holidayHours ?? HOURS_PER_HOLIDAY_DAY}h
-          {shift.hours > 0 && ` · +${shift.hours}h worked`}
+          {holiday.holidayHours}h
+          {holiday.worked > 0 && ` · +${holiday.worked}h worked`}
         </span>
       )}
     </button>

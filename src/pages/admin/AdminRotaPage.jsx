@@ -28,6 +28,7 @@ import {
   addDays,
   buildRotaCsvRows,
   buildTallyCsvRows,
+  resolveHolidayHours,
   sumApprovedHolidayHoursByStaff,
   getStaffDueForHolidayReset,
   datesAvailableForDuplicate,
@@ -167,7 +168,7 @@ const AdminRotaPage = () => {
               type: "holiday",
               hours: 0,
               status: "approved",
-              holidayHours: shift.holidayHours ?? undefined,
+              holidayHours: resolveHolidayHours(shift).holidayHours,
             }
           : { type: shift.type, hours: shift.hours };
       await rotaService.setShift(targetStaffId, dateStr, value, currentUser?.uid);

@@ -122,13 +122,32 @@ export function splitShiftAcrossDates(dateStr, shift) {
 // that was possible) have no holidayHours field and fall back to this.
 export const HOURS_PER_HOLIDAY_DAY = 12;
 
+// A holiday shift carries two different hour figures:
+//  - holidayHours: the length of the holiday itself — deducted from the
+//    allowance and shown as holiday hours in the tally.
+//  - worked: hours actually worked despite being on holiday (usually 0).
+//
+// Docs saved before the holidayHours field existed only have `hours`, and
+// back then that single box was used for the length of the holiday (e.g.
+// 12). So for those, `hours` IS the holiday length and nothing was worked —
+// reading it as "12h worked on holiday" is the bug this guards against.
+// Every reader of a holiday shift goes through here so the grid, the tally,
+// the allowance and the edit modal can't disagree about a legacy doc.
+export function resolveHolidayHours(shift) {
+  const hours = Number(shift?.hours) || 0;
+  if (shift?.holidayHours != null) {
+    return { holidayHours: Number(shift.holidayHours) || 0, worked: hours };
+  }
+  return { holidayHours: hours > 0 ? hours : HOURS_PER_HOLIDAY_DAY, worked: 0 };
+}
+
 // holidayShifts: raw rotaShifts docs with type === "holiday", unbounded by
 // pay period (see useAllHolidayShifts). Only approved holidays count toward
 // the allowance — same rule tallyForPeriod already uses below: pending
 // requests are excluded, and legacy docs with no status field are treated
-// as approved. Each shift's own holidayHours is used (falling back to
-// HOURS_PER_HOLIDAY_DAY for legacy docs saved before that field existed),
-// so a half-day holiday deducts less than a full day.
+// as approved. Each shift's own holiday hours are used (see
+// resolveHolidayHours for legacy docs saved before that field existed), so
+// a half-day holiday deducts less than a full day.
 //
 // staff: [{id, holidayAllowanceStartDate}] — when a staff member has a start
 // date set, holidays dated before it are excluded, so an admin can "reset"
@@ -148,8 +167,8 @@ export function sumApprovedHolidayHoursByStaff(holidayShifts, staff = []) {
     // Date strings are "YYYY-MM-DD" (see fmt()), so lexicographic comparison
     // sorts the same as chronological order.
     if (startDate && shift.date < startDate) return;
-    const hours = shift.holidayHours ?? HOURS_PER_HOLIDAY_DAY;
-    totals[shift.staffId] = (totals[shift.staffId] || 0) + hours;
+    const { holidayHours } = resolveHolidayHours(shift);
+    totals[shift.staffId] = (totals[shift.staffId] || 0) + holidayHours;
   });
   return totals;
 }
@@ -198,6 +217,7 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period, allTimeHolid
     id: p.id,
     name: p.name,
     standard: 0,
+    holidayHours: 0,
     holidayWorked: 0,
     bh: 0,
     xmas: 0,
@@ -237,16 +257,16 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period, allTimeHolid
       // status are treated as approved.
       if (shift.status !== "pending") {
         row.holidayDays += 1;
-        // A holiday can still have a few hours actually worked on it. Paid
-        // at the same flat rate as standard hours, but kept in its own
-        // bucket rather than folded into `standard` so it's visible as an
-        // exception, not ordinary scheduled work.
-        const worked = Number(shift.hours) || 0;
-        if (worked > 0) {
-          row.holidayWorked += worked;
-          row.totalHours += worked;
-          row.weightedHours += worked;
-        }
+        // Holiday hours are paid at a flat rate (no bank holiday premium)
+        // and kept in their own bucket. A holiday can also have a few hours
+        // actually worked on it — same flat rate, also kept out of
+        // `standard` so it's visible as an exception, not ordinary
+        // scheduled work.
+        const { holidayHours, worked } = resolveHolidayHours(shift);
+        row.holidayHours += holidayHours;
+        row.holidayWorked += worked;
+        row.totalHours += holidayHours + worked;
+        row.weightedHours += holidayHours + worked;
       }
       return;
     }
@@ -274,7 +294,8 @@ export function shiftCellText(shift) {
   if (shift.type === "offsite-day") return `Offsite Day ${shift.hours}h (from 06:00)`;
   if (shift.type === "offsite-night") return `Offsite Night ${shift.hours}h (from 18:00)`;
   if (shift.type === "holiday") {
-    return shift.hours > 0 ? `Holiday (+${shift.hours}h worked)` : "Holiday";
+    const { worked } = resolveHolidayHours(shift);
+    return worked > 0 ? `Holiday (+${worked}h worked)` : "Holiday";
   }
   if (shift.type === "sick") return "Sick";
   return "";
@@ -321,6 +342,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHo
   const header = [
     "Staff",
     "Standard hrs",
+    "Holiday hrs",
     "Holiday worked hrs",
     "Bank holiday hrs (x1.5)",
     "Christmas hrs (x2)",
@@ -337,6 +359,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHo
     ...rows2.map((r) => [
       r.name,
       fmtNum(r.standard),
+      fmtNum(r.holidayHours),
       fmtNum(r.holidayWorked),
       fmtNum(r.bh),
       fmtNum(r.xmas),
@@ -350,6 +373,7 @@ export function buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHo
     [
       "All staff",
       fmtNum(sumRows(rows2, "standard")),
+      fmtNum(sumRows(rows2, "holidayHours")),
       fmtNum(sumRows(rows2, "holidayWorked")),
       fmtNum(sumRows(rows2, "bh")),
       fmtNum(sumRows(rows2, "xmas")),

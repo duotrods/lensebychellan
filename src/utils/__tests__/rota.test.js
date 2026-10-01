@@ -13,6 +13,7 @@ import {
   sumApprovedHolidayHoursByStaff,
   getStaffDueForHolidayReset,
   HOURS_PER_HOLIDAY_DAY,
+  resolveHolidayHours,
 } from "../rota";
 
 // Regression coverage for a timezone bug: fmt() used to go through
@@ -47,7 +48,8 @@ describe("tallyForPeriod (timezone regression)", () => {
       "s1__2026-07-26": { type: "holiday", hours: 0, status: "approved" },
     };
     const [row] = tallyForPeriod(staff, shifts, [], period);
-    expect(row.totalHours).toBe(12);
+    expect(row.standard).toBe(12);
+    expect(row.holidayHours).toBe(12);
     expect(row.holidayDays).toBe(1);
   });
 });
@@ -195,15 +197,49 @@ describe("tallyForPeriod", () => {
     expect(row.weightedHours).toBe(15); // 6*1 + 6*1.5
   });
 
-  it("counts holiday and sick days without adding hours", () => {
-    const shifts = {
-      "s1__2026-03-05": { type: "holiday", hours: 0 },
-      "s1__2026-03-06": { type: "sick", hours: 0 },
-    };
+  it("counts sick days without adding hours", () => {
+    const shifts = { "s1__2026-03-06": { type: "sick", hours: 0 } };
     const [row] = tallyForPeriod(staff, shifts, [], period);
-    expect(row.holidayDays).toBe(1);
     expect(row.sickDays).toBe(1);
     expect(row.totalHours).toBe(0);
+  });
+
+  it("counts an approved holiday's holiday hours in their own bucket, at a flat 1x rate", () => {
+    const shifts = {
+      "s1__2026-03-05": { type: "holiday", hours: 0, holidayHours: 12, status: "approved" },
+      "s1__2026-03-06": { type: "holiday", hours: 0, holidayHours: 6, status: "approved" },
+    };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.holidayDays).toBe(2);
+    expect(row.holidayHours).toBe(18);
+    expect(row.holidayWorked).toBe(0);
+    expect(row.standard).toBe(0);
+    expect(row.totalHours).toBe(18);
+    expect(row.weightedHours).toBe(18);
+  });
+
+  it("does not pay a premium for holiday hours taken on a bank holiday", () => {
+    const shifts = {
+      "s1__2026-03-10": { type: "holiday", hours: 0, holidayHours: 12, status: "approved" },
+    };
+    const [row] = tallyForPeriod(staff, shifts, bankHolidays, period);
+    expect(row.holidayHours).toBe(12);
+    expect(row.bh).toBe(0);
+    expect(row.weightedHours).toBe(12);
+  });
+
+  it("reads a holiday saved before holidayHours existed as holiday hours, not hours worked", () => {
+    // Saved while the modal had a single hours box: the 12 is the length of
+    // the holiday, so it must tally exactly like { hours: 0, holidayHours: 12 }.
+    const legacy = { "s1__2026-03-05": { type: "holiday", hours: 12, status: "approved" } };
+    const current = {
+      "s1__2026-03-05": { type: "holiday", hours: 0, holidayHours: 12, status: "approved" },
+    };
+    const [legacyRow] = tallyForPeriod(staff, legacy, [], period);
+    const [currentRow] = tallyForPeriod(staff, current, [], period);
+    expect(legacyRow.holidayHours).toBe(12);
+    expect(legacyRow.holidayWorked).toBe(0);
+    expect(legacyRow).toEqual(currentRow);
   });
 
   it("counts approved and legacy holidays but excludes pending requests", () => {
@@ -242,28 +278,35 @@ describe("tallyForPeriod", () => {
   });
 
   it("counts hours worked on an approved holiday separately from standard, at a flat 1x rate", () => {
-    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 2, status: "approved" } };
+    const shifts = {
+      "s1__2026-03-05": { type: "holiday", hours: 2, holidayHours: 10, status: "approved" },
+    };
     const [row] = tallyForPeriod(staff, shifts, [], period);
     expect(row.holidayDays).toBe(1);
+    expect(row.holidayHours).toBe(10);
     expect(row.holidayWorked).toBe(2);
     expect(row.standard).toBe(0);
-    expect(row.totalHours).toBe(2);
-    expect(row.weightedHours).toBe(2);
+    expect(row.totalHours).toBe(12);
+    expect(row.weightedHours).toBe(12);
   });
 
   it("does not count hours worked on a still-pending holiday request", () => {
-    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 2, status: "pending" } };
+    const shifts = {
+      "s1__2026-03-05": { type: "holiday", hours: 2, holidayHours: 12, status: "pending" },
+    };
     const [row] = tallyForPeriod(staff, shifts, [], period);
     expect(row.holidayDays).toBe(0);
+    expect(row.holidayHours).toBe(0);
     expect(row.holidayWorked).toBe(0);
     expect(row.totalHours).toBe(0);
   });
 
-  it("treats a legacy holiday (no status) with worked hours as approved", () => {
-    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 3 } };
+  it("treats a legacy holiday (no status) as approved", () => {
+    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 0 } };
     const [row] = tallyForPeriod(staff, shifts, [], period);
-    expect(row.holidayWorked).toBe(3);
-    expect(row.totalHours).toBe(3);
+    expect(row.holidayDays).toBe(1);
+    expect(row.holidayHours).toBe(HOURS_PER_HOLIDAY_DAY);
+    expect(row.totalHours).toBe(HOURS_PER_HOLIDAY_DAY);
   });
 });
 
@@ -288,16 +331,23 @@ describe("buildTallyCsvRows", () => {
     expect(Number(dataRow[totalIdx]) + Number(dataRow[premiumIdx])).toBe(Number(dataRow[weightedIdx]));
   });
 
-  it("includes a holiday worked hrs column right after standard hrs", () => {
-    const shifts = { "s1__2026-03-05": { type: "holiday", hours: 2, status: "approved" } };
+  it("includes holiday hrs and holiday worked hrs columns right after standard hrs", () => {
+    const shifts = {
+      "s1__2026-03-05": { type: "holiday", hours: 2, holidayHours: 10, status: "approved" },
+    };
     const rows = buildTallyCsvRows(staff, shifts, [], period);
     const header = rows[1];
     const dataRow = rows[2];
+    const totalsRow = rows[3];
     const standardIdx = header.indexOf("Standard hrs");
+    const holidayIdx = header.indexOf("Holiday hrs");
     const holidayWorkedIdx = header.indexOf("Holiday worked hrs");
-    expect(holidayWorkedIdx).toBeGreaterThan(-1);
-    expect(holidayWorkedIdx).toBe(standardIdx + 1);
+    expect(holidayIdx).toBe(standardIdx + 1);
+    expect(holidayWorkedIdx).toBe(standardIdx + 2);
+    expect(dataRow[holidayIdx]).toBe("10");
     expect(dataRow[holidayWorkedIdx]).toBe("2");
+    expect(totalsRow[holidayIdx]).toBe("10");
+    expect(totalsRow).toHaveLength(header.length);
   });
 });
 
@@ -307,7 +357,48 @@ describe("shiftCellText", () => {
   });
 
   it("notes worked hours on a holiday", () => {
-    expect(shiftCellText({ type: "holiday", hours: 2 })).toBe("Holiday (+2h worked)");
+    expect(shiftCellText({ type: "holiday", hours: 2, holidayHours: 10 })).toBe(
+      "Holiday (+2h worked)",
+    );
+  });
+
+  it("does not call a legacy holiday's hours 'worked'", () => {
+    expect(shiftCellText({ type: "holiday", hours: 12 })).toBe("Holiday");
+  });
+});
+
+describe("resolveHolidayHours", () => {
+  it("keeps the two fields apart once holidayHours is stored", () => {
+    expect(resolveHolidayHours({ type: "holiday", hours: 2, holidayHours: 10 })).toEqual({
+      holidayHours: 10,
+      worked: 2,
+    });
+  });
+
+  it("honours an explicit holidayHours of 0", () => {
+    expect(resolveHolidayHours({ type: "holiday", hours: 0, holidayHours: 0 })).toEqual({
+      holidayHours: 0,
+      worked: 0,
+    });
+  });
+
+  it("reads a legacy doc's hours as the holiday's length, with nothing worked", () => {
+    expect(resolveHolidayHours({ type: "holiday", hours: 12 })).toEqual({
+      holidayHours: 12,
+      worked: 0,
+    });
+    // useRotaShifts maps a missing field to null rather than leaving it off.
+    expect(resolveHolidayHours({ type: "holiday", hours: 4, holidayHours: null })).toEqual({
+      holidayHours: 4,
+      worked: 0,
+    });
+  });
+
+  it("falls back to a full day for a legacy doc with no hours at all", () => {
+    expect(resolveHolidayHours({ type: "holiday", hours: 0 })).toEqual({
+      holidayHours: HOURS_PER_HOLIDAY_DAY,
+      worked: 0,
+    });
   });
 });
 
@@ -317,6 +408,14 @@ describe("sumApprovedHolidayHoursByStaff", () => {
       { staffId: "s1", date: "2026-03-05", status: "approved", holidayHours: 6 },
       { staffId: "s1", date: "2026-03-06", holidayHours: 12 }, // legacy: no status => approved
       { staffId: "s1", date: "2026-03-07", status: "pending", holidayHours: 12 }, // excluded
+    ];
+    expect(sumApprovedHolidayHoursByStaff(holidayShifts)).toEqual({ s1: 18 });
+  });
+
+  it("deducts a legacy doc's own hours when it was saved before holidayHours existed", () => {
+    const holidayShifts = [
+      { staffId: "s1", date: "2026-03-05", status: "approved", hours: 12 },
+      { staffId: "s1", date: "2026-03-06", status: "approved", hours: 6 },
     ];
     expect(sumApprovedHolidayHoursByStaff(holidayShifts)).toEqual({ s1: 18 });
   });

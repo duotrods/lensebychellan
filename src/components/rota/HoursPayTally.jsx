@@ -79,7 +79,12 @@ const HoursPayTally = ({
               <tr className="bg-gray-50 border-b text-xs uppercase tracking-wide text-gray-500">
                 <th className="text-left px-5 py-3 font-medium">Staff</th>
                 <th className="text-right px-4 py-3 font-medium">Standard hrs</th>
-                <th className="text-right px-4 py-3 font-medium">Holidayhrs</th>
+                <th className="text-right px-4 py-3 font-medium" title="Holiday hours taken on approved holidays within this pay period">
+                  Holiday hrs
+                </th>
+                <th className="text-right px-4 py-3 font-medium" title="Hours actually worked on a day booked as holiday">
+                  Worked on hol. hrs
+                </th>
                 <th className="text-right px-4 py-3 font-medium">Bank hol. hrs (×1.5)</th>
                 <th className="text-right px-4 py-3 font-medium">Xmas hrs (×2)</th>
                 <th className="text-right px-4 py-3 font-medium" title="Approved holiday days taken within this pay period only">
@@ -99,6 +104,7 @@ const HoursPayTally = ({
                 <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3 font-medium text-gray-800">{r.name}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.standard)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.holidayHours)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.holidayWorked)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.bh)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{fmtNum(r.xmas)}</td>
@@ -119,6 +125,7 @@ const HoursPayTally = ({
               <tr className="bg-gray-50 border-t-2 font-bold">
                 <td className="px-5 py-3">All staff</td>
                 <td className="px-4 py-3 text-right tabular-nums">{fmtNum(sumRows(rows, "standard"))}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{fmtNum(sumRows(rows, "holidayHours"))}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{fmtNum(sumRows(rows, "holidayWorked"))}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{fmtNum(sumRows(rows, "bh"))}</td>
                 <td className="px-4 py-3 text-right tabular-nums">{fmtNum(sumRows(rows, "xmas"))}</td>
