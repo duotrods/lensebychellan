@@ -2158,6 +2158,52 @@ class StaffService {
   }
 
   /**
+   * Query constraints for the admin Excel export: optional scheme filter and
+   * optional createdAt range (null dates = all time). CCTV checks also match
+   * legacy "all-schemes" docs so a scheme filter doesn't drop clean checks.
+   */
+  exportConstraints(collectionName, { schemeId = null, startDate = null, endDate = null } = {}) {
+    const constraints = [];
+    if (schemeId) {
+      const ids = collectionName === "cctvCheckForms" ? [schemeId, "all-schemes"] : [schemeId];
+      constraints.push(where("schemeIds", "array-contains-any", ids));
+    }
+    if (startDate) constraints.push(where("createdAt", ">=", Timestamp.fromDate(startDate)));
+    if (endDate) constraints.push(where("createdAt", "<=", Timestamp.fromDate(endDate)));
+    return constraints;
+  }
+
+  /** Count for the export preview — ~1 billed read per 1,000 docs. */
+  async countFormsForExport(collectionName, options) {
+    const q = query(collection(db, collectionName), ...this.exportConstraints(collectionName, options));
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  }
+
+  /**
+   * Every doc matching the export filters, fetched in batches (1 read per doc).
+   * Throws on failure rather than returning [] — a silently partial export
+   * would look complete.
+   */
+  async getFormsForExport(collectionName, options, batchSize = 500) {
+    const base = [
+      ...this.exportConstraints(collectionName, options),
+      orderBy("createdAt", "desc"),
+    ];
+    const results = [];
+    let cursor = null;
+    for (;;) {
+      const constraints = cursor
+        ? [...base, startAfter(cursor), limit(batchSize)]
+        : [...base, limit(batchSize)];
+      const snapshot = await getDocs(query(collection(db, collectionName), ...constraints));
+      snapshot.docs.forEach((d) => results.push({ id: d.id, ...d.data() }));
+      if (snapshot.docs.length < batchSize) return results;
+      cursor = snapshot.docs[snapshot.docs.length - 1];
+    }
+  }
+
+  /**
    * Live view of the newest `limitCount` docs in a collection. Bounded by the
    * limit — cost stays fixed (one read per doc in the window, plus one per
    * subsequent change to a doc in that window) regardless of collection size.

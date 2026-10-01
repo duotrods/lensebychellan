@@ -23,6 +23,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
+import ExportReportsModal from "../../components/admin/ExportReportsModal";
 
 // Shared card shell + stat card — matches NewClientDashboard's StatCard so
 // every stat card in the app shares one visual language: a tinted icon tile
@@ -32,7 +33,7 @@ const CARD_SHELL =
 
 const StatCard = ({ title, value, text, icon, tint, iconColor }) => (
   <div className={CARD_SHELL}>
-    <div className="flex items-center gap-3 px-[22px] pt-4 pb-[15px]">
+    <div className={`flex items-center gap-3 px-[22px] pt-4 pb-[15px] rounded-t-[10px] ${tint}`}>
       <div
         className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
       >
@@ -72,6 +73,7 @@ const StaffReportsPage = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [searchPage, setSearchPage] = useState(1);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const searchDebounceRef = useRef(null);
@@ -528,9 +530,18 @@ const StaffReportsPage = () => {
     <AdminSidebarLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Staff Reports</h1>
-          <p className="text-gray-600">View and manage all submitted forms from staff members</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Staff Reports</h1>
+            <p className="text-gray-600">View and manage all submitted forms from staff members</p>
+          </div>
+          <button
+            onClick={() => setExportModalOpen(true)}
+            className="btn bg-teal-500 hover:bg-teal-600 text-white border-none self-start sm:self-auto"
+          >
+            <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+            Export to Excel
+          </button>
         </div>
 
         {/* Statistics Cards */}
@@ -804,6 +815,14 @@ const StaffReportsPage = () => {
       </div>
 
       {/* Delete Confirmation Modal */}
+      {exportModalOpen && (
+        <ExportReportsModal
+          onClose={() => setExportModalOpen(false)}
+          schemes={availableSchemes}
+          defaultScheme={filterScheme}
+        />
+      )}
+
       {deleteModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">

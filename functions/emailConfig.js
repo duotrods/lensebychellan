@@ -59,7 +59,7 @@ const RECIPIENTS = {
     "A452 HS2 - Traffix": ["will@traffixuk.com, david@chellan.co.uk, wayne@chellan.co.uk"],
     "Gallows Corner - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
     "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Rob.hawkins@costain.com"],
-    "A66 - WJ Scheme 1": ["Philip.Scott@balfourbeatty.com, Jonathan.Pettman@balfourbeatty.com, Dean.Shore@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"],
+    "A66 - WJ Scheme 1": ["Philip.Scott@balfourbeatty.com, abriton2@hwmartin.com, Jonathan.Pettman@balfourbeatty.com, Dean.Shore@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"],
     "M48 - Severn Bridge": ["bryan.dixon@amey.co.uk"],
     default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
   },
@@ -75,7 +75,7 @@ const RECIPIENTS = {
   // Rota admin reminder: a staff member's holiday hours allowance is 7 days
   // (or fewer) from its yearly reset. Same address in both environments —
   // there's no per-scheme variant of this one.
-  HOLIDAY_RESET_ALERT_RECIPIENT: "rroduot@gmail.com",
+  // HOLIDAY_RESET_ALERT_RECIPIENT: "rroduot@gmail.com",
 };
 
 // ─────────────────────────────────────────────────────────────────────────

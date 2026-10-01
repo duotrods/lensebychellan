@@ -66,7 +66,7 @@ const IncidentReportFormPage = () => {
     incidentType: "",
     affectedLanes: [],
     emergencyServices: [],
-    recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
+    recoveryRequested: { light: "", heavy: "", ipv: "", hetos: "" },
     timeSpotted: "",
     timeOnSite: "",
     timeCleared: "",
@@ -125,12 +125,18 @@ const IncidentReportFormPage = () => {
           incidentType: report.incidentType || "",
           affectedLanes: report.affectedLanes || [],
           emergencyServices: report.emergencyServices || [],
-          recoveryRequested: report.recoveryRequested || {
-            light: 0,
-            heavy: 0,
-            ipv: 0,
-            hetos: 0,
-          },
+          // Live incidents created before Recovery Requested became required
+          // were saved with 0s as placeholders; an all-zero matrix on a
+          // still-live incident is treated as unanswered so it isn't
+          // silently pre-selected.
+          recoveryRequested:
+            !report.recoveryRequested ||
+            (report.status === "live" &&
+              ["light", "heavy", "ipv", "hetos"].every(
+                (t) => report.recoveryRequested[t] === 0,
+              ))
+              ? { light: "", heavy: "", ipv: "", hetos: "" }
+              : report.recoveryRequested,
           timeSpotted: report.timeSpotted || "",
           timeOnSite: report.timeOnSite || "",
           timeCleared: report.timeCleared || "",
@@ -167,12 +173,12 @@ const IncidentReportFormPage = () => {
   // Incident Type and Fault are kept in sync when either is set to one of
   // these shared values, so charts for each field don't disagree about the
   // same report.
-  const PAIRED_INCIDENT_VALUES = ["RTC", "Drive Off"];
+  const PAIRED_INCIDENT_VALUES = ["RTC", "Drive Off", "Vehicle Fire", "Fire"];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Warn before overwriting an existing RTC/Drive Off pairing on the other
+    // Warn before overwriting an existing paired value on the other
     // field (e.g. Fault is "RTC" and the staff member picks a different
     // Incident Type, or vice versa) since that is what leaks a report
     // between the Incident Type and Fault charts.
@@ -200,15 +206,13 @@ const IncidentReportFormPage = () => {
       ...(name === "incursion" && value === "NO"
         ? { incursionToGainAdvantage: "NO" }
         : {}),
-      // Keep Incident Type and Fault in sync when either is set to RTC.
-      ...(name === "fault" && value === "RTC" ? { incidentType: "RTC" } : {}),
-      ...(name === "incidentType" && value === "RTC" ? { fault: "RTC" } : {}),
-      // Keep Incident Type and Fault in sync when either is set to Drive Off.
-      ...(name === "fault" && value === "Drive Off"
-        ? { incidentType: "Drive Off" }
+      // Keep Incident Type and Fault in sync when either is set to a paired
+      // value (RTC, Drive Off, Vehicle Fire, Fire).
+      ...(name === "fault" && PAIRED_INCIDENT_VALUES.includes(value)
+        ? { incidentType: value }
         : {}),
-      ...(name === "incidentType" && value === "Drive Off"
-        ? { fault: "Drive Off" }
+      ...(name === "incidentType" && PAIRED_INCIDENT_VALUES.includes(value)
+        ? { fault: value }
         : {}),
     }));
   };
@@ -231,12 +235,15 @@ const IncidentReportFormPage = () => {
     }));
   };
 
+  // count is 0-3, or null for N/A. Unanswered is "" (never undefined, which
+  // Firestore rejects); N/A is stored as null so downstream `|| 0` sums
+  // treat it as no vehicles.
   const handleRecoveryChange = (type, count) => {
     setFormData((prev) => ({
       ...prev,
       recoveryRequested: {
         ...prev.recoveryRequested,
-        [type]: parseInt(count) || 0,
+        [type]: count,
       },
     }));
   };
@@ -387,7 +394,7 @@ const IncidentReportFormPage = () => {
         incidentType: "",
         affectedLanes: [],
         emergencyServices: [],
-        recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
+        recoveryRequested: { light: "", heavy: "", ipv: "", hetos: "" },
         timeOnSite: "",
         timeCleared: "",
         closedLogCollar: "",
@@ -476,6 +483,11 @@ const IncidentReportFormPage = () => {
 
     if (formData.emergencyServices.length === 0) {
       toast.error("Please select at least one emergency service (or N/A)");
+      return;
+    }
+
+    if (["light", "heavy", "ipv", "hetos"].some((t) => formData.recoveryRequested[t] === "")) {
+      toast.error("Please answer Recovery Requested for Light, Heavy, IPV and HETOS (or N/A)");
       return;
     }
 
@@ -580,7 +592,7 @@ const IncidentReportFormPage = () => {
           incidentType: "",
           affectedLanes: [],
           emergencyServices: [],
-          recoveryRequested: { light: 0, heavy: 0, ipv: 0, hetos: 0 },
+          recoveryRequested: { light: "", heavy: "", ipv: "", hetos: "" },
           timeSpotted: "",
           timeOnSite: "",
           timeCleared: "",
@@ -1195,7 +1207,7 @@ const IncidentReportFormPage = () => {
           >
             <option value="">Please Select</option>
             <option value="CCTV">CCTV</option>
-            <option value="TSCO">TSCO</option>
+            <option value="TSS">TSS</option>
             <option value="ROC">ROC</option>
             <option value="Recovery">Recovery</option>
             <option value="Traffic Management">Traffic Management</option>
@@ -1385,7 +1397,7 @@ const IncidentReportFormPage = () => {
       <div>
         <label className="label">
           <span className="label-text font-semibold">
-            Recovery Requested
+            Recovery Requested <span className="text-red-500">*</span>
           </span>
         </label>
         <div className="overflow-x-auto">
@@ -1403,8 +1415,8 @@ const IncidentReportFormPage = () => {
                 {["light", "heavy", "ipv", "hetos"].map((type) => (
                   <td key={type}>
                     <div className="flex justify-center gap-2">
-                      {[0, 1, 2, 3].map((num) => (
-                        <label key={num} className="cursor-pointer">
+                      {[0, 1, 2, 3, null].map((num) => (
+                        <label key={String(num)} className="cursor-pointer">
                           <input
                             type="radio"
                             name={`recovery_${type}`}
@@ -1412,7 +1424,7 @@ const IncidentReportFormPage = () => {
                             onChange={() => handleRecoveryChange(type, num)}
                             className="radio radio-sm radio-neutral"
                           />
-                          <span className="ml-1 text-sm">{num}</span>
+                          <span className="ml-1 text-sm">{num === null ? "N/A" : num}</span>
                         </label>
                       ))}
                     </div>
@@ -1520,6 +1532,8 @@ const IncidentReportFormPage = () => {
             <option value="Drive Off">Drive Off</option>
             <option value="Medical">Medical</option>
             <option value="Over Heated">Over Heated</option>
+            <option value="Vehicle Fire">Vehicle Fire</option>
+            <option value="Fire">Fire</option>
             <option value="Refused Recovery">Refused Recovery</option>
             <option value="Other">Other</option>
           </select>

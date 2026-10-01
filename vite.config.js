@@ -29,6 +29,9 @@ export default defineConfig({
             return 'charts'
           if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('dompurify'))
             return 'pdf'
+          // Only dynamically imported by the admin Excel export — keep it out
+          // of the always-loaded vendor chunk.
+          if (id.includes('write-excel-file')) return 'excel'
           return 'vendor'
         },
       },

@@ -200,7 +200,7 @@
           className={`${CARD_SHELL} ${onClick ? "cursor-pointer" : ""}`}
           onClick={onClick}
         >
-          <div className="flex items-center gap-3 px-[22px] pt-4 pb-[15px]">
+          <div className={`flex items-center gap-3 px-[22px] pt-4 pb-[15px] rounded-t-[10px] ${tint}`}>
             <div
               className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
             >
@@ -341,7 +341,7 @@
     return (
       <div
         onClick={onClick}
-        className={`${CARD_SHELL} cursor-pointer flex items-center gap-4 px-8 py-7`}
+        className={`${CARD_SHELL} cursor-pointer flex items-center gap-4 px-8 py-7 h-full`}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
@@ -1005,7 +1005,7 @@
         ) : (
           <div ref={dashboardRef}>
             {/* Camera Overview alongside the two live link cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10 items-stretch">
               <CameraOverviewCard
                 uptimePct={uptimeData?.totals?.avgUptimePct}
                 hasData={uptimeData?.cameras?.length > 0}
@@ -1013,7 +1013,9 @@
                 rangeLabel={uptimeRangeLabel}
               />
 
-              <div className="grid gap-6">
+              {/* Two rows share the Camera Overview's height, so each live
+                  card fills half of it instead of shrinking to its content. */}
+              <div className="grid gap-6 lg:grid-rows-2">
                 <LiveLinkCard
                   title="Live CCTV Faults"
                   description="View and monitor live camera fault for your scheme"

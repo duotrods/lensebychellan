@@ -24,7 +24,7 @@ const Card = ({ icon, tint, iconColor, label, value, text, onClick }) => (
     className={`${CARD_SHELL} ${onClick ? "cursor-pointer" : ""}`}
     onClick={onClick}
   >
-    <div className="flex items-center gap-3 px-[22px] pt-4 pb-[15px]">
+    <div className={`flex items-center gap-3 px-[22px] pt-4 pb-[15px] rounded-t-[10px] ${tint}`}>
       <div
         className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
       >
