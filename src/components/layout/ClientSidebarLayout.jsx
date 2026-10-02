@@ -27,6 +27,9 @@ import SchemeSwitcher from "../client/SchemeSwitcher";
 import { isDemoUser, getThirdPartySchemeById } from "../../utils/schemes";
 import { DASHBOARD_ROUTES, USER_ROLES } from "../../utils/constants";
 import LogoutConfirmModal from "./LogoutConfirmModal";
+import WarningConfirmModal from "../common/WarningConfirmModal";
+
+const LENSE_ASSIST_URL = "https://chellan-assist.live/";
 
 // Nav groups start collapsed by default; only labels present (and true) here are expanded.
 // Persisted so a group a client opens stays open across a full page refresh.
@@ -47,7 +50,7 @@ const NavLinkItem = ({ item, collapsed, active, textClassName = "text-gray-700" 
   </Link>
 );
 
-// A greyed-out, non-clickable "coming soon" row — used both inside collapsible groups and standalone.
+// A greyed-out, non-clickable "coming soon" row inside a collapsible group.
 const ComingSoonItem = ({ item, collapsed, showIcon = true, showName = false }) => {
   // Icon-less rows have nothing to show in icon-only (collapsed) mode.
   if (collapsed && !showIcon) return null;
@@ -78,6 +81,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showLenseAssistModal, setShowLenseAssistModal] = useState(false);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -169,10 +173,10 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       ? []
       : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: faFolderOpen, emphasize: true }];
 
-  const standaloneComingSoon =
-    role === USER_ROLES.THIRDPARTYCLIENT || isThirdPartyActiveScheme
-      ? []
-      : [{ name: "Lense Assist", icon: faWandMagicSparkles }];
+  // Lense Assist links out to the external Chellan Assist app — hidden for
+  // third-party clients/schemes and demo-scheme users, same as on the staff sidebar.
+  const showLenseAssist =
+    role !== USER_ROLES.THIRDPARTYCLIENT && !isThirdPartyActiveScheme && !isDemoUser(userProfile);
 
   const [expandedGroups, setExpandedGroups] = useState(() => {
     let persisted = {};
@@ -219,6 +223,18 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
         <LogoutConfirmModal
           onConfirm={handleSignOut}
           onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+      {showLenseAssistModal && (
+        <WarningConfirmModal
+          title="Leave this site?"
+          message="You're about to open Lense Assist in a new tab."
+          confirmLabel="Continue"
+          onConfirm={() => {
+            window.open(LENSE_ASSIST_URL, "_blank", "noopener,noreferrer");
+            setShowLenseAssistModal(false);
+          }}
+          onCancel={() => setShowLenseAssistModal(false)}
         />
       )}
 
@@ -323,7 +339,7 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
           })}
 
           {/* Ungrouped entries — always visible, no collapsible header */}
-          {(standaloneItems.length > 0 || standaloneComingSoon.length > 0) && (
+          {(standaloneItems.length > 0 || showLenseAssist) && (
             <div className="space-y-2">
               {standaloneItems.map((item) => (
                 <NavLinkItem
@@ -334,9 +350,17 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
                   textClassName={item.emphasize ? "text-gray-900" : undefined}
                 />
               ))}
-              {standaloneComingSoon.map((item) => (
-                <ComingSoonItem key={item.name} item={item} collapsed={collapsed} showName />
-              ))}
+              {showLenseAssist && (
+                <button
+                  type="button"
+                  onClick={() => setShowLenseAssistModal(true)}
+                  title={collapsed ? "Lense Assist" : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-gray-900 hover:bg-gray-100 ${collapsed ? 'justify-center' : ''}`}
+                >
+                  <FontAwesomeIcon icon={faWandMagicSparkles} className="w-5 h-5 shrink-0" />
+                  {!collapsed && <span className="font-medium">Lense Assist</span>}
+                </button>
+              )}
             </div>
           )}
         </nav>

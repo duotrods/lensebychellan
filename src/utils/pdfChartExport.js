@@ -4,6 +4,7 @@
 // button in the app.
 import { jsPDF } from "jspdf";
 import logomarkWhiteUrl from "../assets/Logomark White.svg";
+import { layoutPieLabels } from "./pieLabelLayout";
 
 // Also used on-screen for the recharts <Pie> <Cell> fills, so pie colors stay
 // identical between the live dashboard and the exported PDF.
@@ -176,9 +177,18 @@ export const drawBarChart = (pdf, data, title, x, y, width, height) => {
   });
 };
 
-// Mirrors the on-screen pie chart (Pie/Cell from recharts) for whichever
-// charts are toggled to pie view — jsPDF has no native pie primitive, so
-// each slice is drawn as a filled polygon approximating its arc.
+// The label layout (pieLabelLayout) is tuned in screen pixels — line heights,
+// leader lengths, 12px text. The PDF card is drawn as if it were this many
+// pixels wide and everything is scaled down to mm, so the exported pie has
+// the same proportions as the on-screen one.
+const PIE_VIRTUAL_WIDTH = 620;
+const PT_PER_MM = 72 / 25.4;
+
+// Mirrors the on-screen pie view (PieBreakdown in NewClientDashboard) for
+// whichever charts are toggled to pie: one label + leader line per slice,
+// laid out by the same layoutPieLabels so nothing overlaps or leaves the
+// card, and a wrapped legend row underneath. jsPDF has no native pie
+// primitive, so each slice is drawn as a filled polygon approximating its arc.
 export const drawPieChart = (pdf, data, title, x, y, width, height) => {
   if (!data || data.length === 0) return;
 
@@ -194,64 +204,142 @@ export const drawPieChart = (pdf, data, title, x, y, width, height) => {
   pdf.setTextColor(31, 41, 55);
   pdf.text(title, x + width / 2, y + 6, { align: "center" });
 
-  const total = data.reduce((sum, d) => sum + (d.Number || 0), 0);
+  // Colour is tied to a category's position in the full data set, same as on screen.
+  const slices = data
+    .map((item, i) => ({
+      name: String(item.name),
+      value: item.Number || 0,
+      rgb: hexToRgb(PIE_COLORS[i % PIE_COLORS.length]),
+    }))
+    .filter((slice) => slice.value > 0);
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
   if (total <= 0) return;
 
-  const margin = { top: 12, bottom: 6 };
-  const plotHeight = height - margin.top - margin.bottom;
-  const radius = Math.max(Math.min(width * 0.24, plotHeight / 2 - 2), 4);
-  const centerX = x + width * 0.3;
-  const centerY = y + margin.top + plotHeight / 2;
-
-  let startAngle = -Math.PI / 2;
-  data.forEach((item, i) => {
-    const value = item.Number || 0;
-    if (value <= 0) return;
-    const sliceAngle = (value / total) * Math.PI * 2;
-    const endAngle = startAngle + sliceAngle;
-
-    const [r, g, b] = hexToRgb(PIE_COLORS[i % PIE_COLORS.length]);
-    pdf.setFillColor(r, g, b);
-
-    // Polygon: center -> points along the arc -> back to center (closed).
-    const steps = Math.max(2, Math.ceil((sliceAngle / (Math.PI * 2)) * 60));
-    const arcPoints = [];
-    for (let s = 0; s <= steps; s++) {
-      const angle = startAngle + (sliceAngle * s) / steps;
-      arcPoints.push([
-        centerX + radius * Math.cos(angle),
-        centerY + radius * Math.sin(angle),
-      ]);
+  // Legend: swatch + name, wrapped into centred rows along the bottom.
+  const legendFontSize = 6.5;
+  const legendRowHeight = 3.8;
+  const maxLegendRows = 3;
+  const swatch = 2.2;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(legendFontSize);
+  const legendRows = [[]];
+  let rowWidth = 0;
+  slices.forEach((slice) => {
+    const itemWidth = swatch + 1.2 + pdf.getTextWidth(slice.name) + 4;
+    if (rowWidth + itemWidth > width - 8 && legendRows[legendRows.length - 1].length) {
+      legendRows.push([]);
+      rowWidth = 0;
     }
+    legendRows[legendRows.length - 1].push({ slice, itemWidth });
+    rowWidth += itemWidth;
+  });
+  const shownRows = legendRows.slice(0, maxLegendRows);
+  const legendHeight = shownRows.length * legendRowHeight + 2;
+
+  const plotTop = y + 10;
+  const plotHeight = height - 10 - legendHeight - 1;
+  const scale = width / PIE_VIRTUAL_WIDTH;
+  const layout = layoutPieLabels(
+    slices.map((slice) => slice.value),
+    PIE_VIRTUAL_WIDTH,
+    plotHeight / scale,
+  );
+  const toX = (px) => x + px * scale;
+  const toY = (py) => plotTop + py * scale;
+  const centerX = toX(layout.cx);
+  const centerY = toY(layout.cy);
+  const radius = layout.radius * scale;
+
+  // Slices, clockwise from the layout's start angle, with a thin white gap between them.
+  pdf.setDrawColor(255, 255, 255);
+  pdf.setLineWidth(0.35);
+  let cumulative = 0;
+  slices.forEach((slice) => {
+    const from = ((layout.startAngle - (360 * cumulative) / total) * Math.PI) / 180;
+    cumulative += slice.value;
+    const to = ((layout.startAngle - (360 * cumulative) / total) * Math.PI) / 180;
+
+    pdf.setFillColor(...slice.rgb);
+    // Polygon: center -> points along the arc -> back to center (closed).
+    const steps = Math.max(2, Math.ceil((slice.value / total) * 90));
     const segments = [];
     let prev = [centerX, centerY];
-    arcPoints.forEach((point) => {
+    for (let s = 0; s <= steps; s++) {
+      const angle = from + ((to - from) * s) / steps;
+      const point = [centerX + radius * Math.cos(angle), centerY - radius * Math.sin(angle)];
       segments.push([point[0] - prev[0], point[1] - prev[1]]);
       prev = point;
-    });
-    pdf.lines(segments, centerX, centerY, [1, 1], "F", true);
-
-    startAngle = endAngle;
+    }
+    pdf.lines(segments, centerX, centerY, [1, 1], slices.length > 1 ? "FD" : "F", true);
   });
 
-  // Legend to the right of the pie, one line per slice.
-  const legendX = centerX + radius + 8;
-  const legendLineHeight = Math.min(5, plotHeight / data.length);
-  let legendY = y + margin.top + 3;
-  pdf.setFont("helvetica", "normal");
-  data.forEach((item, i) => {
-    if (legendY > y + height - 3) return;
-    const [r, g, b] = hexToRgb(PIE_COLORS[i % PIE_COLORS.length]);
+  // Labels: bold name + muted "count (pct%)", joined to the slice by a leader in its colour.
+  const labelFontSize = 12 * scale * PT_PER_MM;
+  const roomForText = (PIE_VIRTUAL_WIDTH / 2 - layout.radius - 30) * scale;
+  const fit = (text, maxWidth) => {
+    if (pdf.getTextWidth(text) <= maxWidth) return text;
+    let cut = text;
+    while (cut.length > 1 && pdf.getTextWidth(`${cut}...`) > maxWidth) cut = cut.slice(0, -1);
+    return `${cut.trimEnd()}...`;
+  };
+  pdf.setFontSize(labelFontSize);
+  slices.forEach((slice, i) => {
+    const label = layout.labels[i];
+    if (!label) return;
+    const [r, g, b] = slice.rgb;
+    const points = [label.edge, label.bend, label.lineEnd].map(([px, py]) => [toX(px), toY(py)]);
+
+    pdf.setDrawColor(r, g, b);
+    pdf.setLineWidth(0.3);
+    pdf.line(points[0][0], points[0][1], points[1][0], points[1][1]);
+    pdf.line(points[1][0], points[1][1], points[2][0], points[2][1]);
     pdf.setFillColor(r, g, b);
-    pdf.rect(legendX, legendY - 2.5, 3, 3, "F");
-    pdf.setFontSize(6.5);
-    pdf.setTextColor(55, 65, 81);
-    const pct = Math.round(((item.Number || 0) / total) * 100);
-    const rawLabel = `${item.name} (${pct}%)`;
-    const label =
-      rawLabel.length > 26 ? rawLabel.slice(0, 23) + "..." : rawLabel;
-    pdf.text(label, legendX + 5, legendY);
-    legendY += legendLineHeight;
+    pdf.circle(points[2][0], points[2][1], 0.5, "F");
+
+    const pct = (slice.value / total) * 100;
+    const stats = `${slice.value} (${pct < 1 ? "<1" : Math.round(pct)}%)`;
+    const textX = toX(label.x);
+    const align = label.right ? "left" : "right";
+
+    if (layout.twoLine) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(31, 41, 55);
+      pdf.text(fit(slice.name, roomForText), textX, toY(label.y - 3), { align });
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(99, 115, 129);
+      pdf.text(stats, textX, toY(label.y + 12), { align });
+      return;
+    }
+
+    // One line: the name and the stats sit side by side, so place each by measured width.
+    const baseline = toY(label.y + 4);
+    pdf.setFont("helvetica", "normal");
+    const gap = pdf.getTextWidth(" ");
+    const statsWidth = pdf.getTextWidth(stats);
+    pdf.setFont("helvetica", "bold");
+    const name = fit(slice.name, roomForText - statsWidth - gap);
+    const nameWidth = pdf.getTextWidth(name);
+    const nameX = label.right ? textX : textX - statsWidth - gap - nameWidth;
+    pdf.setTextColor(31, 41, 55);
+    pdf.text(name, nameX, baseline);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(99, 115, 129);
+    pdf.text(stats, nameX + nameWidth + gap, baseline);
+  });
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(legendFontSize);
+  pdf.setTextColor(75, 85, 99);
+  shownRows.forEach((row, rowIndex) => {
+    const rowTotal = row.reduce((sum, item) => sum + item.itemWidth, 0) - 4;
+    let itemX = x + (width - rowTotal) / 2;
+    const baseline = y + height - legendHeight + 1.5 + rowIndex * legendRowHeight;
+    row.forEach(({ slice, itemWidth }) => {
+      pdf.setFillColor(...slice.rgb);
+      pdf.rect(itemX, baseline - swatch + 0.2, swatch, swatch, "F");
+      pdf.text(slice.name, itemX + swatch + 1.2, baseline);
+      itemX += itemWidth;
+    });
   });
 };
 
