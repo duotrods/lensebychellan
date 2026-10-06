@@ -65,7 +65,9 @@ const ClientChartsPage = () => {
   // Common chart props
   const commonChartProps = {
     cartesianGrid: { strokeDasharray: "3 3", stroke: "#17af93" },
-    xAxis: { tick: { fontSize: 13 } },
+    // interval 0 shows every label (Recharts otherwise hides crowded ones, and
+    // the vertical grid lines only draw at shown ticks); angled so they fit.
+    xAxis: { tick: { fontSize: 12 }, interval: 0, angle: -35, textAnchor: "end", height: 70 },
     yAxis: { tick: { fontSize: 13 } },
     tooltip: {
       contentStyle: { backgroundColor: '#fff', border: '1px solid #17af93', borderRadius: '8px' },
