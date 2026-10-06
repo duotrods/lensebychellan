@@ -319,34 +319,53 @@
       }
     };
 
+    // One solid colour per form type, shared by the stat cards and the type
+    // pills in the table below so a card and its rows read as one.
+    const TYPE_COLORS = {
+      "Incident Report": "#ea580c",
+      "CCTV Check Sheet": "#16a34a",
+      "Daily Occurrence": "#2563eb",
+      "CCTV Faults": "#c026d3",
+      "Asset Damage": "#dc2626",
+    };
+
+    // Likewise one icon per form type, for the cards and the pills.
+    const TYPE_ICONS = {
+      "Incident Report": faFileLines,
+      "CCTV Check Sheet": faCamera,
+      "Daily Occurrence": faCalendar,
+      "CCTV Faults": faEye,
+      "Asset Damage": faTriangleExclamation,
+    };
+
     const statCards = [
       {
         title: "Incident Report Form",
         count: stats?.incidentReportTotal || 0,
         subtitle: "Total Submissions",
-        icon: faFileLines,
-        color: "from-amber-400 to-amber-500",
+        icon: TYPE_ICONS["Incident Report"],
+        color: TYPE_COLORS["Incident Report"],
       },
       {
         title: "CCTV Check Sheet",
         count: stats?.cctvCheckTotal || 0,
         subtitle: "Total Submissions",
-        icon: faCamera,
-        color: "from-teal-500 to-teal-600",
+        icon: TYPE_ICONS["CCTV Check Sheet"],
+        color: TYPE_COLORS["CCTV Check Sheet"],
       },
       {
         title: "Daily Occurence",
         count: stats?.dailyLogsTotal || 0,
         subtitle: "Total Submissions",
-        icon: faCalendar,
-        color: "from-blue-500 to-blue-600",
+        icon: TYPE_ICONS["Daily Occurrence"],
+        color: TYPE_COLORS["Daily Occurrence"],
       },
       {
         title: "CCTV Faults",
         count: stats?.cctvFaultsTotal || 0,
         subtitle: "Total Submissions",
-        icon: faEye,
-        color: "from-pink-500 to-pink-600",
+        icon: TYPE_ICONS["CCTV Faults"],
+        color: TYPE_COLORS["CCTV Faults"],
       },
     ];
 
@@ -365,33 +384,19 @@
       });
     };
 
-    const getFormTypeIcon = (type) => {
-      switch (type) {
-        case "Incident Report":
-          return <FontAwesomeIcon icon={faTriangleExclamation} className="w-5 h-5 text-amber-500" />;
-        case "CCTV Check Sheet":
-          return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-green-500" />;
-        case "Daily Occurrence":
-          return <FontAwesomeIcon icon={faCalendar} className="w-5 h-5 text-blue-500" />;
-        case "Asset Damage":
-          return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-red-500" />;
-        case "CCTV Faults":
-          return <FontAwesomeIcon icon={faEye} className="w-5 h-5 text-pink-500" />;
-        default:
-          return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-gray-500" />;
-      }
-    };
-
-    const getFormTypeBadge = (type) => {
-      const badges = {
-        "Incident Report": "badge-warning",
-        "Asset Damage": "badge-error",
-        "Daily Occurrence": "badge-info",
-        "CCTV Check Sheet": "badge-success",
-        "CCTV Faults": "badge-secondary",
-      };
-      return badges[type] || "badge-ghost";
-    };
+    // Light pill: a pale tint of the type's colour behind its coloured icon + label, same hue and icon as its stat card.
+    const renderFormTypeBadge = (type) => (
+      <span
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+        style={{
+          color: TYPE_COLORS[type] ?? "#6b7280",
+          backgroundColor: `color-mix(in srgb, ${TYPE_COLORS[type] ?? "#6b7280"} 14%, white)`,
+        }}
+      >
+        <FontAwesomeIcon icon={TYPE_ICONS[type] ?? faFileLines} className="w-3.5 h-3.5" />
+        {type}
+      </span>
+    );
 
     // Get scheme(s) from form - handles different form structures
     const getFormScheme = (form) => {
@@ -601,26 +606,32 @@
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {statCards.map((card, index) => (
+                  // Same card style as the client dashboard's stat cards: solid
+                  // colour header with a white icon + title, then the count.
                   <div
                     key={index}
-                    className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
+                    className="bg-white rounded-[10px] shadow-[0px_1px_4px_0px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-[0px_2px_10px_0px_rgba(0,0,0,0.14)]"
                   >
-                    <div className="flex items-center gap-3 mb-4">
-                      <div
-                        className={`w-9 h-9 rounded-lg bg-linear-to-br ${card.color} flex items-center justify-center shrink-0`}
-                      >
-                        <FontAwesomeIcon icon={card.icon} className="w-4 h-4 text-white" />
+                    <div
+                      className="flex items-center gap-3 px-[22px] pt-4 pb-[15px] rounded-t-[10px]"
+                      style={{ backgroundColor: card.color }}
+                    >
+                      <div className="grid place-items-center size-8 shrink-0">
+                        <FontAwesomeIcon icon={card.icon} className="w-5 h-5 text-white" />
                       </div>
-                      <h5 className="text-sm font-medium text-gray-600 leading-tight">
+                      <h5
+                        className="font-poppins font-medium! text-base text-white leading-none truncate min-w-0"
+                        title={card.title}
+                      >
                         {card.title}
                       </h5>
                     </div>
-
-                    <div className="mt-2">
-                      <span className="text-3xl font-bold text-gray-800">
+                    <div className="h-px bg-[#ededed]" />
+                    <div className="px-[22px] pt-2.5 pb-4">
+                      <p className="font-inter font-medium text-[32px] leading-[1.2] text-black/70">
                         {card.count}
-                      </span>
-                      <p className="text-sm text-gray-400 mt-1">
+                      </p>
+                      <p className="mt-3.5 text-xs leading-normal text-[#637381]">
                         {card.subtitle}
                       </p>
                     </div>
@@ -722,12 +733,7 @@
                           <tr key={form.id} className="hover:bg-gray-50">
                             <td>
                               <div className="flex items-center gap-2">
-                                {getFormTypeIcon(form.type)}
-                                <span
-                                  className={`badge ${getFormTypeBadge(form.type)} badge-sm`}
-                                >
-                                  {form.type.toUpperCase()}
-                                </span>
+                                {renderFormTypeBadge(form.type)}
                               </div>
                             </td>
                             <td className="font-mono text-sm font-semibold">

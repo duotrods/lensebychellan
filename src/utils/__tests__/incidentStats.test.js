@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { countVehicles, isPureIncident, isDriveOff } from "../incidentStats";
+import { countVehicles, isPureIncident, isDriveOff, isUntimedIncident } from "../incidentStats";
 
 describe("countVehicles", () => {
   it("returns 0 when recoveryRequested is missing", () => {
@@ -70,5 +70,27 @@ describe("isDriveOff", () => {
     expect(isDriveOff({})).toBe(false);
     expect(isDriveOff(null)).toBe(false);
     expect(isDriveOff(undefined)).toBe(false);
+  });
+});
+
+describe("isUntimedIncident", () => {
+  it("is true for a drive off, whether logged as the incident type or the fault", () => {
+    expect(isUntimedIncident({ incidentType: "Drive Off" })).toBe(true);
+    expect(isUntimedIncident({ incidentType: "Breakdown", fault: "Drive Off" })).toBe(true);
+  });
+
+  it("is true for a Third Party Recovery", () => {
+    expect(isUntimedIncident({ incidentType: "Third Party Recovery" })).toBe(true);
+  });
+
+  it("is false for an ordinary incident, including a Free Recovery", () => {
+    expect(isUntimedIncident({ incidentType: "RTC", fault: "Puncture" })).toBe(false);
+    expect(isUntimedIncident({ incidentType: "Free Recovery" })).toBe(false);
+  });
+
+  it("is false for empty or missing records", () => {
+    expect(isUntimedIncident({})).toBe(false);
+    expect(isUntimedIncident(null)).toBe(false);
+    expect(isUntimedIncident(undefined)).toBe(false);
   });
 });

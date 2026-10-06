@@ -24,6 +24,7 @@ import {
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
 import ExportReportsModal from "../../components/admin/ExportReportsModal";
+import ExportVideosModal from "../../components/admin/ExportVideosModal";
 
 // Shared card shell + stat card — matches NewClientDashboard's StatCard so
 // every stat card in the app shares one visual language: a tinted icon tile
@@ -74,6 +75,7 @@ const StaffReportsPage = () => {
   const [searchPage, setSearchPage] = useState(1);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [videoExportOpen, setVideoExportOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const searchDebounceRef = useRef(null);
@@ -535,13 +537,22 @@ const StaffReportsPage = () => {
             <h1 className="text-3xl font-bold text-gray-800 mb-2">Staff Reports</h1>
             <p className="text-gray-600">View and manage all submitted forms from staff members</p>
           </div>
-          <button
-            onClick={() => setExportModalOpen(true)}
-            className="btn bg-teal-500 hover:bg-teal-600 text-white border-none self-start sm:self-auto"
-          >
-            <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
-            Export to Excel
-          </button>
+          <div className="flex flex-wrap gap-3 self-start sm:self-auto">
+            <button
+              onClick={() => setExportModalOpen(true)}
+              className="btn bg-teal-500 hover:bg-teal-600 text-white border-none"
+            >
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+              Export to Excel
+            </button>
+            <button
+              onClick={() => setVideoExportOpen(true)}
+              className="btn btn-outline border-teal-500 text-teal-600 hover:bg-teal-500 hover:text-white"
+            >
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+              Export Videos
+            </button>
+          </div>
         </div>
 
         {/* Statistics Cards */}
@@ -818,6 +829,14 @@ const StaffReportsPage = () => {
       {exportModalOpen && (
         <ExportReportsModal
           onClose={() => setExportModalOpen(false)}
+          schemes={availableSchemes}
+          defaultScheme={filterScheme}
+        />
+      )}
+
+      {videoExportOpen && (
+        <ExportVideosModal
+          onClose={() => setVideoExportOpen(false)}
           schemes={availableSchemes}
           defaultScheme={filterScheme}
         />

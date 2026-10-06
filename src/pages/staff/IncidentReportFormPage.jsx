@@ -24,8 +24,12 @@ import { getSchemesForUser } from "../../utils/schemes";
 import {
   formatDateToBritish,
   calculateTimeDifferences,
+  findImplausibleTimeGaps,
+  formatDuration,
+  formatTime12h,
 } from "../../utils/incidentForm";
-import { isDriveOff } from "../../utils/incidentStats";
+import WarningConfirmModal from "../../components/common/WarningConfirmModal";
+import { isUntimedIncident } from "../../utils/incidentStats";
 
 import chellanlogo from "../../assets/chellanpng.png";
 import warningIcon from "../../assets/warning.svg";
@@ -46,6 +50,9 @@ const IncidentReportFormPage = () => {
   const [liveIncidentId, setLiveIncidentId] = useState(null);
   const [existingReferenceId, setExistingReferenceId] = useState(null);
   const [pairMismatchWarning, setPairMismatchWarning] = useState(null);
+  // { gaps, action } — times that look like a typo, and which save to resume
+  // ("submit" | "save") if staff confirm they're correct.
+  const [timeGapWarning, setTimeGapWarning] = useState(null);
 
   const [formData, setFormData] = useState({
     scheme: "",
@@ -80,11 +87,12 @@ const IncidentReportFormPage = () => {
     standDown: false,
   });
 
-  // A drive off often has no attendance to time, so Time On Site / Time
-  // Cleared are optional here — but still shown and saved when known. They're
-  // excluded from the Time to Site / Time to Recover averages elsewhere via
-  // isDriveOff, regardless of whether these are filled in.
-  const driveOff = isDriveOff(formData);
+  // A drive off or Third Party Recovery often has no attendance of ours to
+  // time, so Time On Site / Time Cleared are optional here — but still shown
+  // and saved when known. They're excluded from the Time to Site / Time to
+  // Recover averages elsewhere via isUntimedIncident, regardless of whether
+  // these are filled in.
+  const untimed = isUntimedIncident(formData);
 
   useEffect(() => {
     if (editId) {
@@ -225,6 +233,23 @@ const IncidentReportFormPage = () => {
   };
 
   const cancelPairMismatch = () => setPairMismatchWarning(null);
+
+  // Before saving, double-check times that read as a typo (e.g. spotted 7:56 PM,
+  // on site 5:55 — taken as the next day, ~10h later). Returns true when the
+  // save should stop and wait for staff to confirm in the modal.
+  const holdForTimeGapCheck = (action) => {
+    const gaps = findImplausibleTimeGaps(formData);
+    if (gaps.length === 0) return false;
+    setTimeGapWarning({ gaps, action });
+    return true;
+  };
+
+  const confirmTimeGaps = () => {
+    const { action } = timeGapWarning;
+    setTimeGapWarning(null);
+    if (action === "save") handleSave(null, true);
+    else handleSubmit(null, true);
+  };
 
   const handleCheckbox = (field, value) => {
     setFormData((prev) => ({
@@ -432,9 +457,10 @@ const IncidentReportFormPage = () => {
 
   // Save progress on Step 2 without completing — keeps status as "live"
   // Operator can return to the form later and find all fields already filled
-  const handleSave = async () => {
+  const handleSave = async (_event, timeGapsConfirmed = false) => {
     const incidentId = editId || liveIncidentId;
     if (!incidentId) return;
+    if (!timeGapsConfirmed && holdForTimeGapCheck("save")) return;
 
     setLoading(true);
     try {
@@ -468,8 +494,8 @@ const IncidentReportFormPage = () => {
   };
 
   // Step 2: Complete the report (or regular submit for non-live workflow)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, timeGapsConfirmed = false) => {
+    e?.preventDefault();
 
     if (!formData.scheme || !formData.date || !formData.firstName) {
       toast.error("Please fill in all required fields");
@@ -490,6 +516,8 @@ const IncidentReportFormPage = () => {
       toast.error("Please answer Recovery Requested for Light, Heavy, IPV and HETOS (or N/A)");
       return;
     }
+
+    if (!timeGapsConfirmed && holdForTimeGapCheck("submit")) return;
 
     setLoading(true);
 
@@ -1316,6 +1344,7 @@ const IncidentReportFormPage = () => {
           >
             <option value="">Please Select</option>
             <option value="Free Recovery">Free Recovery</option>
+            <option value="Third Party Recovery">Third Party Recovery</option>
             <option value="Police Incident">Police Incident</option>
             <option value="RTC">RTC</option>
             <option value="Call Log">Call Log</option>
@@ -1455,13 +1484,14 @@ const IncidentReportFormPage = () => {
         </div>
 
         {/* A drive off often has no attendance to time, so these are optional
-            for it — but still shown and saved when staff know them. They're
-            left out of the Time to Site / Time to Recover averages elsewhere
-            via isDriveOff, not by being blank here. */}
+            for it (and for a Third Party Recovery) — but still shown and saved
+            when staff know them. They're left out of the Time to Site / Time
+            to Recover averages elsewhere via isUntimedIncident, not by being
+            blank here. */}
         <div>
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              Time On Site {!driveOff && <span className="text-red-500">*</span>}
+              Time On Site {!untimed && <span className="text-red-500">*</span>}
             </span>
           </label>
           <input
@@ -1470,14 +1500,14 @@ const IncidentReportFormPage = () => {
             value={formData.timeOnSite}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-            required={!driveOff}
+            required={!untimed}
           />
         </div>
 
         <div>
           <label className="label">
             <span className="label-text font-semibold mb-2">
-              Time Cleared {!driveOff && <span className="text-red-500">*</span>}
+              Time Cleared {!untimed && <span className="text-red-500">*</span>}
             </span>
           </label>
           <input
@@ -1486,7 +1516,7 @@ const IncidentReportFormPage = () => {
             value={formData.timeCleared}
             onChange={handleChange}
             className="input bg-white border-gray-300 rounded-lg hover:bg-gray-100 w-full"
-            required={!driveOff}
+            required={!untimed}
           />
         </div>
       </div>
@@ -1810,6 +1840,28 @@ const IncidentReportFormPage = () => {
           renderStep2()
         )}
       </div>
+
+      {timeGapWarning && (
+        <WarningConfirmModal
+          title="Double-check the times"
+          message={
+            <>
+              {timeGapWarning.gaps.map((gap) => (
+                <span key={gap.label} className="block mb-2">
+                  {gap.label}: {formatTime12h(gap.from)} → {formatTime12h(gap.to)} is{" "}
+                  <strong>{formatDuration(gap.minutes)}</strong>
+                  {gap.wrapsPastMidnight ? " (the next day)" : ""}.
+                </span>
+              ))}
+              <span className="block">Is that right?</span>
+            </>
+          }
+          confirmLabel="Yes, it's correct"
+          cancelLabel="Go back and fix"
+          onConfirm={confirmTimeGaps}
+          onCancel={() => setTimeGapWarning(null)}
+        />
+      )}
 
       {pairMismatchWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">

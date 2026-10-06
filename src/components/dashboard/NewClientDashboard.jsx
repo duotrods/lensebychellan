@@ -40,7 +40,7 @@
   } from "@fortawesome/free-solid-svg-icons";
   import { getActiveSchemeName } from "../../utils/schemes";
   import { transformDataForChart } from "../../utils/chartData";
-  import { isDriveOff } from "../../utils/incidentStats";
+  import { isUntimedIncident } from "../../utils/incidentStats";
   import DrillDownSidebar from "./DrillDownSidebar";
   import {
     DateRangePicker,
@@ -326,24 +326,26 @@
   const CARD_SHELL =
     "bg-white rounded-[10px] shadow-[0px_1px_4px_0px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-[0px_2px_10px_0px_rgba(0,0,0,0.14)]";
 
-  // Stat/metric card: tinted icon tile + title, a full-bleed rule, then the
-  // value and its caption. Header block is a fixed height so the rule lines up
-  // across every card in a row regardless of how long the caption wraps.
+  // Stat/metric card: solid colour header (white icon + title), a full-bleed
+  // rule, then the value and its caption. Header block is a fixed height so
+  // the rule lines up across every card in a row regardless of how long the
+  // caption wraps.
   const StatCard = memo(
-    ({ title, value, text, icon, tint, iconColor, onClick }) => {
+    ({ title, value, text, icon, color, onClick }) => {
       return (
         <div
           className={`${CARD_SHELL} ${onClick ? "cursor-pointer" : ""}`}
           onClick={onClick}
         >
-          <div className={`flex items-center gap-3 px-[22px] pt-4 pb-[15px] rounded-t-[10px] ${tint}`}>
-            <div
-              className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
-            >
-              <FontAwesomeIcon icon={icon} className={`w-5 h-5 ${iconColor}`} />
+          <div
+            className="flex items-center gap-3 px-[22px] pt-4 pb-[15px] rounded-t-[10px]"
+            style={{ backgroundColor: color }}
+          >
+            <div className="grid place-items-center size-8 shrink-0">
+              <FontAwesomeIcon icon={icon} className="w-5 h-5 text-white" />
             </div>
             <h5
-              className="font-poppins font-medium! text-base text-[#191d23] leading-none truncate min-w-0"
+              className="font-poppins font-medium! text-base text-white leading-none truncate min-w-0"
               title={title}
             >
               {title}
@@ -807,11 +809,11 @@
           const key = label.toLowerCase();
           filtered = incidents.filter((i) => i.recoveryRequested?.[key] > 0);
         } else if (chartType === "timeToRecover") {
-          // Drive offs are left out of the timing stats, so they must be left
-          // out here too — otherwise the drill-down lists incidents the bar
-          // never counted.
+          // Drive offs and Third Party Recoveries are left out of the timing
+          // stats, so they must be left out here too — otherwise the
+          // drill-down lists incidents the bar never counted.
           filtered = incidents.filter((i) => {
-            if (isDriveOff(i)) return false;
+            if (isUntimedIncident(i)) return false;
             const m = parseInt(i.timeOnsiteToCleared?.match(/(\d+)/)?.[1]);
             if (isNaN(m)) return false;
             if (label === "0-15") return m <= 15;
@@ -823,7 +825,7 @@
           });
         } else if (chartType === "timeToSite") {
           filtered = incidents.filter((i) => {
-            if (isDriveOff(i)) return false;
+            if (isUntimedIncident(i)) return false;
             const m = parseInt(i.timeSpottedToOn?.match(/(\d+)/)?.[1]);
             if (isNaN(m)) return false;
             if (label === "0-5") return m <= 5;
@@ -849,8 +851,7 @@
         value: loading ? "..." : (stats?.totalIncidents || 0).toString(),
         text: "Excluding Free Recovery, Drive off and Incursions.",
         icon: faTriangleExclamation,
-        tint: "bg-[rgba(242,96,118,0.1)]",
-        iconColor: "text-[#f26076]",
+        color: "#f26076",
         filter: () =>
           incidents.filter(
             (i) =>
@@ -865,8 +866,7 @@
         value: loading ? "..." : (stats?.assetDamage || 0).toString(),
         text: "Incidents with reported asset or property damage.",
         icon: faShieldHalved,
-        tint: "bg-[rgba(255,151,96,0.1)]",
-        iconColor: "text-[#ff9760]",
+        color: "#ff9760",
         filter: () =>
           incidents.filter(
             (i) =>
@@ -882,8 +882,7 @@
           : (Number(stats?.incidentsByType?.["Free Recovery"]) || 0).toString(),
         text: "Total number of free recovery incidents.",
         icon: faWrench,
-        tint: "bg-[rgba(112,59,59,0.1)]",
-        iconColor: "text-[#703b3b]",
+        color: "#703b3b",
         filter: () =>
           incidents.filter((i) => i.incidentType === "Free Recovery"),
       },
@@ -897,8 +896,7 @@
             ).toString(),
         text: "Total number of incursions recorded.",
         icon: faCarSide,
-        tint: "bg-[rgba(116,69,119,0.1)]",
-        iconColor: "text-[#744577]",
+        color: "#744577",
         filter: () =>
           incidents.filter(
             (i) => i.incursion === "YES" || i.incidentType === "Incursion",
@@ -909,8 +907,7 @@
         value: loading ? "..." : (stats?.incursionToGainAdvantage || 0).toString(),
         text: "Total number of incursions to gain benifit.",
         icon: faCar,
-        tint: "bg-[rgba(84,89,172,0.1)]",
-        iconColor: "text-[#5459ac]",
+        color: "#5459ac",
         filter: () =>
           incidents.filter((i) => i.incursionToGainAdvantage === "YES"),
       },
@@ -921,8 +918,7 @@
           : (stats?.incidentsByType?.["Drive Off"] || 0).toString(),
         text: "Total number of drive off incidents.",
         icon: faRightFromBracket,
-        tint: "bg-[rgba(69,139,115,0.1)]",
-        iconColor: "text-[#458b73]",
+        color: "#458b73",
         filter: () => incidents.filter((i) => i.incidentType === "Drive Off"),
       },
       {
@@ -930,16 +926,14 @@
         value: loading ? "..." : `${stats?.avgTimeToSite ?? 0} mins`,
         text: "Average response time from incident spotted to unit on site.",
         icon: faClock,
-        tint: "bg-[rgba(77,173,168,0.1)]",
-        iconColor: "text-[#4dada8]",
+        color: "#4dada8",
       },
       {
         title: "Avg Time to Recover",
         value: loading ? "..." : `${stats?.avgTimeToRecover ?? 0} mins`,
         text: "Average time from unit on site to incident cleared.",
         icon: faStopwatch,
-        tint: "bg-[rgba(54,116,181,0.15)]",
-        iconColor: "text-[#3674b5]",
+        color: "#3674b5",
       },
     ];
 
@@ -1119,8 +1113,7 @@
               value={stat.value}
               text={stat.text}
               icon={stat.icon}
-              tint={stat.tint}
-              iconColor={stat.iconColor}
+              color={stat.color}
               onClick={
                 stat.filter
                   ? () => {

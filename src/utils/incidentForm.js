@@ -38,3 +38,39 @@ export const calculateTimeDifferences = (data) => {
 
   return result;
 };
+
+// Either gap longer than this is more likely a typo than a real response or
+// clear-up time. Short overnight gaps (23:50 → 00:05) are fine; it's the
+// "7:56 PM then 5:55" slip, which minutesBetween reads as the next day (~10h),
+// that this is here to catch.
+export const MAX_PLAUSIBLE_GAP_MINUTES = 180;
+
+// "19:56" -> "7:56 PM" — the 12-hour form staff see in the time inputs.
+export const formatTime12h = (time) => {
+  const [h, m] = time.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${suffix}`;
+};
+
+// 599 -> "9h 59m", 180 -> "3h", 45 -> "45m".
+export const formatDuration = (minutes) => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+};
+
+// The time pairs that look wrong, for a "double-check these" prompt before
+// saving. Only pairs with both times filled in are checked. `wrapsPastMidnight`
+// means the second time is earlier on the clock, so it was read as the next day.
+export const findImplausibleTimeGaps = (data, maxMinutes = MAX_PLAUSIBLE_GAP_MINUTES) => {
+  const pairs = [
+    ["Time Spotted → Time On Site", data.timeSpotted, data.timeOnSite],
+    ["Time On Site → Time Cleared", data.timeOnSite, data.timeCleared],
+  ];
+  return pairs.flatMap(([label, from, to]) => {
+    const minutes = minutesBetween(from, to);
+    if (minutes === null || minutes <= maxMinutes) return [];
+    return [{ label, from, to, minutes, wrapsPastMidnight: to < from }];
+  });
+};

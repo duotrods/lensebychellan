@@ -25,3 +25,12 @@ export const isPureIncident = (formData) =>
 // Everything else about a drive off is still recorded and counted as normal.
 export const isDriveOff = (record) =>
   record?.incidentType === "Drive Off" || record?.fault === "Drive Off";
+
+// An incident with no response times worth measuring: a drive off (above), or
+// a Third Party Recovery — the vehicle is recovered by someone else, so our
+// own time on site / time to clear says nothing about our response. The form
+// makes Time On Site / Time Cleared optional for these (Time Spotted is still
+// required), and the Time to Site / Time to Recover metrics skip them. Every
+// other count and chart treats them as ordinary incidents.
+export const isUntimedIncident = (record) =>
+  isDriveOff(record) || record?.incidentType === "Third Party Recovery";

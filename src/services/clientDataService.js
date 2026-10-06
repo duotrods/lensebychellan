@@ -19,7 +19,7 @@ import { db } from "../config/firebase";
 import { AppError } from "../utils/errorHandling";
 import { CAMERA_OPTIONS_BY_SCHEME, THIRD_PARTY_SCHEMES } from "../utils/schemes";
 import { isVideoFile } from "../utils/fileType";
-import { isDriveOff } from "../utils/incidentStats";
+import { isUntimedIncident } from "../utils/incidentStats";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -1338,12 +1338,12 @@ class ClientDataService {
       // but are excluded from every breakdown stat below (incidentsByType,
       // faultTypes, etc.) so they don't skew the per-type/fault charts.
       const incidents = allIncidents.filter((i) => !i.standDown);
-      // Drive offs are recorded and counted like any other incident, but the
-      // vehicle is away before there's anything to attend or clear, so they
-      // have no meaningful response times. Excluded from the two timing stats
-      // only — including older reports saved back when the form still
-      // collected Time On Site / Time Cleared for them.
-      const timedIncidents = incidents.filter((i) => !isDriveOff(i));
+      // Drive offs and Third Party Recoveries are recorded and counted like
+      // any other incident, but have no meaningful response times of ours
+      // (the vehicle is away, or someone else recovers it). Excluded from the
+      // two timing stats only — including older reports saved with Time On
+      // Site / Time Cleared filled in.
+      const timedIncidents = incidents.filter((i) => !isUntimedIncident(i));
       console.log(
         `Found ${incidents.length} incidents for scheme ${schemeId} in date range`,
       );
