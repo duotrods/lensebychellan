@@ -18,6 +18,7 @@ import {
   faChartPie,
   faFolderOpen,
   faCalendarDays,
+  faVideoSlash,
 } from "@fortawesome/free-solid-svg-icons";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -72,6 +73,11 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Staff Reports",
       path: "/dashboard/admin/staff-reports",
       icon: faFileLines,
+    },
+    {
+      name: "CCTV Faults",
+      path: "/dashboard/admin/cctv-faults",
+      icon: faVideoSlash,
     },
     {
       name: "Documents",

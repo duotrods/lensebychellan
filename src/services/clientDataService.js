@@ -607,6 +607,19 @@ class ClientDataService {
     }
   }
 
+  // Faults (live + completed) for one scheme, newest first — input to the 24h uptime report.
+  // Same query shape as computeA66UptimeReport in functions/index.js.
+  async getCCTVFaultsForUptime(schemeId) {
+    const q = query(
+      collection(db, "cctvFaultsReports"),
+      where("schemeIds", "array-contains", schemeId),
+      orderBy("createdAt", "desc"),
+      limit(1000),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+
   // Get a single CCTV fault by ID (1 read)
   async getCCTVFaultById(faultId) {
     try {
