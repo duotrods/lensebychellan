@@ -14,8 +14,6 @@ import {
   faAnglesLeft,
   faAnglesRight,
   faBars,
-  faBuilding,
-  faChartPie,
   faFolderOpen,
   faCalendarDays,
   faVideoSlash,
@@ -70,13 +68,13 @@ const AdminSidebarLayout = ({ children }) => {
       icon: faCalendarDays,
     },
     {
-      name: "Staff Reports",
+      name: "Reports",
       path: "/dashboard/admin/staff-reports",
       icon: faFileLines,
     },
     {
-      name: "CCTV Faults",
-      path: "/dashboard/admin/cctv-faults",
+      name: "CCTV Uptime",
+      path: "/dashboard/admin/cctv-uptime",
       icon: faVideoSlash,
     },
     {
@@ -85,19 +83,9 @@ const AdminSidebarLayout = ({ children }) => {
       icon: faFolderOpen,
     },
     {
-      name: "Client Charts",
+      name: "Charts",
       path: "/dashboard/admin/client-charts",
       icon: faChartBar,
-    },
-    {
-      name: "Third Party Reports",
-      path: "/dashboard/admin/thirdparty-reports",
-      icon: faBuilding,
-    },
-    {
-      name: "Third Party Charts",
-      path: "/dashboard/admin/thirdparty-charts",
-      icon: faChartPie,
     },
   ];
 

@@ -23,14 +23,19 @@ const safe = (s, keepExt = false) => {
   return stem.slice(0, MAX_PART - ext.length) + ext;
 };
 
-/** Keep uploads that match the optional scheme (schemeIds array, legacy schemeId) and aren't deleted. */
-export const filterUploadsByScheme = (uploads, schemeId) =>
-  uploads.filter((u) => {
+/**
+ * Keep uploads that match the optional scheme (a single id, or an array of ids
+ * for a scope — schemeIds array, legacy schemeId) and aren't deleted.
+ */
+export const filterUploadsByScheme = (uploads, schemeId) => {
+  const wanted = schemeId ? [].concat(schemeId) : null;
+  return uploads.filter((u) => {
     if (u.deleted === true) return false;
-    if (!schemeId) return true;
+    if (!wanted) return true;
     const ids = Array.isArray(u.schemeIds) ? u.schemeIds : u.schemeId ? [u.schemeId] : [];
-    return ids.includes(schemeId);
+    return ids.some((id) => wanted.includes(id));
   });
+};
 
 /**
  * Flatten uploads into one entry per video file with a unique path inside the

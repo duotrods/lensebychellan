@@ -10,6 +10,7 @@ import {
   faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
+import AdminTabBar from "../../components/admin/AdminTabBar";
 import RotaGrid from "../../components/rota/RotaGrid";
 import ShiftModal from "../../components/rota/ShiftModal";
 import HoursPayTally from "../../components/rota/HoursPayTally";
@@ -226,36 +227,21 @@ const AdminRotaPage = () => {
 
   return (
     <AdminSidebarLayout>
-      <div className="border-b border-gray-200 bg-white px-6 pt-4">
-        <nav className="flex gap-1">
-          {TABS.map(({ key, label, icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${
-                activeTab === key
-                  ? "border-teal-500 text-teal-600 bg-teal-50"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <FontAwesomeIcon icon={icon} className="w-4 h-4" />
-              {label}
-              {key === "rota" && pendingHolidays.length > 0 && (
-                <span className="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[11px] font-bold">
-                  {pendingHolidays.length}
-                </span>
-              )}
-              {key === "team" && staffDueForReset.length > 0 && (
-                <span className="ml-1 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-[11px] font-bold">
-                  {staffDueForReset.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <AdminTabBar
+        tabs={TABS.map((t) => ({
+          ...t,
+          badge:
+            t.key === "rota"
+              ? { count: pendingHolidays.length, color: "red" }
+              : t.key === "team"
+                ? { count: staffDueForReset.length, color: "amber" }
+                : null,
+        }))}
+        activeKey={activeTab}
+        onChange={setActiveTab}
+      />
 
-      <div className="p-6">
+      <div>
         {staffDueForReset.length > 0 && activeTab !== "team" && (
           <button
             type="button"

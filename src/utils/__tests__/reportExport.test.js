@@ -153,3 +153,18 @@ describe("exportFileName", () => {
     expect(exportFileName("1 Sep – 28 Sep", NOW)).toMatch(/^staff-reports_range_/);
   });
 });
+
+describe("third party exports", () => {
+  it("names the file with a custom prefix", () => {
+    expect(exportFileName("All time", new Date(), "third-party-reports")).toMatch(
+      /^third-party-reports_all-time_/,
+    );
+  });
+
+  it("includes third-party CCTV check sections stored under tp_ keys", () => {
+    const sheet = buildTypeSheet("cctvCheck", [
+      { id: "1", "tp_A66-WJ_cameras": ["CAM 3"], "tp_A66-WJ_comments": "lens dirty" },
+    ]);
+    expect(sheet.rowCount).toBe(1);
+  });
+});

@@ -299,10 +299,10 @@ const AdminDocumentsPage = () => {
 
   return (
     <AdminSidebarLayout>
-      <div className="max-w-[1600px] mx-auto px-4">
+      <div>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Documents</h1>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">Documents</h2>
           <p className="text-gray-600">
             All documents across every scheme. Download files, preview live
             links, or remove documents.

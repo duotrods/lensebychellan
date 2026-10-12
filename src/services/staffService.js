@@ -2185,11 +2185,15 @@ class StaffService {
    * optional createdAt range (null dates = all time). CCTV checks also match
    * legacy "all-schemes" docs so a scheme filter doesn't drop clean checks.
    */
-  exportConstraints(collectionName, { schemeId = null, startDate = null, endDate = null } = {}) {
+  exportConstraints(collectionName, { schemeId = null, schemeIds = null, startDate = null, endDate = null } = {}) {
     const constraints = [];
     if (schemeId) {
       const ids = collectionName === "cctvCheckForms" ? [schemeId, "all-schemes"] : [schemeId];
       constraints.push(where("schemeIds", "array-contains-any", ids));
+    } else if (schemeIds?.length) {
+      // Scope (e.g. every third-party scheme). No legacy "all-schemes" here —
+      // those clean checks are internal.
+      constraints.push(where("schemeIds", "array-contains-any", schemeIds));
     }
     if (startDate) constraints.push(where("createdAt", ">=", Timestamp.fromDate(startDate)));
     if (endDate) constraints.push(where("createdAt", "<=", Timestamp.fromDate(endDate)));

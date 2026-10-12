@@ -13,7 +13,15 @@ import {
 // Admin-only: exports every selected report type in a date range to a single
 // .xlsx (one sheet per type). Two steps — a cheap count preview first, so the
 // admin sees how many documents (= Firestore reads) the download will cost.
-const ExportReportsModal = ({ onClose, schemes, defaultScheme = "all" }) => {
+// `schemeScope` limits "All schemes" to a set of scheme ids (third-party page).
+const ExportReportsModal = ({
+  onClose,
+  schemes,
+  defaultScheme = "all",
+  schemeScope = null,
+  filenamePrefix,
+  description = "One file with a sheet per report type. Demo scheme reports are excluded.",
+}) => {
   const [preset, setPreset] = useState("thisMonth");
   const [custom, setCustom] = useState({ from: "", to: "" });
   const [scheme, setScheme] = useState(defaultScheme);
@@ -26,6 +34,7 @@ const ExportReportsModal = ({ onClose, schemes, defaultScheme = "all" }) => {
   const total = counts ? selected.reduce((sum, t) => sum + (counts[t.key] ?? 0), 0) : 0;
   const queryOptions = () => ({
     schemeId: scheme !== "all" ? scheme : null,
+    schemeIds: scheme === "all" ? schemeScope : null,
     startDate: range.startDate,
     endDate: range.endDate,
   });
@@ -67,13 +76,13 @@ const ExportReportsModal = ({ onClose, schemes, defaultScheme = "all" }) => {
         selected.map((t, i) => [t.key, excludeDemoScheme(results[i])]),
       );
       const schemeLabel =
-        scheme === "all" ? "All schemes" : schemes.find((s) => s.id === scheme)?.fullName || scheme;
+        scheme === "all" ? (schemeScope ? "All third party schemes" : "All schemes") : schemes.find((s) => s.id === scheme)?.fullName || scheme;
       const sheets = buildExportWorkbook(reportsByType, {
         rangeLabel: range.label,
         schemeLabel,
         schemeId: options.schemeId,
       });
-      await writeExcelFile(sheets).toFile(exportFileName(range.label));
+      await writeExcelFile(sheets).toFile(exportFileName(range.label, new Date(), filenamePrefix));
       toast.success("Export downloaded");
       onClose();
     } catch (error) {
@@ -89,7 +98,7 @@ const ExportReportsModal = ({ onClose, schemes, defaultScheme = "all" }) => {
       <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-xl font-bold text-gray-800 mb-1">Export to Excel</h3>
         <p className="text-sm text-gray-600 mb-5">
-          One file with a sheet per report type. Demo scheme reports are excluded.
+          {description}
         </p>
 
         <label className="block text-sm font-medium text-gray-700 mb-1">Date range</label>

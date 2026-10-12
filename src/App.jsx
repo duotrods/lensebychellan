@@ -42,7 +42,7 @@
   const DailyOccurrenceView = lazy(() => import("./pages/staff/DailyOccurrenceView"));
   const CCTVFaultsView = lazy(() => import("./pages/staff/CCTVFaultsView"));
   const OTPManagementPage = lazy(() => import("./pages/admin/OTPManagementPage"));
-  const AdminCCTVFaultsPage = lazy(() => import("./pages/admin/AdminCCTVFaultsPage"));
+  const CCTVUptime = lazy(() => import("./pages/admin/CCTVUptime"));
   const BackfillVehicleStatsPage = lazy(() => import("./pages/admin/BackfillVehicleStatsPage"));
   const BackfillHasVideoPage = lazy(() => import("./pages/admin/BackfillHasVideoPage"));
   const BackfillCollectionStatsPage = lazy(() => import("./pages/admin/BackfillCollectionStatsPage"));
@@ -50,11 +50,9 @@
   const ReferenceIdManagerPage = lazy(() => import("./pages/admin/ReferenceIdManagerPage"));
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
   const AdminRotaPage = lazy(() => import("./pages/admin/AdminRotaPage"));
-  const StaffReportsPage = lazy(() => import("./pages/admin/StaffReportsPage"));
+  const AdminReportsPage = lazy(() => import("./pages/admin/AdminReportsPage"));
   const AdminDocumentsPage = lazy(() => import("./pages/admin/AdminDocumentsPage"));
-  const ThirdPartyReportsPage = lazy(() => import("./pages/admin/ThirdPartyReportsPage"));
-  const ThirdPartyChartsPage = lazy(() => import("./pages/admin/ThirdPartyChartsPage"));
-  const ClientChartsPage = lazy(() => import("./pages/admin/ClientChartsPage"));
+  const AdminChartsPage = lazy(() => import("./pages/admin/AdminChartsPage"));
   const IncidentReportDetailPage = lazy(() => import("./pages/admin/IncidentReportDetailPage"));
   const CCTVCheckDetailPage = lazy(() => import("./pages/admin/CCTVCheckDetailPage"));
   const DailyLogsDetailPage = lazy(() => import("./pages/admin/DailyLogsDetailPage"));
@@ -132,10 +130,10 @@
                 />
 
                 <Route
-                  path="/dashboard/admin/cctv-faults"
+                  path="/dashboard/admin/cctv-uptime"
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <AdminCCTVFaultsPage />
+                      <CCTVUptime />
                     </ProtectedRoute>
                   }
                 />
@@ -222,7 +220,7 @@
                   path="/dashboard/admin/staff-reports"
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <StaffReportsPage />
+                      <AdminReportsPage />
                     </ProtectedRoute>
                   }
                 />
@@ -240,27 +238,19 @@
                   path="/dashboard/admin/client-charts"
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <ClientChartsPage />
+                      <AdminChartsPage />
                     </ProtectedRoute>
                   }
                 />
 
                 <Route
                   path="/dashboard/admin/thirdparty-reports"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <ThirdPartyReportsPage />
-                    </ProtectedRoute>
-                  }
+                  element={<Navigate to="/dashboard/admin/staff-reports?tab=thirdparty" replace />}
                 />
 
                 <Route
                   path="/dashboard/admin/thirdparty-charts"
-                  element={
-                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
-                      <ThirdPartyChartsPage />
-                    </ProtectedRoute>
-                  }
+                  element={<Navigate to="/dashboard/admin/client-charts?tab=thirdparty" replace />}
                 />
 
                 {/* Admin Staff Report Detail Pages */}

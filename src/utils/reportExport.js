@@ -3,6 +3,8 @@
 // imports so it can be unit-tested in isolation — the service fetches, this
 // only shapes.
 
+import { THIRD_PARTY_SCHEMES } from "./schemes";
+
 // Firestore collection for each exportable report type, in sheet order.
 export const EXPORT_TYPES = [
   { key: "incident", label: "Incidents", collection: "incidentReports" },
@@ -227,6 +229,17 @@ const CCTV_SECTIONS = [
   { schemeId: "M48", name: "M48 - Seven Bridge", cameras: "m48Cameras", comments: "m48Comments", blackspot: "m48Blackspot", tss: "m48TssInformed" },
 ];
 
+// Third-party sections are stored under dynamic tp_<schemeId>_* keys and carry
+// no blackspot / TSS flags.
+const TP_CCTV_SECTIONS = THIRD_PARTY_SCHEMES.map((s) => ({
+  schemeId: s.id,
+  name: s.shortName || s.fullName,
+  cameras: `tp_${s.id}_cameras`,
+  comments: `tp_${s.id}_comments`,
+  blackspot: null,
+  tss: null,
+}));
+
 // `r` is `{ report, section }`; section is null for a certified whole-check.
 const CCTV_CHECK_COLUMNS = [
   ["Reference ID", 16, ({ report }) => report.referenceId || report.id],
@@ -246,8 +259,8 @@ const CCTV_CHECK_COLUMNS = [
     const cams = (report[section.cameras] || []).filter((c) => c !== "NONE");
     return cams;
   }],
-  ["Blackspot", 10, ({ report, section }) => (section ? yesNo(isBlackspot(report[section.blackspot])) : null)],
-  ["TSS Informed", 10, ({ report, section }) => (section ? yesNo(report[section.tss]) : null)],
+  ["Blackspot", 10, ({ report, section }) => (section?.blackspot ? yesNo(isBlackspot(report[section.blackspot])) : null)],
+  ["TSS Informed", 10, ({ report, section }) => (section?.tss ? yesNo(report[section.tss]) : null)],
   ["Comments", 50, ({ report, section }) =>
     section
       ? report[section.comments]
@@ -296,7 +309,7 @@ function cctvCheckRows(report, schemeId) {
   const hasData = (s) =>
     (Array.isArray(report[s.cameras]) && report[s.cameras].length > 0) ||
     (typeof report[s.comments] === "string" && report[s.comments].trim() !== "");
-  return CCTV_SECTIONS
+  return [...CCTV_SECTIONS, ...TP_CCTV_SECTIONS]
     .filter((s) => (!schemeId || s.schemeId === schemeId) && hasData(s))
     .map((section) => ({ report, section }));
 }
@@ -357,8 +370,8 @@ export function buildExportWorkbook(reportsByType, { rangeLabel, schemeLabel: sc
   ];
 }
 
-export function exportFileName(rangeLabel, now = new Date()) {
+export function exportFileName(rangeLabel, now = new Date(), prefix = "staff-reports") {
   const stamp = now.toISOString().slice(0, 10);
   const range = rangeLabel === "All time" ? "all-time" : "range";
-  return `staff-reports_${range}_${stamp}.xlsx`;
+  return `${prefix}_${range}_${stamp}.xlsx`;
 }

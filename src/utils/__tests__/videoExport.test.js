@@ -10,6 +10,10 @@ describe("videoExport", () => {
     expect(filterUploadsByScheme(list, "M3")).toHaveLength(2);
     expect(filterUploadsByScheme(list, null)).toHaveLength(3);
   });
+  it("accepts an array of scheme ids as a scope", () => {
+    const list = [up({}), up({ schemeId: "A47" }), up({ schemeId: "A66-WJ" })];
+    expect(filterUploadsByScheme(list, ["A66-WJ", "M3"])).toHaveLength(2);
+  });
   it("collects only videos and de-duplicates paths", () => {
     const files = collectVideoFiles([
       up({ files: [vid("a.mp4"), vid("a.mp4"), { fileName: "p.jpg", fileType: "image/jpeg", downloadUrl: "x" }] }),

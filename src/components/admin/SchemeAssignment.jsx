@@ -266,10 +266,10 @@ const SchemeAssignment = () => {
   }).filter((s) => s.clients.length + s.liveOperators.length + s.cctvOperators.length > 0);
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h3 className="text-2xl font-bold text-gray-800">Scheme Assignment</h3>
+          <h2 className="text-2xl font-bold text-gray-800">Scheme Assignment</h2>
           <p className="text-gray-600 mt-1">Manage scheme access for users</p>
         </div>
         <button

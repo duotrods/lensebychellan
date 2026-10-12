@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { staffService } from "../../services/staffService";
-import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import {
   getThirdPartyCompanies,
   getSchemeIdsForCompany,
   getAllThirdPartySchemeIds,
+  THIRD_PARTY_SCHEMES,
 } from "../../utils/schemes";
 import { decorateForm, excludeDemoScheme } from "../../utils/reportMapping";
 import { useLiveReports } from "../../hooks/useLiveReports";
@@ -27,37 +27,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
-
-// Shared card shell + stat card — matches NewClientDashboard's StatCard so
-// every stat card in the app shares one visual language: a tinted icon tile
-// + title, a full-bleed rule, then a big value and caption.
-const CARD_SHELL =
-  "bg-white rounded-[10px] shadow-[0px_1px_4px_0px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-[0px_2px_10px_0px_rgba(0,0,0,0.14)]";
-
-const StatCard = ({ title, value, text, icon, tint, iconColor }) => (
-  <div className={CARD_SHELL}>
-    <div className="flex items-center gap-3 px-[22px] pt-4 pb-[15px]">
-      <div
-        className={`grid place-items-center size-8 rounded-sm shrink-0 ${tint}`}
-      >
-        <FontAwesomeIcon icon={icon} className={`w-5 h-5 ${iconColor}`} />
-      </div>
-      <h5
-        className="font-poppins font-medium! text-base text-[#191d23] leading-none truncate min-w-0"
-        title={title}
-      >
-        {title}
-      </h5>
-    </div>
-    <div className="h-px bg-[#ededed]" />
-    <div className="px-[22px] pt-2.5 pb-4">
-      <p className="font-inter font-medium text-[32px] leading-[1.2] text-black/70">
-        {value}
-      </p>
-      <p className="mt-3.5 text-xs leading-normal text-[#637381]">{text}</p>
-    </div>
-  </div>
-);
+import StatCard from "../../components/admin/ReportStatCard";
+import ExportReportsModal from "../../components/admin/ExportReportsModal";
+import ExportVideosModal from "../../components/admin/ExportVideosModal";
 
 // Module-level variable — survives component unmount/remount, no serialization needed.
 // Only browse-pagination state needs restoring: React Query's own cache already
@@ -74,6 +46,8 @@ const ThirdPartyReportsPage = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [searchPage, setSearchPage] = useState(1);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [videoExportOpen, setVideoExportOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const searchDebounceRef = useRef(null);
@@ -93,6 +67,11 @@ const ThirdPartyReportsPage = () => {
     company && company !== "all"
       ? getSchemeIdsForCompany(company)
       : getAllThirdPartySchemeIds();
+
+  // Export modals: limited to the selected company's schemes (all third-party
+  // schemes when "All Companies"), so internal reports never leak in.
+  const exportScope = getCompanyScope(filterCompany) || [];
+  const exportSchemes = THIRD_PARTY_SCHEMES.filter((sch) => exportScope.includes(sch.id));
 
   // Maps admin display filter values → staffService type keys
   const adminTypeToServiceType = {
@@ -296,7 +275,7 @@ const ThirdPartyReportsPage = () => {
     };
     // Reuse the admin staff-report detail routes; pass `from` so the detail
     // page's back button returns here instead of the Staff Reports page.
-    const opts = { state: { from: '/dashboard/admin/thirdparty-reports' } };
+    const opts = { state: { from: '/dashboard/admin/staff-reports?tab=thirdparty' } };
     if (report.type === "CCTV Check") {
       navigate(`/dashboard/admin/staff-reports/cctv/${report.id}`, opts);
     } else if (report.type === "Incident Report") {
@@ -515,12 +494,30 @@ const ThirdPartyReportsPage = () => {
   };
 
   return (
-    <AdminSidebarLayout>
-      <div className="max-w-7xl mx-auto">
+    <>
+      <div>
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Third Party Reports</h1>
-          <p className="text-gray-600">View and manage all submitted forms from third party staff</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Third Party Reports</h2>
+            <p className="text-gray-600">View and manage all submitted forms from third party staff</p>
+          </div>
+          <div className="flex flex-wrap gap-3 self-start sm:self-auto">
+            <button
+              onClick={() => setExportModalOpen(true)}
+              className="btn bg-teal-500 hover:bg-teal-600 text-white border-none"
+            >
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+              Export to Excel
+            </button>
+            <button
+              onClick={() => setVideoExportOpen(true)}
+              className="btn btn-outline border-teal-500 text-teal-600 hover:bg-teal-500 hover:text-white"
+            >
+              <FontAwesomeIcon icon={faDownload} className="w-4 h-4" />
+              Export Videos
+            </button>
+          </div>
         </div>
 
         {/* Statistics Cards */}
@@ -794,6 +791,24 @@ const ThirdPartyReportsPage = () => {
       </div>
 
       {/* Delete Confirmation Modal */}
+      {exportModalOpen && (
+        <ExportReportsModal
+          onClose={() => setExportModalOpen(false)}
+          schemes={exportSchemes}
+          schemeScope={exportScope}
+          filenamePrefix="third-party-reports"
+          description="One file with a sheet per report type, third party schemes only. Demo scheme reports are excluded."
+        />
+      )}
+
+      {videoExportOpen && (
+        <ExportVideosModal
+          onClose={() => setVideoExportOpen(false)}
+          schemes={exportSchemes}
+          schemeScope={exportScope}
+        />
+      )}
+
       {deleteModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
@@ -835,7 +850,7 @@ const ThirdPartyReportsPage = () => {
           </div>
         </div>
       )}
-    </AdminSidebarLayout>
+    </>
   );
 };
 

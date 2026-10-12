@@ -13,7 +13,8 @@ import {
 // Admin-only: downloads CCTV upload videos in a date range as one ZIP, streamed
 // from R2 straight to disk (never buffered in memory). Two steps — a size check
 // first, then the download, because the save picker must open on the click itself.
-const ExportVideosModal = ({ onClose, schemes, defaultScheme = "all" }) => {
+// `schemeScope` limits "All schemes" to a set of scheme ids (third-party page).
+const ExportVideosModal = ({ onClose, schemes, defaultScheme = "all", schemeScope = null }) => {
   const [preset, setPreset] = useState("thisMonth");
   const [custom, setCustom] = useState({ from: "", to: "" });
   const [scheme, setScheme] = useState(defaultScheme);
@@ -38,7 +39,7 @@ const ExportVideosModal = ({ onClose, schemes, defaultScheme = "all" }) => {
         endDate: range.endDate,
       });
       const files = collectVideoFiles(
-        excludeDemoScheme(filterUploadsByScheme(uploads, scheme !== "all" ? scheme : null)),
+        excludeDemoScheme(filterUploadsByScheme(uploads, scheme !== "all" ? scheme : schemeScope)),
       );
       setVideos({ files, bytes: totalBytes(files) });
     } catch (error) {

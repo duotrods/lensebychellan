@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { clientDataService } from "../../services/clientDataService";
-import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import { SCHEMES, extractSchemeId } from "../../utils/schemes";
 import { transformDataForChart } from "../../utils/chartData";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -216,11 +215,11 @@ const ClientChartsPage = () => {
   const timeSeriesData = chartTimeSeries;
 
   return (
-    <AdminSidebarLayout>
-      <div className="max-w-7xl mx-auto">
+    <>
+      <div>
         {/* Header */}
         <div className="mb-8">
-          <h3 className="text-3xl font-bold text-gray-800 mb-2">Client Charts & Analytics</h3>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">Client Charts & Analytics</h2>
           <p className="text-gray-600">Visual analytics of all reports and submissions per scheme</p>
         </div>
 
@@ -521,7 +520,7 @@ const ClientChartsPage = () => {
           </>
         )}
       </div>
-    </AdminSidebarLayout>
+    </>
   );
 };
 
