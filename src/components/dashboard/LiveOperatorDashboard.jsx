@@ -1,16 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveOperatorIncidents, usePaginatedCompletedIncidentsForOperator } from '../../hooks/useLiveOperatorIncidents';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faDownload, faTowerBroadcast, faCircleCheck, faChevronLeft, faChevronRight, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
+import { useAuth } from '../../hooks/useAuth';
+import { getViewerSchemeScope } from '../../utils/schemes';
 
 const LiveOperatorDashboard = () => {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+
+  // Internal operators only see internal schemes; third-party operators only their company's
+  const schemeScope = useMemo(() => getViewerSchemeScope(userProfile), [userProfile]);
 
   // Real-time subscription for LIVE incidents (instant updates, cost-effective)
-  const { liveIncidents, loading: liveLoading } = useLiveOperatorIncidents();
+  const { liveIncidents, loading: liveLoading } = useLiveOperatorIncidents(schemeScope);
 
   // Server-side paginated completed incidents (only reads 10 docs per page!)
   const {
@@ -23,7 +29,7 @@ const LiveOperatorDashboard = () => {
     goToPrevPage,
     refreshCompleted,
     pageSize,
-  } = usePaginatedCompletedIncidentsForOperator(6);
+  } = usePaginatedCompletedIncidentsForOperator(6, schemeScope);
 
   // When a live incident gets completed, liveIncidents.length decreases.
   // This triggers a refresh of the completed list so it shows up immediately.

@@ -601,18 +601,27 @@ class StaffService {
   // REAL-TIME SUBSCRIPTIONS (Cost-optimized)
   // ============================================
 
+  // Restricts an incidentReports query to the given schemes (empty/null = no restriction).
+  _schemeScopeConstraints(schemeScope) {
+    return schemeScope?.length
+      ? [where("schemeIds", "array-contains-any", schemeScope)]
+      : [];
+  }
+
   /**
    * Subscribe to real-time live incidents for Live Operator Dashboard
    * Uses onSnapshot for instant updates - only charges when data changes
    * @param {function} callback - Called with array of live incidents
    * @param {function} onError - Called on error
+   * @param {string[]|null} schemeScope - Only include incidents on these schemes (omit for all)
    * @returns {function} Unsubscribe function
    */
-  subscribeLiveIncidents(callback, onError) {
+  subscribeLiveIncidents(callback, onError, schemeScope = null) {
     const reportsRef = collection(db, "incidentReports");
     const q = query(
       reportsRef,
       where("status", "==", "live"),
+      ...this._schemeScopeConstraints(schemeScope),
       orderBy("createdAt", "desc"),
       limit(50), // Reasonable limit for live incidents
     );
@@ -634,10 +643,14 @@ class StaffService {
    * Get count of completed incidents (efficient server-side count)
    * Uses getCountFromServer - only 1 read regardless of document count
    */
-  async getCompletedIncidentsCount() {
+  async getCompletedIncidentsCount(schemeScope = null) {
     try {
       const reportsRef = collection(db, "incidentReports");
-      const q = query(reportsRef, where("status", "==", "completed"));
+      const q = query(
+        reportsRef,
+        where("status", "==", "completed"),
+        ...this._schemeScopeConstraints(schemeScope),
+      );
       const snapshot = await getCountFromServer(q);
       return snapshot.data().count;
     } catch (error) {
@@ -653,27 +666,21 @@ class StaffService {
    * @param {DocumentSnapshot|null} lastDoc - Last document from previous page (cursor)
    * @returns {Promise<{incidents: Array, lastDoc: DocumentSnapshot, hasMore: boolean}>}
    */
-  async getCompletedIncidentsPaginated(pageSize = 10, lastDoc = null) {
+  async getCompletedIncidentsPaginated(
+    pageSize = 10,
+    lastDoc = null,
+    schemeScope = null,
+  ) {
     try {
       const reportsRef = collection(db, "incidentReports");
-      let q;
-
-      if (lastDoc) {
-        q = query(
-          reportsRef,
-          where("status", "==", "completed"),
-          orderBy("createdAt", "desc"),
-          startAfter(lastDoc),
-          limit(pageSize),
-        );
-      } else {
-        q = query(
-          reportsRef,
-          where("status", "==", "completed"),
-          orderBy("createdAt", "desc"),
-          limit(pageSize),
-        );
-      }
+      const q = query(
+        reportsRef,
+        where("status", "==", "completed"),
+        ...this._schemeScopeConstraints(schemeScope),
+        orderBy("createdAt", "desc"),
+        ...(lastDoc ? [startAfter(lastDoc)] : []),
+        limit(pageSize),
+      );
 
       const snapshot = await getDocs(q);
       const incidents = snapshot.docs.map((doc) => ({

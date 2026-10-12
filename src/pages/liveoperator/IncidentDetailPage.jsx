@@ -6,11 +6,14 @@ import { faArrowLeft, faDownload } from "@fortawesome/free-solid-svg-icons";
 import { staffService } from '../../services/staffService';
 import LiveOperatorSidebarLayout from '../../components/layout/LiveOperatorSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
+import { useAuth } from '../../hooks/useAuth';
+import { getViewerSchemeScope } from '../../utils/schemes';
 import chellanlogo from "../../assets/chellanpng.png";
 
 const IncidentDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
 
@@ -24,7 +27,14 @@ const IncidentDetailPage = () => {
       const reports = await staffService.getIncidentReports(null);
       const foundReport = reports.find(r => r.id === id);
 
-      if (foundReport) {
+      // Operators may only open incidents on their own schemes (internal vs third party)
+      const scope = getViewerSchemeScope(userProfile);
+      const reportSchemeIds = foundReport?.schemeIds?.length
+        ? foundReport.schemeIds
+        : [foundReport?.schemeId];
+      const inScope = reportSchemeIds.some((sid) => scope.includes(sid));
+
+      if (foundReport && inScope) {
         setReport(foundReport);
       } else {
         toast.error('Report not found');

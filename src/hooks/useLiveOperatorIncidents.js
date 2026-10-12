@@ -9,10 +9,12 @@ import { staffService } from "../services/staffService";
  * - Polling every 30s: ~120 reads/hour per user
  * - onSnapshot: ~5-10 reads/hour (only when data changes)
  */
-export function useLiveOperatorIncidents() {
+export function useLiveOperatorIncidents(schemeScope = null) {
   const [liveIncidents, setLiveIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const scopeKey = schemeScope ? schemeScope.join(",") : "";
 
   useEffect(() => {
     setLoading(true);
@@ -28,14 +30,15 @@ export function useLiveOperatorIncidents() {
         console.error("Error in live incidents subscription:", err);
         setError(err);
         setLoading(false);
-      }
+      },
+      scopeKey ? scopeKey.split(",") : null
     );
 
     // Cleanup: unsubscribe when component unmounts
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [scopeKey]);
 
   return { liveIncidents, loading, error };
 }
@@ -48,7 +51,7 @@ export function useLiveOperatorIncidents() {
  * - Old way: 1000 reads every time
  * - New way: 10 reads per page (only when user navigates)
  */
-export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
+export function usePaginatedCompletedIncidentsForOperator(pageSize = 10, schemeScope = null) {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,13 +65,15 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
   const pageCacheRef = useRef({});
 
   const totalPages = Math.ceil(totalCount / pageSize);
+  const scopeKey = schemeScope ? schemeScope.join(",") : "";
+  const scope = scopeKey ? scopeKey.split(",") : null;
 
   // Fetch total count once
   useEffect(() => {
-    staffService.getCompletedIncidentsCount()
+    staffService.getCompletedIncidentsCount(scope)
       .then(setTotalCount)
       .catch(console.error);
-  }, []);
+  }, [scopeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch page data (checks cache first, only hits Firestore on cache miss)
   const fetchPage = useCallback(async (page) => {
@@ -91,7 +96,8 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
 
       const result = await staffService.getCompletedIncidentsPaginated(
         pageSize,
-        lastDoc
+        lastDoc,
+        scope
       );
 
       setIncidents(result.incidents);
@@ -117,12 +123,15 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
     } finally {
       setLoading(false);
     }
-  }, [pageSize, cursors]);
+  }, [pageSize, cursors, scopeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch first page on mount
+  // Fetch first page on mount (and again if the scope changes)
   useEffect(() => {
+    pageCacheRef.current = {};
+    setCursors([]);
+    setCurrentPage(1);
     fetchPage(1);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scopeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Navigation functions
   const goToNextPage = useCallback(() => {
@@ -154,8 +163,8 @@ export function usePaginatedCompletedIncidentsForOperator(pageSize = 10) {
     setCursors([]);
     pageCacheRef.current = {}; // Clear cache since data changed
     fetchPage(1);
-    staffService.getCompletedIncidentsCount().then(setTotalCount).catch(console.error);
-  }, [fetchPage]);
+    staffService.getCompletedIncidentsCount(scope).then(setTotalCount).catch(console.error);
+  }, [fetchPage, scopeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     incidents,
