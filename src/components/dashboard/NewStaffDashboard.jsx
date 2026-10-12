@@ -606,21 +606,25 @@
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {statCards.map((card, index) => (
-                  // Same card style as the client dashboard's stat cards: solid
-                  // colour header with a white icon + title, then the count.
+                  // Same card style as the client dashboard's stat cards: tinted
+                  // colour header with a coloured icon + dark title, then the count.
                   <div
                     key={index}
                     className="bg-white rounded-[10px] shadow-[0px_1px_4px_0px_rgba(0,0,0,0.12)] transition-shadow hover:shadow-[0px_2px_10px_0px_rgba(0,0,0,0.14)]"
                   >
                     <div
                       className="flex items-center gap-3 px-[22px] pt-4 pb-[15px] rounded-t-[10px]"
-                      style={{ backgroundColor: card.color }}
+                      style={{ backgroundColor: `${card.color}1a` }}
                     >
                       <div className="grid place-items-center size-8 shrink-0">
-                        <FontAwesomeIcon icon={card.icon} className="w-5 h-5 text-white" />
+                        <FontAwesomeIcon
+                          icon={card.icon}
+                          className="w-5 h-5"
+                          style={{ color: card.color }}
+                        />
                       </div>
                       <h5
-                        className="font-poppins font-medium! text-base text-white leading-none truncate min-w-0"
+                        className="font-poppins font-medium! text-base text-[#191d23] leading-none truncate min-w-0"
                         title={card.title}
                       >
                         {card.title}

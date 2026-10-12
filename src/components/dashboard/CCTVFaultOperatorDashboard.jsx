@@ -215,7 +215,7 @@ const LiveCameraFaultsPage = ({
                     .map((id) => {
                       const s =
                         [...SCHEMES, ...THIRD_PARTY_SCHEMES].find((s) => s.id === id);
-                      return s ? s.name : id;
+                      return s ? s.shortName : id;
                     })
                     .join(", ")
                 : "All schemes"}{" "}

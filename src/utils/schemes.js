@@ -45,6 +45,12 @@ export const SCHEMES = [
     shortName: "M48 SB",
     contractor: "Severn Bridge",
   },
+   {
+    id: "A303",
+    fullName: "A303 - Roadside Technologies",
+    shortName: "A303 RT",
+    contractor: "Roadside Technologies",
+  },
   {
     id: "DMO1",
     fullName: "DMO1 Demo Scheme - Demo",
@@ -331,6 +337,9 @@ export const CAMERA_OPTIONS_BY_SCHEME = {
     "CAM 11","CAM 12","CAM 13","CAM 14","CAM 15","CAM 16","CAM 17","CAM 18","CAM 19","CAM 20",
     "CAM 21.1/21.2","CAM 22","CAM 24.1/24.2","CAM 25","CAM 26","CAM 27","CAM 28","CAM 29","CAM 30",
     "CAM 31","CAM 32","CAM 33","CAM 34",
+  ],
+  A303: [
+    "CAM 1","CAM 2","CAM 3","CAM 4","CAM 5"
   ],
   DMO1: [
     "DEMO-CAM-1","DEMO-CAM-2","DEMO-CAM-3","DEMO-CAM-4",

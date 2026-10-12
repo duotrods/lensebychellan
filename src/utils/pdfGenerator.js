@@ -670,6 +670,84 @@ export const generateReportPDF = async (
         yPosition += 3;
       }
 
+
+      // M48 Section - only show if no filter OR filter matches M48
+      if (
+        (!filterSchemeId || filterSchemeId === "M48") &&
+        ((report.m48 && report.m48.length > 0) || (report.m48Comments && report.m48Comments.trim() !== ""))
+      ) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("M48", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.m48 && report.m48.length > 0) {
+          const isNone = report.m48.includes("NONE");
+          if (isNone) {
+            addField(
+              "CCTV Status",
+              "NONE - All cameras working correctly",
+              true,
+            );
+          } else {
+            addField("CCTV Issues Reported", report.m48.join(", "), true);
+          }
+        }
+        {
+          const blackspot = report.m48Blackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
+          addField("TSS Informed", report.m48TssInformed ? "Yes" : "No");
+        }
+        if (report.m48Comments && report.m48Comments.trim() !== "") {
+          addField("Comments", report.m48Comments);
+        }
+        yPosition += 3;
+      }
+
+
+      //A303 Section - only show if no filter OR filter matches A303
+      if (
+        (!filterSchemeId || filterSchemeId === "A303") &&
+        ((report.a303 && report.a303.length > 0) || (report.a303Comments && report.a303Comments.trim() !== ""))
+      ) {
+        yPosition += 3;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, yPosition - 3, contentWidth, 10, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("A303", margin + 3, yPosition + 3);
+        yPosition += 12;
+
+        if (report.a303 && report.a303.length > 0) {
+          const isNone = report.a303.includes("NONE");
+          if (isNone) {
+            addField(
+              "CCTV Status",
+              "NONE - All cameras working correctly",
+              true,
+            );
+          } else {
+            addField("CCTV Issues Reported", report.a303.join(", "), true);
+          }
+        }
+        {
+          const blackspot = report.a303Blackspot;
+          const blackspotYes = blackspot === true || (Array.isArray(blackspot) && blackspot.length > 0 && blackspot[0] !== "All Working Correctly");
+          addField("Blackspot Cameras", blackspotYes ? "Yes" : "No");
+          addField("TSS Informed", report.a303TssInformed ? "Yes" : "No");
+        }
+        if (report.a303Comments && report.a303Comments.trim() !== "") {
+          addField("Comments", report.a303Comments);
+        }
+        yPosition += 3;
+      }
+
       // Demo Section - only show if explicitly filtered to DMO1 (never in staff full download)
       if (
         filterSchemeId === "DMO1" &&

@@ -359,6 +359,20 @@ const CCTVCheckView = () => {
               form.csiBlackspot,
               form.csiTssInformed,
             )}
+            {renderCameraSection(
+              "A303 - Roadside Technologies",
+              form.a303Cameras,
+              form.a303Comments,
+              form.a303Blackspot,
+              form.a303TssInformed,
+            )}
+            {renderCameraSection(
+              "M48 - Seven Bridge",
+              form.m48Cameras,
+              form.m48Comments,
+              form.m48Blackspot,
+              form.m48TssInformed,
+            )}
           </div>
           )}
 

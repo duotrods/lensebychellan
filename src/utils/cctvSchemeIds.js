@@ -9,6 +9,8 @@ const INTERNAL_SECTIONS = [
   { schemeId: "A452", cameras: "A452", comments: "A452Comments" },
   { schemeId: "Gallows", cameras: "Costain", comments: "CostainComments" },
   { schemeId: "SimisterIsland", cameras: "csi", comments: "csiComments" },
+  { schemeId: "A303", cameras: "a303Cameras", comments: "a303Comments" },
+  { schemeId: "M48", cameras: "m48Cameras", comments: "m48Comments" },
   { schemeId: "DMO1", cameras: "demoCameras", comments: "demoComments" },
 ];
 

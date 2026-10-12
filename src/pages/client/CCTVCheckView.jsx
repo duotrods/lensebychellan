@@ -404,8 +404,29 @@ const CCTVCheckView = () => {
                   form.csiBlackspot,
                   form.csiTssInformed,
                 );
+              } else if (
+                currentSchemeId === "A303" &&
+                form.schemeIds?.includes("A303")
+              ) {
+                return renderCameraSection(
+                  "A303 - Roadside Technologies",
+                  form.a303Cameras,
+                  form.a303Comments,
+                  form.a303Blackspot,
+                  form.a303TssInformed,
+                );
+              } else if (
+                currentSchemeId === "M48" &&
+                form.schemeIds?.includes("M48")
+              ) {
+                return renderCameraSection(
+                  "M48 - Seven Bridge",
+                  form.m48Cameras,
+                  form.m48Comments,
+                  form.m48Blackspot,
+                  form.m48TssInformed,
+                );
               }
-
               return null;
             })()}
           </div>

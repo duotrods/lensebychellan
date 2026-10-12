@@ -223,6 +223,8 @@ const CCTV_SECTIONS = [
   { schemeId: "A452", name: "A452 HS2", cameras: "A452", comments: "A452Comments", blackspot: "A452Blackspot", tss: "A452TssInformed" },
   { schemeId: "Gallows", name: "Costain - GC", cameras: "Costain", comments: "CostainComments", blackspot: "CostainBlackspot", tss: "CostainTssInformed" },
   { schemeId: "SimisterIsland", name: "Simister Island - Costain", cameras: "csi", comments: "csiComments", blackspot: "csiBlackspot", tss: "csiTssInformed" },
+  { schemeId: "A303", name: "A303 - Roadside Technologies", cameras: "a303Cameras", comments: "a303Comments", blackspot: "a303Blackspot", tss: "a303TssInformed" },
+  { schemeId: "M48", name: "M48 - Seven Bridge", cameras: "m48Cameras", comments: "m48Comments", blackspot: "m48Blackspot", tss: "m48TssInformed" },
 ];
 
 // `r` is `{ report, section }`; section is null for a certified whole-check.

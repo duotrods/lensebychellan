@@ -236,6 +236,27 @@ const CCTVCheckDetailPage = () => {
             report.CostainComments
           )}
 
+          {/* A303 Section */}
+          {renderCameraSection(
+            'A303 - Roadside Technologies',
+            report.a303Cameras,
+            report.a303Comments
+          )}
+
+          {/* M48 Section */}
+          {renderCameraSection(
+            'M48 - Seven Bridge',
+            report.m48Cameras,
+            report.m48Comments
+          )}
+
+          {/* Simister Island Section */}
+          {renderCameraSection(
+            'Simister Island - Costain',
+            report.csi,
+            report.csiComments
+          )}
+
           {/* Overall Summary */}
           <div className="mb-8 pb-8 border-b">
             <h4 className="text-lg font-bold text-gray-800 mb-4">Summary</h4>
