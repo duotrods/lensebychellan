@@ -367,7 +367,7 @@ const CCTVCheckView = () => {
               form.a303TssInformed,
             )}
             {renderCameraSection(
-              "M48 - Seven Bridge",
+              "M48 - Severn Bridge",
               form.m48Cameras,
               form.m48Comments,
               form.m48Blackspot,

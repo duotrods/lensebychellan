@@ -31,7 +31,7 @@ import {
 import { SCHEMES, DEMO_SCHEME_ID } from "../../utils/schemes";
 
 // Non-demo schemes for the dropdown — mirrors StaffReportsPage.
-const availableSchemes = SCHEMES.filter((s) => !s.isDemo);
+const getAvailableSchemes = () => SCHEMES.filter((s) => !s.isDemo);
 
 const PAGE_SIZE = 10;
 const SEARCH_LIMIT = 50; // bounded search — cost-capped instead of scanning everything
@@ -164,6 +164,7 @@ const DeleteConfirmModal = ({ doc, deleting, onConfirm, onCancel }) => (
 );
 
 const AdminDocumentsPage = () => {
+  const availableSchemes = getAvailableSchemes();
   const queryClient = useQueryClient();
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterScheme, setFilterScheme] = useState("all");

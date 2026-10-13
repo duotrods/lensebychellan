@@ -245,7 +245,7 @@ const CCTVCheckDetailPage = () => {
 
           {/* M48 Section */}
           {renderCameraSection(
-            'M48 - Seven Bridge',
+            'M48 - Severn Bridge',
             report.m48Cameras,
             report.m48Comments
           )}

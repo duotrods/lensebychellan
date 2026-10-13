@@ -48,6 +48,7 @@
   const BackfillCollectionStatsPage = lazy(() => import("./pages/admin/BackfillCollectionStatsPage"));
   const BackfillCctvSchemeIdsPage = lazy(() => import("./pages/admin/BackfillCctvSchemeIdsPage"));
   const ReferenceIdManagerPage = lazy(() => import("./pages/admin/ReferenceIdManagerPage"));
+  const SchemeManagementPage = lazy(() => import("./pages/admin/SchemeManagementPage"));
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
   const AdminRotaPage = lazy(() => import("./pages/admin/AdminRotaPage"));
   const AdminReportsPage = lazy(() => import("./pages/admin/AdminReportsPage"));
@@ -179,6 +180,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <BackfillCctvSchemeIdsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/schemes"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <SchemeManagementPage />
                     </ProtectedRoute>
                   }
                 />

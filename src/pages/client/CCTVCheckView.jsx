@@ -420,7 +420,7 @@ const CCTVCheckView = () => {
                 form.schemeIds?.includes("M48")
               ) {
                 return renderCameraSection(
-                  "M48 - Seven Bridge",
+                  "M48 - Severn Bridge",
                   form.m48Cameras,
                   form.m48Comments,
                   form.m48Blackspot,

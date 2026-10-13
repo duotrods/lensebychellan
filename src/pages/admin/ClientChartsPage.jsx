@@ -40,9 +40,10 @@ const ChartCard = ({ title, children, fullWidth = false, height = 300 }) => (
 
 // The set of active schemes for the dropdown — stable, independent of the
 // selected date range, so changing the range never disturbs the selection.
-const schemes = SCHEMES.map((s) => s.fullName).sort();
+const getSchemeNames = () => SCHEMES.map((s) => s.fullName).sort();
 
 const ClientChartsPage = () => {
+  const schemes = getSchemeNames();
   const [selectedScheme, setSelectedScheme] = useState(schemes[0] ?? "");
   const [isExporting, setIsExporting] = useState(false);
   const datePickerRef = useRef(null);

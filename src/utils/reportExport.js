@@ -226,12 +226,12 @@ const CCTV_SECTIONS = [
   { schemeId: "Gallows", name: "Costain - GC", cameras: "Costain", comments: "CostainComments", blackspot: "CostainBlackspot", tss: "CostainTssInformed" },
   { schemeId: "SimisterIsland", name: "Simister Island - Costain", cameras: "csi", comments: "csiComments", blackspot: "csiBlackspot", tss: "csiTssInformed" },
   { schemeId: "A303", name: "A303 - Roadside Technologies", cameras: "a303Cameras", comments: "a303Comments", blackspot: "a303Blackspot", tss: "a303TssInformed" },
-  { schemeId: "M48", name: "M48 - Seven Bridge", cameras: "m48Cameras", comments: "m48Comments", blackspot: "m48Blackspot", tss: "m48TssInformed" },
+  { schemeId: "M48", name: "M48 - Severn Bridge", cameras: "m48Cameras", comments: "m48Comments", blackspot: "m48Blackspot", tss: "m48TssInformed" },
 ];
 
 // Third-party sections are stored under dynamic tp_<schemeId>_* keys and carry
 // no blackspot / TSS flags.
-const TP_CCTV_SECTIONS = THIRD_PARTY_SCHEMES.map((s) => ({
+const getTPCCTVSections = () => THIRD_PARTY_SCHEMES.map((s) => ({
   schemeId: s.id,
   name: s.shortName || s.fullName,
   cameras: `tp_${s.id}_cameras`,
@@ -309,7 +309,7 @@ function cctvCheckRows(report, schemeId) {
   const hasData = (s) =>
     (Array.isArray(report[s.cameras]) && report[s.cameras].length > 0) ||
     (typeof report[s.comments] === "string" && report[s.comments].trim() !== "");
-  return [...CCTV_SECTIONS, ...TP_CCTV_SECTIONS]
+  return [...CCTV_SECTIONS, ...getTPCCTVSections()]
     .filter((s) => (!schemeId || s.schemeId === schemeId) && hasData(s))
     .map((section) => ({ report, section }));
 }

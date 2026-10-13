@@ -581,6 +581,15 @@ service cloud.firestore {
       allow read, write: if isVerified();
     }
 
+    // Schemes (admin-managed list of schemes). Everyone verified needs to read it;
+    // only admins change it. Schemes are archived (active: false), never deleted,
+    // so old reports can always resolve the scheme name.
+    match /schemes/{schemeId} {
+      allow read: if isVerified();
+      allow create, update: if isVerified() && getUserRole() == 'admin';
+      allow delete: if false;
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

@@ -1,8 +1,10 @@
-import { createContext, useState, useEffect, useRef } from 'react';
+import { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { firestoreService } from '../services/firestoreService';
+import { schemeService } from '../services/schemeService';
+import { setSchemes } from '../utils/schemes';
 
 export const AuthContext = createContext({});
 
@@ -11,7 +13,51 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [schemesVersion, setSchemesVersion] = useState(0);
+  const [schemesLoaded, setSchemesLoaded] = useState(false);
   const profileUnsubRef = useRef(null);
+
+  // Schemes: start from the last list this browser saw, then refresh from Firestore
+  // after login. An empty or failed load keeps the static list from schemes.js.
+  useEffect(() => {
+    const cached = schemeService.readCache();
+    if (cached && setSchemes(cached)) setSchemesVersion((v) => v + 1);
+  }, []);
+
+  // Fetch the scheme list and apply it. Resolves once settled; failures keep the
+  // cached/static list. Also used by the admin page after it edits schemes.
+  const refreshSchemes = useCallback(async () => {
+    try {
+      const docs = await schemeService.listSchemes();
+      schemeService.writeCache(docs);
+      if (setSchemes(docs)) setSchemesVersion((v) => v + 1);
+    } catch {
+      // fall back to cached/static schemes
+    }
+  }, []);
+
+  // Pages wait for the first load so they never render a stale list. If Firestore is
+  // slow or unreachable they render anyway after 3s with the cached/static schemes.
+  useEffect(() => {
+    if (!currentUser) {
+      setSchemesLoaded(true);
+      return undefined;
+    }
+    setSchemesLoaded(false);
+    let cancelled = false;
+    const settle = () => {
+      if (!cancelled) setSchemesLoaded(true);
+    };
+    const timeout = setTimeout(settle, 3000);
+    refreshSchemes().finally(() => {
+      clearTimeout(timeout);
+      settle();
+    });
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [currentUser?.uid, refreshSchemes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -99,6 +145,9 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!currentUser,
     isEmailVerified: currentUser?.emailVerified || false,
     role: userProfile?.role || null,
+    schemesVersion,
+    schemesLoaded,
+    refreshSchemes,
     updateActiveScheme
   };
 

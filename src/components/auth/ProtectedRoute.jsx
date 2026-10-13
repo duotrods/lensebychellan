@@ -5,10 +5,11 @@ import EmailVerification from './EmailVerification';
 import SecurityWarningModal from './SecurityWarningModal';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { currentUser, userProfile, loading, isEmailVerified, role } = useAuth();
+  const { currentUser, userProfile, loading, isEmailVerified, role, schemesLoaded } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  // Wait for the first scheme-list load so pages never render a stale list
+  if (loading || (currentUser && isEmailVerified && !schemesLoaded)) {
     return <LoadingSpinner />;
   }
 

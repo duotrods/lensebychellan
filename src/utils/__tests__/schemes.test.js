@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import {
   extractSchemeId,
   isDemoUser,
@@ -7,6 +7,15 @@ import {
   getSchemesForUser,
   getViewerSchemeScope,
   getViewerReadScope,
+  getSchemeById,
+  getSchemeByFullName,
+  getInternalSchemeIds,
+  setSchemes,
+  resetSchemesToStatic,
+  getStaticSchemeDocs,
+  SCHEMES,
+  THIRD_PARTY_SCHEMES,
+  CAMERA_OPTIONS_BY_SCHEME,
   DEMO_SCHEME_ID,
 } from "../schemes";
 
@@ -86,5 +95,61 @@ describe("getViewerReadScope", () => {
   it("does not add legacy ids for demo or third-party viewers", () => {
     expect(getViewerReadScope({ schemeIds: [DEMO_SCHEME_ID] })).toEqual([DEMO_SCHEME_ID]);
     expect(getViewerReadScope({ role: "thirdpartyliveoperator", company: "WJ" })).not.toContain("Costain");
+  });
+});
+
+describe("scheme registry", () => {
+  afterEach(() => resetSchemesToStatic());
+
+  it("seeded docs reproduce the static lists exactly (parity)", () => {
+    const before = JSON.stringify({ SCHEMES, THIRD_PARTY_SCHEMES, CAMERA_OPTIONS_BY_SCHEME });
+    expect(setSchemes(getStaticSchemeDocs())).toBe(true);
+    expect(JSON.stringify({ SCHEMES, THIRD_PARTY_SCHEMES, CAMERA_OPTIONS_BY_SCHEME })).toBe(before);
+  });
+
+  it("empty or invalid input keeps the static schemes", () => {
+    expect(setSchemes([])).toBe(false);
+    expect(setSchemes(null)).toBe(false);
+    expect(setSchemes([{ id: "X" }])).toBe(false);
+    expect(SCHEMES.map((s) => s.id)).toContain("A417");
+  });
+
+  it("a partial collection never removes static schemes", () => {
+    setSchemes([{ id: "A417", type: "internal", fullName: "A417 Missing Link - Kier", shortName: "A417 ML", contractor: "Kier" }]);
+    expect(SCHEMES.map((s) => s.id)).toEqual(expect.arrayContaining(["A417", "M3", "Gallows"]));
+    expect(getSchemeById("A417").shortName).toBe("A417 ML");
+  });
+
+  it("adds new internal and third-party schemes", () => {
+    setSchemes([
+      { id: "N1", type: "internal", fullName: "N1 New - Acme", shortName: "N1", contractor: "Acme", cameras: ["CAM 1"] },
+      { id: "TP2", type: "thirdparty", fullName: "TP2 - Co", company: "Co", cameras: ["CAM 1"] },
+    ]);
+    expect(getSchemeById("N1").fullName).toBe("N1 New - Acme");
+    expect(CAMERA_OPTIONS_BY_SCHEME.N1).toEqual(["CAM 1"]);
+    expect(getThirdPartySchemeById("TP2")).toMatchObject({ company: "Co" });
+    expect(extractSchemeId("N1 New - Acme")).toBe("N1");
+    expect(getSchemesForUser({ role: "thirdpartystaff", company: "Co" }).map((s) => s.id)).toEqual(["TP2"]);
+  });
+
+  it("archived schemes leave dropdowns but still resolve names and ids", () => {
+    setSchemes([{ id: "M48", type: "internal", fullName: "M48 - Severn Bridge", active: false }]);
+    expect(getSchemesForUser({ role: "staff" }).map((s) => s.id)).not.toContain("M48");
+    expect(getSchemeById("M48").fullName).toBe("M48 - Severn Bridge");
+    expect(extractSchemeId("M48 - Severn Bridge")).toBe("M48");
+    expect(getInternalSchemeIds()).not.toContain("M48");
+  });
+
+  it("archived internal schemes stay in the read scope for internal viewers only", () => {
+    setSchemes([{ id: "M48", type: "internal", fullName: "M48 - Severn Bridge", active: false }]);
+    expect(getViewerReadScope({ role: "liveoperator" })).toContain("M48");
+    expect(getViewerSchemeScope({ role: "liveoperator" })).not.toContain("M48");
+    expect(getViewerReadScope({ schemeIds: [DEMO_SCHEME_ID] })).toEqual([DEMO_SCHEME_ID]);
+  });
+
+  it("legacy ids come from scheme data and survive a seeded reload", () => {
+    setSchemes(getStaticSchemeDocs());
+    expect(getViewerReadScope({ role: "liveoperator" })).toContain("Costain");
+    expect(getSchemeByFullName("Gallows Corner - Costain").id).toBe("Gallows");
   });
 });

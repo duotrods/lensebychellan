@@ -32,6 +32,9 @@ export const SCHEMES = [
     fullName: "Gallows Corner - Costain",
     shortName: "Costain - GC",
     contractor: "Gallows Corner",
+    // Gallows was "Costain" before its rename; older documents still carry these.
+    legacyIds: ["Costain"],
+    legacyNames: ["Costain - Gallows Corner"],
   },
   {
     id: "SimisterIsland",
@@ -142,7 +145,11 @@ export const THIRD_PARTY_SCHEMES = [
 // or null if it is an internal/demo scheme.
 export const getThirdPartySchemeById = (id) => {
   if (!id) return null;
-  return THIRD_PARTY_SCHEMES.find((s) => s.id === id) || null;
+  return (
+    THIRD_PARTY_SCHEMES.find((s) => s.id === id) ||
+    ARCHIVED_THIRD_PARTY_SCHEMES.find((s) => s.id === id) ||
+    null
+  );
 };
 
 // Returns all scheme IDs belonging to a third-party company.
@@ -194,19 +201,26 @@ export const getViewerSchemeScope = (userProfile) => {
   return getInternalSchemeIds();
 };
 
-// Scheme IDs that older documents may still carry after a scheme was renamed.
-// Reads must match them; writes must never use them.
-// Gallows was "Costain" (full name "Costain - Gallows Corner") before its rename.
-export const LEGACY_SCHEME_ID_ALIASES = {
-  Gallows: ["Costain"],
-};
-
-// Like getViewerSchemeScope, but also includes legacy IDs so older documents
-// stay visible. READ-ONLY: do not use for the schemeIds of a document being written.
+// Like getViewerSchemeScope, but also includes IDs that older documents may still
+// carry: a scheme's legacy IDs (e.g. Gallows was "Costain") and archived schemes of
+// the viewer's own kind. READ-ONLY: never use for the schemeIds of a document being written.
 export const getViewerReadScope = (userProfile) => {
   const scope = getViewerSchemeScope(userProfile);
-  const aliases = scope.flatMap((id) => LEGACY_SCHEME_ID_ALIASES[id] || []);
-  return [...scope, ...aliases];
+  const known = [...SCHEMES, ...THIRD_PARTY_SCHEMES, ...ARCHIVED_SCHEMES, ...ARCHIVED_THIRD_PARTY_SCHEMES];
+  const extra = scope.flatMap(
+    (id) => known.find((s) => s.id === id)?.legacyIds || [],
+  );
+
+  // Archived schemes stay readable for the viewers who could see them while active
+  const internalIds = new Set(getInternalSchemeIds());
+  if (scope.length > 0 && scope.every((id) => internalIds.has(id))) {
+    extra.push(...ARCHIVED_SCHEMES.filter((s) => !s.isDemo).flatMap((s) => [s.id, ...(s.legacyIds || [])]));
+  } else if (userProfile?.company) {
+    extra.push(
+      ...ARCHIVED_THIRD_PARTY_SCHEMES.filter((s) => s.company === userProfile.company).map((s) => s.id),
+    );
+  }
+  return [...new Set([...scope, ...extra])];
 };
 
 // Returns the filtered list of SCHEMES a user should see in form dropdowns.
@@ -248,7 +262,10 @@ export const getSchemesForUser = (userProfile) => {
 
 // Helper function to get scheme by ID
 export const getSchemeById = (id) => {
-  return SCHEMES.find((scheme) => scheme.id === id);
+  return (
+    SCHEMES.find((scheme) => scheme.id === id) ||
+    ARCHIVED_SCHEMES.find((scheme) => scheme.id === id)
+  );
 };
 
 // Helper function to get scheme by full name
@@ -256,6 +273,8 @@ export const getSchemeByFullName = (fullName) => {
   return (
     SCHEMES.find((scheme) => scheme.fullName === fullName) ||
     THIRD_PARTY_SCHEMES.find((scheme) => scheme.fullName === fullName) ||
+    ARCHIVED_SCHEMES.find((scheme) => scheme.fullName === fullName) ||
+    ARCHIVED_THIRD_PARTY_SCHEMES.find((scheme) => scheme.fullName === fullName) ||
     null
   );
 };
@@ -360,4 +379,108 @@ export const CAMERA_OPTIONS_BY_SCHEME = {
     "DEMO-CAM-1","DEMO-CAM-2","DEMO-CAM-3","DEMO-CAM-4",
     "DEMO-CAM-5","DEMO-CAM-6","DEMO-CAM-7","DEMO-CAM-8",
   ],
+};
+
+// ---------------------------------------------------------------------------
+// Scheme registry
+// The lists above are the static baseline (and offline fallback). Scheme documents
+// from Firestore are overlaid on top of it by setSchemes(): a doc with the same id
+// replaces the static entry, a new id adds a scheme, and `active: false` archives it.
+// Static schemes can therefore never disappear because the collection is partial or
+// empty. Archived schemes leave the dropdown lists but still resolve in lookups.
+// ---------------------------------------------------------------------------
+export const ARCHIVED_SCHEMES = [];
+export const ARCHIVED_THIRD_PARTY_SCHEMES = [];
+
+const STATIC_CAMERA_OPTIONS = JSON.parse(JSON.stringify(CAMERA_OPTIONS_BY_SCHEME));
+const STATIC_INTERNAL_SCHEMES = SCHEMES.map((s) => ({ ...s }));
+const STATIC_THIRD_PARTY_SCHEMES = THIRD_PARTY_SCHEMES.map((s) => ({ ...s }));
+
+const replaceContents = (target, items) => {
+  target.length = 0;
+  target.push(...items);
+};
+
+// Scheme documents describing today's static schemes, used to seed Firestore.
+export const getStaticSchemeDocs = () => [
+  ...STATIC_INTERNAL_SCHEMES.map((s) => ({
+    id: s.id,
+    type: "internal",
+    fullName: s.fullName,
+    shortName: s.shortName,
+    contractor: s.contractor,
+    isDemo: !!s.isDemo,
+    cameras: STATIC_CAMERA_OPTIONS[s.id] || [],
+    legacyIds: s.legacyIds || [],
+    legacyNames: s.legacyNames || [],
+    active: true,
+  })),
+  ...STATIC_THIRD_PARTY_SCHEMES.map((s) => ({
+    id: s.id,
+    type: "thirdparty",
+    fullName: s.fullName,
+    company: s.company,
+    cameras: s.cameras || [],
+    legacyIds: s.legacyIds || [],
+    legacyNames: s.legacyNames || [],
+    active: true,
+  })),
+];
+
+const toInternalScheme = (d) => ({
+  id: d.id,
+  fullName: d.fullName,
+  shortName: d.shortName || d.fullName,
+  contractor: d.contractor || "",
+  ...(d.isDemo ? { isDemo: true } : {}),
+  ...(d.legacyIds?.length ? { legacyIds: d.legacyIds } : {}),
+  ...(d.legacyNames?.length ? { legacyNames: d.legacyNames } : {}),
+});
+
+const toThirdPartyScheme = (d) => ({
+  id: d.id,
+  fullName: d.fullName,
+  company: d.company || "",
+  cameras: d.cameras || [],
+  ...(d.legacyIds?.length ? { legacyIds: d.legacyIds } : {}),
+  ...(d.legacyNames?.length ? { legacyNames: d.legacyNames } : {}),
+});
+
+// Apply scheme documents on top of the static baseline. Returns true if applied.
+export const setSchemes = (docs) => {
+  if (!Array.isArray(docs)) return false;
+  const valid = docs.filter((d) => d && d.id && d.fullName);
+  if (valid.length === 0) return false;
+
+  const byId = new Map(getStaticSchemeDocs().map((d) => [d.id, d]));
+  valid.forEach((d) => byId.set(d.id, { ...byId.get(d.id), ...d }));
+  const all = [...byId.values()];
+
+  const isActive = (d) => d.active !== false;
+  const internal = all.filter((d) => d.type !== "thirdparty");
+  const thirdParty = all.filter((d) => d.type === "thirdparty");
+
+  replaceContents(SCHEMES, internal.filter(isActive).map(toInternalScheme));
+  replaceContents(ARCHIVED_SCHEMES, internal.filter((d) => !isActive(d)).map(toInternalScheme));
+  replaceContents(THIRD_PARTY_SCHEMES, thirdParty.filter(isActive).map(toThirdPartyScheme));
+  replaceContents(ARCHIVED_THIRD_PARTY_SCHEMES, thirdParty.filter((d) => !isActive(d)).map(toThirdPartyScheme));
+
+  Object.keys(CAMERA_OPTIONS_BY_SCHEME).forEach((k) => delete CAMERA_OPTIONS_BY_SCHEME[k]);
+  Object.assign(CAMERA_OPTIONS_BY_SCHEME, STATIC_CAMERA_OPTIONS);
+  internal.forEach((d) => {
+    if (Array.isArray(d.cameras) && d.cameras.length > 0) {
+      CAMERA_OPTIONS_BY_SCHEME[d.id] = d.cameras;
+    }
+  });
+  return true;
+};
+
+// Back to the static baseline (offline fallback and test isolation).
+export const resetSchemesToStatic = () => {
+  replaceContents(SCHEMES, STATIC_INTERNAL_SCHEMES.map((s) => ({ ...s })));
+  replaceContents(THIRD_PARTY_SCHEMES, STATIC_THIRD_PARTY_SCHEMES.map((s) => ({ ...s })));
+  replaceContents(ARCHIVED_SCHEMES, []);
+  replaceContents(ARCHIVED_THIRD_PARTY_SCHEMES, []);
+  Object.keys(CAMERA_OPTIONS_BY_SCHEME).forEach((k) => delete CAMERA_OPTIONS_BY_SCHEME[k]);
+  Object.assign(CAMERA_OPTIONS_BY_SCHEME, JSON.parse(JSON.stringify(STATIC_CAMERA_OPTIONS)));
 };
