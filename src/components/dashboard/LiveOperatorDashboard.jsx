@@ -6,14 +6,14 @@ import { faEye, faDownload, faTowerBroadcast, faCircleCheck, faChevronLeft, faCh
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { useAuth } from '../../hooks/useAuth';
-import { getViewerSchemeScope } from '../../utils/schemes';
+import { getViewerReadScope } from '../../utils/schemes';
 
 const LiveOperatorDashboard = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
 
   // Internal operators only see internal schemes; third-party operators only their company's
-  const schemeScope = useMemo(() => getViewerSchemeScope(userProfile), [userProfile]);
+  const schemeScope = useMemo(() => getViewerReadScope(userProfile), [userProfile]);
 
   // Real-time subscription for LIVE incidents (instant updates, cost-effective)
   const { liveIncidents, loading: liveLoading } = useLiveOperatorIncidents(schemeScope);

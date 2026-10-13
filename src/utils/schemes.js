@@ -194,6 +194,21 @@ export const getViewerSchemeScope = (userProfile) => {
   return getInternalSchemeIds();
 };
 
+// Scheme IDs that older documents may still carry after a scheme was renamed.
+// Reads must match them; writes must never use them.
+// Gallows was "Costain" (full name "Costain - Gallows Corner") before its rename.
+export const LEGACY_SCHEME_ID_ALIASES = {
+  Gallows: ["Costain"],
+};
+
+// Like getViewerSchemeScope, but also includes legacy IDs so older documents
+// stay visible. READ-ONLY: do not use for the schemeIds of a document being written.
+export const getViewerReadScope = (userProfile) => {
+  const scope = getViewerSchemeScope(userProfile);
+  const aliases = scope.flatMap((id) => LEGACY_SCHEME_ID_ALIASES[id] || []);
+  return [...scope, ...aliases];
+};
+
 // Returns the filtered list of SCHEMES a user should see in form dropdowns.
 // - Demo users: only the demo scheme
 // - TP Staff/LiveOp/CCTVOp: all schemes belonging to their company (via userProfile.company)

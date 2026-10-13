@@ -7,7 +7,7 @@ import { staffService } from '../../services/staffService';
 import LiveOperatorSidebarLayout from '../../components/layout/LiveOperatorSidebarLayout';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { useAuth } from '../../hooks/useAuth';
-import { getViewerSchemeScope } from '../../utils/schemes';
+import { getViewerReadScope } from '../../utils/schemes';
 import chellanlogo from "../../assets/chellanpng.png";
 
 const IncidentDetailPage = () => {
@@ -28,7 +28,7 @@ const IncidentDetailPage = () => {
       const foundReport = reports.find(r => r.id === id);
 
       // Operators may only open incidents on their own schemes (internal vs third party)
-      const scope = getViewerSchemeScope(userProfile);
+      const scope = getViewerReadScope(userProfile);
       const reportSchemeIds = foundReport?.schemeIds?.length
         ? foundReport.schemeIds
         : [foundReport?.schemeId];

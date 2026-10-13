@@ -25,7 +25,7 @@
   import {
     isDemoUser,
     DEMO_SCHEME_ID,
-    getViewerSchemeScope,
+    getViewerReadScope,
   } from "../../utils/schemes";
   import { getStaffBasePath } from "../../utils/constants";
 
@@ -39,7 +39,7 @@
     // Scheme scope for this viewer: TP staff → their company schemes; real staff →
     // all internal (non-demo, non-TP) schemes; demo → demo scheme. This keeps
     // third-party forms out of the real-staff list, counts, and search.
-    const schemeScope = getViewerSchemeScope(userProfile);
+    const schemeScope = getViewerReadScope(userProfile);
     // Check if notice board has been shown in this session
     const [showNoticeBoard, setShowNoticeBoard] = useState(() => {
       const hasSeenNotice = sessionStorage.getItem("hasSeenNoticeBoard");

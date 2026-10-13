@@ -5,6 +5,8 @@ import {
   isDemoScheme,
   getThirdPartySchemeById,
   getSchemesForUser,
+  getViewerSchemeScope,
+  getViewerReadScope,
   DEMO_SCHEME_ID,
 } from "../schemes";
 
@@ -69,5 +71,20 @@ describe("getSchemesForUser", () => {
   it("does not leak schemes a client isn't assigned to", () => {
     const result = getSchemesForUser({ role: "client", schemeIds: ["A417"] });
     expect(result.some((s) => s.id === "M3")).toBe(false);
+  });
+});
+
+describe("getViewerReadScope", () => {
+  it("adds the legacy Costain id for internal viewers, without changing the write scope", () => {
+    const staff = { role: "liveoperator" };
+    expect(getViewerReadScope(staff)).toEqual(
+      expect.arrayContaining(["Gallows", "Costain"]),
+    );
+    expect(getViewerSchemeScope(staff)).not.toContain("Costain");
+  });
+
+  it("does not add legacy ids for demo or third-party viewers", () => {
+    expect(getViewerReadScope({ schemeIds: [DEMO_SCHEME_ID] })).toEqual([DEMO_SCHEME_ID]);
+    expect(getViewerReadScope({ role: "thirdpartyliveoperator", company: "WJ" })).not.toContain("Costain");
   });
 });

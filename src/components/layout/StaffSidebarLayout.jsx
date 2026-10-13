@@ -26,7 +26,7 @@ import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import CCTVCheckReminder from "../staff/CCTVCheckReminder";
 import { useCCTVReminder } from "../../hooks/useCCTVReminder";
-import { isDemoUser, getViewerSchemeScope } from "../../utils/schemes";
+import { isDemoUser, getViewerReadScope } from "../../utils/schemes";
 import { getStaffBasePath } from "../../utils/constants";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
@@ -353,7 +353,7 @@ const StaffSidebarLayout = ({ children, basePath: basePathProp }) => {
   const basePath = basePathProp ?? getStaffBasePath(role);
   // Real staff → internal schemes; TP staff → their company schemes; demo → demo.
   // Scopes the live CCTV faults feed so third-party faults never leak to real staff.
-  const schemeScope = getViewerSchemeScope(userProfile);
+  const schemeScope = getViewerReadScope(userProfile);
   return (
     <StaffCCTVFaultsProvider schemeScope={schemeScope}>
       <StaffSidebarLayoutInner basePath={basePath}>{children}</StaffSidebarLayoutInner>
