@@ -13,6 +13,8 @@ import {
   setSchemes,
   resetSchemesToStatic,
   getStaticSchemeDocs,
+  isStaticSchemeId,
+  schemeSendsReport,
   SCHEMES,
   THIRD_PARTY_SCHEMES,
   CAMERA_OPTIONS_BY_SCHEME,
@@ -102,9 +104,11 @@ describe("scheme registry", () => {
   afterEach(() => resetSchemesToStatic());
 
   it("seeded docs reproduce the static lists exactly (parity)", () => {
-    const before = JSON.stringify({ SCHEMES, THIRD_PARTY_SCHEMES, CAMERA_OPTIONS_BY_SCHEME });
+    const snapshot = () =>
+      JSON.parse(JSON.stringify({ SCHEMES, THIRD_PARTY_SCHEMES, CAMERA_OPTIONS_BY_SCHEME }));
+    const before = snapshot();
     expect(setSchemes(getStaticSchemeDocs())).toBe(true);
-    expect(JSON.stringify({ SCHEMES, THIRD_PARTY_SCHEMES, CAMERA_OPTIONS_BY_SCHEME })).toBe(before);
+    expect(snapshot()).toEqual(before);
   });
 
   it("empty or invalid input keeps the static schemes", () => {
@@ -151,5 +155,37 @@ describe("scheme registry", () => {
     setSchemes(getStaticSchemeDocs());
     expect(getViewerReadScope({ role: "liveoperator" })).toContain("Costain");
     expect(getSchemeByFullName("Gallows Corner - Costain").id).toBe("Gallows");
+  });
+});
+
+describe("schemeSendsReport", () => {
+  afterEach(() => resetSchemesToStatic());
+
+  it("reads the static Avera/Wideload flags by id, name or old name", () => {
+    expect(schemeSendsReport("avera", "Simister Island - Costain")).toBe(true);
+    expect(schemeSendsReport("avera", "x", "A66-WJ")).toBe(true);
+    expect(schemeSendsReport("wideload", "A66 - WJ Scheme 1")).toBe(true);
+    expect(schemeSendsReport("wideload", "Simister Island - Costain")).toBe(false);
+    expect(schemeSendsReport("avera", "M3 Jct 9 - Balfour Beatty")).toBe(false);
+    expect(schemeSendsReport("avera", undefined)).toBe(false);
+  });
+
+  it("follows flags set in the admin page", () => {
+    setSchemes([{ id: "N1", type: "internal", fullName: "N1 New - Acme", reports: { avera: true } }]);
+    expect(schemeSendsReport("avera", "N1 New - Acme")).toBe(true);
+    expect(schemeSendsReport("wideload", "N1 New - Acme")).toBe(false);
+    setSchemes([{ id: "A66-WJ", type: "thirdparty", fullName: "A66 - WJ Scheme 1", company: "WJ", reports: { avera: false, wideload: false } }]);
+    expect(schemeSendsReport("avera", "A66 - WJ Scheme 1")).toBe(false);
+  });
+});
+
+describe("isStaticSchemeId", () => {
+  afterEach(() => resetSchemesToStatic());
+
+  it("is true for schemes defined in code, false for admin-added ones", () => {
+    expect(isStaticSchemeId("A417")).toBe(true);
+    expect(isStaticSchemeId("A66-WJ")).toBe(true);
+    setSchemes([{ id: "N1", type: "internal", fullName: "N1 New - Acme" }]);
+    expect(isStaticSchemeId("N1")).toBe(false);
   });
 });

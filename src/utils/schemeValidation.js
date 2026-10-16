@@ -58,6 +58,18 @@ export const validateNewScheme = (input, existing = []) => {
   return { ok: errors.length === 0, errors, value };
 };
 
+const EMAIL_PATTERN = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+
+// Validate a list of recipient addresses. Returns { ok, errors[], value } where value is
+// the trimmed, de-duplicated list (blank entries dropped).
+export const validateRecipients = (list) => {
+  const value = [...new Set((list || []).map((v) => String(v).trim()).filter(Boolean))];
+  const errors = value
+    .filter((email) => !EMAIL_PATTERN.test(email))
+    .map((email) => `"${email}" is not a valid email address.`);
+  return { ok: errors.length === 0, errors, value };
+};
+
 // Returns { ok, errors[], value } for a patch applied to an existing scheme.
 // Rejects any attempt to change id, fullName or type.
 export const validateSchemeUpdate = (current, patch) => {
@@ -73,5 +85,8 @@ export const validateSchemeUpdate = (current, patch) => {
   if ("cameras" in value) value.cameras = cleanList(value.cameras);
   if ("legacyIds" in value) value.legacyIds = cleanList(value.legacyIds);
   if ("legacyNames" in value) value.legacyNames = cleanList(value.legacyNames);
+  if ("reports" in value) {
+    value.reports = { avera: !!value.reports?.avera, wideload: !!value.reports?.wideload };
+  }
   return { ok: errors.length === 0, errors, value };
 };

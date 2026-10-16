@@ -41,6 +41,7 @@ export const SCHEMES = [
     fullName: "Simister Island - Costain",
     shortName: "Simister Island",
     contractor: "Costain",
+    reports: { avera: true },
   },
   {
     id: "M48",
@@ -75,6 +76,7 @@ export const THIRD_PARTY_SCHEMES = [
     id: "A66-WJ",
     fullName: "A66 - WJ Scheme 1",
     company: "WJ",
+    reports: { avera: true, wideload: true },
     cameras: [
       "All Working Correctly",
       "CAM 1",
@@ -413,6 +415,7 @@ export const getStaticSchemeDocs = () => [
     cameras: STATIC_CAMERA_OPTIONS[s.id] || [],
     legacyIds: s.legacyIds || [],
     legacyNames: s.legacyNames || [],
+    ...(s.reports ? { reports: s.reports } : {}),
     active: true,
   })),
   ...STATIC_THIRD_PARTY_SCHEMES.map((s) => ({
@@ -423,6 +426,7 @@ export const getStaticSchemeDocs = () => [
     cameras: s.cameras || [],
     legacyIds: s.legacyIds || [],
     legacyNames: s.legacyNames || [],
+    ...(s.reports ? { reports: s.reports } : {}),
     active: true,
   })),
 ];
@@ -435,6 +439,7 @@ const toInternalScheme = (d) => ({
   ...(d.isDemo ? { isDemo: true } : {}),
   ...(d.legacyIds?.length ? { legacyIds: d.legacyIds } : {}),
   ...(d.legacyNames?.length ? { legacyNames: d.legacyNames } : {}),
+  ...(d.reports ? { reports: d.reports } : {}),
 });
 
 const toThirdPartyScheme = (d) => ({
@@ -444,6 +449,7 @@ const toThirdPartyScheme = (d) => ({
   cameras: d.cameras || [],
   ...(d.legacyIds?.length ? { legacyIds: d.legacyIds } : {}),
   ...(d.legacyNames?.length ? { legacyNames: d.legacyNames } : {}),
+  ...(d.reports ? { reports: d.reports } : {}),
 });
 
 // Apply scheme documents on top of the static baseline. Returns true if applied.
@@ -474,6 +480,29 @@ export const setSchemes = (docs) => {
   });
   return true;
 };
+
+// Does this scheme send a dedicated "avera" or "wideload" report email? `schemeValue` is
+// whatever a report stores: id, full name, or an older id / name. Mirrors
+// functions/schemeAlerts.js sendsReport, using the registry instead of Firestore.
+export const schemeSendsReport = (kind, schemeValue, schemeId) => {
+  const find = (value) =>
+    value &&
+    [...SCHEMES, ...THIRD_PARTY_SCHEMES, ...ARCHIVED_SCHEMES, ...ARCHIVED_THIRD_PARTY_SCHEMES].find(
+      (s) =>
+        s.id === value ||
+        s.fullName === value ||
+        (s.legacyIds || []).includes(value) ||
+        (s.legacyNames || []).includes(value),
+    );
+  const scheme = find(schemeValue) || find(schemeId);
+  return !!scheme?.reports?.[kind];
+};
+
+// True for schemes that are defined in code. They always come back from the static
+// baseline, so they can be archived but never deleted.
+export const isStaticSchemeId = (id) =>
+  STATIC_INTERNAL_SCHEMES.some((s) => s.id === id) ||
+  STATIC_THIRD_PARTY_SCHEMES.some((s) => s.id === id);
 
 // Back to the static baseline (offline fallback and test isolation).
 export const resetSchemesToStatic = () => {

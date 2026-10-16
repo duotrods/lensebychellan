@@ -19,6 +19,7 @@ const {
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
+const { getRecipients, sendsReport } = require("./schemeAlerts");
 
 admin.initializeApp();
 
@@ -304,15 +305,48 @@ function generateIncidentPDF(report) {
   });
 }
 
+// Scheme documents and their admin-only alert recipients, cached briefly so a burst of
+// reports doesn't re-read them. A failed read falls back to the static emailConfig.js
+// values, so an outage never stops alerts.
+const SCHEME_ALERT_CACHE_MS = 60 * 1000;
+let schemeAlertCache = null;
+
+async function loadSchemeAlertData() {
+  if (schemeAlertCache && Date.now() - schemeAlertCache.at < SCHEME_ALERT_CACHE_MS) {
+    return schemeAlertCache.data;
+  }
+  try {
+    const db = admin.firestore();
+    const [schemeSnap, alertSnap] = await Promise.all([
+      db.collection("schemes").get(),
+      db.collection("schemeAlerts").get(),
+    ]);
+    const data = {
+      schemes: schemeSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      alerts: Object.fromEntries(alertSnap.docs.map((d) => [d.id, d.data()])),
+    };
+    schemeAlertCache = { at: Date.now(), data };
+    return data;
+  } catch (error) {
+    console.error("Could not load scheme alert settings, using static config:", error);
+    return { schemes: [], alerts: {} };
+  }
+}
+
 /**
- * Returns the list of recipients for a given scheme name.
+ * Returns the list of recipients for a report's scheme (recipients saved in the admin
+ * page, else the static emailConfig.js entry, else the default).
  */
-function getRecipientsForScheme(scheme) {
-  return (
-    INCIDENT_ALERT_RECIPIENTS[scheme] ||
-    INCIDENT_ALERT_RECIPIENTS["default"] ||
-    []
-  );
+async function getRecipientsForScheme(scheme, schemeId) {
+  const { schemes, alerts } = await loadSchemeAlertData();
+  return getRecipients({
+    kind: "incident",
+    scheme,
+    schemeId,
+    schemes,
+    alerts,
+    staticRecipients: INCIDENT_ALERT_RECIPIENTS,
+  });
 }
 
 /**
@@ -399,11 +433,26 @@ exports.sendIncidentAlertNotification = onCall(
     const hasAssetDamage = reportData.propertyDamage === true;
     const incursionEscalated = hasIncursion && hasIncursionToGainAdvantage;
     const scheme = reportData.scheme || "Unknown Scheme";
+    const schemeData = await loadSchemeAlertData();
     const averaTrigger =
-      reportData.reportedBy === "Avera" && AVERA_REPORT_SCHEMES.includes(scheme);
+      reportData.reportedBy === "Avera" &&
+      sendsReport({
+        kind: "avera",
+        scheme,
+        schemeId: reportData.schemeId,
+        schemes: schemeData.schemes,
+        staticSchemes: AVERA_REPORT_SCHEMES,
+      });
     const lenseAssistTrigger = reportData.reportedBy === "Lense Assist";
     const wideloadTrigger =
-      reportData.incidentType === "Wideload" && WIDELOAD_REPORT_SCHEMES.includes(scheme);
+      reportData.incidentType === "Wideload" &&
+      sendsReport({
+        kind: "wideload",
+        scheme,
+        schemeId: reportData.schemeId,
+        schemes: schemeData.schemes,
+        staticSchemes: WIDELOAD_REPORT_SCHEMES,
+      });
 
     if (!incursionEscalated && !hasAssetDamage && !averaTrigger && !lenseAssistTrigger && !wideloadTrigger) {
       return {
@@ -452,7 +501,7 @@ exports.sendIncidentAlertNotification = onCall(
 
     // Block A — existing incursion / asset-damage alert to scheme recipients.
     if (incursionEscalated || hasAssetDamage) {
-      alertRecipients = getRecipientsForScheme(scheme);
+      alertRecipients = await getRecipientsForScheme(scheme, reportData.schemeId);
 
       if (alertRecipients.length === 0) {
         console.log(`No recipients configured for scheme: ${scheme}`);
@@ -897,10 +946,15 @@ exports.sendCCTVFaultBlackspotAlert = onDocumentCreated(
 
     const reportId = event.params.reportId;
     const scheme = reportData.scheme || "Unknown Scheme";
-    const recipients =
-      CCTV_FAULT_ALERT_RECIPIENTS[scheme] ||
-      CCTV_FAULT_ALERT_RECIPIENTS["default"] ||
-      [];
+    const { schemes: schemeDocs, alerts: schemeAlerts } = await loadSchemeAlertData();
+    const recipients = getRecipients({
+      kind: "cctvFault",
+      scheme,
+      schemeId: reportData.schemeId,
+      schemes: schemeDocs,
+      alerts: schemeAlerts,
+      staticRecipients: CCTV_FAULT_ALERT_RECIPIENTS,
+    });
 
     if (recipients.length === 0) {
       console.log(`No blackspot alert recipients configured for scheme: ${scheme}`);

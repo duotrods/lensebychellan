@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateNewScheme, validateSchemeUpdate } from "../schemeValidation";
+import { validateNewScheme, validateSchemeUpdate, validateRecipients } from "../schemeValidation";
 
 const existing = [
   { id: "A417", fullName: "A417 Missing Link - Kier" },
@@ -45,5 +45,29 @@ describe("validateSchemeUpdate", () => {
     const r = validateSchemeUpdate(current, { fullName: current.fullName, shortName: "A417 ML", cameras: ["C1", "C1"], active: false });
     expect(r.ok).toBe(true);
     expect(r.value).toEqual({ shortName: "A417 ML", cameras: ["C1"], active: false });
+  });
+});
+
+describe("validateRecipients", () => {
+  it("trims, de-duplicates and drops blanks", () => {
+    expect(validateRecipients([" a@x.com ", "a@x.com", "", "b@y.co.uk"])).toEqual({
+      ok: true,
+      errors: [],
+      value: ["a@x.com", "b@y.co.uk"],
+    });
+    expect(validateRecipients(undefined).value).toEqual([]);
+  });
+
+  it("flags invalid addresses, including several packed into one entry", () => {
+    expect(validateRecipients(["not-an-email"]).ok).toBe(false);
+    expect(validateRecipients(["a@x.com, b@y.com"]).ok).toBe(false);
+    expect(validateRecipients(["a@x"]).ok).toBe(false);
+  });
+});
+
+describe("validateSchemeUpdate reports flag", () => {
+  it("normalises the report flags to booleans", () => {
+    const r = validateSchemeUpdate({ id: "A", fullName: "A", type: "internal" }, { reports: { avera: 1 } });
+    expect(r.value.reports).toEqual({ avera: true, wideload: false });
   });
 });

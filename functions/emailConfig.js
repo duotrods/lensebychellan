@@ -44,7 +44,7 @@
 //     "A66 - WJ Scheme 1": [
 //       "Jonathan.Pettman@balfourbeatty.com, holly.lockwood@cumbria.police.uk, brussell@hwmartin.com, abriton2@hwmartin.com, adam.cummins@kier.co.uk, john.walker@kier.co.uk, martyn.stokes@virtusltd.com, Philip.Scott@balfourbeatty.com, lee.mason@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk",
 //     ],
-//     "M48 - Seven Bridge": ["bryan.dixon@amey.co.uk"],
+//     "M48 - Severn Bridge": ["bryan.dixon@amey.co.uk"],
 //     default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
 //   },
 
@@ -60,7 +60,7 @@
 //     "Gallows Corner - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Mark.Krall@costain.com"],
 //     "Simister Island - Costain": ["david@chellan.co.uk, wayne@chellan.co.uk, Rob.hawkins@costain.com"],
 //     "A66 - WJ Scheme 1": ["Philip.Scott@balfourbeatty.com, abriton2@hwmartin.com, Jonathan.Pettman@balfourbeatty.com, Dean.Shore@wjsunstone.com, david@chellan.co.uk, wayne@chellan.co.uk"],
-//     "M48 - Seven Bridge": ["bryan.dixon@amey.co.uk"],
+//     "M48 - Severn Bridge": ["bryan.dixon@amey.co.uk"],
 //     default: ["david@chellan.co.uk, wayne@chellan.co.uk"],
 //   },
 
@@ -93,7 +93,7 @@ const RECIPIENTS = {
     "Gallows Corner - Costain": ["rroduot@gmail.com"],
     "Simister Island - Costain": ["rroduot@gmail.com"],
     "A66 - WJ Scheme 1": ["rroduot@gmail.com"],
-    "M48 - Seven Bridge": ["rroduot@gmail.com"],
+    "M48 - Severn Bridge": ["rroduot@gmail.com"],
     "A303 - Roadside Technologies": ["freshfuji123@gmail.com"],
     default: ["rroduot@gmail.com"],
   },
@@ -105,7 +105,7 @@ const RECIPIENTS = {
     "Gallows Corner - Costain": ["rroduot@gmail.com"],
     "Simister Island - Costain": ["rroduot@gmail.com"],
     "A66 - WJ Scheme 1": ["rroduot@gmail.com"], 
-    "M48 - Seven Bridge": ["rroduot@gmail.com"],
+    "M48 - Severn Bridge": ["rroduot@gmail.com"],
     "A303 - Roadside Technologies": ["freshfuji123@gmail.com"],
     default: ["rroduot@gmail.com"],
   },

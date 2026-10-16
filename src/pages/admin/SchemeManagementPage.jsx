@@ -7,6 +7,8 @@ import {
   faPlus,
   faPen,
   faBoxArchive,
+  faTrash,
+  faXmark,
   faRotateLeft,
   faDatabase,
   faTriangleExclamation,
@@ -14,7 +16,7 @@ import {
 import AdminSidebarLayout from "../../components/layout/AdminSidebarLayout";
 import { useAuth } from "../../hooks/useAuth";
 import { schemeService } from "../../services/schemeService";
-import { getStaticSchemeDocs } from "../../utils/schemes";
+import { getStaticSchemeDocs, isStaticSchemeId } from "../../utils/schemes";
 
 const EMPTY_FORM = {
   type: "internal",
@@ -23,16 +25,19 @@ const EMPTY_FORM = {
   shortName: "",
   contractor: "",
   company: "",
-  cameras: "",
-  legacyIds: "",
-  legacyNames: "",
+  cameras: [""],
+  legacyIds: [""],
+  legacyNames: [""],
+  incidentRecipients: [""],
+  cctvFaultRecipients: [""],
+  avera: false,
+  wideload: false,
 };
 
-const toLines = (text) =>
-  String(text || "")
-    .split("\n")
-    .map((v) => v.trim())
-    .filter(Boolean);
+const cleanList = (list) => list.map((v) => v.trim()).filter(Boolean);
+
+// Always at least one (empty) input so there is something to type into.
+const toInputs = (list) => (list && list.length > 0 ? list : [""]);
 
 const fromScheme = (s) => ({
   type: s.type || "internal",
@@ -41,9 +46,13 @@ const fromScheme = (s) => ({
   shortName: s.shortName || "",
   contractor: s.contractor || "",
   company: s.company || "",
-  cameras: (s.cameras || []).join("\n"),
-  legacyIds: (s.legacyIds || []).join("\n"),
-  legacyNames: (s.legacyNames || []).join("\n"),
+  cameras: toInputs(s.cameras),
+  legacyIds: toInputs(s.legacyIds),
+  legacyNames: toInputs(s.legacyNames),
+  incidentRecipients: toInputs(s.alerts?.incidentRecipients),
+  cctvFaultRecipients: toInputs(s.alerts?.cctvFaultRecipients),
+  avera: !!s.reports?.avera,
+  wideload: !!s.reports?.wideload,
 });
 
 const Field = ({ label, hint, children }) => (
@@ -57,9 +66,48 @@ const Field = ({ label, hint, children }) => (
 const inputClass =
   "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-teal-400 disabled:bg-gray-100 disabled:text-gray-500";
 
-const SchemeForm = ({ initial, isEdit, saving, onSubmit, onCancel }) => {
+// A list of text inputs with a "+" to add another and an "x" to remove one.
+const ListInput = ({ values, onChange, placeholder, addLabel }) => {
+  const update = (index, value) => onChange(values.map((v, i) => (i === index ? value : v)));
+  const remove = (index) => {
+    const next = values.filter((_, i) => i !== index);
+    onChange(next.length > 0 ? next : [""]);
+  };
+  return (
+    <div className="space-y-2">
+      {values.map((value, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <input
+            value={value}
+            onChange={(e) => update(index, e.target.value)}
+            placeholder={placeholder}
+            className={inputClass}
+          />
+          <button
+            type="button"
+            onClick={() => remove(index)}
+            title="Remove"
+            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg shrink-0"
+          >
+            <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...values, ""])}
+        className="flex items-center gap-2 px-3 py-1.5 text-sm text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg"
+      >
+        <FontAwesomeIcon icon={faPlus} className="w-3 h-3" /> {addLabel}
+      </button>
+    </div>
+  );
+};
+
+const SchemeForm = ({ initial, isEdit, alertsLoaded, saving, onSubmit, onCancel }) => {
   const [form, setForm] = useState(initial);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setList = (key) => (values) => setForm((f) => ({ ...f, [key]: values }));
   const isThirdParty = form.type === "thirdparty";
 
   return (
@@ -69,9 +117,11 @@ const SchemeForm = ({ initial, isEdit, saving, onSubmit, onCancel }) => {
           e.preventDefault();
           onSubmit({
             ...form,
-            cameras: toLines(form.cameras),
-            legacyIds: toLines(form.legacyIds),
-            legacyNames: toLines(form.legacyNames),
+            cameras: cleanList(form.cameras),
+            legacyIds: cleanList(form.legacyIds),
+            legacyNames: cleanList(form.legacyNames),
+            incidentRecipients: cleanList(form.incidentRecipients),
+            cctvFaultRecipients: cleanList(form.cctvFaultRecipients),
           });
         }}
         className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4"
@@ -114,15 +164,68 @@ const SchemeForm = ({ initial, isEdit, saving, onSubmit, onCancel }) => {
             <input value={form.contractor} onChange={set("contractor")} className={inputClass} />
           </Field>
         )}
-        <Field label="Cameras" hint="One per line.">
-          <textarea rows={5} value={form.cameras} onChange={set("cameras")} className={`${inputClass} font-mono`} />
-        </Field>
-        <Field label="Old scheme IDs" hint="One per line. Only if older reports use a previous ID (e.g. Costain for Gallows).">
-          <textarea rows={2} value={form.legacyIds} onChange={set("legacyIds")} className={`${inputClass} font-mono`} />
-        </Field>
-        <Field label="Old full names" hint="One per line. Previous names stored on older reports.">
-          <textarea rows={2} value={form.legacyNames} onChange={set("legacyNames")} className={`${inputClass} font-mono`} />
-        </Field>
+        <div>
+          <span className="block text-sm font-medium text-gray-700 mb-1">Cameras</span>
+          <ListInput values={form.cameras} onChange={setList("cameras")} placeholder="e.g. CAM 1" addLabel="Add camera" />
+        </div>
+        {isEdit && (
+          <div className="pt-2 border-t border-gray-100 space-y-4">
+            <p className="text-sm font-medium text-gray-700">Advanced: renamed scheme</p>
+            <p className="text-xs text-gray-400 -mt-2">
+              Leave empty unless this scheme was renamed and older reports still use the previous ID or name.
+            </p>
+            <div>
+              <span className="block text-sm font-medium text-gray-700 mb-1">Old scheme IDs</span>
+              <ListInput values={form.legacyIds} onChange={setList("legacyIds")} placeholder="e.g. Costain" addLabel="Add old ID" />
+              <span className="block text-xs text-gray-400 mt-1">Only if older reports use a previous ID.</span>
+            </div>
+            <div>
+              <span className="block text-sm font-medium text-gray-700 mb-1">Old full names</span>
+              <ListInput values={form.legacyNames} onChange={setList("legacyNames")} placeholder="e.g. Costain - Gallows Corner" addLabel="Add old name" />
+              <span className="block text-xs text-gray-400 mt-1">Previous names stored on older reports.</span>
+            </div>
+
+          </div>
+        )}
+
+        {isEdit && (
+          <div className="pt-2 border-t border-gray-100 space-y-4">
+            <p className="text-sm font-medium text-gray-700">Alert emails</p>
+            {alertsLoaded ? (
+              <>
+                <p className="text-xs text-gray-400 -mt-2">
+                  Who receives alert emails for this scheme. Leave a list empty to keep using the default
+                  recipients set in code.
+                </p>
+                <div>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Incident alerts</span>
+                  <ListInput values={form.incidentRecipients} onChange={setList("incidentRecipients")} placeholder="name@company.com" addLabel="Add email" />
+                  <span className="block text-xs text-gray-400 mt-1">Incursion and asset damage alerts.</span>
+                </div>
+                <div>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">CCTV fault alerts</span>
+                  <ListInput values={form.cctvFaultRecipients} onChange={setList("cctvFaultRecipients")} placeholder="name@company.com" addLabel="Add email" />
+                  <span className="block text-xs text-gray-400 mt-1">Blackspot camera faults.</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                Couldn&apos;t load the saved alert emails, so they can&apos;t be edited right now. Other changes still save.
+              </p>
+            )}
+            <div>
+              <span className="block text-sm font-medium text-gray-700 mb-1">Dedicated report emails</span>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={form.avera} onChange={(e) => setForm((f) => ({ ...f, avera: e.target.checked }))} />
+                Send a report email for incidents reported by Avera
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 mt-1">
+                <input type="checkbox" checked={form.wideload} onChange={(e) => setForm((f) => ({ ...f, wideload: e.target.checked }))} />
+                Send a report email for Wideload incidents
+              </label>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <button
@@ -145,7 +248,7 @@ const SchemeForm = ({ initial, isEdit, saving, onSubmit, onCancel }) => {
   );
 };
 
-const SchemeRow = ({ scheme, busy, onEdit, onToggleActive }) => {
+const SchemeRow = ({ scheme, busy, onEdit, onToggleActive, onDelete }) => {
   const inCodeOnly = scheme.inCodeOnly;
   const archived = scheme.active === false;
   return (
@@ -185,12 +288,22 @@ const SchemeRow = ({ scheme, busy, onEdit, onToggleActive }) => {
         >
           <FontAwesomeIcon icon={archived ? faRotateLeft : faBoxArchive} className="w-4 h-4" />
         </button>
+        {!inCodeOnly && !isStaticSchemeId(scheme.id) && (
+          <button
+            onClick={() => onDelete(scheme)}
+            disabled={busy}
+            title="Delete (only if nothing uses it)"
+            className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 disabled:opacity-30"
+          >
+            <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
 };
 
-const SchemeTable = ({ title, schemes, busy, onEdit, onToggleActive }) => (
+const SchemeTable = ({ title, schemes, busy, onEdit, onToggleActive, onDelete }) => (
   <div className="bg-white rounded-xl shadow-sm overflow-hidden">
     <div className="px-6 py-4 border-b border-gray-100">
       <h4 className="font-semibold text-gray-800">
@@ -214,7 +327,7 @@ const SchemeTable = ({ title, schemes, busy, onEdit, onToggleActive }) => (
           </thead>
           <tbody>
             {schemes.map((s) => (
-              <SchemeRow key={s.id} scheme={s} busy={busy} onEdit={onEdit} onToggleActive={onToggleActive} />
+              <SchemeRow key={s.id} scheme={s} busy={busy} onEdit={onEdit} onToggleActive={onToggleActive} onDelete={onDelete} />
             ))}
           </tbody>
         </table>
@@ -236,9 +349,15 @@ const SchemeManagementPage = () => {
 
   // Schemes saved in Firestore, plus any that exist only in code (not seeded yet)
   const schemes = useMemo(() => {
-    const saved = schemesQuery.data || [];
+    const staticDocs = getStaticSchemeDocs();
+    const staticById = new Map(staticDocs.map((d) => [d.id, d]));
+    // A saved scheme without report flags still inherits the ones defined in code
+    const saved = (schemesQuery.data || []).map((s) => ({
+      ...s,
+      reports: s.reports ?? staticById.get(s.id)?.reports,
+    }));
     const savedIds = new Set(saved.map((s) => s.id));
-    const codeOnly = getStaticSchemeDocs()
+    const codeOnly = staticDocs
       .filter((s) => !savedIds.has(s.id))
       .map((s) => ({ ...s, inCodeOnly: true }));
     return [...saved, ...codeOnly].sort((a, b) => a.id.localeCompare(b.id));
@@ -273,19 +392,45 @@ const SchemeManagementPage = () => {
     run(() => schemeService.seedFromStatic(currentUser?.uid), "Schemes saved.");
   };
 
+  // Alert recipients are admin-only data in their own collection, so load them when the
+  // edit form opens. If that read fails the form still opens, minus the email lists.
+  const handleEdit = async (scheme) => {
+    setBusy(true);
+    try {
+      const alerts = await schemeService.getAlertConfig(scheme.id);
+      setEditing({ ...scheme, alerts, alertsLoaded: true });
+    } catch {
+      toast.error("Couldn't load the saved alert emails.");
+      setEditing({ ...scheme, alerts: null, alertsLoaded: false });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleSubmit = async (form) => {
     const isEdit = editing !== "new";
     const ok = await run(
-      () =>
-        isEdit
-          ? schemeService.updateScheme(editing.id, {
-              shortName: form.shortName.trim(),
-              contractor: form.contractor.trim(),
-              cameras: form.cameras,
-              legacyIds: form.legacyIds,
-              legacyNames: form.legacyNames,
-            })
-          : schemeService.createScheme(form, currentUser?.uid),
+      async () => {
+        if (!isEdit) {
+          await schemeService.createScheme(form, currentUser?.uid);
+          return;
+        }
+        // Validate recipients first so a bad address doesn't leave a half-saved scheme
+        if (editing.alertsLoaded) {
+          await schemeService.saveAlertConfig(editing.id, {
+            incidentRecipients: form.incidentRecipients,
+            cctvFaultRecipients: form.cctvFaultRecipients,
+          });
+        }
+        await schemeService.updateScheme(editing.id, {
+          shortName: form.shortName.trim(),
+          contractor: form.contractor.trim(),
+          cameras: form.cameras,
+          legacyIds: form.legacyIds,
+          legacyNames: form.legacyNames,
+          reports: { avera: form.avera, wideload: form.wideload },
+        });
+      },
       isEdit ? "Scheme updated." : "Scheme added.",
     );
     if (ok) setEditing(null);
@@ -298,6 +443,11 @@ const SchemeManagementPage = () => {
       () => (archiving ? schemeService.archiveScheme(scheme.id) : schemeService.restoreScheme(scheme.id)),
       archiving ? "Scheme archived." : "Scheme restored.",
     );
+  };
+
+  const handleDelete = (scheme) => {
+    if (!window.confirm(`Delete ${scheme.id} permanently? This only works if no reports, users or access codes use it, and can't be undone.`)) return;
+    run(() => schemeService.deleteScheme(scheme.id), "Scheme deleted.");
   };
 
   return (
@@ -349,8 +499,8 @@ const SchemeManagementPage = () => {
           <p className="text-sm text-gray-400">Loading schemes...</p>
         ) : (
           <>
-            <SchemeTable title="Internal schemes" schemes={internal} busy={busy} onEdit={setEditing} onToggleActive={handleToggleActive} />
-            <SchemeTable title="Third-party schemes" schemes={thirdParty} busy={busy} onEdit={setEditing} onToggleActive={handleToggleActive} />
+            <SchemeTable title="Internal schemes" schemes={internal} busy={busy} onEdit={handleEdit} onToggleActive={handleToggleActive} onDelete={handleDelete} />
+            <SchemeTable title="Third-party schemes" schemes={thirdParty} busy={busy} onEdit={handleEdit} onToggleActive={handleToggleActive} onDelete={handleDelete} />
           </>
         )}
       </div>
@@ -359,6 +509,7 @@ const SchemeManagementPage = () => {
         <SchemeForm
           initial={editing === "new" ? EMPTY_FORM : fromScheme(editing)}
           isEdit={editing !== "new"}
+          alertsLoaded={editing !== "new" && editing.alertsLoaded}
           saving={busy}
           onSubmit={handleSubmit}
           onCancel={() => setEditing(null)}
