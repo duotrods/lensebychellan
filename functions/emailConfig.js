@@ -75,7 +75,7 @@ const RECIPIENTS = {
   // Rota admin reminder: a staff member's holiday hours allowance is 7 days
   // (or fewer) from its yearly reset. Same address in both environments —
   // there's no per-scheme variant of this one.
-  // HOLIDAY_RESET_ALERT_RECIPIENT: "rroduot@gmail.com",
+  HOLIDAY_RESET_ALERT_RECIPIENT: "david@chellan.co.uk",
 };
 
 // ─────────────────────────────────────────────────────────────────────────
