@@ -608,7 +608,7 @@ class ClientDataService {
   }
 
   // Faults (live + completed) for one scheme, newest first — input to the 24h uptime report.
-  // Same query shape as computeA66UptimeReport in functions/index.js.
+  // Same query shape as computeUptimeReport in functions/index.js.
   async getCCTVFaultsForUptime(schemeId) {
     const q = query(
       collection(db, "cctvFaultsReports"),

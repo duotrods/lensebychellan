@@ -18,6 +18,39 @@ import { useAuth } from "../../hooks/useAuth";
 import { schemeService } from "../../services/schemeService";
 import { getStaticSchemeDocs, isStaticSchemeId } from "../../utils/schemes";
 
+// Dedicated report emails: ticking one reveals who receives it. An empty list keeps the
+// default address set in code.
+const REPORT_OPTIONS = [
+  {
+    flag: "avera",
+    recipients: "averaRecipients",
+    label: "Avera incident reports",
+    description: "Emails the full incident report as a PDF whenever an incident is reported by Avera.",
+    hint: "Leave empty to use the default Avera address.",
+  },
+  {
+    flag: "wideload",
+    recipients: "wideloadRecipients",
+    label: "Wideload incident reports",
+    description: "Emails the full incident report as a PDF for every Wideload incident.",
+    hint: "Leave empty to use the default Wideload address.",
+  },
+  {
+    flag: "lenseAssist",
+    recipients: "lenseAssistRecipients",
+    label: "Lense Assist incident reports",
+    description: "Emails the full incident report as a PDF whenever an incident is reported by Lense Assist. On by default.",
+    hint: "Leave empty to use the default Lense Assist address.",
+  },
+  {
+    flag: "uptime",
+    recipients: "uptimeRecipients",
+    label: "Daily CCTV uptime report",
+    description: "Every morning at 08:00, emails a PDF with each camera's uptime, outages and live faults for the last 24 hours. Needs cameras and recipients.",
+    hint: "Leave empty to use the default address (A66 only).",
+  },
+];
+
 const EMPTY_FORM = {
   type: "internal",
   id: "",
@@ -30,6 +63,10 @@ const EMPTY_FORM = {
   legacyNames: [""],
   incidentRecipients: [""],
   cctvFaultRecipients: [""],
+  uptimeRecipients: [""],
+  averaRecipients: [""],
+  wideloadRecipients: [""],
+  lenseAssistRecipients: [""],
   avera: false,
   wideload: false,
 };
@@ -51,8 +88,14 @@ const fromScheme = (s) => ({
   legacyNames: toInputs(s.legacyNames),
   incidentRecipients: toInputs(s.alerts?.incidentRecipients),
   cctvFaultRecipients: toInputs(s.alerts?.cctvFaultRecipients),
+  uptimeRecipients: toInputs(s.alerts?.uptimeRecipients),
+  averaRecipients: toInputs(s.alerts?.averaRecipients),
+  wideloadRecipients: toInputs(s.alerts?.wideloadRecipients),
+  lenseAssistRecipients: toInputs(s.alerts?.lenseAssistRecipients),
   avera: !!s.reports?.avera,
   wideload: !!s.reports?.wideload,
+  lenseAssist: s.reports?.lenseAssist !== false,
+  uptime: !!s.reports?.uptime,
 });
 
 const Field = ({ label, hint, children }) => (
@@ -122,6 +165,10 @@ const SchemeForm = ({ initial, isEdit, alertsLoaded, saving, onSubmit, onCancel 
             legacyNames: cleanList(form.legacyNames),
             incidentRecipients: cleanList(form.incidentRecipients),
             cctvFaultRecipients: cleanList(form.cctvFaultRecipients),
+            uptimeRecipients: cleanList(form.uptimeRecipients),
+            averaRecipients: cleanList(form.averaRecipients),
+            wideloadRecipients: cleanList(form.wideloadRecipients),
+            lenseAssistRecipients: cleanList(form.lenseAssistRecipients),
           });
         }}
         className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4"
@@ -200,12 +247,16 @@ const SchemeForm = ({ initial, isEdit, alertsLoaded, saving, onSubmit, onCancel 
                 <div>
                   <span className="block text-sm font-medium text-gray-700 mb-1">Incident alerts</span>
                   <ListInput values={form.incidentRecipients} onChange={setList("incidentRecipients")} placeholder="name@company.com" addLabel="Add email" />
-                  <span className="block text-xs text-gray-400 mt-1">Incursion and asset damage alerts.</span>
+                  <span className="block text-xs text-gray-400 mt-1">
+                    Emailed when an incident report involves an incursion to gain an advantage, or asset damage.
+                  </span>
                 </div>
                 <div>
                   <span className="block text-sm font-medium text-gray-700 mb-1">CCTV fault alerts</span>
                   <ListInput values={form.cctvFaultRecipients} onChange={setList("cctvFaultRecipients")} placeholder="name@company.com" addLabel="Add email" />
-                  <span className="block text-xs text-gray-400 mt-1">Blackspot camera faults.</span>
+                  <span className="block text-xs text-gray-400 mt-1">
+                    Emailed straight away when a CCTV fault is reported on a blackspot camera.
+                  </span>
                 </div>
               </>
             ) : (
@@ -213,16 +264,23 @@ const SchemeForm = ({ initial, isEdit, alertsLoaded, saving, onSubmit, onCancel 
                 Couldn&apos;t load the saved alert emails, so they can&apos;t be edited right now. Other changes still save.
               </p>
             )}
-            <div>
-              <span className="block text-sm font-medium text-gray-700 mb-1">Dedicated report emails</span>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={form.avera} onChange={(e) => setForm((f) => ({ ...f, avera: e.target.checked }))} />
-                Send a report email for incidents reported by Avera
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 mt-1">
-                <input type="checkbox" checked={form.wideload} onChange={(e) => setForm((f) => ({ ...f, wideload: e.target.checked }))} />
-                Send a report email for Wideload incidents
-              </label>
+            <div className="space-y-2">
+              <span className="block text-sm font-medium text-gray-700">Dedicated report emails</span>
+              {REPORT_OPTIONS.map(({ flag, recipients, label, description, hint }) => (
+                <div key={flag}>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={form[flag]} onChange={(e) => setForm((f) => ({ ...f, [flag]: e.target.checked }))} />
+                    {label}
+                  </label>
+                  <span className="block text-xs text-gray-400 mt-0.5 ml-6">{description}</span>
+                  {form[flag] && alertsLoaded && (
+                    <div className="mt-2 ml-6">
+                      <ListInput values={form[recipients]} onChange={setList(recipients)} placeholder="name@company.com" addLabel="Add email" />
+                      <span className="block text-xs text-gray-400 mt-1">{hint}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -420,6 +478,10 @@ const SchemeManagementPage = () => {
           await schemeService.saveAlertConfig(editing.id, {
             incidentRecipients: form.incidentRecipients,
             cctvFaultRecipients: form.cctvFaultRecipients,
+            uptimeRecipients: form.uptimeRecipients,
+            averaRecipients: form.averaRecipients,
+            wideloadRecipients: form.wideloadRecipients,
+            lenseAssistRecipients: form.lenseAssistRecipients,
           });
         }
         await schemeService.updateScheme(editing.id, {
@@ -428,7 +490,7 @@ const SchemeManagementPage = () => {
           cameras: form.cameras,
           legacyIds: form.legacyIds,
           legacyNames: form.legacyNames,
-          reports: { avera: form.avera, wideload: form.wideload },
+          reports: { avera: form.avera, wideload: form.wideload, uptime: form.uptime, lenseAssist: form.lenseAssist },
         });
       },
       isEdit ? "Scheme updated." : "Scheme added.",

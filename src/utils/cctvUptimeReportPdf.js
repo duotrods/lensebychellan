@@ -1,6 +1,6 @@
 import lenselogo from "../assets/chellanpng.png";
 
-// Mirrors generateA66UptimeReportPDF in functions/index.js (pdfkit) — if the
+// Mirrors generateUptimeReportPDF in functions/index.js (pdfkit) — if the
 // layout changes there, update it here too.
 
 const TEAL = [0, 186, 168];

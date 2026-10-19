@@ -86,7 +86,13 @@ export const validateSchemeUpdate = (current, patch) => {
   if ("legacyIds" in value) value.legacyIds = cleanList(value.legacyIds);
   if ("legacyNames" in value) value.legacyNames = cleanList(value.legacyNames);
   if ("reports" in value) {
-    value.reports = { avera: !!value.reports?.avera, wideload: !!value.reports?.wideload };
+    value.reports = {
+      avera: !!value.reports?.avera,
+      wideload: !!value.reports?.wideload,
+      uptime: !!value.reports?.uptime,
+      // On unless an admin turns it off, so existing schemes keep getting these emails.
+      lenseAssist: value.reports?.lenseAssist !== false,
+    };
   }
   return { ok: errors.length === 0, errors, value };
 };

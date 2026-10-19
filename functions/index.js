@@ -19,7 +19,12 @@ const {
   SMTP_SENDER,
   SMTP_USER,
 } = require("./emailConfig");
-const { getRecipients, sendsReport } = require("./schemeAlerts");
+const {
+  getRecipients,
+  getReportRecipients,
+  sendsReport,
+  getUptimeSchemes,
+} = require("./schemeAlerts");
 
 admin.initializeApp();
 
@@ -394,7 +399,8 @@ async function checkRateLimit(uid) {
 }
 
 exports.sendIncidentAlertNotification = onCall(
-  { secrets: [smtpPass] },
+  // Building the incident PDF used 270 MiB on staging, over the 256 MiB default.
+  { secrets: [smtpPass], memory: "512MiB" },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(
@@ -443,7 +449,27 @@ exports.sendIncidentAlertNotification = onCall(
         schemes: schemeData.schemes,
         staticSchemes: AVERA_REPORT_SCHEMES,
       });
-    const lenseAssistTrigger = reportData.reportedBy === "Lense Assist";
+    const reportRecipients = (kind, fallback) =>
+      getReportRecipients({
+        kind,
+        scheme,
+        schemeId: reportData.schemeId,
+        schemes: schemeData.schemes,
+        alerts: schemeData.alerts,
+        fallback,
+      });
+    const averaRecipients = reportRecipients("avera", AVERA_REPORT_RECIPIENT);
+    const wideloadRecipients = reportRecipients("wideload", WIDELOAD_REPORT_RECIPIENT);
+    const lenseAssistRecipients = reportRecipients("lenseAssist", LENSEASSIST_REPORT_RECIPIENT);
+    const lenseAssistTrigger =
+      reportData.reportedBy === "Lense Assist" &&
+      sendsReport({
+        kind: "lenseAssist",
+        scheme,
+        schemeId: reportData.schemeId,
+        schemes: schemeData.schemes,
+        defaultOn: true,
+      });
     const wideloadTrigger =
       reportData.incidentType === "Wideload" &&
       sendsReport({
@@ -696,7 +722,7 @@ exports.sendIncidentAlertNotification = onCall(
       try {
         await transporter.sendMail({
           from: SMTP_SENDER,
-          to: AVERA_REPORT_RECIPIENT,
+          to: averaRecipients,
           subject: averaSubject,
           html: averaHtml,
           attachments: [
@@ -708,7 +734,7 @@ exports.sendIncidentAlertNotification = onCall(
           ],
         });
         averaEmailsSent = 1;
-        console.log(`Avera report email sent to ${AVERA_REPORT_RECIPIENT} (${scheme})`);
+        console.log(`Avera report email sent to ${averaRecipients.join(", ")} (${scheme})`);
       } catch (err) {
         console.error("Failed to send Avera report email:", err);
       }
@@ -785,7 +811,7 @@ exports.sendIncidentAlertNotification = onCall(
       try {
         await transporter.sendMail({
           from: SMTP_SENDER,
-          to: LENSEASSIST_REPORT_RECIPIENT,
+          to: lenseAssistRecipients,
           subject: lenseAssistSubject,
           html: lenseAssistHtml,
           attachments: [
@@ -797,7 +823,7 @@ exports.sendIncidentAlertNotification = onCall(
           ],
         });
         lenseAssistEmailsSent = 1;
-        console.log(`Lense Assist report email sent to ${LENSEASSIST_REPORT_RECIPIENT} (${scheme})`);
+        console.log(`Lense Assist report email sent to ${lenseAssistRecipients.join(", ")} (${scheme})`);
       } catch (err) {
         console.error("Failed to send Lense Assist report email:", err);
       }
@@ -874,7 +900,7 @@ exports.sendIncidentAlertNotification = onCall(
       try {
         await transporter.sendMail({
           from: SMTP_SENDER,
-          to: WIDELOAD_REPORT_RECIPIENT,
+          to: wideloadRecipients,
           subject: wideloadSubject,
           html: wideloadHtml,
           attachments: [
@@ -886,7 +912,7 @@ exports.sendIncidentAlertNotification = onCall(
           ],
         });
         wideloadEmailsSent = 1;
-        console.log(`Wideload report email sent to ${WIDELOAD_REPORT_RECIPIENT} (${scheme})`);
+        console.log(`Wideload report email sent to ${wideloadRecipients.join(", ")} (${scheme})`);
       } catch (err) {
         console.error("Failed to send Wideload report email:", err);
       }
@@ -903,9 +929,9 @@ exports.sendIncidentAlertNotification = onCall(
         triggers,
         recipients: [
           ...alertRecipients,
-          ...(averaEmailsSent > 0 ? [AVERA_REPORT_RECIPIENT] : []),
-          ...(lenseAssistEmailsSent > 0 ? [LENSEASSIST_REPORT_RECIPIENT] : []),
-          ...(wideloadEmailsSent > 0 ? [WIDELOAD_REPORT_RECIPIENT] : []),
+          ...(averaEmailsSent > 0 ? averaRecipients : []),
+          ...(lenseAssistEmailsSent > 0 ? lenseAssistRecipients : []),
+          ...(wideloadEmailsSent > 0 ? wideloadRecipients : []),
         ],
         isUpdate: isUpdate || false,
         sentBy: request.auth.uid,
@@ -1192,23 +1218,30 @@ exports.scheduledFirestoreBackup = onSchedule(
   }
 );
 
-// ─── A66 daily CCTV uptime report ──────────────────────────────────────────
+// ─── Daily CCTV uptime report (one email per enabled scheme) ───────────────
 
-const A66_SCHEME_ID = "A66-WJ";
+// A66 predates the admin-managed flag, so it keeps sending until an admin changes it.
 // Mirrors the camera list for A66-WJ in src/utils/schemes.js (THIRD_PARTY_SCHEMES).
 // Duplicated here (not imported) since functions/ is CommonJS and can't import
 // the frontend's ES module — same convention as generateIncidentPDF mirroring
 // pdfGenerator.js.
-const A66_CAMERAS = Array.from({ length: 20 }, (_, i) => `CAM ${i + 1}`);
+const UPTIME_FALLBACK_SCHEMES = [
+  {
+    id: "A66-WJ",
+    fullName: "A66 - WJ Scheme 1",
+    cameras: Array.from({ length: 20 }, (_, i) => `CAM ${i + 1}`),
+    recipients: A66_UPTIME_REPORT_RECIPIENT,
+  },
+];
 
 /**
- * Aggregates A66's CCTV fault reports over the trailing 24 hours into
+ * Aggregates a scheme's CCTV fault reports over the trailing 24 hours into
  * per-camera uptime stats, mirroring the math in getCCTVUptimeData
  * (src/services/clientDataService.js) but fixed to a 24h window and using
  * the Admin SDK. Returns fault reference ids per camera so the PDF can mark
  * exactly which fault(s) affected it.
  */
-async function computeA66UptimeReport() {
+async function computeUptimeReport(scheme) {
   const windowEnd = new Date();
   const windowStart = new Date(windowEnd.getTime() - 24 * 60 * 60 * 1000);
   const windowStartMs = windowStart.getTime();
@@ -1221,13 +1254,13 @@ async function computeA66UptimeReport() {
   const snap = await admin
     .firestore()
     .collection("cctvFaultsReports")
-    .where("schemeIds", "array-contains", A66_SCHEME_ID)
+    .where("schemeIds", "array-contains", scheme.id)
     .orderBy("createdAt", "desc")
     .limit(1000)
     .get();
 
   const cameraMap = {};
-  for (const cam of A66_CAMERAS) {
+  for (const cam of scheme.cameras) {
     cameraMap[cam] = { outages: 0, totalDownMs: 0, liveFault: false, faultRefs: [] };
   }
 
@@ -1246,7 +1279,7 @@ async function computeA66UptimeReport() {
     if (faultEndMs < windowStartMs) continue;
 
     const cam = data.camera || "Unknown";
-    if (!cameraMap[cam]) continue; // not one of A66's known cameras
+    if (!cameraMap[cam]) continue; // not one of the scheme's known cameras
 
     // Clip the down-time contribution to the trailing 24h window, so a fault
     // that started days ago but is still open (or just closed) is counted
@@ -1302,16 +1335,16 @@ async function computeA66UptimeReport() {
     liveFaults: cameras.filter((c) => c.liveFault).length,
   };
 
-  return { windowStart, windowEnd, cameras, totals };
+  return { schemeName: scheme.fullName, windowStart, windowEnd, cameras, totals };
 }
 
 /**
- * Generates a PDF buffer for the A66 daily CCTV uptime report using pdfkit.
+ * Generates a PDF buffer for a scheme's daily CCTV uptime report using pdfkit.
  * Visual style mirrors generateIncidentPDF (header/logo, teal section
  * headers, label/value rows) but with a per-camera table instead of
  * incident fields.
  */
-function generateA66UptimeReportPDF(reportData) {
+function generateUptimeReportPDF(reportData) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
@@ -1380,7 +1413,7 @@ function generateA66UptimeReportPDF(reportData) {
       .fontSize(14)
       .fillColor("#000000")
       .font("Helvetica-Bold")
-      .text("A66 - WJ Scheme 1 — CCTV Uptime Report", M + 5 * MM, y + 1 * MM, {
+      .text(`${reportData.schemeName} — CCTV Uptime Report`, M + 5 * MM, y + 1 * MM, {
         width: CW,
         lineBreak: false,
       });
@@ -1558,29 +1591,19 @@ function generateA66UptimeReportPDF(reportData) {
 }
 
 /**
- * Builds and sends the A66 daily CCTV uptime report email (PDF attached).
- * Shared by the scheduled function and the temporary manual-trigger endpoint
- * below so both paths are guaranteed to behave identically.
+ * Builds and sends one scheme's daily CCTV uptime report email (PDF attached).
  */
-async function sendA66UptimeReportEmail() {
-  const reportData = await computeA66UptimeReport();
-  const pdfBuffer = await generateA66UptimeReportPDF(reportData);
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: SMTP_USER,
-      pass: smtpPass.value(),
-    },
-  });
+async function sendUptimeReportEmail(scheme, transporter) {
+  const reportData = await computeUptimeReport(scheme);
+  const pdfBuffer = await generateUptimeReportPDF(reportData);
 
   const dateStr = reportData.windowEnd.toISOString().slice(0, 10);
-  const pdfFilename = `a66-cctv-uptime-report-${dateStr}.pdf`;
+  const pdfFilename = `${scheme.id.toLowerCase()}-cctv-uptime-report-${dateStr}.pdf`;
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
-        <h1 style="margin: 0;">A66 CCTV Uptime Report</h1>
+        <h1 style="margin: 0;">${scheme.fullName} CCTV Uptime Report</h1>
         <p style="margin: 5px 0 0 0; font-size: 14px;">Last 24 hours</p>
       </div>
       <div style="padding: 20px; background-color: #f9fafb;">
@@ -1610,8 +1633,8 @@ async function sendA66UptimeReportEmail() {
 
   await transporter.sendMail({
     from: SMTP_SENDER,
-    to: A66_UPTIME_REPORT_RECIPIENT,
-    subject: `A66 CCTV Uptime Report - ${dateStr}`,
+    to: scheme.recipients,
+    subject: `${scheme.fullName} CCTV Uptime Report - ${dateStr}`,
     html: emailHtml,
     attachments: [
       {
@@ -1622,11 +1645,11 @@ async function sendA66UptimeReportEmail() {
     ],
   });
 
-  console.log(`A66 daily CCTV uptime report sent for ${dateStr}`);
+  console.log(`Daily CCTV uptime report sent for ${scheme.id} (${dateStr})`);
   return reportData;
 }
 
-exports.sendA66DailyCCTVUptimeReport = onSchedule(
+exports.sendDailyCCTVUptimeReports = onSchedule(
   {
     schedule: "0 8 * * *",
     timezone: "Europe/London",
@@ -1635,7 +1658,25 @@ exports.sendA66DailyCCTVUptimeReport = onSchedule(
     memory: "512MiB",
   },
   async () => {
-    await sendA66UptimeReportEmail();
+    const { schemes, alerts } = await loadSchemeAlertData();
+    const targets = getUptimeSchemes({ schemes, alerts, fallbacks: UPTIME_FALLBACK_SCHEMES });
+    if (targets.length === 0) {
+      console.log("No schemes are set up for the daily CCTV uptime report");
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: SMTP_USER, pass: smtpPass.value() },
+    });
+    // One scheme failing must not stop the others.
+    for (const scheme of targets) {
+      try {
+        await sendUptimeReportEmail(scheme, transporter);
+      } catch (error) {
+        console.error(`Daily CCTV uptime report failed for ${scheme.id}:`, error);
+      }
+    }
   },
 );
 

@@ -99,7 +99,7 @@ class SchemeService {
     await updateDoc(ref, { ...value, updatedAt: serverTimestamp() });
   }
 
-  // Saved alert recipients for a scheme: { incidentRecipients[], cctvFaultRecipients[] }.
+  // Saved alert recipients for a scheme: { incidentRecipients[], cctvFaultRecipients[], uptimeRecipients[], averaRecipients[], wideloadRecipients[], lenseAssistRecipients[] }.
   // Empty lists mean "use the default recipients configured in code".
   async getAlertConfig(schemeId) {
     const snap = await getDoc(doc(db, ALERTS_COLLECTION, schemeId));
@@ -107,19 +107,48 @@ class SchemeService {
     return {
       incidentRecipients: data.incidentRecipients || [],
       cctvFaultRecipients: data.cctvFaultRecipients || [],
+      uptimeRecipients: data.uptimeRecipients || [],
+      averaRecipients: data.averaRecipients || [],
+      wideloadRecipients: data.wideloadRecipients || [],
+      lenseAssistRecipients: data.lenseAssistRecipients || [],
     };
   }
 
-  async saveAlertConfig(schemeId, { incidentRecipients, cctvFaultRecipients }) {
+  async saveAlertConfig(
+    schemeId,
+    {
+      incidentRecipients,
+      cctvFaultRecipients,
+      uptimeRecipients,
+      averaRecipients,
+      wideloadRecipients,
+      lenseAssistRecipients,
+    },
+  ) {
     const incident = validateRecipients(incidentRecipients);
     const fault = validateRecipients(cctvFaultRecipients);
-    const errors = [...incident.errors, ...fault.errors];
+    const uptime = validateRecipients(uptimeRecipients);
+    const avera = validateRecipients(averaRecipients);
+    const wideload = validateRecipients(wideloadRecipients);
+    const lenseAssist = validateRecipients(lenseAssistRecipients);
+    const errors = [
+      ...incident.errors,
+      ...fault.errors,
+      ...uptime.errors,
+      ...avera.errors,
+      ...wideload.errors,
+      ...lenseAssist.errors,
+    ];
     if (errors.length > 0) throw new AppError(errors.join(" "), "scheme/invalid-recipients");
     await setDoc(
       doc(db, ALERTS_COLLECTION, schemeId),
       {
         incidentRecipients: incident.value,
         cctvFaultRecipients: fault.value,
+        uptimeRecipients: uptime.value,
+        averaRecipients: avera.value,
+        wideloadRecipients: wideload.value,
+        lenseAssistRecipients: lenseAssist.value,
         updatedAt: serverTimestamp(),
       },
       { merge: true },

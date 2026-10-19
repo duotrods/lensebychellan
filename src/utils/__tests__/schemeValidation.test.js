@@ -68,6 +68,6 @@ describe("validateRecipients", () => {
 describe("validateSchemeUpdate reports flag", () => {
   it("normalises the report flags to booleans", () => {
     const r = validateSchemeUpdate({ id: "A", fullName: "A", type: "internal" }, { reports: { avera: 1 } });
-    expect(r.value.reports).toEqual({ avera: true, wideload: false });
+    expect(r.value.reports).toEqual({ avera: true, wideload: false, uptime: false, lenseAssist: true });
   });
 });

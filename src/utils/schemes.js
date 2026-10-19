@@ -76,7 +76,7 @@ export const THIRD_PARTY_SCHEMES = [
     id: "A66-WJ",
     fullName: "A66 - WJ Scheme 1",
     company: "WJ",
-    reports: { avera: true, wideload: true },
+    reports: { avera: true, wideload: true, uptime: true },
     cameras: [
       "All Working Correctly",
       "CAM 1",

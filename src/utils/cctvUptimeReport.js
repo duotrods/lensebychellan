@@ -22,7 +22,7 @@ export const getReportCameras = (schemeId) => {
 };
 
 /**
- * Per-camera uptime over the trailing 24h. Mirrors computeA66UptimeReport in
+ * Per-camera uptime over the trailing 24h. Mirrors computeUptimeReport in
  * functions/index.js — keep the two in sync.
  */
 export const computeUptimeReport = ({ faults, cameras, now = Date.now() }) => {
