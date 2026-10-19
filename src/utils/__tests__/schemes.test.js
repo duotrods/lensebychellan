@@ -59,7 +59,7 @@ describe("isDemoScheme / getThirdPartySchemeById", () => {
   });
 
   it("returns a third-party scheme object or null", () => {
-    expect(getThirdPartySchemeById("CO2")).toMatchObject({ id: "CO2" });
+    expect(getThirdPartySchemeById("A66-WJ")).toMatchObject({ id: "A66-WJ" });
     expect(getThirdPartySchemeById("A417")).toBeNull();
     expect(getThirdPartySchemeById(null)).toBeNull();
   });
