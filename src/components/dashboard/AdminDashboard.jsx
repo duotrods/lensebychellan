@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { firestoreService } from '../../services/firestoreService';
 import { useAuth } from '../../hooks/useAuth';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faKey, faUsers } from "@fortawesome/free-solid-svg-icons";
+import { faKey, faUsers, faIdBadge, faUser } from "@fortawesome/free-solid-svg-icons";
 import UserManagement from '../admin/UserManagement';
 import LoginLogs from '../admin/LoginLogs';
+import StatCard from '../common/StatCard';
 
 const AdminDashboard = () => {
   const { userProfile } = useAuth();
@@ -45,20 +46,27 @@ const AdminDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow p-6">
-          <h6 className="text-gray-600 mb-2">Total Users</h6>
-          <p className="text-3xl font-bold text-brand-500">{roleCounts.total}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-6">
-          <h6 className="text-gray-600 mb-2">Staff Members</h6>
-          <p className="text-3xl font-bold text-brand-500">{roleCounts.staff}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow p-6">
-          <h6 className="text-gray-600 mb-2">Clients</h6>
-          <p className="text-3xl font-bold text-brand-500">{roleCounts.client}</p>
-        </div>
+        <StatCard
+          icon={faUsers}
+          color="#00BBA7"
+          title="Total Users"
+          value={roleCounts.total}
+          text="All registered accounts across every role."
+        />
+        <StatCard
+          icon={faIdBadge}
+          color="#a855f7"
+          title="Staff Members"
+          value={roleCounts.staff}
+          text="Staff accounts that submit reports."
+        />
+        <StatCard
+          icon={faUser}
+          color="#f97316"
+          title="Clients"
+          value={roleCounts.client}
+          text="Client accounts with read access to their schemes."
+        />
       </div>
 
       <UserManagement />
