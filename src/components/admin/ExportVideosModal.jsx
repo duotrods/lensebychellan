@@ -6,6 +6,8 @@ import { DATE_RANGE_PRESETS, resolveDateRange } from "../../utils/reportExport";
 import {
   filterUploadsByScheme,
   collectVideoFiles,
+  collectIncidentVideoFiles,
+  collectCamVideoFiles,
   totalBytes,
   formatBytes,
 } from "../../utils/videoExport";
@@ -34,13 +36,21 @@ const ExportVideosModal = ({ onClose, schemes, defaultScheme = "all", schemeScop
   const handleCheck = async () => {
     setBusy("checking");
     try {
-      const uploads = await staffService.getCCTVUploadsForExport({
-        startDate: range.startDate,
-        endDate: range.endDate,
-      });
-      const files = collectVideoFiles(
-        excludeDemoScheme(filterUploadsByScheme(uploads, scheme !== "all" ? scheme : schemeScope)),
-      );
+      const dates = { startDate: range.startDate, endDate: range.endDate };
+      const wanted = scheme !== "all" ? scheme : schemeScope;
+      const [uploads, incidents, bodyCams, dashCams] = await Promise.all([
+        staffService.getCCTVUploadsForExport(dates),
+        staffService.getFormsForExport("incidentReports", dates),
+        staffService.getCCTVUploadsForExport(dates, 500, "bodyCamUploads"),
+        staffService.getCCTVUploadsForExport(dates, 500, "dashCamUploads"),
+      ]);
+      const keep = (list) => excludeDemoScheme(filterUploadsByScheme(list, wanted));
+      const files = [
+        ...collectVideoFiles(keep(uploads)),
+        ...collectIncidentVideoFiles(keep(incidents)),
+        ...collectCamVideoFiles(keep(bodyCams), "BodyCam"),
+        ...collectCamVideoFiles(keep(dashCams), "DashCam"),
+      ];
       setVideos({ files, bytes: totalBytes(files) });
     } catch (error) {
       console.error("Video check failed:", error);
@@ -103,7 +113,7 @@ const ExportVideosModal = ({ onClose, schemes, defaultScheme = "all", schemeScop
       <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-xl font-bold text-gray-800 mb-1">Export CCTV Videos</h3>
         <p className="text-sm text-gray-600 mb-5">
-          One ZIP with the uploaded videos, in folders by scheme and camera. Demo scheme and
+          One ZIP with body cam, dash cam and CCTV upload videos plus videos attached to incident reports, in folders by scheme. Demo scheme and
           deleted uploads are excluded.
         </p>
 

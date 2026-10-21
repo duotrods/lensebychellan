@@ -770,7 +770,7 @@ class StaffService {
    * Date range only on the server (single-field index); scheme/deleted are
    * filtered by the caller. Throws on failure so a partial export isn't silent.
    */
-  async getCCTVUploadsForExport({ startDate = null, endDate = null } = {}, batchSize = 500) {
+  async getCCTVUploadsForExport({ startDate = null, endDate = null } = {}, batchSize = 500, collectionName = "cctvUploads") {
     const base = [];
     if (startDate) base.push(where("uploadedAt", ">=", Timestamp.fromDate(startDate)));
     if (endDate) base.push(where("uploadedAt", "<=", Timestamp.fromDate(endDate)));
@@ -781,7 +781,7 @@ class StaffService {
       const constraints = cursor
         ? [...base, startAfter(cursor), limit(batchSize)]
         : [...base, limit(batchSize)];
-      const snapshot = await getDocs(query(collection(db, "cctvUploads"), ...constraints));
+      const snapshot = await getDocs(query(collection(db, collectionName), ...constraints));
       snapshot.docs.forEach((d) => results.push({ id: d.id, ...d.data() }));
       if (snapshot.docs.length < batchSize) return results;
       cursor = snapshot.docs[snapshot.docs.length - 1];
