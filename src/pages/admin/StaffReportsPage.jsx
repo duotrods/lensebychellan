@@ -22,7 +22,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { toast } from "react-hot-toast";
 import { generateReportPDF } from "../../utils/pdfGenerator";
-import StatCard from "../../components/admin/ReportStatCard";
+import StatCard from "../../components/common/StatCard";
 import ExportReportsModal from "../../components/admin/ExportReportsModal";
 import ExportVideosModal from "../../components/admin/ExportVideosModal";
 
@@ -528,40 +528,35 @@ const StaffReportsPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
           <StatCard
             icon={faFileLines}
-            tint="bg-brand-500/10"
-            iconColor="text-brand-500"
+            color="#00BBA7"
             title="Total Reports"
             value={stats.total}
             text="Every form submitted by staff across all schemes."
           />
           <StatCard
             icon={faCamera}
-            tint="bg-purple-500/10"
-            iconColor="text-purple-500"
+            color="#a855f7"
             title="CCTV Checks"
             value={stats.cctvCheck}
             text="CCTV camera check forms submitted."
           />
           <StatCard
             icon={faFileLines}
-            tint="bg-teal-500/10"
-            iconColor="text-teal-500"
+            color="#14b8a6"
             title="Incidents"
             value={stats.incident}
             text="Incident reports submitted by staff."
           />
           <StatCard
             icon={faTriangleExclamation}
-            tint="bg-orange-500/10"
-            iconColor="text-orange-500"
+            color="#f97316"
             title="Asset Damage"
             value={stats.assetDamage}
             text="Reports with asset or property damage."
           />
           <StatCard
             icon={faVideoSlash}
-            tint="bg-fuchsia-500/10"
-            iconColor="text-fuchsia-500"
+            color="#d946ef"
             title="CCTV Faults"
             value={stats.cctvFaults}
             text="Camera fault reports submitted by staff."

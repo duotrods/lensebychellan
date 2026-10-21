@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faLayerGroup,
   faPlus,
   faPen,
   faBoxArchive,
@@ -310,17 +309,17 @@ const SchemeRow = ({ scheme, busy, onEdit, onToggleActive, onDelete }) => {
   const inCodeOnly = scheme.inCodeOnly;
   const archived = scheme.active === false;
   return (
-    <tr className="border-t border-gray-100">
-      <td className="px-4 py-3 font-mono text-sm text-gray-800">{scheme.id}</td>
-      <td className="px-4 py-3 text-sm text-gray-700">
+    <tr className="border-t border-gray-100 hover:bg-gray-50">
+      <td className="px-6 py-4 font-mono text-sm text-gray-800">{scheme.id}</td>
+      <td className="px-6 py-4 text-sm text-gray-700">
         {scheme.fullName}
         {scheme.shortName && scheme.shortName !== scheme.fullName && (
           <span className="block text-xs text-gray-400">{scheme.shortName}</span>
         )}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-600">{scheme.type === "thirdparty" ? scheme.company : scheme.contractor}</td>
-      <td className="px-4 py-3 text-sm text-gray-600">{(scheme.cameras || []).length}</td>
-      <td className="px-4 py-3 text-sm">
+      <td className="px-6 py-4 text-sm text-gray-600">{scheme.type === "thirdparty" ? scheme.company : scheme.contractor}</td>
+      <td className="px-6 py-4 text-sm text-gray-600">{(scheme.cameras || []).length}</td>
+      <td className="px-6 py-4 text-sm">
         {inCodeOnly ? (
           <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs">In code only</span>
         ) : archived ? (
@@ -329,7 +328,7 @@ const SchemeRow = ({ scheme, busy, onEdit, onToggleActive, onDelete }) => {
           <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-xs">Active</span>
         )}
       </td>
-      <td className="px-4 py-3 text-right whitespace-nowrap">
+      <td className="px-6 py-4 text-right whitespace-nowrap">
         <button
           onClick={() => onEdit(scheme)}
           disabled={inCodeOnly || busy}
@@ -362,7 +361,7 @@ const SchemeRow = ({ scheme, busy, onEdit, onToggleActive, onDelete }) => {
 };
 
 const SchemeTable = ({ title, schemes, busy, onEdit, onToggleActive, onDelete }) => (
-  <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div className="bg-white rounded-lg shadow overflow-hidden">
     <div className="px-6 py-4 border-b border-gray-100">
       <h4 className="font-semibold text-gray-800">
         {title} <span className="text-gray-400 font-normal">({schemes.length})</span>
@@ -373,14 +372,14 @@ const SchemeTable = ({ title, schemes, busy, onEdit, onToggleActive, onDelete })
     ) : (
       <div className="overflow-x-auto">
         <table className="w-full text-left">
-          <thead>
-            <tr className="text-xs uppercase text-gray-400">
-              <th className="px-4 py-2 font-medium">ID</th>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">Contractor / company</th>
-              <th className="px-4 py-2 font-medium">Cameras</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2" />
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contractor / company</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cameras</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -514,25 +513,22 @@ const SchemeManagementPage = () => {
 
   return (
     <AdminSidebarLayout>
-      <div className="max-w-5xl mx-auto space-y-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <FontAwesomeIcon icon={faLayerGroup} className="w-6 h-6 text-teal-500" />
-              <h3 className="text-xl font-bold text-gray-800">Manage Schemes</h3>
-            </div>
-            <button
-              onClick={() => setEditing("new")}
-              disabled={busy}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50"
-            >
-              <FontAwesomeIcon icon={faPlus} className="w-3.5 h-3.5" /> Add scheme
-            </button>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Manage Schemes</h2>
+            <p className="text-gray-600 mt-1">
+              Add or archive schemes without a code change. Existing reports are never modified; they keep
+              the scheme ID and name they were saved with.
+            </p>
           </div>
-          <p className="text-gray-500 text-sm mt-2">
-            Add or archive schemes without a code change. Existing reports are never modified; they keep
-            the scheme ID and name they were saved with.
-          </p>
+          <button
+            onClick={() => setEditing("new")}
+            disabled={busy}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 self-start sm:self-auto"
+          >
+            <FontAwesomeIcon icon={faPlus} className="w-3.5 h-3.5" /> Add scheme
+          </button>
         </div>
 
         {codeOnlyCount > 0 && !schemesQuery.isLoading && (
