@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterUploadsByScheme, collectVideoFiles, totalBytes, formatBytes } from "../videoExport";
+import { filterUploadsByScheme, collectVideoFiles, collectIncidentVideoFiles, collectCamVideoFiles, totalBytes, formatBytes } from "../videoExport";
 
 const up = (o) => ({ id: "u1", schemeId: "M3", date: "2026-01-02", cameraNumber: "C1", ...o });
 const vid = (fileName, fileSize = 100) => ({ fileName, fileSize, fileType: "video/mp4", downloadUrl: `https://r2/${fileName}` });
@@ -23,6 +23,26 @@ describe("videoExport", () => {
   });
   it("formats bytes", () => {
     expect(formatBytes(10 * 1024 ** 3)).toBe("10.00 GB");
+  });
+});
+
+describe("incident report videos", () => {
+  it("puts them under <scheme>/Incidents/<reference>", () => {
+    const files = collectIncidentVideoFiles([
+      { id: "x1", referenceId: "IN17", schemeIds: ["A417"], files: [vid("a.mp4"), { fileName: "p.jpg", fileType: "image/jpeg", downloadUrl: "x" }] },
+      { id: "x2", schemeId: "M3", files: [vid("b.mov")] },
+    ]);
+    expect(files.map((f) => f.path)).toEqual(["A417/Incidents/IN17/a.mp4", "M3/Incidents/x2/b.mov"]);
+  });
+});
+
+describe("body/dash cam videos", () => {
+  it("reads the single top-level file into <scheme>/<label>/<date>", () => {
+    const files = collectCamVideoFiles(
+      [{ id: "c1", schemeId: "M3", date: "2026-07-10", fileName: "a.MP4", fileType: "video/mp4", fileSize: 5, downloadUrl: "u" }],
+      "DashCam",
+    );
+    expect(files).toEqual([{ url: "u", path: "M3/DashCam/2026-07-10/a.MP4", size: 5 }]);
   });
 });
 

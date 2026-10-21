@@ -37,19 +37,17 @@ export const filterUploadsByScheme = (uploads, schemeId) => {
   });
 };
 
-/**
- * Flatten uploads into one entry per video file with a unique path inside the
- * ZIP: `<scheme>/<date>_<camera>/<fileName>`. Duplicate paths get a numeric suffix.
- */
-export const collectVideoFiles = (uploads) => {
+const schemeFolder = (doc) => safe(doc.schemeId || doc.schemeIds?.[0] || "unknown-scheme");
+
+// Shared by both sources: one entry per video file, with a unique path inside
+// the ZIP. `folderOf(doc)` gives the folder; duplicate paths get a numeric suffix.
+const collectFrom = (docs, folderOf) => {
   const used = new Set();
   const files = [];
-  for (const upload of uploads) {
-    for (const f of upload.files || []) {
+  for (const doc of docs) {
+    for (const f of doc.files || []) {
       if (!f?.downloadUrl || !isVideoFile(f)) continue;
-      const folder = [safe(upload.schemeId || upload.schemeIds?.[0] || "unknown-scheme"),
-        [safe(upload.date), safe(upload.cameraNumber)].filter(Boolean).join("_") || upload.id]
-        .join("/");
+      const folder = folderOf(doc);
       const name = safe(f.fileName, true) || "video";
       let path = `${folder}/${name}`;
       // Windows and macOS filesystems are case-insensitive, so dedupe on lowercase.
@@ -65,6 +63,35 @@ export const collectVideoFiles = (uploads) => {
   }
   return files;
 };
+
+/**
+ * CCTV uploads → `<scheme>/<date>_<camera>/<fileName>`.
+ */
+export const collectVideoFiles = (uploads) =>
+  collectFrom(uploads, (upload) =>
+    [schemeFolder(upload),
+      [safe(upload.date), safe(upload.cameraNumber)].filter(Boolean).join("_") || upload.id]
+      .join("/"));
+
+/**
+ * Videos attached to incident reports → `<scheme>/Incidents/<reference>/<fileName>`.
+ */
+export const collectIncidentVideoFiles = (reports) =>
+  collectFrom(reports, (report) =>
+    [schemeFolder(report), "Incidents", safe(report.referenceId || report.id)].join("/"));
+
+/**
+ * Body cam / dash cam uploads hold one file per document (top-level fileName /
+ * downloadUrl) → `<scheme>/<BodyCam|DashCam>/<date>/<fileName>`.
+ */
+export const collectCamVideoFiles = (uploads, label) =>
+  collectFrom(
+    uploads.map((u) => ({
+      ...u,
+      files: [{ fileName: u.fileName, downloadUrl: u.downloadUrl, fileType: u.fileType, fileSize: u.fileSize }],
+    })),
+    (u) => [schemeFolder(u), label, safe(u.date) || u.id].join("/"),
+  );
 
 export const totalBytes = (files) => files.reduce((sum, f) => sum + f.size, 0);
 
