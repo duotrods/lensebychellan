@@ -2,10 +2,11 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmailVerification from './EmailVerification';
+import MfaGate from './MfaGate';
 import SecurityWarningModal from './SecurityWarningModal';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { currentUser, userProfile, loading, isEmailVerified, role, schemesLoaded } = useAuth();
+  const { currentUser, userProfile, loading, isEmailVerified, mfaVerified, role, schemesLoaded } = useAuth();
   const location = useLocation();
 
   // Wait for the first scheme-list load so pages never render a stale list
@@ -27,6 +28,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   // No user profile (shouldn't happen, but safety check)
   if (!userProfile) {
     return <Navigate to="/signin" replace />;
+  }
+
+  // Two-factor: phone setup on first login, otherwise the SMS / backup code screen.
+  // UX only - firestore.rules and storage.rules enforce the same check server-side.
+  if (!mfaVerified) {
+    return <MfaGate />;
   }
 
   // Role-based access control

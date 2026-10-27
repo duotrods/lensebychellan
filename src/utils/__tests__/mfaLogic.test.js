@@ -9,22 +9,13 @@ const mfa = require("../../../functions/mfaLogic.js");
 const T0 = 1_700_000_000_000;
 const HOUR = 60 * 60 * 1000;
 
-describe("normaliseUkMobile", () => {
-  it("accepts common UK formats and returns E.164", () => {
-    expect(mfa.normaliseUkMobile("07123 456789")).toBe("+447123456789");
-    expect(mfa.normaliseUkMobile("+44 7123 456789")).toBe("+447123456789");
-    expect(mfa.normaliseUkMobile("0044 (7123) 456-789")).toBe("+447123456789");
-    expect(mfa.normaliseUkMobile("447987654321")).toBe("+447987654321");
+describe("maskEmail", () => {
+  it("keeps the first letter and the domain", () => {
+    expect(mfa.maskEmail("rod@example.com")).toBe("r***@example.com");
   });
-
-  it("rejects non-UK, landline, pager and malformed numbers", () => {
-    expect(mfa.normaliseUkMobile("+639171234567")).toBeNull(); // PH
-    expect(mfa.normaliseUkMobile("020 7946 0958")).toBeNull(); // London landline
-    expect(mfa.normaliseUkMobile("07612 345678")).toBeNull(); // 076 pagers
-    expect(mfa.normaliseUkMobile("07123 45678")).toBeNull(); // too short
-    expect(mfa.normaliseUkMobile("07123 4567890")).toBeNull(); // too long
-    expect(mfa.normaliseUkMobile("0712345abcd")).toBeNull();
-    expect(mfa.normaliseUkMobile(undefined)).toBeNull();
+  it("returns an empty string for anything that is not an email", () => {
+    expect(mfa.maskEmail(undefined)).toBe("");
+    expect(mfa.maskEmail("nope")).toBe("");
   });
 });
 
@@ -71,29 +62,75 @@ describe("lock rules (3 attempts -> 12 hours)", () => {
   });
 });
 
-describe("trusted devices (10 logouts)", () => {
+describe("trusted browsers (15 days)", () => {
+  const DAY = 24 * HOUR;
   const hash = mfa.hashDeviceToken("device-token");
 
-  it("stays trusted until the 10th logout, then is dropped", () => {
-    let devices = [{ hash, logoutCount: 0 }];
-    for (let i = 0; i < 9; i++) devices = mfa.registerDeviceLogout(devices, hash);
-    expect(devices[0].logoutCount).toBe(9);
-    expect(mfa.isDeviceTrusted(devices, hash)).toBe(true);
-    devices = mfa.registerDeviceLogout(devices, hash);
-    expect(devices).toEqual([]);
-    expect(mfa.isDeviceTrusted(devices, hash)).toBe(false);
-  });
-
-  it("only touches the matching device", () => {
-    const other = mfa.hashDeviceToken("other");
-    const devices = mfa.registerDeviceLogout([{ hash, logoutCount: 2 }, { hash: other, logoutCount: 4 }], hash);
-    expect(devices.find((d) => d.hash === other).logoutCount).toBe(4);
-    expect(devices.find((d) => d.hash === hash).logoutCount).toBe(3);
+  it("is trusted for exactly 15 days from when it was ticked", () => {
+    const devices = mfa.addTrustedDevice([], hash, T0);
+    expect(mfa.TRUST_DAYS).toBe(15);
+    expect(mfa.isDeviceTrusted(devices, hash, T0 + 15 * DAY - 1)).toBe(true);
+    expect(mfa.isDeviceTrusted(devices, hash, T0 + 15 * DAY)).toBe(false);
   });
 
   it("does not trust a missing or unknown token", () => {
-    expect(mfa.isDeviceTrusted([{ hash, logoutCount: 0 }], "")).toBe(false);
-    expect(mfa.isDeviceTrusted([{ hash, logoutCount: 0 }], "nope")).toBe(false);
+    const devices = mfa.addTrustedDevice([], hash, T0);
+    expect(mfa.isDeviceTrusted(devices, "", T0)).toBe(false);
+    expect(mfa.isDeviceTrusted(devices, mfa.hashDeviceToken("nope"), T0)).toBe(false);
+    expect(mfa.isDeviceTrusted(undefined, hash, T0)).toBe(false);
+  });
+
+  it("re-trusting replaces the entry and prunes expired ones", () => {
+    const other = mfa.hashDeviceToken("other");
+    let devices = mfa.addTrustedDevice([], other, T0);
+    devices = mfa.addTrustedDevice(devices, hash, T0 + 20 * DAY);
+    expect(devices).toHaveLength(1); // `other` expired and was pruned
+    devices = mfa.addTrustedDevice(devices, hash, T0 + 21 * DAY);
+    expect(devices).toHaveLength(1);
+    expect(devices[0].expiresAt).toBe(T0 + 36 * DAY);
+  });
+
+  it("reads Firestore Timestamp-like expiry values", () => {
+    const devices = [{ hash, expiresAt: { toMillis: () => T0 + HOUR } }];
+    expect(mfa.isDeviceTrusted(devices, hash, T0)).toBe(true);
+    expect(mfa.pruneTrustedDevices(devices, T0 + 2 * HOUR)).toEqual([]);
+  });
+});
+
+describe("SMS codes", () => {
+  it("generates 6 digits, zero padded", () => {
+    expect(mfa.generateSmsCode(() => 42)).toBe("000042");
+    expect(mfa.generateSmsCode()).toMatch(/^\d{6}$/);
+  });
+
+  it("verifies the right code until it expires, tolerating spaces", () => {
+    const c = mfa.createSmsChallenge("123456", T0);
+    expect(c.expiresAt).toBe(T0 + 10 * 60 * 1000);
+    expect(mfa.verifySmsCode(c, "123456", T0 + 1000)).toBe(true);
+    expect(mfa.verifySmsCode(c, "123 456", T0 + 1000)).toBe(true);
+    expect(mfa.verifySmsCode(c, "123456", T0 + 10 * 60 * 1000)).toBe(false);
+  });
+
+  it("rejects wrong, malformed and missing input", () => {
+    const c = mfa.createSmsChallenge("123456", T0);
+    expect(mfa.verifySmsCode(c, "654321", T0)).toBe(false);
+    expect(mfa.verifySmsCode(c, "12345", T0)).toBe(false);
+    expect(mfa.verifySmsCode(c, undefined, T0)).toBe(false);
+    expect(mfa.verifySmsCode(null, "123456", T0)).toBe(false);
+  });
+
+  it("never stores the plain code", () => {
+    expect(mfa.createSmsChallenge("123456", T0).hash).not.toContain("123456");
+  });
+
+  it("allows 3 sends per 15 minutes, then a fresh window", () => {
+    let s = mfa.registerSmsSend({}, T0);
+    expect(s).toEqual({ sendCount: 1, windowStart: T0 });
+    s = mfa.registerSmsSend(s, T0 + 1000);
+    s = mfa.registerSmsSend(s, T0 + 2000);
+    expect(s.sendCount).toBe(3);
+    expect(mfa.registerSmsSend(s, T0 + 3000)).toBeNull();
+    expect(mfa.registerSmsSend(s, T0 + 15 * 60 * 1000)).toEqual({ sendCount: 1, windowStart: T0 + 15 * 60 * 1000 });
   });
 });
 

@@ -11,7 +11,15 @@ service cloud.firestore {
     // Applied to all data collections to prevent unverified accounts from
     // reading or writing operational data. (Phase 1 security fix)
     function isVerified() {
-      return request.auth != null && request.auth.token.email_verified == true;
+      return request.auth != null && request.auth.token.email_verified == true && isMfaVerified();
+    }
+
+    // Helper: the user passed two-factor authentication on THIS sign-in.
+    // The mfaAuthTime claim is set by the mfaVerify / mfaConfirmEnrol Cloud
+    // Functions to the token's auth_time. A fresh password sign-in gets a new
+    // auth_time, so a stale claim no longer matches. A missing claim denies.
+    function isMfaVerified() {
+      return request.auth != null && request.auth.token.mfaAuthTime == request.auth.token.auth_time;
     }
 
     // Helper: get user's role from users collection
@@ -54,7 +62,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
-        getUserRole() == 'admin'
+        (getUserRole() == 'admin' && isMfaVerified())
       );
 
       // SECURITY FIX: Self-update is restricted to safe fields only.
@@ -65,72 +73,87 @@ service cloud.firestore {
         (request.auth.uid == userId &&
          request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['displayName', 'activeSchemeId', 'lastLogoutAt', 'lastLoginAt', 'emailVerified', 'updatedAt'])) ||
-        getUserRole() == 'admin'
+        (getUserRole() == 'admin' && isMfaVerified())
       );
 
-      allow create: if isSignedIn();
-      allow delete: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
+      // A user may only create their own document, and never with the 2FA flags or
+      // archive flag set (those are written by Cloud Functions / admins only).
+      // Otherwise a user could delete + re-create their doc claiming mfaEnrolled.
+      // NOTE: `role` is still chosen by the signup client; moving signup to a Cloud
+      // Function is the real fix and is out of scope for the 2FA work.
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && !request.resource.data.keys().hasAny(['mfaEnrolled', 'mfaLockedUntil', 'isArchived']);
+
+      // No direct deletes from clients. Admins delete users via the deleteUserAccount
+      // Cloud Function (Admin SDK, bypasses these rules).
+      allow delete: if false;
+    }
+
+    // 2FA secrets (hashed codes, trusted browsers, lock state).
+    // Only the Cloud Functions (Admin SDK) touch this - no client access at all.
+    match /mfa/{userId} {
+      allow read, write: if false;
     }
 
     // OTP codes - admin only
     match /otpCodes/{otpId} {
-      allow read, write: if isSignedIn() && getUserRole() == 'admin';
+      allow read, write: if isVerified() && getUserRole() == 'admin';
     }
 
     // Client OTPs
     match /clientOTPs/{otpId} {
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isVerified() && getUserRole() == 'admin';
       // SECURITY FIX: Split 'allow read: if true' into get vs list.
       // 'get' (single doc) is still public — needed for OTP validation during
       // signup before the user has a Firebase account.
       // 'list' (query all docs) is admin-only — prevents anyone from
       // enumerating all active OTP codes.
       allow get: if true;
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if isVerified() && getUserRole() == 'admin';
     }
 
     // CCTV Operator Access Codes (separate from clientOTPs)
     match /cctvOperatorOTPs/{codeId} {
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isVerified() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Staff Invite Codes
     match /staffInviteCodes/{codeId} {
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isVerified() && getUserRole() == 'admin';
       // SECURITY FIX: Same as clientOTPs — allow single-doc read for signup
       // validation but block listing all invite codes.
       allow get: if true;
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party Operator Codes — admin only
     match /thirdPartyOperatorCodes/{codeId} {
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isVerified() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party Client Codes — admin only
     match /thirdPartyClientCodes/{codeId} {
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isVerified() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party Live Operator Codes — admin only
     match /thirdPartyLiveOperatorCodes/{codeId} {
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isVerified() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party CCTV Operator Codes — admin only
     match /thirdPartyCCTVOperatorCodes/{codeId} {
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isVerified() && getUserRole() == 'admin';
       allow get: if true;
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Incident Reports
@@ -527,7 +550,7 @@ service cloud.firestore {
     // Only admins can read. TTL auto-deletes after 3 days.
     match /loginLogs/{logId} {
       allow create: if isSignedIn();
-      allow read: if isSignedIn() && getUserRole() == 'admin';
+      allow read: if isVerified() && getUserRole() == 'admin';
     }
 
     // Scheme Stats (running totals — vehicles dispatched, etc.)

@@ -3,8 +3,11 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     // Helper: user is authenticated and email verified
+    // Also requires two-factor on this sign-in (mfaAuthTime claim == auth_time,
+    // set by the mfa Cloud Functions). See firestore.rules isMfaVerified().
     function isVerified() {
-      return request.auth != null && request.auth.token.email_verified == true;
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.mfaAuthTime == request.auth.token.auth_time;
     }
 
     // Helper: get user's role from Firestore

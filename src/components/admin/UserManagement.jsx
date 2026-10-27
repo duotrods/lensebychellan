@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
+import { mfaService } from "../../services/mfaService";
+import { toMillis } from "../../utils/twoFactor";
 import { useAuth } from "../../hooks/useAuth";
 import { ROLE_LABELS } from "../../utils/constants";
 import { ROLE_BADGE, ROLE_ICON } from "../../utils/roleBadge";
@@ -17,6 +19,9 @@ import {
   faClock,
   faChevronLeft,
   faChevronRight,
+  faLock,
+  faLockOpen,
+  faMobileScreenButton,
 } from "@fortawesome/free-solid-svg-icons";
 
 const ROLE_FILTERS = [
@@ -157,7 +162,46 @@ const UserManagement = () => {
     }
   };
 
-  const renderStatus = (user) =>
+  const handleUnlockMfa = async (user) => {
+    if (!confirm(`Unlock 2FA for ${user.displayName}? They will get 3 fresh attempts.`)) return;
+
+    try {
+      setActionLoading(true);
+      await mfaService.adminUnlock(user.uid);
+      toast.success(`2FA unlocked for ${user.displayName}`);
+      usersQuery.refetch();
+    } catch (error) {
+      console.error("Failed to unlock 2FA:", error);
+      toast.error(error.message || "Failed to unlock 2FA");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetMfa = async (user) => {
+    if (
+      !confirm(
+        `Reset 2FA for ${user.displayName}? Their backup codes and remembered browsers are removed, and they must set up 2FA again at next sign-in.`,
+      )
+    )
+      return;
+
+    try {
+      setActionLoading(true);
+      await mfaService.adminReset(user.uid);
+      toast.success(`2FA reset for ${user.displayName}`);
+      usersQuery.refetch();
+    } catch (error) {
+      console.error("Failed to reset 2FA:", error);
+      toast.error(error.message || "Failed to reset 2FA");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const isMfaLocked = (user) => toMillis(user.mfaLockedUntil) > Date.now();
+
+  const renderAccountStatus = (user) =>
     user.isArchived ? (
       <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
         <FontAwesomeIcon icon={faBoxArchive} className="w-3 h-3" />
@@ -175,6 +219,18 @@ const UserManagement = () => {
       </span>
     );
 
+  const renderStatus = (user) => (
+    <div className="flex flex-wrap items-center justify-center gap-1">
+      {renderAccountStatus(user)}
+      {isMfaLocked(user) && (
+        <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+          <FontAwesomeIcon icon={faLock} className="w-3 h-3" />
+          <span className="hidden sm:inline">2FA locked</span>
+        </span>
+      )}
+    </div>
+  );
+
   const renderRoleBadge = (role) => {
     const Icon = ROLE_ICON[role] || faUser;
     return (
@@ -186,12 +242,36 @@ const UserManagement = () => {
   };
 
   const renderUserActions = (user) => {
-    if (user.role === "admin" || user.uid === userProfile?.uid) {
+    const isSelf = user.uid === userProfile?.uid;
+    const canManageAccount = user.role !== "admin" && !isSelf;
+    // 2FA actions also work on other admins (a locked-out admin needs another admin)
+    const canManageMfa = !isSelf && (isMfaLocked(user) || user.mfaEnrolled);
+    if (!canManageAccount && !canManageMfa) {
       return <span className="text-xs text-gray-400">-</span>;
     }
     return (
       <div className="flex items-center justify-center gap-2">
-        {user.isArchived ? (
+        {isMfaLocked(user) && !isSelf && (
+          <button
+            onClick={() => handleUnlockMfa(user)}
+            disabled={actionLoading}
+            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 disabled:opacity-50"
+            title="Unlock 2FA"
+          >
+            <FontAwesomeIcon icon={faLockOpen} className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {user.mfaEnrolled && !isSelf && (
+          <button
+            onClick={() => handleResetMfa(user)}
+            disabled={actionLoading}
+            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 disabled:opacity-50"
+            title="Reset 2FA (lost access)"
+          >
+            <FontAwesomeIcon icon={faMobileScreenButton} className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {canManageAccount && (user.isArchived ? (
           <button
             onClick={() => handleUnarchiveUser(user)}
             disabled={actionLoading}
@@ -209,14 +289,16 @@ const UserManagement = () => {
           >
             <FontAwesomeIcon icon={faBoxArchive} className="w-3.5 h-3.5" />
           </button>
+        ))}
+        {canManageAccount && (
+          <button
+            onClick={() => setDeleteModal({ isOpen: true, user })}
+            className="p-1 rounded-lg text-red-600 hover:bg-red-50"
+            title="Delete user"
+          >
+            <FontAwesomeIcon icon={faTrashCan} className="w-2 h-2" />
+          </button>
         )}
-        <button
-          onClick={() => setDeleteModal({ isOpen: true, user })}
-          className="p-1 rounded-lg text-red-600 hover:bg-red-50"
-          title="Delete user"
-        >
-          <FontAwesomeIcon icon={faTrashCan} className="w-2 h-2" />
-        </button>
       </div>
     );
   };
