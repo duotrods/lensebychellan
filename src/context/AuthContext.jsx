@@ -5,6 +5,7 @@ import { auth, db } from '../config/firebase';
 import { firestoreService } from '../services/firestoreService';
 import { schemeService } from '../services/schemeService';
 import { setSchemes } from '../utils/schemes';
+import { isMfaSessionVerified } from '../utils/twoFactor';
 
 export const AuthContext = createContext({});
 
@@ -15,7 +16,22 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [schemesVersion, setSchemesVersion] = useState(0);
   const [schemesLoaded, setSchemesLoaded] = useState(false);
+  // Passed two-factor on THIS sign-in (the mfaAuthTime claim matches the token's auth_time)
+  const [mfaVerified, setMfaVerified] = useState(false);
   const profileUnsubRef = useRef(null);
+
+  // Re-read the claim from a fresh token. Called right after the mfa Cloud Functions set it.
+  const refreshMfa = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      setMfaVerified(false);
+      return false;
+    }
+    const result = await user.getIdTokenResult(true);
+    const ok = isMfaSessionVerified(result.claims);
+    setMfaVerified(ok);
+    return ok;
+  }, []);
 
   // Schemes: start from the last list this browser saw, then refresh from Firestore
   // after login. An empty or failed load keeps the static list from schemes.js.
@@ -38,8 +54,9 @@ export const AuthProvider = ({ children }) => {
 
   // Pages wait for the first load so they never render a stale list. If Firestore is
   // slow or unreachable they render anyway after 3s with the cached/static schemes.
+  // The schemes collection needs a 2FA-verified session, so wait for that.
   useEffect(() => {
-    if (!currentUser) {
+    if (!currentUser || !mfaVerified) {
       setSchemesLoaded(true);
       return undefined;
     }
@@ -57,7 +74,7 @@ export const AuthProvider = ({ children }) => {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [currentUser?.uid, refreshSchemes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentUser?.uid, mfaVerified, refreshSchemes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -73,6 +90,13 @@ export const AuthProvider = ({ children }) => {
         setCurrentUser(user);
 
         if (user) {
+          try {
+            const tokenResult = await user.getIdTokenResult();
+            setMfaVerified(isMfaSessionVerified(tokenResult.claims));
+          } catch {
+            setMfaVerified(false);
+          }
+
           // Fetch once to check archived status before starting live listener
           const profile = await firestoreService.getUserDocument(user.uid);
 
@@ -111,6 +135,7 @@ export const AuthProvider = ({ children }) => {
           );
         } else {
           setUserProfile(null);
+          setMfaVerified(false);
         }
       } catch (err) {
         console.error('Auth state change error:', err);
@@ -144,6 +169,9 @@ export const AuthProvider = ({ children }) => {
     error,
     isAuthenticated: !!currentUser,
     isEmailVerified: currentUser?.emailVerified || false,
+    mfaVerified,
+    mfaEnrolled: !!userProfile?.mfaEnrolled,
+    refreshMfa,
     role: userProfile?.role || null,
     schemesVersion,
     schemesLoaded,

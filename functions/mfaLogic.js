@@ -1,26 +1,23 @@
+/* eslint-disable no-undef */
 // Pure 2FA rules (no Firebase imports) so they can be unit-tested from src/.
-// Authoritative copy: the UK-number check is mirrored in src/utils/twoFactor.js
-// for form validation. Change both together.
 const crypto = require("crypto");
 
 const MAX_FAILED_ATTEMPTS = 3;
 const LOCK_DURATION_MS = 12 * 60 * 60 * 1000;
-const TRUST_MAX_LOGOUTS = 10;
+const TRUST_DAYS = 15;
+const TRUST_DURATION_MS = TRUST_DAYS * 24 * 60 * 60 * 1000;
+const SMS_CODE_TTL_MS = 10 * 60 * 1000;
+const SMS_SEND_LIMIT = 3;
+const SMS_SEND_WINDOW_MS = 15 * 60 * 1000;
 const BACKUP_CODE_COUNT = 10;
 const BACKUP_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 
-// Accepts 07123 456789, 7123456789, +44 7123 456789, 0044..., 447...
-// Returns "+447XXXXXXXXX" or null. Mobile ranges 071-075 and 077-079
-// (076 is pagers, 070 is personal numbering).
-function normaliseUkMobile(input) {
-  if (typeof input !== "string") return null;
-  let digits = input.replace(/[\s\-().]/g, "");
-  if (digits.startsWith("+")) digits = digits.slice(1);
-  else if (digits.startsWith("00")) digits = digits.slice(2);
-  if (!/^\d+$/.test(digits)) return null;
-  if (digits.startsWith("44")) digits = digits.slice(2);
-  else if (digits.startsWith("0")) digits = digits.slice(1);
-  return /^7[1-57-9]\d{8}$/.test(digits) ? `+44${digits}` : null;
+// "rod@example.com" -> "r***@example.com", so the UI can say where the code went
+// without exposing the whole address.
+function maskEmail(email) {
+  if (typeof email !== "string" || !email.includes("@")) return "";
+  const [local, domain] = email.split("@");
+  return `${local.slice(0, 1)}***@${domain}`;
 }
 
 function toMillis(value) {
@@ -64,20 +61,20 @@ function attemptsRemaining(state, now = Date.now()) {
   return Math.max(0, MAX_FAILED_ATTEMPTS - current.failedAttempts);
 }
 
-// Trusted devices: each logout on a device counts; at TRUST_MAX_LOGOUTS the
-// device is dropped and the next login there needs a code again.
-function registerDeviceLogout(devices, deviceHash) {
-  const list = Array.isArray(devices) ? devices : [];
-  return list.flatMap((d) => {
-    if (d.hash !== deviceHash) return [d];
-    const logoutCount = (d.logoutCount || 0) + 1;
-    return logoutCount >= TRUST_MAX_LOGOUTS ? [] : [{ ...d, logoutCount }];
-  });
+// Trusted browsers: "remember this browser" trusts a device for TRUST_DAYS from
+// the day it was ticked (fixed, not extended by later sign-ins).
+function pruneTrustedDevices(devices, now = Date.now()) {
+  return (Array.isArray(devices) ? devices : []).filter((d) => toMillis(d.expiresAt) > now);
 }
 
-function isDeviceTrusted(devices, deviceHash) {
+function addTrustedDevice(devices, deviceHash, now = Date.now()) {
+  const kept = pruneTrustedDevices(devices, now).filter((d) => d.hash !== deviceHash);
+  return [...kept, { hash: deviceHash, createdAt: now, expiresAt: now + TRUST_DURATION_MS }];
+}
+
+function isDeviceTrusted(devices, deviceHash, now = Date.now()) {
   if (!deviceHash || !Array.isArray(devices)) return false;
-  return devices.some((d) => d.hash === deviceHash && (d.logoutCount || 0) < TRUST_MAX_LOGOUTS);
+  return devices.some((d) => d.hash === deviceHash && toMillis(d.expiresAt) > now);
 }
 
 function hashDeviceToken(token) {
@@ -119,22 +116,67 @@ function consumeBackupCode(hashes, input) {
   return null;
 }
 
+// SMS codes: 6 digits, stored salted-hashed with an expiry. The caller deletes the
+// challenge after a successful check so a code is single use.
+function generateSmsCode(randomInt = crypto.randomInt) {
+  return String(randomInt(0, 1000000)).padStart(6, "0");
+}
+
+function hashSmsCode(code, salt = crypto.randomBytes(8).toString("hex")) {
+  const hash = crypto.createHash("sha256").update(`${salt}:${String(code).trim()}`).digest("hex");
+  return `${salt}:${hash}`;
+}
+
+function createSmsChallenge(code, now = Date.now()) {
+  return { hash: hashSmsCode(code), expiresAt: now + SMS_CODE_TTL_MS };
+}
+
+function verifySmsCode(challenge, input, now = Date.now()) {
+  if (!challenge || !challenge.hash || toMillis(challenge.expiresAt) <= now) return false;
+  const code = typeof input === "string" ? input.replace(/\s/g, "") : "";
+  if (!/^\d{6}$/.test(code)) return false;
+  const [salt, stored] = challenge.hash.split(":");
+  const a = Buffer.from(hashSmsCode(code, salt).split(":")[1], "hex");
+  const b = Buffer.from(stored, "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// Rate limit: SMS_SEND_LIMIT sends per SMS_SEND_WINDOW_MS. Returns the new
+// { sendCount, windowStart } or null when the limit has been reached.
+function registerSmsSend(state, now = Date.now()) {
+  const windowStart = toMillis(state && state.windowStart);
+  const inWindow = windowStart && now - windowStart < SMS_SEND_WINDOW_MS;
+  const sendCount = inWindow ? (state.sendCount || 0) : 0;
+  if (sendCount >= SMS_SEND_LIMIT) return null;
+  return { sendCount: sendCount + 1, windowStart: inWindow ? windowStart : now };
+}
+
 module.exports = {
   MAX_FAILED_ATTEMPTS,
   LOCK_DURATION_MS,
-  TRUST_MAX_LOGOUTS,
+  TRUST_DAYS,
+  TRUST_DURATION_MS,
+  SMS_CODE_TTL_MS,
+  SMS_SEND_LIMIT,
   BACKUP_CODE_COUNT,
-  normaliseUkMobile,
+  toMillis,
+  maskEmail,
   isLocked,
   currentLockState,
   registerFailure,
   registerSuccess,
   attemptsRemaining,
-  registerDeviceLogout,
+  pruneTrustedDevices,
+  addTrustedDevice,
   isDeviceTrusted,
   hashDeviceToken,
   normaliseBackupCode,
   generateBackupCodes,
   hashBackupCode,
   consumeBackupCode,
+  generateSmsCode,
+  hashSmsCode,
+  createSmsChallenge,
+  verifySmsCode,
+  registerSmsSend,
 };
