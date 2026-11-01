@@ -57,7 +57,14 @@ const MfaVerify = ({ onDone }) => {
     return () => clearInterval(id);
   }, []);
 
-  const lockedUntil = Math.max(errorLockedUntil, toMillis(userProfile?.mfaLockedUntil));
+  // An admin unlock clears users/{uid}.mfaLockedUntil live; drop the lock remembered
+  // from the last error too, otherwise the screen stays locked until it expires.
+  const profileLockedUntil = toMillis(userProfile?.mfaLockedUntil);
+  useEffect(() => {
+    if (!profileLockedUntil) setErrorLockedUntil(0);
+  }, [profileLockedUntil]);
+
+  const lockedUntil = Math.max(errorLockedUntil, profileLockedUntil);
   const lockText = lockedUntil > now ? formatLockRemaining(lockedUntil, now) : null;
 
   const describe = (err) => {
@@ -159,10 +166,10 @@ const MfaVerify = ({ onDone }) => {
 
         {(useBackup || sent) && (
           <>
-            <label className="flex items-center gap-2 justify-center text-sm text-gray-700 cursor-pointer">
+            <label className="flex items-center gap-2 justify-center text-sm font-semibold text-gray-900 cursor-pointer">
               <input
                 type="checkbox"
-                className="checkbox checkbox-sm"
+                className="checkbox checkbox-sm border-2 border-gray-700"
                 checked={trust}
                 onChange={(e) => setTrust(e.target.checked)}
               />
