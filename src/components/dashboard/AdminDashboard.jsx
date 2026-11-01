@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { firestoreService } from '../../services/firestoreService';
 import { useAuth } from '../../hooks/useAuth';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faKey, faUsers, faIdBadge, faUser } from "@fortawesome/free-solid-svg-icons";
+import { faKey, faUsers, faIdBadge, faUser, faWandMagicSparkles } from "@fortawesome/free-solid-svg-icons";
 import UserManagement from '../admin/UserManagement';
 import LoginLogs from '../admin/LoginLogs';
 import StatCard from '../common/StatCard';
@@ -41,6 +41,13 @@ const AdminDashboard = () => {
           >
             <FontAwesomeIcon icon={faUsers} className="w-4 h-4" />
             Assign Schemes
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/admin/lense-assist')}
+            className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition-colors"
+          >
+            <FontAwesomeIcon icon={faWandMagicSparkles} className="w-4 h-4" />
+            Lense Assist Access
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { toast } from "react-hot-toast";
 import { firestoreService } from "../../services/firestoreService";
 import { useAuth } from "../../hooks/useAuth";
 import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../utils/schemes";
+import StaffSchemeAssignment from "./lenseAssist/StaffSchemeAssignment";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBuilding,
@@ -19,6 +20,7 @@ import {
   faVideoSlash,
   faTableCellsLarge,
   faUsers,
+  faIdBadge,
 } from "@fortawesome/free-solid-svg-icons";
 
 const ROLE_CONFIG = {
@@ -314,6 +316,17 @@ const SchemeAssignment = () => {
           CCTV Operator Assignments
         </button>
         <button
+          onClick={() => handleTabChange("staff")}
+          className={`flex items-center gap-2 px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+            activeTab === "staff"
+              ? "border-violet-500 text-violet-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <FontAwesomeIcon icon={faIdBadge} className="w-4 h-4" />
+          Staff Assignments
+        </button>
+        <button
           onClick={() => handleTabChange("overview")}
           className={`flex items-center gap-2 px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
             activeTab === "overview"
@@ -585,6 +598,9 @@ const SchemeAssignment = () => {
           </div>
         </>
       )}
+
+      {/* ── STAFF ASSIGNMENTS TAB (UI preview, mock data) ── */}
+      {activeTab === "staff" && <StaffSchemeAssignment />}
 
       {/* ── SCHEME OVERVIEW TAB ── */}
       {activeTab === "overview" && (

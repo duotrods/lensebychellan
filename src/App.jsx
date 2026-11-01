@@ -50,6 +50,7 @@
   const ReferenceIdManagerPage = lazy(() => import("./pages/admin/ReferenceIdManagerPage"));
   const SchemeManagementPage = lazy(() => import("./pages/admin/SchemeManagementPage"));
   const SchemeAssignmentPage = lazy(() => import("./pages/admin/SchemeAssignmentPage"));
+  const LenseAssistAccessPage = lazy(() => import("./pages/admin/LenseAssistAccessPage"));
   const AdminRotaPage = lazy(() => import("./pages/admin/AdminRotaPage"));
   const AdminReportsPage = lazy(() => import("./pages/admin/AdminReportsPage"));
   const AdminDocumentsPage = lazy(() => import("./pages/admin/AdminDocumentsPage"));
@@ -207,6 +208,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <SchemeAssignmentPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/lense-assist"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <LenseAssistAccessPage />
                     </ProtectedRoute>
                   }
                 />

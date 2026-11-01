@@ -18,6 +18,7 @@ import {
   faCalendarDays,
   faVideoSlash,
   faLayerGroup,
+  faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
@@ -62,6 +63,11 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Assign Schemes",
       path: "/dashboard/admin/scheme-assignment",
       icon: faFolderTree,
+    },
+    {
+      name: "Lense Assist",
+      path: "/dashboard/admin/lense-assist",
+      icon: faWandMagicSparkles,
     },
     {
       name: "Manage Schemes",
