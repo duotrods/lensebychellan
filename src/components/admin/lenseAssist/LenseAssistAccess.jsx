@@ -12,6 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { firestoreService } from "../../../services/firestoreService";
 import { hasLenseAssist, lenseAssistIneligibleReason } from "../../../utils/lenseAssist";
+import { normalizeSchemeIds } from "../../../utils/schemes";
 
 const TABS = [
   { key: "staff", label: "Staff", roles: ["staff", "thirdpartystaff"] },
@@ -47,7 +48,7 @@ const LenseAssistAccess = () => {
         .filter((u) => !u.isArchived)
         .map((u) => ({
           ...u,
-          schemeIds: u.schemeIds?.length ? u.schemeIds : u.schemeId ? [u.schemeId] : [],
+          schemeIds: normalizeSchemeIds(u),
           ineligible: lenseAssistIneligibleReason(u),
         }))
         .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));

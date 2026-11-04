@@ -513,3 +513,13 @@ export const resetSchemesToStatic = () => {
   Object.keys(CAMERA_OPTIONS_BY_SCHEME).forEach((k) => delete CAMERA_OPTIONS_BY_SCHEME[k]);
   Object.assign(CAMERA_OPTIONS_BY_SCHEME, JSON.parse(JSON.stringify(STATIC_CAMERA_OPTIONS)));
 };
+
+// Always returns an array of scheme IDs for a user document. Legacy/production
+// docs may store `schemeIds` as a string or map, or only carry the single `schemeId`.
+export const normalizeSchemeIds = (user) => {
+  if (!user) return [];
+  if (Array.isArray(user.schemeIds) && user.schemeIds.length > 0) return user.schemeIds;
+  if (typeof user.schemeIds === "string" && user.schemeIds) return [user.schemeIds];
+  if (user.schemeId) return [user.schemeId];
+  return [];
+};

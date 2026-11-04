@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBuilding, faPlus, faTrashCan, faUsers, faIdBadge, faRotateRight } from "@fortawesome/free-solid-svg-icons";
-import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../../utils/schemes";
+import { SCHEMES, THIRD_PARTY_SCHEMES, normalizeSchemeIds } from "../../../utils/schemes";
 import { firestoreService } from "../../../services/firestoreService";
 import { useAuth } from "../../../hooks/useAuth";
 
@@ -32,7 +32,7 @@ const StaffSchemeAssignment = () => {
         .filter((u) => !u.isArchived)
         .map((u) => ({
           ...u,
-          schemeIds: u.schemeIds?.length ? u.schemeIds : u.schemeId ? [u.schemeId] : [],
+          schemeIds: normalizeSchemeIds(u),
         }))
         .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
     },
@@ -138,7 +138,16 @@ const StaffSchemeAssignment = () => {
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-2">
                       {user.schemeIds.length === 0 ? (
-                        <span className="text-gray-400 text-sm">No schemes</span>
+                        // Nothing assigned explicitly: staff fall back to every scheme of their role
+                        <>
+                          {roleTab.schemes.map((s) => (
+                            <div key={s.id} className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm" title="Default access (not individually assigned)">
+                              <FontAwesomeIcon icon={faBuilding} className="w-3 h-3" />
+                              <span>{schemeLabel(s.id)}</span>
+                            </div>
+                          ))}
+                          <span className="w-full text-xs text-gray-400">Default access to all schemes</span>
+                        </>
                       ) : (
                         user.schemeIds.map((sid) => (
                           <div key={sid} className="flex items-center gap-1 px-2 py-1 bg-teal-50 text-teal-700 rounded text-sm">
