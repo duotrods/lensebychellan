@@ -4,6 +4,7 @@
   import { useQuery, useQueryClient } from "@tanstack/react-query";
   import { useAuth } from "../../hooks/useAuth";
 import StatCard from "../common/StatCard";
+import { canonicalSpottedBy } from "../../utils/spottedBy";
   import { useLiveIncidents } from "../../hooks/useLiveIncidents";
   import { useLiveCCTVFaults } from "../../hooks/useCCTVFaults";
   import { clientDataService } from "../../services/clientDataService";
@@ -754,7 +755,7 @@ import StatCard from "../common/StatCard";
         else if (chartType === "fault")
           filtered = incidents.filter((i) => i.fault === label);
         else if (chartType === "reportedBy")
-          filtered = incidents.filter((i) => i.reportedBy === label);
+          filtered = incidents.filter((i) => canonicalSpottedBy(i.reportedBy) === label);
         else if (chartType === "affectedLanes")
           filtered = incidents.filter((i) => i.affectedLanes?.includes(label));
         else if (chartType === "trafficConditions")
