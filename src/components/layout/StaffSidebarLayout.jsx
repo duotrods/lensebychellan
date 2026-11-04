@@ -29,6 +29,7 @@ import { useCCTVReminder } from "../../hooks/useCCTVReminder";
 import { isDemoUser, getViewerReadScope } from "../../utils/schemes";
 import { getStaffBasePath } from "../../utils/constants";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
+import { hasLenseAssist } from "../../utils/lenseAssist";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
 const LENSE_ASSIST_URL = "https://chellan-assist.live/";
@@ -97,8 +98,9 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
       liveCount: liveFaults.length,
     },
     // Lense Assist links out to the external Chellan Assist app — internal staff only,
-    // hidden for third-party staff and demo-scheme users, same as on the client sidebar.
-    ...(!isAnyThirdParty(role) && !isDemoUser(userProfile)
+    // hidden for third-party staff and demo-scheme users, same as on the client sidebar,
+    // and for anyone an admin has switched off.
+    ...(hasLenseAssist(userProfile)
       ? [{ name: "Lense Assist", icon: faWandMagicSparkles, external: true, href: LENSE_ASSIST_URL }]
       : []),
     // Documents, Staff Rota, Body Cam and Dash Cam uploads are internal-staff only — third-party staff don't have them.

@@ -30,7 +30,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/signin" replace />;
   }
 
-  // Two-factor: phone setup on first login, otherwise the SMS / backup code screen.
+  // Two-factor: phone setup on first login, otherwise the emailed code screen.
   // UX only - firestore.rules and storage.rules enforce the same check server-side.
   if (!mfaVerified) {
     return <MfaGate />;

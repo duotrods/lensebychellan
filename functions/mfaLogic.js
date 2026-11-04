@@ -9,8 +9,6 @@ const TRUST_DURATION_MS = TRUST_DAYS * 24 * 60 * 60 * 1000;
 const SMS_CODE_TTL_MS = 10 * 60 * 1000;
 const SMS_SEND_LIMIT = 3;
 const SMS_SEND_WINDOW_MS = 15 * 60 * 1000;
-const BACKUP_CODE_COUNT = 10;
-const BACKUP_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no 0/O/1/I/L
 
 // "rod@example.com" -> "r***@example.com", so the UI can say where the code went
 // without exposing the whole address.
@@ -81,41 +79,6 @@ function hashDeviceToken(token) {
   return crypto.createHash("sha256").update(String(token)).digest("hex");
 }
 
-function normaliseBackupCode(input) {
-  return typeof input === "string" ? input.replace(/[\s-]/g, "").toUpperCase() : "";
-}
-
-function generateBackupCodes(count = BACKUP_CODE_COUNT, randomInt = crypto.randomInt) {
-  const codes = [];
-  for (let i = 0; i < count; i++) {
-    let raw = "";
-    for (let j = 0; j < 10; j++) raw += BACKUP_CODE_ALPHABET[randomInt(BACKUP_CODE_ALPHABET.length)];
-    codes.push(`${raw.slice(0, 5)}-${raw.slice(5)}`);
-  }
-  return codes;
-}
-
-function hashBackupCode(code, salt = crypto.randomBytes(8).toString("hex")) {
-  const hash = crypto.createHash("sha256").update(`${salt}:${normaliseBackupCode(code)}`).digest("hex");
-  return `${salt}:${hash}`;
-}
-
-// Returns the remaining hashes if `input` matched one (single use), else null.
-function consumeBackupCode(hashes, input) {
-  const code = normaliseBackupCode(input);
-  if (!code || !Array.isArray(hashes)) return null;
-  for (let i = 0; i < hashes.length; i++) {
-    const [salt, stored] = hashes[i].split(":");
-    const candidate = hashBackupCode(code, salt).split(":")[1];
-    const a = Buffer.from(candidate, "hex");
-    const b = Buffer.from(stored, "hex");
-    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
-      return hashes.filter((_, idx) => idx !== i);
-    }
-  }
-  return null;
-}
-
 // SMS codes: 6 digits, stored salted-hashed with an expiry. The caller deletes the
 // challenge after a successful check so a code is single use.
 function generateSmsCode(randomInt = crypto.randomInt) {
@@ -158,7 +121,6 @@ module.exports = {
   TRUST_DURATION_MS,
   SMS_CODE_TTL_MS,
   SMS_SEND_LIMIT,
-  BACKUP_CODE_COUNT,
   toMillis,
   maskEmail,
   isLocked,
@@ -170,10 +132,6 @@ module.exports = {
   addTrustedDevice,
   isDeviceTrusted,
   hashDeviceToken,
-  normaliseBackupCode,
-  generateBackupCodes,
-  hashBackupCode,
-  consumeBackupCode,
   generateSmsCode,
   hashSmsCode,
   createSmsChallenge,

@@ -33,6 +33,10 @@ export const MULTI_SCHEME_ROLES = new Set([
   USER_ROLES.THIRDPARTYCCTVOPERATOR,
 ]);
 
+// Roles an admin can assign schemes to. Staff are included for record-keeping only:
+// internal staff are not limited to their assigned schemes (see getViewerSchemeScope).
+export const SCHEME_ASSIGNABLE_ROLES = new Set([...MULTI_SCHEME_ROLES, USER_ROLES.STAFF]);
+
 export const canModifyRole = (userRole, targetRole) => {
   return userRole === USER_ROLES.ADMIN && targetRole === USER_ROLES.STAFF;
 };

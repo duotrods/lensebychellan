@@ -599,7 +599,7 @@ const SchemeAssignment = () => {
         </>
       )}
 
-      {/* ── STAFF ASSIGNMENTS TAB (UI preview, mock data) ── */}
+      {/* ── STAFF ASSIGNMENTS TAB ── */}
       {activeTab === "staff" && <StaffSchemeAssignment />}
 
       {/* ── SCHEME OVERVIEW TAB ── */}

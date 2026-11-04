@@ -1,29 +1,20 @@
 import { useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
 import { authService } from '../../services/authService';
 import { mfaService } from '../../services/mfaService';
 import { useAuth } from '../../hooks/useAuth';
-import {
-  cleanCodeInput,
-  formatLockRemaining,
-  backupCodesFileText,
-} from '../../utils/twoFactor';
+import { cleanCodeInput, formatLockRemaining } from '../../utils/twoFactor';
 import MfaCard from './MfaCard';
 
 const RESEND_SECONDS = 30;
 
-// First-time two-factor setup: emailed code -> backup codes.
-// `onDone` runs once the user has saved their backup codes.
+// First-time two-factor setup: confirm an emailed code. `onDone` runs once enrolled.
 const MfaSetup = ({ onDone }) => {
   const { currentUser } = useAuth();
-  const [step, setStep] = useState('start'); // start | code | backup
+  const [step, setStep] = useState('start'); // start | code
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(0);
-  const [backupCodes, setBackupCodes] = useState([]);
-  const [emailed, setEmailed] = useState(true);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -64,81 +55,13 @@ const MfaSetup = ({ onDone }) => {
     }
     setBusy(true);
     try {
-      const result = await mfaService.confirmEnrol(code);
-      setBackupCodes(result.backupCodes);
-      setEmailed(result.emailed !== false);
-      setStep('backup');
+      await mfaService.confirmEnrol(code);
+      onDone();
     } catch (err) {
       setError(describe(err));
-    } finally {
       setBusy(false);
     }
   };
-
-  const copyCodes = async () => {
-    try {
-      await navigator.clipboard.writeText(backupCodes.join('\n'));
-      toast.success('Backup codes copied');
-    } catch {
-      toast.error('Could not copy. Use Download instead.');
-    }
-  };
-
-  const downloadCodes = () => {
-    const blob = new Blob([backupCodesFileText(backupCodes, currentUser?.email)], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'lense-2fa-backup-codes.txt';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  if (step === 'backup') {
-    return (
-      <MfaCard
-        title="Save your backup codes"
-        subtitle="If you cannot get an emailed code, you can sign in with one of these. Each code works once."
-      >
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          {backupCodes.map((c) => (
-            <code key={c} className="bg-gray-100 rounded px-2 py-2 text-sm font-mono">
-              {c}
-            </code>
-          ))}
-        </div>
-
-        <div className="flex gap-2 mb-4">
-          <button onClick={copyCodes} className="btn btn-outline flex-1">Copy</button>
-          <button onClick={downloadCodes} className="btn btn-outline flex-1">Download</button>
-        </div>
-
-        <p className={`text-sm mb-4 ${emailed ? 'text-gray-500' : 'text-amber-600'}`}>
-          {emailed
-            ? `A copy was emailed to ${currentUser?.email}. We won't send them again, so store them safely.`
-            : "We couldn't email a copy. Copy or download these codes now, because they are shown only once."}
-        </p>
-
-        <label className="flex items-center gap-2 justify-center text-sm text-gray-700 mb-4 cursor-pointer">
-          <input
-            type="checkbox"
-            className="checkbox checkbox-sm"
-            checked={saved}
-            onChange={(e) => setSaved(e.target.checked)}
-          />
-          I have saved my backup codes
-        </label>
-
-        <button
-          onClick={onDone}
-          disabled={!saved}
-          className="btn bg-brand-500 hover:bg-brand-600 text-white w-full"
-        >
-          Continue
-        </button>
-      </MfaCard>
-    );
-  }
 
   return (
     <MfaCard

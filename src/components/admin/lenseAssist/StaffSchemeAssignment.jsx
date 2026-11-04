@@ -1,52 +1,98 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBuilding, faPlus, faTrashCan, faUsers, faIdBadge } from "@fortawesome/free-solid-svg-icons";
+import { faBuilding, faPlus, faTrashCan, faUsers, faIdBadge, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../../utils/schemes";
-import { MOCK_STAFF_SCHEME_USERS } from "./mockData";
+import { firestoreService } from "../../../services/firestoreService";
+import { useAuth } from "../../../hooks/useAuth";
 
 const ROLE_TABS = [
-  { key: "staff", label: "Staff", Icon: faIdBadge, active: "bg-teal-500 text-white", schemes: SCHEMES },
+  // The demo scheme is left out: assigning it would turn a real staff member into a demo user.
+  { key: "staff", label: "Staff", Icon: faIdBadge, active: "bg-teal-500 text-white", schemes: SCHEMES.filter((s) => !s.isDemo) },
   { key: "thirdpartystaff", label: "Third Party Staff", Icon: faUsers, active: "bg-violet-500 text-white", schemes: THIRD_PARTY_SCHEMES },
 ];
 
-// UI preview: local state and mock rows only, nothing is written to Firestore.
 const StaffSchemeAssignment = () => {
-  const [users, setUsers] = useState(MOCK_STAFF_SCHEME_USERS);
+  const { userProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState("staff");
   const [modalUser, setModalUser] = useState(null);
   const [schemeId, setSchemeId] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
+  const usersQuery = useQuery({
+    queryKey: ["staffSchemeUsers"],
+    queryFn: async () => {
+      const results = await Promise.all(
+        ROLE_TABS.map((t) => firestoreService.getAllUsersPaginated(200, null, t.key))
+      );
+      return results
+        .flatMap((r) => r.users)
+        .filter((u) => !u.isArchived)
+        .map((u) => ({
+          ...u,
+          schemeIds: u.schemeIds?.length ? u.schemeIds : u.schemeId ? [u.schemeId] : [],
+        }))
+        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
+    },
+  });
+
+  useEffect(() => {
+    if (usersQuery.isError) {
+      console.error("Failed to load staff:", usersQuery.error);
+      toast.error("Failed to load staff");
+    }
+  }, [usersQuery.isError, usersQuery.error]);
+
+  const users = usersQuery.data ?? [];
   const roleTab = ROLE_TABS.find((t) => t.key === roleFilter);
   const rows = users.filter((u) => u.role === roleFilter);
   const schemeLabel = (id) =>
     [...SCHEMES, ...THIRD_PARTY_SCHEMES].find((s) => s.id === id)?.shortName ?? id;
 
   const closeModal = () => { setModalUser(null); setSchemeId(""); };
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["staffSchemeUsers"] });
 
-  const handleAssign = (e) => {
+  const handleAssign = async (e) => {
     e.preventDefault();
-    if (!schemeId) return;
-    setUsers((list) =>
-      list.map((u) => (u.uid === modalUser.uid ? { ...u, schemeIds: [...u.schemeIds, schemeId] } : u))
-    );
-    toast.success(`Scheme ${schemeId} assigned to ${modalUser.displayName} (UI preview)`);
-    closeModal();
+    const scheme = roleTab.schemes.find((s) => s.id === schemeId);
+    if (!scheme) return;
+    setActionLoading(true);
+    try {
+      await firestoreService.assignSchemeToUser(modalUser.uid, scheme.id, scheme.fullName, userProfile.uid);
+      toast.success(`Scheme ${scheme.id} assigned to ${modalUser.displayName}`);
+      closeModal();
+      await refresh();
+    } catch (error) {
+      console.error("Failed to assign scheme:", error);
+      toast.error(
+        error.code === "firestore/already-exists" ? "Scheme already assigned to this user" : error.message || "Failed to assign scheme"
+      );
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleRemove = (user, sid) =>
-    setUsers((list) =>
-      list.map((u) => (u.uid === user.uid ? { ...u, schemeIds: u.schemeIds.filter((s) => s !== sid) } : u))
-    );
+  const handleRemove = async (user, sid) => {
+    if (!confirm(`Remove scheme ${sid} from ${user.displayName}?`)) return;
+    setActionLoading(true);
+    try {
+      await firestoreService.removeSchemeFromUser(user.uid, sid, userProfile.uid);
+      toast.success(`Scheme ${sid} removed from ${user.displayName}`);
+      await refresh();
+    } catch (error) {
+      console.error("Failed to remove scheme:", error);
+      toast.error(error.message || "Failed to remove scheme");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const modalLive = modalUser && users.find((u) => u.uid === modalUser.uid);
 
   return (
     <div>
-      <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        UI preview with sample data. Assignments here are not saved.
-      </div>
-
       <div className="flex gap-2 mb-5">
         {ROLE_TABS.map(({ key, label, Icon, active }) => (
           <button
@@ -73,7 +119,17 @@ const StaffSchemeAssignment = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {rows.map((user) => (
+              {usersQuery.isLoading ? (
+                <tr>
+                  <td colSpan="3" className="px-6 py-12 text-center">
+                    <FontAwesomeIcon icon={faRotateRight} className="w-8 h-8 text-gray-400 animate-spin" />
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan="3" className="px-6 py-12 text-center text-gray-500">No users found</td>
+                </tr>
+              ) : rows.map((user) => (
                 <tr key={user.uid} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <p className="font-medium text-gray-800">{user.displayName}</p>
@@ -88,7 +144,7 @@ const StaffSchemeAssignment = () => {
                           <div key={sid} className="flex items-center gap-1 px-2 py-1 bg-teal-50 text-teal-700 rounded text-sm">
                             <FontAwesomeIcon icon={faBuilding} className="w-3 h-3" />
                             <span>{schemeLabel(sid)}</span>
-                            <button onClick={() => handleRemove(user, sid)} className="ml-1 hover:text-red-600 transition-colors" title="Remove scheme">
+                            <button onClick={() => handleRemove(user, sid)} disabled={actionLoading} className="ml-1 hover:text-red-600 transition-colors" title="Remove scheme">
                               <FontAwesomeIcon icon={faTrashCan} className="w-3 h-3" />
                             </button>
                           </div>
@@ -99,6 +155,7 @@ const StaffSchemeAssignment = () => {
                   <td className="px-6 py-4">
                     <button
                       onClick={() => setModalUser(user)}
+                      disabled={actionLoading}
                       className="flex items-center gap-1 px-3 py-1 bg-teal-500 hover:bg-teal-600 text-white rounded text-sm transition-colors"
                     >
                       <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
@@ -135,12 +192,12 @@ const StaffSchemeAssignment = () => {
                 })}
               </select>
               <div className="flex gap-2 justify-end">
-                <button type="button" onClick={closeModal} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
+                <button type="button" onClick={closeModal} disabled={actionLoading} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors flex items-center gap-2">
-                  <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
-                  Assign Scheme
+                <button type="submit" disabled={actionLoading} className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                  <FontAwesomeIcon icon={actionLoading ? faRotateRight : faPlus} className={`w-4 h-4 ${actionLoading ? "animate-spin" : ""}`} />
+                  {actionLoading ? "Assigning..." : "Assign Scheme"}
                 </button>
               </div>
             </form>

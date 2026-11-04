@@ -13,12 +13,14 @@ import {
   where,
   orderBy,
   limit,
-  startAfter
+  startAfter,
+  writeBatch,
+  deleteField
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
 import { USER_ROLES } from '../utils/constants';
-import { MULTI_SCHEME_ROLES } from '../utils/roleHelpers';
+import { MULTI_SCHEME_ROLES, SCHEME_ASSIGNABLE_ROLES } from '../utils/roleHelpers';
 import { AppError } from '../utils/errorHandling';
 
 class FirestoreService {
@@ -98,6 +100,26 @@ class FirestoreService {
       });
     } catch (error) {
       throw new AppError('Failed to update profile', 'firestore/update-error', error);
+    }
+  }
+
+  // Admin-only: set Lense Assist access for many users. `changes` is { [uid]: boolean }.
+  async setLenseAssistAccess(changes) {
+    try {
+      const entries = Object.entries(changes);
+      // Firestore batches are capped at 500 writes.
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = writeBatch(db);
+        entries.slice(i, i + 400).forEach(([uid, value]) => {
+          batch.update(doc(db, 'users', uid), {
+            lenseAssist: value,
+            updatedAt: serverTimestamp()
+          });
+        });
+        await batch.commit();
+      }
+    } catch (error) {
+      throw new AppError('Failed to update Lense Assist access', 'firestore/update-error', error);
     }
   }
 
@@ -328,8 +350,8 @@ class FirestoreService {
         throw new AppError('User not found', 'firestore/not-found');
       }
 
-      // Verify target role supports multi-scheme assignment
-      if (!MULTI_SCHEME_ROLES.has(targetUser.role)) {
+      // Verify target role supports scheme assignment
+      if (!SCHEME_ASSIGNABLE_ROLES.has(targetUser.role)) {
         throw new AppError('Cannot assign schemes to this role', 'firestore/permission-denied');
       }
 
@@ -347,8 +369,8 @@ class FirestoreService {
           ...(targetUser.schemeNames || {}),
           [schemeId]: schemeName
         },
-        // If this is the first scheme, set it as active
-        ...(currentSchemes.length === 0 && { activeSchemeId: schemeId }),
+        // If this is the first scheme, set it as active (staff have no active scheme)
+        ...(currentSchemes.length === 0 && targetUser.role !== USER_ROLES.STAFF && { activeSchemeId: schemeId }),
         updatedAt: serverTimestamp()
       });
 
@@ -386,9 +408,9 @@ class FirestoreService {
         throw new AppError('User not found', 'firestore/not-found');
       }
 
-      // Check if user has multiple schemes
+      // Check if user has multiple schemes (staff may be left with none)
       const currentSchemes = targetUser.schemeIds || [];
-      if (currentSchemes.length <= 1) {
+      if (currentSchemes.length <= 1 && targetUser.role !== USER_ROLES.STAFF) {
         throw new AppError('Cannot remove the only scheme from a user', 'firestore/invalid-operation');
       }
 
@@ -407,7 +429,7 @@ class FirestoreService {
 
       // If removing the active scheme, set new active scheme
       if (targetUser.activeSchemeId === schemeId) {
-        updateData.activeSchemeId = updatedSchemes[0];
+        updateData.activeSchemeId = updatedSchemes[0] ?? deleteField();
       }
 
       await updateDoc(userRef, updateData);

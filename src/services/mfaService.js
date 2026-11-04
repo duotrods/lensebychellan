@@ -43,7 +43,6 @@ async function call(name, data) {
 export const mfaService = {
   sendEnrolCode: () => call('mfaSendEnrolCode', {}),
 
-  // Resolves { backupCodes, emailed }. The codes are shown once and never returned again.
   confirmEnrol: (code) => call('mfaConfirmEnrol', { code }),
 
   sendLoginCode: () => call('mfaSendLoginCode', {}),
@@ -54,9 +53,6 @@ export const mfaService = {
 
   verifyCode: (code, trustDevice) =>
     call('mfaVerify', { code, trustDevice: !!trustDevice, deviceToken: getDeviceToken() }),
-
-  verifyBackupCode: (backupCode, trustDevice) =>
-    call('mfaVerify', { backupCode, trustDevice: !!trustDevice, deviceToken: getDeviceToken() }),
 
   // Admin only
   adminUnlock: (targetUid) => call('mfaAdminUnlock', { targetUid }),

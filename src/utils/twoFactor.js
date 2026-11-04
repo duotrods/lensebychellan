@@ -6,16 +6,6 @@ export function cleanCodeInput(value) {
   return String(value || '').replace(/\D/g, '').slice(0, 6);
 }
 
-// Backup codes look like ABCDE-FGHJK. Uppercases, drops junk, inserts the dash.
-export function formatBackupCodeInput(value) {
-  const raw = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
-  return raw.length > 5 ? `${raw.slice(0, 5)}-${raw.slice(5)}` : raw;
-}
-
-export function isBackupCodeComplete(value) {
-  return /^[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(value);
-}
-
 // The mfaAuthTime claim is only valid for the sign-in it was issued on.
 export function isMfaSessionVerified(claims) {
   return !!claims && claims.mfaAuthTime != null && claims.mfaAuthTime === claims.auth_time;
@@ -39,19 +29,4 @@ export function formatLockRemaining(lockedUntil, now = Date.now()) {
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-// The text file offered after enrolment.
-export function backupCodesFileText(codes, email) {
-  return [
-    'LENSE by Chellan - 2FA backup codes',
-    email ? `Account: ${email}` : null,
-    '',
-    'Each code works once. Use one when you cannot get an emailed code.',
-    '',
-    ...codes,
-    '',
-  ]
-    .filter((line) => line !== null)
-    .join('\n');
 }

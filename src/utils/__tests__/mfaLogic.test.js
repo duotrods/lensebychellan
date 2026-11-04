@@ -133,34 +133,3 @@ describe("SMS codes", () => {
     expect(mfa.registerSmsSend(s, T0 + 15 * 60 * 1000)).toEqual({ sendCount: 1, windowStart: T0 + 15 * 60 * 1000 });
   });
 });
-
-describe("backup codes", () => {
-  it("generates 10 unique, readable codes", () => {
-    const codes = mfa.generateBackupCodes();
-    expect(codes).toHaveLength(10);
-    expect(new Set(codes).size).toBe(10);
-    for (const c of codes) expect(c).toMatch(/^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
-  });
-
-  it("consumes a code once and tolerates case, spaces and missing dash", () => {
-    const codes = mfa.generateBackupCodes(3);
-    const hashes = codes.map((c) => mfa.hashBackupCode(c));
-    const typed = codes[1].toLowerCase().replace("-", " ");
-    const remaining = mfa.consumeBackupCode(hashes, typed);
-    expect(remaining).toHaveLength(2);
-    expect(mfa.consumeBackupCode(remaining, typed)).toBeNull(); // second use fails
-    expect(mfa.consumeBackupCode(remaining, codes[0])).toHaveLength(1); // others still work
-  });
-
-  it("rejects wrong or empty input", () => {
-    const hashes = mfa.generateBackupCodes(2).map((c) => mfa.hashBackupCode(c));
-    expect(mfa.consumeBackupCode(hashes, "AAAAA-AAAAA")).toBeNull();
-    expect(mfa.consumeBackupCode(hashes, "")).toBeNull();
-    expect(mfa.consumeBackupCode(undefined, "AAAAA-AAAAA")).toBeNull();
-  });
-
-  it("never stores the plain code", () => {
-    const code = mfa.generateBackupCodes(1)[0];
-    expect(mfa.hashBackupCode(code)).not.toContain(mfa.normaliseBackupCode(code));
-  });
-});

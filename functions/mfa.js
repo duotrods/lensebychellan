@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-// Two-factor callables (emailed code + backup codes). All secret state lives in
+// Two-factor callables (emailed code). All secret state lives in
 // the server-only `mfa/{uid}` collection; `users/{uid}` only gets non-secret mirror
 // flags (mfaEnrolled, mfaLockedUntil) so the UI can react live.
 //
@@ -55,25 +55,6 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
     const record = await admin.auth().getUser(uid);
     const { mfaAuthTime, ...rest } = record.customClaims || {}; // eslint-disable-line no-unused-vars
     await admin.auth().setCustomUserClaims(uid, rest);
-  }
-
-  async function emailBackupCodes(to, codes) {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: SMTP_USER, pass: smtpPass.value() },
-    });
-    const list = codes.map((c) => `<li style="font-family:monospace;font-size:16px">${c}</li>`).join("");
-    await transporter.sendMail({
-      from: SMTP_SENDER,
-      to,
-      subject: "Your LENSE by Chellan 2FA backup codes",
-      html:
-        `<p>Two-factor authentication is now on for your account.</p>` +
-        `<p>These backup codes let you sign in if you cannot get an emailed code. Each code works <strong>once</strong>.</p>` +
-        `<ul>${list}</ul>` +
-        `<p>Keep them somewhere safe and delete this email once you have stored them. ` +
-        `We will not send them again. If you lose them, ask an administrator to reset your 2FA.</p>`,
-    });
   }
 
   async function emailCode(to, purpose, code) {
@@ -135,7 +116,6 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
   const mfaConfirmEnrol = onCall({ secrets: [smtpPass] }, async (request) => {
     const uid = requireVerifiedEmailUser(request);
     const code = request.data && request.data.code;
-    const backupCodes = mfaLogic.generateBackupCodes();
 
     const outcome = await db.runTransaction(async (tx) => {
       const snap = await tx.get(mfaRef(uid));
@@ -158,7 +138,6 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
           enrolled: true,
           method: "email",
           enrolledAt: serverTs(),
-          backupCodeHashes: backupCodes.map((c) => mfaLogic.hashBackupCode(c)),
           pendingMethod: admin.firestore.FieldValue.delete(),
           smsChallenge: admin.firestore.FieldValue.delete(),
           ...mfaLogic.registerSuccess(),
@@ -179,14 +158,7 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
 
     await setMfaClaim(uid, request.auth.token.auth_time);
 
-    let emailed = true;
-    try {
-      await emailBackupCodes(request.auth.token.email, backupCodes);
-    } catch (err) {
-      emailed = false;
-      console.error("Backup code email failed:", err);
-    }
-    return { success: true, backupCodes, emailed };
+    return { success: true };
   });
 
   // ---- Login -----------------------------------------------------------------
@@ -219,14 +191,14 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
     return { success: true, emailHint: mfaLogic.maskEmail(email) };
   });
 
-  // data: { code?, backupCode?, deviceToken?, trustDevice? }
+  // data: { code?, deviceToken?, trustDevice? }
   // With only a deviceToken it answers { status: "code_required" } when that browser
   // is not trusted (not counted as a failure).
   const mfaVerify = onCall(async (request) => {
     const uid = requireVerifiedEmailUser(request);
-    const { code, backupCode, deviceToken, trustDevice } = request.data || {};
+    const { code, deviceToken, trustDevice } = request.data || {};
     const deviceHash = deviceToken ? mfaLogic.hashDeviceToken(deviceToken) : null;
-    const triedCredential = Boolean(code || backupCode);
+    const triedCredential = Boolean(code);
 
     const outcome = await db.runTransaction(async (tx) => {
       const snap = await tx.get(mfaRef(uid));
@@ -236,19 +208,11 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
       if (mfaLogic.isLocked(data, now)) return { error: "locked", lockedUntil: data.lockedUntil };
 
       let ok = false;
-      let usedBackup = false;
       const update = {};
 
       if (!triedCredential) {
         if (!mfaLogic.isDeviceTrusted(data.trustedDevices, deviceHash, now)) return { status: "code_required" };
         ok = true;
-      } else if (backupCode) {
-        const remaining = mfaLogic.consumeBackupCode(data.backupCodeHashes, backupCode);
-        if (remaining) {
-          ok = true;
-          usedBackup = true;
-          update.backupCodeHashes = remaining;
-        }
       } else if (mfaLogic.verifySmsCode(data.smsChallenge, code, now)) {
         ok = true;
         update.smsChallenge = admin.firestore.FieldValue.delete(); // single use
@@ -269,8 +233,7 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
       }
       tx.set(mfaRef(uid), update, { merge: true });
       tx.set(userRef(uid), lockMirror(0), { merge: true });
-      const left = usedBackup ? update.backupCodeHashes.length : (data.backupCodeHashes || []).length;
-      return { ok: true, backupCodesRemaining: left };
+      return { ok: true };
     });
 
     if (outcome.status === "code_required") return { success: false, status: "code_required" };
@@ -282,7 +245,7 @@ module.exports = function createMfaFunctions({ admin, smtpPass, SMTP_USER, SMTP_
     }
 
     await setMfaClaim(uid, request.auth.token.auth_time);
-    return { success: true, backupCodesRemaining: outcome.backupCodesRemaining };
+    return { success: true };
   });
 
   // ---- Admin -----------------------------------------------------------------

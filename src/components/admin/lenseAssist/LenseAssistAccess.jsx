@@ -1,14 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faWandMagicSparkles,
   faMagnifyingGlass,
+  faRotateRight,
   faLock,
   faCheck,
   faRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
-import { MOCK_LENSE_ASSIST_USERS } from "./mockData";
+import { firestoreService } from "../../../services/firestoreService";
+import { hasLenseAssist, lenseAssistIneligibleReason } from "../../../utils/lenseAssist";
 
 const TABS = [
   { key: "staff", label: "Staff", roles: ["staff", "thirdpartystaff"] },
@@ -21,21 +24,54 @@ const FILTERS = [
   { key: "off", label: "No access" },
 ];
 
-const initialAccess = () =>
-  Object.fromEntries(MOCK_LENSE_ASSIST_USERS.map((u) => [u.uid, u.lenseAssist]));
+const ALL_ROLES = TABS.flatMap((t) => t.roles);
 
 const LenseAssistAccess = () => {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState("staff");
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [saved, setSaved] = useState(initialAccess);
-  const [draft, setDraft] = useState(initialAccess);
   const [selected, setSelected] = useState(() => new Set());
+  const [saving, setSaving] = useState(false);
+  // Only the toggles the admin has flipped since the last load/save.
+  const [edits, setEdits] = useState({});
+
+  const usersQuery = useQuery({
+    queryKey: ["lenseAssistUsers"],
+    queryFn: async () => {
+      const results = await Promise.all(
+        ALL_ROLES.map((role) => firestoreService.getAllUsersPaginated(200, null, role))
+      );
+      return results
+        .flatMap((r) => r.users)
+        .filter((u) => !u.isArchived)
+        .map((u) => ({
+          ...u,
+          schemeIds: u.schemeIds?.length ? u.schemeIds : u.schemeId ? [u.schemeId] : [],
+          ineligible: lenseAssistIneligibleReason(u),
+        }))
+        .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
+    },
+  });
+
+  useEffect(() => {
+    if (usersQuery.isError) {
+      console.error("Failed to load users:", usersQuery.error);
+      toast.error("Failed to load users");
+    }
+  }, [usersQuery.isError, usersQuery.error]);
+
+  const allUsers = usersQuery.data;
+  const saved = useMemo(
+    () => Object.fromEntries((allUsers ?? []).map((u) => [u.uid, hasLenseAssist(u)])),
+    [allUsers]
+  );
+  const draft = useMemo(() => ({ ...saved, ...edits }), [saved, edits]);
 
   const tabUsers = useMemo(() => {
     const roles = TABS.find((t) => t.key === tab).roles;
-    return MOCK_LENSE_ASSIST_USERS.filter((u) => roles.includes(u.role));
-  }, [tab]);
+    return (allUsers ?? []).filter((u) => roles.includes(u.role));
+  }, [tab, allUsers]);
 
   const visibleUsers = tabUsers.filter((u) => {
     if (filter === "on" && !draft[u.uid]) return false;
@@ -46,12 +82,15 @@ const LenseAssistAccess = () => {
 
   const eligible = tabUsers.filter((u) => !u.ineligible);
   const withAccess = eligible.filter((u) => draft[u.uid]).length;
-  const changedCount = Object.keys(draft).filter((id) => draft[id] !== saved[id]).length;
+  const changes = Object.fromEntries(
+    Object.entries(edits).filter(([uid, value]) => value !== saved[uid])
+  );
+  const changedCount = Object.keys(changes).length;
   const selectableVisible = visibleUsers.filter((u) => !u.ineligible);
   const allSelected =
     selectableVisible.length > 0 && selectableVisible.every((u) => selected.has(u.uid));
 
-  const toggleUser = (uid) => setDraft((d) => ({ ...d, [uid]: !d[uid] }));
+  const toggleUser = (uid) => setEdits((e) => ({ ...e, [uid]: !draft[uid] }));
 
   const toggleSelected = (uid) =>
     setSelected((prev) => {
@@ -65,8 +104,8 @@ const LenseAssistAccess = () => {
     setSelected(allSelected ? new Set() : new Set(selectableVisible.map((u) => u.uid)));
 
   const bulkSet = (value) => {
-    setDraft((d) => {
-      const next = { ...d };
+    setEdits((e) => {
+      const next = { ...e };
       selected.forEach((uid) => { next[uid] = value; });
       return next;
     });
@@ -80,21 +119,36 @@ const LenseAssistAccess = () => {
     setSelected(new Set());
   };
 
-  const handleSave = () => {
-    setSaved(draft);
-    toast.success("UI preview only — changes were not saved to the database");
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await firestoreService.setLenseAssistAccess(changes);
+      await queryClient.invalidateQueries({ queryKey: ["lenseAssistUsers"] });
+      setEdits({});
+      toast.success(`Lense Assist access updated for ${changedCount} user${changedCount !== 1 ? "s" : ""}`);
+    } catch (error) {
+      console.error("Failed to save Lense Assist access:", error);
+      toast.error(error.message || "Failed to save changes");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-800">Lense Assist Access</h2>
-        <p className="text-gray-600 mt-1">Choose which staff and clients see Lense Assist in their sidebar</p>
-      </div>
-
-      <div className="mb-6 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <FontAwesomeIcon icon={faWandMagicSparkles} className="mt-0.5 h-4 w-4" />
-        <span>UI preview with sample data. Changes here do not affect real users or their sidebars yet.</span>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Lense Assist Access</h2>
+          <p className="text-gray-600 mt-1">Choose which staff and clients see Lense Assist in their sidebar</p>
+        </div>
+        <button
+          onClick={() => { setEdits({}); usersQuery.refetch(); }}
+          disabled={usersQuery.isFetching || saving}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <FontAwesomeIcon icon={faRotateRight} className={`w-4 h-4 ${usersQuery.isFetching ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
       </div>
 
       <div className="flex gap-2 mb-6 border-b">
@@ -181,13 +235,17 @@ const LenseAssistAccess = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {visibleUsers.length === 0 ? (
+              {usersQuery.isLoading ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500">Loading users...</td>
+                </tr>
+              ) : visibleUsers.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center text-gray-500">No users found</td>
                 </tr>
               ) : (
                 visibleUsers.map((u) => {
-                  const changed = draft[u.uid] !== saved[u.uid];
+                  const changed = u.uid in changes;
                   return (
                     <tr key={u.uid} className={`hover:bg-gray-50 ${changed ? "bg-amber-50/50" : ""}`}>
                       <td className="px-6 py-4">
@@ -253,13 +311,13 @@ const LenseAssistAccess = () => {
         <div className="sticky bottom-4 mt-6 flex items-center justify-between rounded-lg bg-gray-800 px-5 py-3 text-white shadow-lg">
           <span className="text-sm">{changedCount} unsaved change{changedCount !== 1 ? "s" : ""}</span>
           <div className="flex gap-2">
-            <button onClick={() => setDraft(saved)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm transition-colors">
+            <button onClick={() => setEdits({})} disabled={saving} className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm transition-colors">
               <FontAwesomeIcon icon={faRotateLeft} className="h-3 w-3" />
               Reset
             </button>
-            <button onClick={handleSave} className="flex items-center gap-2 px-3 py-1.5 bg-teal-500 hover:bg-teal-600 rounded-lg text-sm transition-colors">
-              <FontAwesomeIcon icon={faCheck} className="h-3 w-3" />
-              Save
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-3 py-1.5 bg-teal-500 hover:bg-teal-600 rounded-lg text-sm transition-colors">
+              <FontAwesomeIcon icon={saving ? faRotateRight : faCheck} className={`h-3 w-3 ${saving ? "animate-spin" : ""}`} />
+              {saving ? "Saving..." : "Save"}
             </button>
           </div>
         </div>

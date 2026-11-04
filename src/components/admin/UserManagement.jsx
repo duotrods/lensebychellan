@@ -181,7 +181,7 @@ const UserManagement = () => {
   const handleResetMfa = async (user) => {
     if (
       !confirm(
-        `Reset 2FA for ${user.displayName}? Their backup codes and remembered browsers are removed, and they must set up 2FA again at next sign-in.`,
+        `Reset 2FA for ${user.displayName}? Their remembered browsers are removed, and they must set up 2FA again at next sign-in.`,
       )
     )
       return;

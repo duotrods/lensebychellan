@@ -25,6 +25,7 @@ import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import SchemeSwitcher from "../client/SchemeSwitcher";
 import { isDemoUser, getThirdPartySchemeById } from "../../utils/schemes";
+import { hasLenseAssist } from "../../utils/lenseAssist";
 import { DASHBOARD_ROUTES, USER_ROLES } from "../../utils/constants";
 import LogoutConfirmModal from "./LogoutConfirmModal";
 import WarningConfirmModal from "../common/WarningConfirmModal";
@@ -174,9 +175,9 @@ const ClientSidebarLayout = ({ children, basePath: basePathProp }) => {
       : [{ name: "Scheme Documents", path: `${basePath}/documents`, icon: faFolderOpen, emphasize: true }];
 
   // Lense Assist links out to the external Chellan Assist app — hidden for
-  // third-party clients/schemes and demo-scheme users, same as on the staff sidebar.
-  const showLenseAssist =
-    role !== USER_ROLES.THIRDPARTYCLIENT && !isThirdPartyActiveScheme && !isDemoUser(userProfile);
+  // third-party clients/schemes and demo-scheme users, same as on the staff sidebar,
+  // and for anyone an admin has switched off.
+  const showLenseAssist = !isThirdPartyActiveScheme && hasLenseAssist(userProfile);
 
   const [expandedGroups, setExpandedGroups] = useState(() => {
     let persisted = {};
