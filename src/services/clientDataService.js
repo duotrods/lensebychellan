@@ -20,6 +20,7 @@ import { AppError } from "../utils/errorHandling";
 import { CAMERA_OPTIONS_BY_SCHEME, THIRD_PARTY_SCHEMES } from "../utils/schemes";
 import { isVideoFile } from "../utils/fileType";
 import { isUntimedIncident } from "../utils/incidentStats";
+import { mergeSpottedByAliases } from "../utils/spottedBy";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -1372,7 +1373,7 @@ class ClientDataService {
         incidentsByType: this.groupByField(incidents, "incidentType"),
         incidentsByLane: this.groupByFieldArray(incidents, "affectedLanes"),
         vehiclesDispatched: this.calculateVehiclesDispatched(incidents),
-        spottedBy: this.groupByField(incidents, "reportedBy"),
+        spottedBy: mergeSpottedByAliases(this.groupByField(incidents, "reportedBy")),
         faultTypes: this.groupByField(incidents, "fault"),
         vehicleTypes: this.groupVehicleTypes(incidents),
         vehicleTypesDispatched: this.groupVehiclesDispatched(incidents),
