@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBuilding } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
+import { normalizeSchemeIds } from '../../utils/schemes';
 
 const SchemeSwitcher = () => {
   const { userProfile, updateActiveScheme } = useAuth();
@@ -47,7 +48,7 @@ const SchemeSwitcher = () => {
         disabled={isLoading}
         className="select select-sm select-bordered bg-white border-gray-300 text-sm min-w-[200px]"
       >
-        {userProfile.schemeIds.map(schemeId => (
+        {normalizeSchemeIds(userProfile).map(schemeId => (
           <option key={schemeId} value={schemeId}>
             {userProfile.schemeNames?.[schemeId] || schemeId}
           </option>

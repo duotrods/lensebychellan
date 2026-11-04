@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBuilding, faPlus, faTrashCan, faUsers, faIdBadge, faRotateRight } from "@fortawesome/free-solid-svg-icons";
-import { SCHEMES, THIRD_PARTY_SCHEMES } from "../../../utils/schemes";
+import { SCHEMES, THIRD_PARTY_SCHEMES, normalizeSchemeIds } from "../../../utils/schemes";
 import { firestoreService } from "../../../services/firestoreService";
 import { useAuth } from "../../../hooks/useAuth";
 
@@ -32,7 +32,7 @@ const StaffSchemeAssignment = () => {
         .filter((u) => !u.isArchived)
         .map((u) => ({
           ...u,
-          schemeIds: u.schemeIds?.length ? u.schemeIds : u.schemeId ? [u.schemeId] : [],
+          schemeIds: normalizeSchemeIds(u),
         }))
         .sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
     },
