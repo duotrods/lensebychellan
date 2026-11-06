@@ -100,7 +100,7 @@ export function datesAvailableForDuplicate(period, shifts, staffId, excludeDateS
 */
 export function splitShiftAcrossDates(dateStr, shift) {
   const portions = [];
-  if (shift.type === "holiday" || shift.type === "off" || shift.type === "sick") return portions;
+  if (shift.type === "holiday" || shift.type === "off" || shift.type === "sick" || shift.type === "unavailable") return portions;
   const hours = Number(shift.hours) || 0;
   if (shift.type === "day" || shift.type === "offsite-day") {
     portions.push({ date: dateStr, hours });
@@ -274,6 +274,8 @@ export function tallyForPeriod(staff, shifts, bankHolidays, period, allTimeHolid
       row.sickDays += 1;
       return;
     }
+    // Admin-only "unavailable" marker — a note on the rota, never counted.
+    if (shift.type === "unavailable") return;
     const portions = splitShiftAcrossDates(dateStr, shift);
     portions.forEach((p) => {
       const rate = rateForDate(bankHolidays, p.date);
@@ -298,6 +300,7 @@ export function shiftCellText(shift) {
     return worked > 0 ? `Holiday (+${worked}h worked)` : "Holiday";
   }
   if (shift.type === "sick") return "Sick";
+  if (shift.type === "unavailable") return "Unavailable";
   return "";
 }
 

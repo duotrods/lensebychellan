@@ -67,6 +67,8 @@ const StaffRotaPage = () => {
   };
 
   const handleCellClick = (staffId, dateStr) => {
+    // "Unavailable" is an admin-only marker — staff can't edit or clear it.
+    if (shifts[`${staffId}__${dateStr}`]?.type === "unavailable") return;
     const person = staff.find((p) => p.id === staffId);
     setPendingCell({
       staffId,
