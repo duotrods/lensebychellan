@@ -302,6 +302,7 @@ const AdminRotaPage = () => {
               onSave={handleSaveShift}
               onClose={() => setPendingCell(null)}
               canApprove
+              canSetUnavailable
               onApprove={handleApproveHoliday}
               onReject={handleRejectHoliday}
               duplicateDateOptions={

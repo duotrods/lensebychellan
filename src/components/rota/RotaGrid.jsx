@@ -39,6 +39,7 @@ const PILL_STYLES = {
   // Holiday requested by staff, awaiting admin approval.
   holidayPending: "bg-gray-100 border-2 border-gray-400 text-gray-500",
   sick: "bg-green-100 border-2 border-green-500 text-green-800",
+  unavailable: "bg-gray-600 border-2 border-gray-700 text-white",
   off: "border-2 border-dashed border-gray-200 text-gray-300",
 };
 
@@ -50,6 +51,7 @@ const PILL_LABEL = {
   holiday: "Hol",
   holidayPending: "Hol*",
   sick: "Sick",
+  unavailable: "N/A",
 };
 
 const HOURLY_TYPES = ["day", "night", "offsite-day", "offsite-night"];
@@ -468,6 +470,9 @@ const RotaGrid = ({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded bg-green-100 border-2 border-green-500" /> Sick
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded bg-gray-600 border-2 border-gray-700" /> Unavailable
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded border-2 border-dashed border-gray-200" /> Off / unassigned

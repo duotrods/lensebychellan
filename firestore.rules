@@ -519,15 +519,20 @@ service cloud.firestore {
         getUserRole() == 'admin' || getUserRole() == 'staff'
       );
       // Clearing/rejecting a shift is open to staff and admin.
+      // "unavailable" is an admin-only marker: staff can neither clear it nor
+      // overwrite it, and cannot create it.
       allow delete: if isVerified() && (
-        getUserRole() == 'admin' || getUserRole() == 'staff'
+        getUserRole() == 'admin' ||
+        (getUserRole() == 'staff' && resource.data.type != 'unavailable')
       );
       // Only admins may mark a holiday as approved; staff writes are limited to
       // non-approved states (e.g. a pending holiday request or a normal shift).
       allow create, update: if isVerified() && (
         getUserRole() == 'admin' ||
         (getUserRole() == 'staff' &&
-          request.resource.data.get('status', 'pending') != 'approved')
+          request.resource.data.get('status', 'pending') != 'approved' &&
+          request.resource.data.type != 'unavailable' &&
+          (resource == null || resource.data.type != 'unavailable'))
       );
     }
     match /rotaBankHolidays/{holidayId} {

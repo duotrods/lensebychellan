@@ -13,6 +13,10 @@ const OPTIONS = [
   { value: "off", label: "Off / clear", dot: "bg-gray-300" },
 ];
 
+// Admin-only marker (dark grey) — a note that the person was unavailable.
+// Added to the list only when canSetUnavailable is true; never affects hours/pay.
+const UNAVAILABLE_OPTION = { value: "unavailable", label: "Unavailable", dot: "bg-gray-600" };
+
 const HOURLY_TYPES = ["day", "night", "offsite-day", "offsite-night"];
 
 const QUICK_HOURS = [4, 6, 8, 10, 12];
@@ -26,6 +30,7 @@ const ShiftModal = ({
   onSave,
   onClose,
   canApprove = false,
+  canSetUnavailable = false,
   onApprove,
   onReject,
   duplicateDateOptions = [],
@@ -96,7 +101,7 @@ const ShiftModal = ({
     }
     if (type === "off") {
       onSave({ type: "off" });
-    } else if (type === "sick") {
+    } else if (type === "sick" || type === "unavailable") {
       onSave({ type, hours: 0, duplicateDates: selectedDuplicates });
     } else if (type === "holiday") {
       // Hours worked while on holiday — 0 is the common case, unlike the
@@ -175,7 +180,10 @@ const ShiftModal = ({
         )}
 
         <div className="flex flex-col gap-2 mt-4">
-          {OPTIONS.map((opt) => (
+          {(canSetUnavailable
+            ? [...OPTIONS.slice(0, -1), UNAVAILABLE_OPTION, OPTIONS[OPTIONS.length - 1]]
+            : OPTIONS
+          ).map((opt) => (
             <button
               key={opt.value}
               type="button"

@@ -204,6 +204,15 @@ describe("tallyForPeriod", () => {
     expect(row.totalHours).toBe(0);
   });
 
+  it("ignores unavailable markers entirely", () => {
+    const shifts = { "s1__2026-03-06": { type: "unavailable", hours: 0 } };
+    const [row] = tallyForPeriod(staff, shifts, [], period);
+    expect(row.totalHours).toBe(0);
+    expect(row.sickDays).toBe(0);
+    expect(row.holidayDays).toBe(0);
+    expect(splitShiftAcrossDates("2026-03-06", { type: "unavailable", hours: 0 })).toEqual([]);
+  });
+
   it("counts an approved holiday's holiday hours in their own bucket, at a flat 1x rate", () => {
     const shifts = {
       "s1__2026-03-05": { type: "holiday", hours: 0, holidayHours: 12, status: "approved" },
