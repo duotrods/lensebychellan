@@ -668,7 +668,7 @@ const ThirdPartyReportsPage = () => {
                           {report.type === "Incident Report" &&
                             report.incursionToGainAdvantage === "YES" && (
                               <span className="badge badge-warning badge-xs mt-1">
-                                Gain Benifit
+                                Gain Benefit
                               </span>
                             )}
                           {report.type === "Incident Report" && report.standDown && (

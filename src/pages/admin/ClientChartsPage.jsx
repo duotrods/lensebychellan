@@ -158,7 +158,7 @@ const ClientChartsPage = () => {
         { data: trackData, title: 'Track of Incident', key: 'track' },
         { data: vehicleTypeData, title: 'Vehicle Type', key: 'vehicleType' },
         { data: incursionsData, title: 'Incursions', key: 'incursions' },
-        { data: incursionToGainAdvantageData, title: 'Incursion to Gain Benifit' },
+        { data: incursionToGainAdvantageData, title: 'Incursion to Gain Benefit' },
       ];
 
       await exportChartsToPDF({
@@ -193,7 +193,7 @@ const ClientChartsPage = () => {
   const trackData = transformDataForChart(chartStats?.trackOfIncident);
   const vehicleTypeData = transformDataForChart(chartStats?.vehicleTypes);
 
-  // Incursion / gain-benifit YES-vs-NO breakdown isn't part of the shared
+  // Incursion / gain-benefit YES-vs-NO breakdown isn't part of the shared
   // stats shape (which only tracks the YES count) — derive it from the same
   // cached incidents array instead of a separate fetch.
   const incursionsData = (() => {
@@ -484,7 +484,7 @@ const ClientChartsPage = () => {
               </ChartCard>
 
               {/* Chart 13: Incursion to Gain Advantage */}
-              <ChartCard title="Incursion to Gain Benifit">
+              <ChartCard title="Incursion to Gain Benefit">
                 <BarChart data={incursionToGainAdvantageData.length > 0 ? incursionToGainAdvantageData : [{ name: "No Data", Number: 0 }]}>
                   <CartesianGrid {...commonChartProps.cartesianGrid} />
                   <XAxis dataKey="name" tick={{ fontSize: 13 }} />

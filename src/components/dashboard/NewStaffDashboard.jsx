@@ -728,7 +728,7 @@ import StatCard from "../common/StatCard";
                               {form.type === "Incident Report" &&
                                 form.incursionToGainAdvantage === "YES" && (
                                   <span className="badge badge-warning badge-xs mt-1">
-                                    Gain Benifit
+                                    Gain Benefit
                                   </span>
                                 )}
                               {form.type === "Incident Report" && form.standDown && (

@@ -27,7 +27,7 @@ const ReportStatsCards = ({ reportStats, onCardClick }) => (
       <StatCard
         icon={faTriangleExclamation}
         color="#f59e0b"
-        title="Incursion to Gain Benifit"
+        title="Incursion to Gain Benefit"
         value={reportStats.incursionToGainAdvantage}
         text="Incidents involving an incursion to gain benefit."
         onClick={() => onCardClick("incident", "gain-advantage")}
