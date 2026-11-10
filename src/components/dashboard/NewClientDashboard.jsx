@@ -734,11 +734,11 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
         vehicleTypeData: transformDataForChart(stats?.vehicleTypes),
         incursionsData: [
           { name: "Incursions", Number: stats?.incursions || 0 },
-          { name: "Incursion to Gain Benifit", Number: (stats?.incursionToGainAdvantage || 0)},
+          { name: "Incursion to Gain Benefit", Number: (stats?.incursionToGainAdvantage || 0)},
         ],
         incursionToGainAdvantageData: [
           {
-            name: "Incursion to Gain Benifit",
+            name: "Incursion to Gain Benefit",
             Number: stats?.incursionToGainAdvantage || 0,
           },
         ],
@@ -870,7 +870,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
       {
         title: "Incursion (G.B)",
         value: loading ? "..." : (stats?.incursionToGainAdvantage || 0).toString(),
-        text: "Total number of incursions to gain benifit.",
+        text: "Total number of incursions to gain benefit.",
         icon: faCar,
         color: "#5459ac",
         filter: () =>
@@ -925,7 +925,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
           { data: trackData, title: "Track of Incident", key: "track" },
           { data: vehicleTypeData, title: "Vehicle Type", key: "vehicleType" },
           { data: incursionsData, title: "Incursions", key: "incursions" },
-          { data: incursionToGainAdvantageData, title: "Incursion to Gain Benifit" },
+          { data: incursionToGainAdvantageData, title: "Incursion to Gain Benefit" },
         ];
 
         await exportChartsToPDF({
@@ -1410,7 +1410,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
                 chartTypesRef={chartTypesRef}
                 onSliceClick={(label) =>
                   handleBarClick(
-                    label === "Incursion to Gain Benifit"
+                    label === "Incursion to Gain Benefit"
                       ? "incursionToGainAdvantage"
                       : "incursions",
                     label,
@@ -1422,7 +1422,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
                   onClick={(d) =>
                     d?.activeLabel &&
                     handleBarClick(
-                      d.activeLabel === "Incursion to Gain Benifit"
+                      d.activeLabel === "Incursion to Gain Benefit"
                         ? "incursionToGainAdvantage"
                         : "incursions",
                       d.activeLabel,

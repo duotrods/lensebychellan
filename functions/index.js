@@ -198,7 +198,7 @@ function generateIncidentPDF(report) {
     if (report.collarNumber) addField("Collar Number", report.collarNumber);
     addField("Incursion", report.incursion || "NO");
     addField(
-      "Incursion to Gain Benifit",
+      "Incursion to Gain Benefit",
       report.incursionToGainAdvantage || "NO",
     );
     addField("Asset Damage?", report.propertyDamage ? "Yes" : "No");
@@ -492,7 +492,7 @@ exports.sendIncidentAlertNotification = onCall(
     }
 
     const triggers = [];
-    if (incursionEscalated) triggers.push("Incursion", "Incursion to Gain Benifit");
+    if (incursionEscalated) triggers.push("Incursion", "Incursion to Gain Benefit");
     if (hasAssetDamage) triggers.push("Asset Damage");
     if (averaTrigger) triggers.push("Avera Report");
     if (lenseAssistTrigger) triggers.push("Lense Assist Report");
@@ -522,7 +522,7 @@ exports.sendIncidentAlertNotification = onCall(
     let alertRecipients = [];
     let alertEmailsSent = 0;
     const alertTriggerLabel = [
-      incursionEscalated ? "Incursion & Incursion to Gain Benifit" : null,
+      incursionEscalated ? "Incursion & Incursion to Gain Benefit" : null,
       hasAssetDamage ? "Asset Damage" : null,
     ]
       .filter(Boolean)
@@ -549,7 +549,7 @@ exports.sendIncidentAlertNotification = onCall(
             <strong style="color: #991b1b;">Triggers:</strong>
             <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #991b1b;">
               ${hasIncursion ? "<li>Incursion: YES</li>" : ""}
-              ${hasIncursionToGainAdvantage ? "<li>Incursion to Gain Benifit: YES</li>" : ""}
+              ${hasIncursionToGainAdvantage ? "<li>Incursion to Gain Benefit: YES</li>" : ""}
               ${hasAssetDamage ? `<li>Asset Damage: ${reportData.assetType || "N/A"} — ${reportData.damageType || "N/A"}</li>` : ""}
             </ul>
           </div>
