@@ -33,6 +33,9 @@ const smtpPass = defineSecret("SMTP_PASS");
 // Two-factor auth callables (see mfa.js / mfaLogic.js)
 Object.assign(exports, require("./mfa")({ admin, smtpPass, SMTP_USER, SMTP_SENDER }));
 
+// Admin-only proxy to K2's live operator locations (see getResponderLocations.js)
+exports.getResponderLocations = require("./getResponderLocations").getResponderLocations;
+
 // Logo embedded as base64 so the Cloud Function doesn't need file system access
 const fs = require("fs");
 const path = require("path");

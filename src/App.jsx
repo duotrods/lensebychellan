@@ -43,6 +43,7 @@
   const CCTVFaultsView = lazy(() => import("./pages/staff/CCTVFaultsView"));
   const OTPManagementPage = lazy(() => import("./pages/admin/OTPManagementPage"));
   const CCTVUptime = lazy(() => import("./pages/admin/CCTVUptime"));
+  const AdminLiveMapPage = lazy(() => import("./pages/admin/LiveMapPage"));
   const BackfillVehicleStatsPage = lazy(() => import("./pages/admin/BackfillVehicleStatsPage"));
   const BackfillHasVideoPage = lazy(() => import("./pages/admin/BackfillHasVideoPage"));
   const BackfillCollectionStatsPage = lazy(() => import("./pages/admin/BackfillCollectionStatsPage"));
@@ -136,6 +137,15 @@
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <CCTVUptime />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/dashboard/admin/live-map"
+                  element={
+                    <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
+                      <AdminLiveMapPage />
                     </ProtectedRoute>
                   }
                 />
