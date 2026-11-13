@@ -17,6 +17,7 @@ import {
   faFolderOpen,
   faCalendarDays,
   faVideoSlash,
+  faMapLocationDot,
   faLayerGroup,
   faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
@@ -88,6 +89,11 @@ const AdminSidebarLayout = ({ children }) => {
       name: "CCTV Uptime",
       path: "/dashboard/admin/cctv-uptime",
       icon: faVideoSlash,
+    },
+    {
+      name: "Live Map",
+      path: "/dashboard/admin/live-map",
+      icon: faMapLocationDot,
     },
     {
       name: "Documents",
