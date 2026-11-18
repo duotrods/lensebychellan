@@ -20,6 +20,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { getActiveSchemeName } from "../../utils/schemes";
 import ClientSidebarLayout from "../../components/layout/ClientSidebarLayout";
+import CameraFaultHistory from "../../components/client/CameraFaultHistory";
 
 const formatNoteTime = (addedAt) => {
   if (!addedAt) return "";
@@ -370,6 +371,9 @@ const CCTVFaultsPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Per-camera fault history (merged notes) */}
+        <CameraFaultHistory schemeId={schemeId} basePath={basePath} />
       </div>
     </ClientSidebarLayout>
   );

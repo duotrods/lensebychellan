@@ -621,6 +621,38 @@ class ClientDataService {
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
 
+  // Faults for the per-camera history charts: everything created since `sinceMs` (all time
+  // when null, capped at the 1000 newest), plus any fault still live however old (it is
+  // still open inside the window). Both queries use existing composite indexes
+  // (schemeIds + createdAt, schemeIds + status + createdAt).
+  async getCCTVFaultsForHistory(schemeId, sinceMs = null) {
+    const ref = collection(db, "cctvFaultsReports");
+    const recentConstraints =
+      sinceMs === null
+        ? [where("schemeIds", "array-contains", schemeId), orderBy("createdAt", "desc"), limit(1000)]
+        : [
+            where("schemeIds", "array-contains", schemeId),
+            where("createdAt", ">=", Timestamp.fromMillis(sinceMs)),
+            orderBy("createdAt", "desc"),
+            limit(500),
+          ];
+    const [recent, live] = await Promise.all([
+      getDocs(query(ref, ...recentConstraints)),
+      getDocs(
+        query(
+          ref,
+          where("schemeIds", "array-contains", schemeId),
+          where("status", "==", "live"),
+          orderBy("createdAt", "desc"),
+          limit(100),
+        ),
+      ),
+    ]);
+    const byId = new Map();
+    [...recent.docs, ...live.docs].forEach((d) => byId.set(d.id, { id: d.id, ...d.data() }));
+    return [...byId.values()];
+  }
+
   // Get a single CCTV fault by ID (1 read)
   async getCCTVFaultById(faultId) {
     try {

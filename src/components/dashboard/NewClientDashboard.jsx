@@ -44,6 +44,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
   import { transformDataForChart } from "../../utils/chartData";
   import { isUntimedIncident } from "../../utils/incidentStats";
   import DrillDownSidebar from "./DrillDownSidebar";
+  import CameraFaultHistory from "../client/CameraFaultHistory";
   import {
     DateRangePicker,
     defaultStaticRanges,
@@ -1470,6 +1471,9 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
             </div>
           </div>
         )}
+
+        {/* Per-camera fault history (own time range + camera filters) */}
+        <CameraFaultHistory schemeId={schemeId} basePath={basePath} />
 
         {/* Drill-down sidebar — rendered in a portal so it never affects page scroll */}
         <DrillDownSidebar

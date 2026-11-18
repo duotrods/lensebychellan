@@ -4,7 +4,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ALL_WORKING = "All Working Correctly";
 
 // Firestore Timestamp, Date or epoch ms → epoch ms (undefined when missing).
-const toMs = (v) => {
+export const toMs = (v) => {
   if (v === undefined || v === null) return undefined;
   if (typeof v === "number") return v;
   if (typeof v.toMillis === "function") return v.toMillis();
