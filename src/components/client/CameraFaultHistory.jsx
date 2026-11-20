@@ -14,8 +14,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faVideo, faXmark, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import { faVideo, faXmark, faSpinner, faDownload } from "@fortawesome/free-solid-svg-icons";
+import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
+import { getActiveSchemeName } from "../../utils/schemes";
 import { buildCameraFaultHistory } from "../../utils/cameraFaultHistory";
 
 const RANGES = [
@@ -26,7 +28,6 @@ const RANGES = [
 ];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_BARS = 20;
-const NOTES_COLLAPSED = 3;
 const COLOR_TEAL = "#17af93"; // same teal as the dashboard charts
 const COLOR_TEAL_DARK = "#0f7f6c";
 const COLOR_LIVE = "#ef4444";
@@ -46,6 +47,19 @@ const fmtDuration = (ms) => {
   if (h < 24) return `${h}h ${mins % 60}m`;
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 };
+
+const fmtDayLong = (ms) =>
+  new Date(ms).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+const fmtFullDate = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const fmtTime = (ms) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const isOperatorRole = (role) => role === "cctvfaultoperator" || role === "thirdpartycctvoperator";
+const initials = (name) =>
+  (name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("") || "N";
 
 const roleLabel = (role) =>
   role === "cctvfaultoperator" || role === "thirdpartycctvoperator" ? "CCTV Operator" : role ? "Staff" : "";
@@ -68,9 +82,30 @@ const FaultTooltip = ({ active, payload, windowEndMs }) => {
 
 // Slide-in panel (same look as the dashboard drill-down) opened when a camera bar is clicked:
 // that camera's faults on a timeline + the notes from every one of its faults merged.
-const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, onClose }) => {
+const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, subtitle, rangeText, onClose }) => {
   const navigate = useNavigate();
-  const [showAll, setShowAll] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { exportCameraHistoryPDF } = await import("../../utils/cameraHistoryPdf"); // keep jsPDF lazy
+      exportCameraHistoryPDF({
+        entry,
+        windowStartMs,
+        windowEndMs,
+        subtitle,
+        rangeText,
+        fileName: `camera-history_${entry.camera.replace(/\s+/g, "-")}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
+      toast.success("Camera history exported");
+    } catch (error) {
+      console.error("Failed to export camera history:", error);
+      toast.error("Failed to export camera history");
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const minSpan = (windowEndMs - windowStartMs) * 0.012; // keep very short faults visible
 
   useEffect(() => {
@@ -84,7 +119,18 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, onCl
     const end = f.endMs ?? windowEndMs;
     return { ...f, label: f.referenceId, range: [start, Math.max(end, start + minSpan)] };
   });
-  const notes = showAll ? entry.notes : entry.notes.slice(0, NOTES_COLLAPSED);
+
+  // Message thread: oldest first, grouped under a date separator per day.
+  const thread = useMemo(() => {
+    const groups = [];
+    for (const n of [...entry.notes].reverse()) {
+      const day = fmtDayLong(n.atMs);
+      const last = groups[groups.length - 1];
+      if (last && last.day === day) last.items.push(n);
+      else groups.push({ day, items: [n] });
+    }
+    return groups;
+  }, [entry.notes]);
 
   return createPortal(
     <>
@@ -130,12 +176,23 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, onCl
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="drilldown-close-btn flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-          >
-            <FontAwesomeIcon icon={faXmark} className="w-4 h-4 text-white" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
+              title="Export this camera's history as PDF"
+              className="drilldown-close-btn flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold text-white disabled:opacity-60"
+            >
+              <FontAwesomeIcon icon={isExporting ? faSpinner : faDownload} className={`w-3.5 h-3.5 ${isExporting ? "animate-spin" : ""}`} />
+              Export
+            </button>
+            <button
+              onClick={onClose}
+              className="drilldown-close-btn flex items-center justify-center w-8 h-8 rounded-lg"
+            >
+              <FontAwesomeIcon icon={faXmark} className="w-4 h-4 text-white" />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-8">
@@ -175,34 +232,59 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, onCl
             {entry.notes.length === 0 ? (
               <p className="text-sm text-gray-400">No notes on this camera&apos;s faults.</p>
             ) : (
-              <ul className="space-y-3">
-                {notes.map((n, i) => (
-                  <li key={`${n.faultId}-${n.atMs}-${i}`} className="text-sm border-l-2 border-teal-300 pl-3">
-                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
-                      <span className="font-mono">{fmtDateTime(n.atMs)}</span>
-                      {n.authorName && <span className="font-medium text-gray-700">{n.authorName}</span>}
-                      {roleLabel(n.authorRole) && <span>({roleLabel(n.authorRole)})</span>}
-                      <button
-                        type="button"
-                        onClick={() => navigate(`${basePath}/reports/cctv-faults/${n.faultId}`)}
-                        className="text-teal-600 hover:underline"
-                      >
-                        {n.referenceId}
-                      </button>
+              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 space-y-5">
+                {thread.map((group) => (
+                  <div key={group.day}>
+                    <div className="flex justify-center mb-3">
+                      <span className="text-[11px] font-medium text-gray-500 bg-white border border-gray-200 rounded-full px-3 py-0.5">
+                        {group.day}
+                      </span>
                     </div>
-                    <p className="text-gray-800 whitespace-pre-wrap">{n.text}</p>
-                  </li>
+                    <div className="space-y-3">
+                      {group.items.map((n, i) => {
+                        const isOperator = isOperatorRole(n.authorRole);
+                        return (
+                          <div
+                            key={`${n.faultId}-${n.atMs}-${i}`}
+                            className={`flex items-end gap-2 ${isOperator ? "flex-row-reverse" : ""}`}
+                          >
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                isOperator ? "bg-teal-500 text-white" : "bg-blue-100 text-blue-700"
+                              }`}
+                            >
+                              {initials(n.authorName)}
+                            </div>
+                            <div
+                              className={`max-w-[80%] px-3 py-2 border ${
+                                isOperator
+                                  ? "bg-teal-50 border-teal-100 rounded-2xl rounded-br-sm"
+                                  : "bg-blue-50 border-blue-100 rounded-2xl rounded-bl-sm"
+                              }`}
+                            >
+                              <div className="flex items-baseline gap-2 text-xs">
+                                <span className="font-semibold text-gray-800">{n.authorName || "Note"}</span>
+                                {roleLabel(n.authorRole) && <span className="text-gray-400">{roleLabel(n.authorRole)}</span>}
+                              </div>
+                              <p className="text-sm text-gray-800 whitespace-pre-wrap mt-0.5">{n.text}</p>
+                              <div className="flex items-center justify-between gap-4 mt-1 text-[11px] text-gray-400">
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`${basePath}/reports/cctv-faults/${n.faultId}`)}
+                                  className="font-mono text-teal-600 hover:underline"
+                                >
+                                  {n.referenceId}
+                                </button>
+                                <span>{fmtTime(n.atMs)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
-              </ul>
-            )}
-            {entry.notes.length > NOTES_COLLAPSED && (
-              <button
-                type="button"
-                onClick={() => setShowAll((v) => !v)}
-                className="mt-3 text-sm text-teal-600 hover:underline"
-              >
-                {showAll ? "Show fewer notes" : `Show all ${entry.notes.length} notes`}
-              </button>
+              </div>
             )}
           </section>
         </div>
@@ -218,7 +300,9 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, onCl
  */
 const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
   const [range, setRange] = useState("30");
+  const { userProfile } = useAuth();
   const [selected, setSelected] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
   const { days, label: rangeLabel } = RANGES.find((r) => r.value === range) ?? RANGES[1];
 
   const query = useQuery({
@@ -254,6 +338,31 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
   }));
   const hiddenCount = history.cameras.length - chartData.length;
 
+  // Same PDF look as the dashboard "Export Charts" (teal header + bar chart), one chart per page.
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const { exportChartsToPDF } = await import("../../utils/pdfChartExport"); // keep jsPDF lazy
+      const totalFaults = history.cameras.reduce((sum, c) => sum + c.faultCount, 0);
+      const fmtFull = fmtFullDate;
+      await exportChartsToPDF({
+        reportTitle: "Camera Fault History",
+        subtitle: `${schemeId} - ${getActiveSchemeName(userProfile)}`,
+        dateRangeText: `${rangeLabel}: ${fmtFull(history.windowStartMs)} - ${fmtFull(history.windowEndMs)}`,
+        statsText: `${history.cameras.length} camera${history.cameras.length !== 1 ? "s" : ""} - ${totalFaults} fault${totalFaults !== 1 ? "s" : ""}`,
+        charts: [{ data: chartData.map((d) => ({ name: d.camera, Number: d.Faults })), title: "Faults per camera" }],
+        layout: "single",
+        fileName: `camera-fault-history_${schemeId}_${range}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
+      toast.success("Chart exported");
+    } catch (error) {
+      console.error("Failed to export camera fault history:", error);
+      toast.error("Failed to export chart");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="mt-8 bg-white rounded-xl p-6 shadow-sm">
       <div className="flex flex-col">
@@ -266,6 +375,16 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
           <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
             {query.isLoading ? "..." : `${history.cameras.length} Camera${history.cameras.length !== 1 ? "s" : ""}`}
           </span>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting || chartData.length === 0}
+            title="Export chart as PDF"
+            className="flex items-center gap-2 bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1 rounded-full text-sm font-medium transition-colors"
+          >
+            <FontAwesomeIcon icon={isExporting ? faSpinner : faDownload} className={`w-4 h-4 ${isExporting ? "animate-spin" : ""}`} />
+            Export
+          </button>
         </div>
 
         <div className="bg-white shadow-xs rounded-b-lg overflow-hidden border border-t-0 border-gray-100">
@@ -375,6 +494,8 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
           windowStartMs={history.windowStartMs}
           windowEndMs={history.windowEndMs}
           basePath={basePath}
+          subtitle={`${schemeId} - ${getActiveSchemeName(userProfile)}`}
+          rangeText={`${rangeLabel}: ${fmtFullDate(history.windowStartMs)} - ${fmtFullDate(history.windowEndMs)}`}
           onClose={() => setSelected(null)}
         />
       )}

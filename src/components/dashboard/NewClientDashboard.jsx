@@ -252,7 +252,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
 
       return (
         <div
-          className={`bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow ${fullWidth ? "col-span-full" : ""}`}
+          className={`bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow ${fullWidth ? "col-span-full" : ""}`}
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="flex items-center justify-between mb-6 border-b pb-3">
@@ -1131,6 +1131,9 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
               </div>
             </div>
 
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm mt-14 mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-8 text-center">Recovery Data</h2>
+
             {/* All Charts in 2 Column Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <ChartCard
@@ -1444,7 +1447,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
             </div>
 
             {/* Full Width: Incidents Over Time */}
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
               <ChartCard title="Incidents Over Time" >
                 <BarChart
                   data={
@@ -1468,6 +1471,7 @@ import { canonicalSpottedBy } from "../../utils/spottedBy";
                   <Bar dataKey="Number" fill="#17af93" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ChartCard>
+            </div>
             </div>
           </div>
         )}

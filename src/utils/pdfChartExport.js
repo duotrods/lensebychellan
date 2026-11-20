@@ -397,6 +397,8 @@ const getLogoDataUrl = () => {
  * @param {React.MutableRefObject<Record<string,'bar'|'pie'>>} [options.chartTypesRef] -
  *   Optional; when a chart's key maps to "pie" it's drawn as a pie chart, otherwise bar.
  * @param {string} options.fileName
+ * @param {"grid"|"single"} [options.layout] - "grid" (default) = 4 charts per page in a 2x2
+ *   grid; "single" = one full-width chart per page.
  */
 export async function exportChartsToPDF({
   reportTitle,
@@ -406,6 +408,7 @@ export async function exportChartsToPDF({
   charts,
   chartTypesRef,
   fileName,
+  layout = "grid",
 }) {
   const pdf = new jsPDF({
     orientation: "l",
@@ -452,20 +455,26 @@ export async function exportChartsToPDF({
   // Content area — 4 charts per page in a 2x2 grid.
   const contentStartY = headerHeight + 10;
   const chartGap = 8;
-  const chartWidth = (pdfWidth - 30 - chartGap) / 2;
-  const chartHeight = (pdfHeight - contentStartY - 15 - chartGap) / 2;
-  const positions = [
-    { x: 15, y: contentStartY },
-    { x: 15 + chartWidth + chartGap, y: contentStartY },
-    { x: 15, y: contentStartY + chartHeight + chartGap },
-    { x: 15 + chartWidth + chartGap, y: contentStartY + chartHeight + chartGap },
-  ];
+  const single = layout === "single";
+  const chartsPerPage = single ? 1 : 4;
+  const chartWidth = single ? pdfWidth - 30 : (pdfWidth - 30 - chartGap) / 2;
+  const chartHeight = single
+    ? pdfHeight - contentStartY - 15
+    : (pdfHeight - contentStartY - 15 - chartGap) / 2;
+  const positions = single
+    ? [{ x: 15, y: contentStartY }]
+    : [
+        { x: 15, y: contentStartY },
+        { x: 15 + chartWidth + chartGap, y: contentStartY },
+        { x: 15, y: contentStartY + chartHeight + chartGap },
+        { x: 15 + chartWidth + chartGap, y: contentStartY + chartHeight + chartGap },
+      ];
 
   let chartsOnPage = 0;
 
   charts.forEach((chart) => {
     if (chart.data && chart.data.length > 0) {
-      if (chartsOnPage === 4) {
+      if (chartsOnPage === chartsPerPage) {
         pdf.addPage();
         drawPageHeader();
         chartsOnPage = 0;
