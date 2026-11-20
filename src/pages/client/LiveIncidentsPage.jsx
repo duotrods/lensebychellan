@@ -7,6 +7,7 @@ import { faEye, faDownload, faTowerBroadcast, faCircleCheck, faArrowLeft, faChev
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { getActiveSchemeName } from "../../utils/schemes";
+import CameraFaultHistory from "../../components/client/CameraFaultHistory";
 
 const LiveIncidentsPage = () => {
   const navigate = useNavigate();
@@ -295,6 +296,9 @@ const LiveIncidentsPage = () => {
               </div>
             </div>
           </div>
+
+          {/* Per-camera fault history (merged notes), below the incident tables */}
+          <CameraFaultHistory schemeId={schemeId} basePath={basePath} />
         </>
       )}
     </div>

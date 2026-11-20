@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, useRef, useCallback } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { firestoreService } from '../services/firestoreService';
@@ -31,6 +31,23 @@ export const AuthProvider = ({ children }) => {
     const ok = isMfaSessionVerified(result.claims);
     setMfaVerified(ok);
     return ok;
+  }, []);
+
+  // Keep mfaVerified in step with the live token. Signing in again as the SAME user (e.g.
+  // a saved session is still in the browser and the user uses the sign-in page) does not
+  // fire onAuthStateChanged, but it does issue a token with a new auth_time, so the old
+  // 2FA claim no longer matches and the rules deny everything. Without this the app kept
+  // showing the dashboard as "verified" while every query returned permission-denied.
+  useEffect(() => {
+    return onIdTokenChanged(auth, async (user) => {
+      if (!user) return;
+      try {
+        const result = await user.getIdTokenResult();
+        setMfaVerified(isMfaSessionVerified(result.claims));
+      } catch {
+        // keep the current value; the next token change re-checks
+      }
+    });
   }, []);
 
   // Schemes: start from the last list this browser saw, then refresh from Firestore
