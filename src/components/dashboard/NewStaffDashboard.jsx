@@ -1,4 +1,5 @@
-  import { useState, useEffect, useRef } from "react";
+  import { getFormLocation } from "../../utils/formLocation";
+import { useState, useEffect, useRef } from "react";
   import { useNavigate } from "react-router-dom";
   import { useAuth } from "../../hooks/useAuth";
   import { staffService } from "../../services/staffService";
@@ -683,6 +684,7 @@ import StatCard from "../common/StatCard";
                         <th className="text-left text-white">Reference ID</th>
                         <th className="text-left text-white">Created By</th>
                         <th className="text-left text-white">Scheme</th>
+                        <th className="text-left text-white">Location</th>
                         <th className="text-left text-white">Date & Time</th>
                         <th className="text-center text-white"> Status </th>
                         <th className="text-center text-white">Actions</th>
@@ -691,13 +693,13 @@ import StatCard from "../common/StatCard";
                     <tbody>
                       {searchLoading ? (
                         <tr>
-                          <td colSpan="7" className="text-center py-12">
+                          <td colSpan="8" className="text-center py-12">
                             <span className="loading loading-spinner loading-lg text-teal-500"></span>
                           </td>
                         </tr>
                       ) : currentForms.length === 0 ? (
                         <tr>
-                          <td colSpan="7" className="text-center py-12">
+                          <td colSpan="8" className="text-center py-12">
                             <FontAwesomeIcon icon={faFileLines} className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                             <p className="text-gray-500 text-lg">
                               No forms found
@@ -755,6 +757,7 @@ import StatCard from "../common/StatCard";
                             <td className="text-sm text-gray-600 max-w-xs truncate">
                               {getFormScheme(form)}
                             </td>
+                            <td className="text-sm text-gray-600 max-w-xs truncate">{getFormLocation(form)}</td>
                             <td className="text-sm">
                               <div className="text-gray-800 font-medium">
                                 {getFormDate(form)}

@@ -22,8 +22,7 @@ import { getActiveSchemeName } from "../../utils/schemes";
 import ReportStatsCards from "../../components/client/reports/ReportStatsCards";
 import ReportDetailModal from "../../components/client/reports/ReportDetailModal";
 import {
-  getReportTypeIcon,
-  getReportTypeBadge,
+  renderReportTypePill,
   getReportDisplayDate,
   getReportDisplayTime,
 } from "../../utils/reportDisplay";
@@ -279,7 +278,11 @@ const ReportsPage = () => {
     const matchesSearch =
       report.referenceId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.location?.toLowerCase().includes(searchTerm.toLowerCase());
+      report.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (report.reportType === "cctv-faults" &&
+        report.camera?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (report.reportType === "incident" &&
+        report.section?.toLowerCase().includes(searchTerm.toLowerCase()));
 
     // When 'all' view: also apply type filter client-side
     const matchesType =
@@ -584,14 +587,7 @@ const ReportsPage = () => {
                       <tr key={index} className="hover:bg-gray-50">
                         <td>
                           <div className="flex items-center gap-2">
-                            {getReportTypeIcon(report.reportType)}
-                            <span
-                              className={`badge ${getReportTypeBadge(report.reportType)} badge-sm`}
-                            >
-                              {report.reportType
-                                .replace("-", " ")
-                                .toUpperCase()}
-                            </span>
+                            {renderReportTypePill(report.reportType)}
                           </div>
                         </td>
                         <td className="font-mono text-sm font-semibold">
@@ -618,7 +614,11 @@ const ReportsPage = () => {
                           {report.type || report.title || "N/A"}
                         </td>
                         <td className="max-w-xs truncate">
-                          {report.location || "N/A"}
+                          {report.reportType === "cctv-faults"
+                            ? report.camera || report.location || "N/A"
+                            : report.reportType === "incident"
+                              ? report.section || report.location || "N/A"
+                              : report.location || "N/A"}
                         </td>
                         <td>
                           <div className="text-sm">

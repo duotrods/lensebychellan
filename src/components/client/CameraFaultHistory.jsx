@@ -19,6 +19,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { clientDataService } from "../../services/clientDataService";
 import { getActiveSchemeName } from "../../utils/schemes";
 import { buildCameraFaultHistory } from "../../utils/cameraFaultHistory";
+import FaultTooltip from "./FaultTooltip";
 
 const RANGES = [
   { value: "7", label: "Last 7 days", days: 7 },
@@ -37,17 +38,6 @@ const TOOLTIP_STYLE = {
 };
 
 const fmtDay = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-const fmtDateTime = (ms) =>
-  new Date(ms).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-
-const fmtDuration = (ms) => {
-  const mins = Math.max(0, Math.round(ms / 60000));
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  if (h < 24) return `${h}h ${mins % 60}m`;
-  return `${Math.floor(h / 24)}d ${h % 24}h`;
-};
-
 const fmtDayLong = (ms) =>
   new Date(ms).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
 const fmtFullDate = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -64,25 +54,11 @@ const initials = (name) =>
 const roleLabel = (role) =>
   role === "cctvfaultoperator" || role === "thirdpartycctvoperator" ? "CCTV Operator" : role ? "Staff" : "";
 
-const FaultTooltip = ({ active, payload, windowEndMs }) => {
-  if (!active || !payload?.length) return null;
-  const f = payload[0].payload;
-  return (
-    <div className="bg-white border border-teal-500 rounded-lg px-3 py-2 text-sm shadow">
-      <p className="font-bold">{f.referenceId}</p>
-      <p className="text-gray-600">Reported: {fmtDateTime(f.startMs)}</p>
-      <p className="text-gray-600">
-        {f.endMs === null ? "Still live" : `Resolved: ${fmtDateTime(f.endMs)}`}
-      </p>
-      <p className="text-gray-600">Duration: {fmtDuration((f.endMs ?? windowEndMs) - f.startMs)}</p>
-      {f.comments ? <p className="text-gray-500 mt-1 max-w-xs">{f.comments}</p> : null}
-    </div>
-  );
-};
-
 // Slide-in panel (same look as the dashboard drill-down) opened when a camera bar is clicked:
 // that camera's faults on a timeline + the notes from every one of its faults merged.
-const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, subtitle, rangeText, onClose }) => {
+// `notesOnly` hides the timeline (used by the admin chart, which is itself the timeline);
+// without a `basePath` the fault reference is plain text instead of a link.
+export const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, subtitle, rangeText, notesOnly = false, onClose }) => {
   const navigate = useNavigate();
   const [isExporting, setIsExporting] = useState(false);
 
@@ -196,6 +172,7 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, subt
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-8">
+          {!notesOnly && (
           <section>
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Fault timeline</p>
             <div style={{ height: Math.min(rows.length, 8) * 34 + 60 }}>
@@ -224,6 +201,7 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, subt
               </ResponsiveContainer>
             </div>
           </section>
+          )}
 
           <section>
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
@@ -268,13 +246,20 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, subt
                               </div>
                               <p className="text-sm text-gray-800 whitespace-pre-wrap mt-0.5">{n.text}</p>
                               <div className="flex items-center justify-between gap-4 mt-1 text-[11px] text-gray-400">
-                                <button
-                                  type="button"
-                                  onClick={() => navigate(`${basePath}/reports/cctv-faults/${n.faultId}`)}
-                                  className="font-mono text-teal-600 hover:underline"
-                                >
-                                  {n.referenceId}
-                                </button>
+                                {basePath ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`${basePath}/reports/cctv-faults/${n.faultId}`)}
+                                    className="font-mono text-teal-600 hover:underline"
+                                  >
+                                    {n.referenceId}
+                                  </button>
+                                ) : (
+                                  <span className="font-mono text-teal-600">
+                                    {n.camera ? `${n.camera} · ` : ""}
+                                    {n.referenceId}
+                                  </span>
+                                )}
                                 <span>{fmtTime(n.atMs)}</span>
                               </div>
                             </div>
@@ -298,15 +283,24 @@ const CameraDetailSidebar = ({ entry, windowStartMs, windowEndMs, basePath, subt
  * Faults per camera as a bar chart (same look as the dashboard charts). Clicking a camera
  * opens its timeline and the notes from all of its fault forms merged into one history.
  */
-const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
+// `schemeName` overrides the signed-in user's scheme name (admin charts pick any scheme); `basePath={null}`
+// shows fault references as plain text where there is no fault page to link to (admin).
+// `controlledDays` (a number of days, or null for all time) lets the page drive the time range, which hides
+// this card's own time dropdown, the Export button and the outer card (admin charts already have a date filter
+// at the top and place this card straight on the page).
+const CameraFaultHistory = ({ schemeId, schemeName, controlledDays, basePath = "/dashboard/client" }) => {
   const [range, setRange] = useState("30");
   const { userProfile } = useAuth();
   const [selected, setSelected] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
-  const { days, label: rangeLabel } = RANGES.find((r) => r.value === range) ?? RANGES[1];
+  const controlled = controlledDays !== undefined;
+  const picked = RANGES.find((r) => r.value === range) ?? RANGES[1];
+  const days = controlled ? controlledDays : picked.days;
+  const rangeLabel = controlled ? (controlledDays === null ? "All time" : "Selected date range") : picked.label;
+  const rangeKey = controlled ? `d${controlledDays}` : range;
 
   const query = useQuery({
-    queryKey: ["cameraFaultHistory", schemeId, range],
+    queryKey: ["cameraFaultHistory", schemeId, rangeKey],
     queryFn: () =>
       clientDataService.getCCTVFaultsForHistory(schemeId, days === null ? null : Date.now() - days * DAY_MS),
     enabled: !!schemeId,
@@ -330,13 +324,20 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
   const selectedEntry = history.cameras.find((c) => c.camera === selected) ?? null;
   const toggle = (camera) => setSelected((cur) => (cur === camera ? null : camera));
 
-  const chartData = history.cameras.slice(0, MAX_BARS).map((c) => ({
+  // The Camera dropdown filters the whole card (both charts); a camera that has no faults in a
+  // newly chosen range falls back to "all".
+  const [cameraFilter, setCameraFilter] = useState("all");
+  const activeFilter = history.cameras.some((c) => c.camera === cameraFilter) ? cameraFilter : "all";
+  const visibleCameras =
+    activeFilter === "all" ? history.cameras : history.cameras.filter((c) => c.camera === activeFilter);
+
+  const chartData = visibleCameras.slice(0, MAX_BARS).map((c) => ({
     name: c.camera,
     camera: c.camera,
     Faults: c.faultCount,
     hasLive: c.hasLive,
   }));
-  const hiddenCount = history.cameras.length - chartData.length;
+  const hiddenCount = visibleCameras.length - chartData.length;
 
   // Same PDF look as the dashboard "Export Charts" (teal header + bar chart), one chart per page.
   const handleExport = async () => {
@@ -347,12 +348,12 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
       const fmtFull = fmtFullDate;
       await exportChartsToPDF({
         reportTitle: "Camera Fault History",
-        subtitle: `${schemeId} - ${getActiveSchemeName(userProfile)}`,
+        subtitle: `${schemeId} - ${schemeName ?? getActiveSchemeName(userProfile)}`,
         dateRangeText: `${rangeLabel}: ${fmtFull(history.windowStartMs)} - ${fmtFull(history.windowEndMs)}`,
         statsText: `${history.cameras.length} camera${history.cameras.length !== 1 ? "s" : ""} - ${totalFaults} fault${totalFaults !== 1 ? "s" : ""}`,
         charts: [{ data: chartData.map((d) => ({ name: d.camera, Number: d.Faults })), title: "Faults per camera" }],
         layout: "single",
-        fileName: `camera-fault-history_${schemeId}_${range}_${new Date().toISOString().slice(0, 10)}.pdf`,
+        fileName: `camera-fault-history_${schemeId}_${rangeKey}_${new Date().toISOString().slice(0, 10)}.pdf`,
       });
       toast.success("Chart exported");
     } catch (error) {
@@ -364,7 +365,7 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
   };
 
   return (
-    <div className="mt-8 bg-white rounded-xl p-6 shadow-sm">
+    <div className={controlled ? "" : "mt-8 bg-white rounded-xl p-6 shadow-sm"}>
       <div className="flex flex-col">
         {/* Header bar — same as the Live / Completed tables above */}
         <div className="bg-linear-to-br from-brand-500 to-brand-600 rounded-t-lg px-4 py-5 flex items-center gap-3">
@@ -375,40 +376,47 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
           <span className="ml-auto bg-white/20 text-white px-3 py-1 rounded-full text-sm font-medium">
             {query.isLoading ? "..." : `${history.cameras.length} Camera${history.cameras.length !== 1 ? "s" : ""}`}
           </span>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={isExporting || chartData.length === 0}
-            title="Export chart as PDF"
-            className="flex items-center gap-2 bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1 rounded-full text-sm font-medium transition-colors"
-          >
-            <FontAwesomeIcon icon={isExporting ? faSpinner : faDownload} className={`w-4 h-4 ${isExporting ? "animate-spin" : ""}`} />
-            Export
-          </button>
+          {!controlled && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting || chartData.length === 0}
+              title="Export chart as PDF"
+              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-1 rounded-full text-sm font-medium transition-colors"
+            >
+              <FontAwesomeIcon icon={isExporting ? faSpinner : faDownload} className={`w-4 h-4 ${isExporting ? "animate-spin" : ""}`} />
+              Export
+            </button>
+          )}
         </div>
 
         <div className="bg-white shadow-xs rounded-b-lg overflow-hidden border border-t-0 border-gray-100">
           <div className="flex flex-col gap-3 px-4 py-4 border-b border-gray-100 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-gray-500">
-              Faults per camera ({rangeLabel.toLowerCase()}). Click a camera to open its timeline and notes.
+              Faults per camera ({rangeLabel.toLowerCase()}). Click a camera to open its notes.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <select
-                aria-label="Time range"
-                value={range}
-                onChange={(e) => setRange(e.target.value)}
-                className="select select-bordered select-sm bg-white border-gray-300"
-              >
-                {RANGES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+              {!controlled && (
+                <select
+                  aria-label="Time range"
+                  value={range}
+                  onChange={(e) => setRange(e.target.value)}
+                  className="select select-bordered select-sm bg-white border-gray-300"
+                >
+                  {RANGES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select
                 aria-label="Camera"
-                value={selectedEntry ? selectedEntry.camera : "all"}
-                onChange={(e) => setSelected(e.target.value === "all" ? null : e.target.value)}
+                value={activeFilter}
+                onChange={(e) => {
+                  setCameraFilter(e.target.value);
+                  setSelected(null);
+                }}
                 disabled={history.cameras.length === 0}
                 className="select select-bordered select-sm bg-white border-gray-300"
               >
@@ -494,8 +502,9 @@ const CameraFaultHistory = ({ schemeId, basePath = "/dashboard/client" }) => {
           windowStartMs={history.windowStartMs}
           windowEndMs={history.windowEndMs}
           basePath={basePath}
-          subtitle={`${schemeId} - ${getActiveSchemeName(userProfile)}`}
+          subtitle={`${schemeId} - ${schemeName ?? getActiveSchemeName(userProfile)}`}
           rangeText={`${rangeLabel}: ${fmtFullDate(history.windowStartMs)} - ${fmtFullDate(history.windowEndMs)}`}
+          notesOnly
           onClose={() => setSelected(null)}
         />
       )}

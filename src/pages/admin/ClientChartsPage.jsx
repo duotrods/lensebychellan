@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { clientDataService } from "../../services/clientDataService";
 import { SCHEMES, extractSchemeId } from "../../utils/schemes";
 import { transformDataForChart } from "../../utils/chartData";
+import { buildCameraFaultHistory } from "../../utils/cameraFaultHistory";
+import CameraFaultTimelineChart from "../../components/admin/CameraFaultTimelineChart";
+import CameraFaultHistory, { CameraDetailSidebar } from "../../components/client/CameraFaultHistory";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCalendar,
@@ -131,6 +134,33 @@ const ClientChartsPage = () => {
       toast.error("Failed to load chart data");
     }
   }, [statsQuery.isError, statsQuery.error]);
+
+  // All of the scheme's CCTV faults (newest 1000); the fault timeline below narrows them by the date range.
+  const faultsQuery = useQuery({
+    queryKey: ["cctvFaultsAllTime", schemeId],
+    queryFn: () => clientDataService.getCCTVFaultsForHistory(schemeId, null),
+    enabled: !!schemeId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fault timeline: follows the start of the date range above; clicking a fault opens its camera's notes.
+  const [timelineCamera, setTimelineCamera] = useState(null);
+  const timelineHistory = useMemo(
+    () =>
+      buildCameraFaultHistory({
+        faults: faultsQuery.data ?? [],
+        days: isAllTimeRange ? null : Math.max(1, Math.ceil((Date.now() - dateRange[0].startDate.getTime()) / 86400000)),
+      }),
+    [faultsQuery.data, isAllTimeRange, dateRange],
+  );
+  const timelineEntry = timelineHistory.cameras.find((c) => c.camera === timelineCamera) ?? null;
+
+  useEffect(() => {
+    if (faultsQuery.isError) {
+      console.error("Failed to load CCTV faults:", faultsQuery.error);
+      toast.error("Failed to load CCTV faults chart");
+    }
+  }, [faultsQuery.isError, faultsQuery.error]);
 
   const chartStats = statsQuery.data?.stats;
   const chartTimeSeries = statsQuery.data?.timeSeriesData ?? [];
@@ -494,6 +524,36 @@ const ClientChartsPage = () => {
                   <Bar dataKey="Number" {...commonChartProps.bar} />
                 </BarChart>
               </ChartCard>
+
+              {/* CCTV fault timeline, beside Incursion to Gain Benefit (follows the date range above) */}
+              <CameraFaultTimelineChart
+                history={timelineHistory}
+                loading={faultsQuery.isLoading}
+                onSelectCamera={setTimelineCamera}
+              />
+            </div>
+
+            {timelineEntry && (
+              <CameraDetailSidebar
+                key={timelineEntry.camera}
+                entry={timelineEntry}
+                windowStartMs={timelineHistory.windowStartMs}
+                windowEndMs={timelineHistory.windowEndMs}
+                subtitle={selectedScheme}
+                rangeText={`${dateRange[0].startDate.toLocaleDateString('en-GB')} - ${dateRange[0].endDate.toLocaleDateString('en-GB')}`}
+                notesOnly
+                onClose={() => setTimelineCamera(null)}
+              />
+            )}
+
+            {/* Camera Fault History (own time range + camera filters), before Incidents Over Time */}
+            <div className="mb-8">
+              <CameraFaultHistory
+                schemeId={schemeId}
+                schemeName={selectedScheme}
+                controlledDays={isAllTimeRange ? null : Math.max(1, Math.ceil((Date.now() - dateRange[0].startDate.getTime()) / 86400000))}
+                basePath={null}
+              />
             </div>
 
             {/* Full Width: Incidents Over Time */}

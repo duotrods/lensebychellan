@@ -1,3 +1,4 @@
+import { getFormLocation } from "../../utils/formLocation";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -652,6 +653,7 @@ const StaffReportsPage = () => {
                       <th className="text-left text-white">Reference ID</th>
                       <th className="text-left text-white">Submitted By</th>
                       <th className="text-left text-white">Scheme</th>
+                      <th className="text-left text-white">Location</th>
                       <th className="text-left text-white">Date & Time</th>
                       <th className="text-center text-white">Actions</th>
                     </tr>
@@ -696,6 +698,7 @@ const StaffReportsPage = () => {
                         <td className="text-sm text-gray-600 max-w-xs truncate">
                           {getFormScheme(report)}
                         </td>
+                        <td className="text-sm text-gray-600 max-w-xs truncate">{getFormLocation(report)}</td>
                         <td className="text-sm">
                           <div className="text-gray-800 font-medium">{getFormDate(report)}</div>
                           <div className="text-gray-400">{getFormTime(report)}</div>

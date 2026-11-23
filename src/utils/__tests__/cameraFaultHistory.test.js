@@ -139,4 +139,13 @@ describe("buildCameraFaultHistory", () => {
     expect(r.cameras).toEqual([]);
     expect(r.windowStartMs).toBe(NOW - 30 * DAY);
   });
+
+  it("splits a fault that lists several cameras into one entry per camera", () => {
+    const r = run([
+      fault({ id: "multi", camera: "CAmera 123, Camera 4", clientNotes: [{ text: "n", addedAt: new Date(NOW - DAY).toISOString() }] }),
+      fault({ id: "single", camera: "Camera 4", referenceId: "CCTV-002" }),
+    ]);
+    expect(r.cameras.map((c) => [c.camera, c.faultCount]).sort()).toEqual([["CAmera 123", 1], ["Camera 4", 2]]);
+    expect(r.cameras.find((c) => c.camera === "CAmera 123").notes[0].text).toBe("n");
+  });
 });

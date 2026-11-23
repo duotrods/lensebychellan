@@ -21,6 +21,7 @@ import { CAMERA_OPTIONS_BY_SCHEME, THIRD_PARTY_SCHEMES } from "../utils/schemes"
 import { isVideoFile } from "../utils/fileType";
 import { isUntimedIncident } from "../utils/incidentStats";
 import { mergeSpottedByAliases } from "../utils/spottedBy";
+import { sortByLatestResolved } from "../utils/sortByLatestResolved";
 
 class ClientDataService {
   // Real-time listener for live incidents (uses onSnapshot - only charges when data changes)
@@ -380,7 +381,7 @@ class ClientDataService {
           faultsRef,
           ...schemeFilter,
           where("status", "==", "completed"),
-          orderBy("createdAt", "desc"),
+          orderBy("completedAt", "desc"),
           startAfter(lastDoc),
           limit(pageSize),
         );
@@ -389,7 +390,7 @@ class ClientDataService {
           faultsRef,
           ...schemeFilter,
           where("status", "==", "completed"),
-          orderBy("createdAt", "desc"),
+          orderBy("completedAt", "desc"),
           limit(pageSize),
         );
       }
@@ -422,12 +423,10 @@ class ClientDataService {
           limit(200),
         );
         const snapshot = await getDocs(simpleQuery);
-        const allFaults = snapshot.docs
+        const completedFaults = snapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((doc) => doc.status === "completed")
-          .sort(
-            (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
-          );
+          .filter((doc) => doc.status === "completed");
+        const allFaults = sortByLatestResolved(completedFaults);
 
         const startIndex = lastDoc
           ? allFaults.findIndex((d) => d.id === lastDoc.id) + 1
