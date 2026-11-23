@@ -5,6 +5,7 @@ import {
   faCalendar,
   faEye,
   faBox,
+  faVideoSlash,
 } from "@fortawesome/free-solid-svg-icons";
 
 // Presentation helpers shared by the client Reports page (table, modal, cards).
@@ -96,6 +97,30 @@ export const getReportTypeIcon = (type) => {
     default:
       return <FontAwesomeIcon icon={faFileLines} className="w-5 h-5 text-gray-500" />;
   }
+};
+
+// Same rounded-full tinted pill (icon + label) as the Type column in the admin Reports table
+// (StaffReportsPage renderFormTypeBadge), keyed by the client reportType values.
+const TYPE_PILLS = {
+  incident: { label: "Incident Report", icon: faTriangleExclamation, color: "bg-orange-100 text-orange-700" },
+  "asset-damage": { label: "Asset Damage", icon: faFileLines, color: "bg-red-100 text-red-700" },
+  "daily-occurrence": { label: "Daily Logs", icon: faCalendar, color: "bg-blue-100 text-blue-700" },
+  "cctv-check": { label: "CCTV Check", icon: faEye, color: "bg-green-100 text-green-700" },
+  "cctv-faults": { label: "CCTV Faults", icon: faVideoSlash, color: "bg-fuchsia-100 text-fuchsia-700" },
+};
+
+export const renderReportTypePill = (type) => {
+  const pill = TYPE_PILLS[type] || {
+    label: (type || "Report").replace(/-/g, " "),
+    icon: faFileLines,
+    color: "bg-gray-100 text-gray-700",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${pill.color}`}>
+      <FontAwesomeIcon icon={pill.icon} className="w-3.5 h-3.5" />
+      {pill.label}
+    </span>
+  );
 };
 
 export const getReportTypeBadge = (type) => {

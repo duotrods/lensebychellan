@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useLiveIncidents, usePaginatedCompletedIncidents } from '../../hooks/useLiveIncidents';
@@ -7,7 +7,7 @@ import { faEye, faDownload, faTowerBroadcast, faCircleCheck, faArrowLeft, faChev
 import { toast } from 'react-hot-toast';
 import { generateReportPDF } from '../../utils/pdfGenerator';
 import { getActiveSchemeName } from "../../utils/schemes";
-import CameraFaultHistory from "../../components/client/CameraFaultHistory";
+import { sortByLatestCleared } from "../../utils/incidentCleared";
 
 const LiveIncidentsPage = () => {
   const navigate = useNavigate();
@@ -41,6 +41,9 @@ const LiveIncidentsPage = () => {
     }
     prevLiveCount.current = liveIncidents.length;
   }, [liveIncidents.length, refreshCompleted]);
+
+  // Latest cleared first (the server page order follows creation time).
+  const sortedCompleted = useMemo(() => sortByLatestCleared(completedIncidents), [completedIncidents]);
 
   const loading = liveLoading;
 
@@ -209,7 +212,7 @@ const LiveIncidentsPage = () => {
                   ) : (
                     <>
                       <div className="divide-y divide-gray-100 overflow-y-auto">
-                        {completedIncidents.map((incident) => {
+                        {sortedCompleted.map((incident) => {
                           const duration = calculateDuration(incident.timeSpotted, incident.timeCleared);
                           return (
                             <div
@@ -296,9 +299,6 @@ const LiveIncidentsPage = () => {
               </div>
             </div>
           </div>
-
-          {/* Per-camera fault history (merged notes), below the incident tables */}
-          <CameraFaultHistory schemeId={schemeId} basePath={basePath} />
         </>
       )}
     </div>

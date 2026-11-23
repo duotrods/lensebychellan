@@ -18,6 +18,8 @@ const toTime = (v) => {
  * schemes). Only cameras with a fault overlapping the last `days` days (or any, when
  * `days` is null) are returned.
  *
+ * A fault form listing several cameras (comma separated) counts once for each camera.
+ *
  * Per camera: its faults as timeline bars (endMs null = still live) and the notes from
  * every one of those faults merged into one list, newest first.
  */
@@ -29,9 +31,14 @@ export const buildCameraFaultHistory = ({ faults, now = Date.now(), days = 30 })
   const byCamera = new Map();
 
   for (const fault of faults || []) {
-    const camera = typeof fault.camera === "string" ? fault.camera.trim() : "";
+    // One fault form can list several cameras ("CCTV 1, CCTV 2"); each camera gets its own entry.
+    const names = [
+      ...new Set(
+        (typeof fault.camera === "string" ? fault.camera.split(",") : []).map((n) => n.trim()).filter(Boolean),
+      ),
+    ];
     const startMs = toTime(fault.createdAt);
-    if (!camera || startMs === undefined) continue;
+    if (names.length === 0 || startMs === undefined) continue;
 
     const isLive = fault.status === "live";
     const endMs = isLive ? null : (toTime(fault.completedAt) ?? startMs);
@@ -39,46 +46,49 @@ export const buildCameraFaultHistory = ({ faults, now = Date.now(), days = 30 })
     if (!isLive && endMs < cutoffMs) continue;
     earliestMs = Math.min(earliestMs, startMs);
 
-    if (!byCamera.has(camera)) {
-      byCamera.set(camera, { camera, faultCount: 0, hasLive: false, faults: [], notes: [] });
-    }
-    const entry = byCamera.get(camera);
-    entry.faultCount += 1;
-    entry.hasLive = entry.hasLive || isLive;
-    entry.faults.push({
-      id: fault.id,
-      referenceId: fault.referenceId || fault.id,
-      status: isLive ? "live" : "completed",
-      startMs,
-      endMs,
-      comments: fault.comments || "",
-    });
-
-    const base = { faultId: fault.id, referenceId: fault.referenceId || fault.id };
     const threaded = Array.isArray(fault.clientNotes)
       ? fault.clientNotes.filter((n) => n && typeof n.text === "string" && n.text.trim())
       : [];
-    if (threaded.length > 0) {
-      for (const n of threaded) {
+
+    for (const camera of names) {
+      if (!byCamera.has(camera)) {
+        byCamera.set(camera, { camera, faultCount: 0, hasLive: false, faults: [], notes: [] });
+      }
+      const entry = byCamera.get(camera);
+      entry.faultCount += 1;
+      entry.hasLive = entry.hasLive || isLive;
+      entry.faults.push({
+        id: fault.id,
+        referenceId: fault.referenceId || fault.id,
+        status: isLive ? "live" : "completed",
+        startMs,
+        endMs,
+        comments: fault.comments || "",
+      });
+
+      const base = { faultId: fault.id, referenceId: fault.referenceId || fault.id, camera };
+      if (threaded.length > 0) {
+        for (const n of threaded) {
+          entry.notes.push({
+            ...base,
+            text: n.text.trim(),
+            atMs: toTime(n.addedAt) ?? startMs,
+            authorName: n.authorName || "",
+            authorRole: n.authorRole || "",
+            legacy: false,
+          });
+        }
+      } else if (typeof fault.clientNote === "string" && fault.clientNote.trim()) {
+        // Older faults kept one undated string; place it at the fault's start.
         entry.notes.push({
           ...base,
-          text: n.text.trim(),
-          atMs: toTime(n.addedAt) ?? startMs,
-          authorName: n.authorName || "",
-          authorRole: n.authorRole || "",
-          legacy: false,
+          text: fault.clientNote.trim(),
+          atMs: startMs,
+          authorName: "",
+          authorRole: "",
+          legacy: true,
         });
       }
-    } else if (typeof fault.clientNote === "string" && fault.clientNote.trim()) {
-      // Older faults kept one undated string; place it at the fault's start.
-      entry.notes.push({
-        ...base,
-        text: fault.clientNote.trim(),
-        atMs: startMs,
-        authorName: "",
-        authorRole: "",
-        legacy: true,
-      });
     }
   }
 
