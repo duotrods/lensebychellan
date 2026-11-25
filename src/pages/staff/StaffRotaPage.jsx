@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalendarDays, faWallet } from "@fortawesome/free-solid-svg-icons";
@@ -24,6 +25,8 @@ import {
   downloadCsv,
   fmt,
   getPayPeriod,
+  ROTA_LOCATIONS,
+  DEFAULT_ROTA_LOCATION,
 } from "../../utils/rota";
 
 const TABS = [
@@ -33,13 +36,15 @@ const TABS = [
 
 const StaffRotaPage = () => {
   const { currentUser } = useAuth();
+  const { location: locationParam } = useParams();
+  const rotaLocation = ROTA_LOCATIONS.find((l) => l.id === locationParam);
   const [activeTab, setActiveTab] = useState("rota");
   const [periodAnchor, setPeriodAnchor] = useState(() => new Date());
   const [pendingCell, setPendingCell] = useState(null);
   const [customRange, setCustomRange] = useState(null);
 
   const period = getPayPeriod(periodAnchor);
-  const { staff } = useRotaStaff();
+  const { staff } = useRotaStaff(rotaLocation?.id);
   const { bankHolidays } = useBankHolidays();
   const { shifts } = useRotaShifts(period.start, period.end);
   const { holidayShifts } = useAllHolidayShifts();
@@ -126,21 +131,26 @@ const StaffRotaPage = () => {
 
   const handleDownloadRotaCsv = () => {
     downloadCsv(
-      `rota_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
+      `rota_${rotaLocation.id}_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
       buildRotaCsvRows(staff, shifts, bankHolidays, period),
     );
   };
 
   const handleDownloadTallyCsv = () => {
     downloadCsv(
-      `hours_and_pay_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
+      `hours_and_pay_${rotaLocation.id}_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
       buildTallyCsvRows(staff, shifts, bankHolidays, period, allTimeHolidayHoursUsedByStaff),
     );
   };
 
+  if (!rotaLocation) {
+    return <Navigate to={`/dashboard/staff/rota/${DEFAULT_ROTA_LOCATION}`} replace />;
+  }
+
   return (
     <StaffSidebarLayout>
       <div className="border-b border-gray-200 bg-white px-6 pt-4">
+        <h1 className="text-lg font-semibold text-gray-800 mb-2">{rotaLocation.name} Rota</h1>
         <nav className="flex gap-1">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button

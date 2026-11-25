@@ -30,6 +30,7 @@ import { isDemoUser, getViewerReadScope } from "../../utils/schemes";
 import { getStaffBasePath } from "../../utils/constants";
 import { isAnyThirdParty } from "../../utils/roleHelpers";
 import { hasLenseAssist } from "../../utils/lenseAssist";
+import { ROTA_LOCATIONS } from "../../utils/rota";
 import { StaffCCTVFaultsProvider, useStaffCCTVFaultsContext } from "../../context/StaffCCTVFaultsContext";
 
 const LENSE_ASSIST_URL = "https://chellan-assist.live/";
@@ -38,8 +39,9 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
   const { userProfile, role } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [formsOpen, setFormsOpen] = useState(() =>
-    location.pathname.includes('/forms')
+  // Name of the open dropdown in the nav ("Forms" / "Staff Rota"), or null.
+  const [openMenu, setOpenMenu] = useState(() =>
+    location.pathname.includes('/forms') ? 'Forms' : location.pathname.includes('/rota') ? 'Staff Rota' : null
   );
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLenseAssistModal, setShowLenseAssistModal] = useState(false);
@@ -116,6 +118,8 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
             name: "Staff Rota",
             path: `${basePath}/rota`,
             icon: faCalendarDays,
+            hasSubmenu: true,
+            submenu: ROTA_LOCATIONS.map((l) => ({ name: l.name, path: `${basePath}/rota/${l.id}` })),
           },
           {
             name: "Body Cam Upload",
@@ -190,10 +194,10 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
               {item.hasSubmenu ? (
                 <>
                   {collapsed ? (
-                    /* When collapsed, Forms shows as a plain icon link to first submenu item */
+                    /* When collapsed, a dropdown shows as a plain icon link to its first submenu item */
                     <Link
                       to={item.submenu[0].path}
-                      title="Forms"
+                      title={item.name}
                       className={`flex items-center justify-center px-3 py-3 rounded-lg transition-colors ${
                         isActive(item.path, item.exact)
                           ? "bg-teal-500 text-white"
@@ -205,7 +209,7 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
                   ) : (
                     <>
                       <button
-                        onClick={() => setFormsOpen(!formsOpen)}
+                        onClick={() => setOpenMenu(openMenu === item.name ? null : item.name)}
                         className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${
                           isActive(item.path, item.exact)
                             ? "bg-teal-500 text-white"
@@ -218,11 +222,11 @@ const StaffSidebarLayoutInner = ({ children, basePath = '/dashboard/staff' }) =>
                         </div>
                         <FontAwesomeIcon
                           icon={faChevronDown}
-                          className={`w-4 h-4 transition-transform ${formsOpen ? "rotate-180" : ""}`}
+                          className={`w-4 h-4 transition-transform ${openMenu === item.name ? "rotate-180" : ""}`}
                         />
                       </button>
 
-                      {formsOpen && (
+                      {openMenu === item.name && (
                         <div className="ml-4 mt-2 space-y-1">
                           {item.submenu.map((subItem) => (
                             <Link

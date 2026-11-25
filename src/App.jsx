@@ -238,12 +238,16 @@
                 />
 
                 <Route
-                  path="/dashboard/admin/rota"
+                  path="/dashboard/admin/rota/:location"
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.ADMIN]}>
                       <AdminRotaPage />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                  path="/dashboard/admin/rota"
+                  element={<Navigate to="/dashboard/admin/rota/kirksandall" replace />}
                 />
 
                 <Route
@@ -395,12 +399,16 @@
                 />
 
                 <Route
-                  path="/dashboard/staff/rota"
+                  path="/dashboard/staff/rota/:location"
                   element={
                     <ProtectedRoute allowedRoles={[USER_ROLES.STAFF]}>
                       <StaffRotaPage />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                  path="/dashboard/staff/rota"
+                  element={<Navigate to="/dashboard/staff/rota/kirksandall" replace />}
                 />
 
                 <Route

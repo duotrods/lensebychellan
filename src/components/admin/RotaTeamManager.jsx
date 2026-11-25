@@ -19,6 +19,7 @@ const initials = (name) =>
 // shared with the Hours & Pay tally rather than re-fetched here.
 const RotaTeamManager = ({
   staff,
+  location,
   loading,
   holidayHoursUsedByStaff = {},
   onUpdateAllowance,
@@ -40,7 +41,7 @@ const RotaTeamManager = ({
     if (!trimmed) return;
     setSubmitting(true);
     try {
-      await rotaService.addStaffMember(trimmed);
+      await rotaService.addStaffMember(trimmed, location);
       setName("");
       toast.success(`${trimmed} added to the roster`);
     } catch (error) {

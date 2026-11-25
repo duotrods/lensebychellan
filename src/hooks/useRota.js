@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { rotaService } from "../services/rotaService";
-import { fmt } from "../utils/rota";
+import { fmt, staffLocation } from "../utils/rota";
 
-export function useRotaStaff() {
-  const [staff, setStaff] = useState([]);
+// Filters client-side: a Firestore where("location", ...) would skip older staff
+// docs that have no location field, and the roster is small.
+export function useRotaStaff(location) {
+  const [allStaff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -22,6 +24,11 @@ export function useRotaStaff() {
     );
     return () => unsubscribe?.();
   }, []);
+
+  const staff = useMemo(
+    () => allStaff.filter((s) => staffLocation(s) === location),
+    [allStaff, location],
+  );
 
   return { staff, loading, error };
 }
