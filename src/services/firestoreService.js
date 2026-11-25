@@ -1,6 +1,5 @@
 import {
   doc,
-  setDoc,
   getDoc,
   updateDoc,
   addDoc,
@@ -20,43 +19,10 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
 import { USER_ROLES } from '../utils/constants';
-import { MULTI_SCHEME_ROLES, SCHEME_ASSIGNABLE_ROLES } from '../utils/roleHelpers';
+import { SCHEME_ASSIGNABLE_ROLES } from '../utils/roleHelpers';
 import { AppError } from '../utils/errorHandling';
 
 class FirestoreService {
-  async createUserDocument(uid, userData) {
-    try {
-      const userRef = doc(db, 'users', uid);
-
-      // Transform single scheme to array format for multi-scheme support
-      const docData = {
-        uid,
-        ...userData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-        isActive: true,
-        canCreateAdmins: false // Default false, manually set in Firestore for super admin
-      };
-
-      // If this is a client user with schemeId, convert to multi-scheme format
-      if (MULTI_SCHEME_ROLES.has(userData.role) && userData.schemeId) {
-        docData.schemeIds = [userData.schemeId];
-        docData.schemeNames = {
-          [userData.schemeId]: userData.schemeName
-        };
-        docData.activeSchemeId = userData.schemeId;
-        // Keep old fields for backward compatibility
-        docData.schemeId = userData.schemeId;
-        docData.schemeName = userData.schemeName;
-      }
-
-      await setDoc(userRef, docData);
-    } catch (error) {
-      throw new AppError('Failed to create user document', 'firestore/create-error', error);
-    }
-  }
-
   async getUserDocument(uid) {
     try {
       const userRef = doc(db, 'users', uid);

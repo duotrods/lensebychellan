@@ -8,44 +8,13 @@ import {
   sendPasswordResetEmail,
   updateProfile
 } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { auth, functions } from '../config/firebase';
 import { firestoreService } from './firestoreService';
-import { otpService } from './otpService';
 import { AppError } from '../utils/errorHandling';
-import { USER_ROLES } from '../utils/constants';
+import { httpsCallable } from 'firebase/functions';
 
 class AuthService {
   googleProvider = new GoogleAuthProvider();
-
-  async signUpWithEmail(email, password, userData) {
-    try {
-      // Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Update display name
-      await updateProfile(user, { displayName: userData.displayName });
-
-      // Send verification email
-      await sendEmailVerification(user);
-
-      // Create Firestore user document
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent
-        }
-      });
-
-      return user;
-    } catch (error) {
-      throw new AppError(error.message, error.code, error);
-    }
-  }
 
   async signInWithEmail(email, password) {
     try {
@@ -113,347 +82,27 @@ class AuthService {
     }
   }
 
-  async signUpClientWithOTP(email, password, userData, otpCode) {
+  // Every account needs an access code for its role. The code is checked and the
+  // user doc written by the `registerWithCode` Cloud Function (never by the browser),
+  // so the role cannot be chosen by the user. If the code is refused we delete the
+  // brand-new Auth user so the email can be used again.
+  async signUpWithCode(email, password, userData, role, code) {
+    let user = null;
     try {
-      // Validate OTP code first
-      console.log('Validating OTP code:', otpCode);
-      const otpValidation = await otpService.validateOTP(otpCode);
-      console.log('OTP validation result:', otpValidation);
-
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid OTP code', 'auth/invalid-otp');
-      }
-
-      // Create Firebase Auth user
-      console.log('Creating Firebase user with email:', email);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      console.log('User created successfully:', user.uid);
-
-      // Update display name
+      user = userCredential.user;
       await updateProfile(user, { displayName: userData.displayName });
-
-      // Send verification email
-      await sendEmailVerification(user);
-
-      // Create Firestore user document with scheme info
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.CLIENT,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          otpCode: otpCode
-        }
+      await httpsCallable(functions, 'registerWithCode')({
+        role,
+        code,
+        displayName: userData.displayName,
+        company: userData.company,
+        phone: userData.phone,
       });
-
-      // Mark OTP as used (non-blocking - don't fail signup if this fails)
-      try {
-        await otpService.markOTPAsUsed(otpCode, user.uid);
-      } catch (otpError) {
-        console.warn('Failed to mark OTP as used, but signup succeeded:', otpError);
-        // Don't throw - the user is already created
-      }
-
+      await sendEmailVerification(user);
       return user;
     } catch (error) {
-      console.error('SignUpClientWithOTP Error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-
-  async signUpStaffWithOTP(email, password, userData, otpCode) {
-    try {
-      // Validate Staff Invite Code
-      console.log('Validating Staff Invite Code:', otpCode);
-      const otpValidation = await otpService.validateStaffInviteCode(otpCode);
-      console.log('Staff invite validation result:', otpValidation);
-
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid or expired staff invite code', 'auth/invalid-staff-code');
-      }
-
-      // Create Firebase Auth user
-      console.log('Creating Firebase user with email:', email);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      console.log('Staff user created successfully:', user.uid);
-
-      // Update display name
-      await updateProfile(user, { displayName: userData.displayName });
-
-      // Send verification email
-      await sendEmailVerification(user);
-
-      // Create Firestore user document with staff role
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.STAFF,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          inviteCode: otpCode,
-          invitedBy: otpValidation.createdBy || 'admin'
-        }
-      });
-
-      // Mark invite code as used (non-blocking - don't fail signup if this fails)
-      try {
-        await otpService.markStaffInviteCodeAsUsed(otpCode, user.uid);
-      } catch (inviteError) {
-        console.warn('Failed to mark invite code as used, but signup succeeded:', inviteError);
-        // Don't throw - the user is already created
-      }
-
-      return user;
-    } catch (error) {
-      console.error('SignUpStaffWithOTP Error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-  async signUpCCTVFaultOperatorWithOTP(email, password, userData, otpCode) {
-    try {
-      // Uses dedicated CCTV operator access codes (cctvOperatorOTPs collection)
-      const otpValidation = await otpService.validateCCTVOperatorCode(otpCode);
-
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid CCTV operator access code', 'auth/invalid-otp');
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      await updateProfile(user, { displayName: userData.displayName });
-      await sendEmailVerification(user);
-
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.CCTVOPERATOR,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          accessCode: otpCode
-        }
-      });
-
-      try {
-        await otpService.markCCTVOperatorCodeAsUsed(otpCode, user.uid);
-      } catch (otpError) {
-        console.warn('Failed to mark CCTV operator code as used, but signup succeeded:', otpError);
-      }
-
-      return user;
-    } catch (error) {
-      console.error('SignUpCCTVFaultOperatorWithOTP Error:', error);
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-
-  async signUpLiveOperatorWithOTP(email, password, userData, otpCode) {
-    try {
-      // Validate Staff Invite Code
-      console.log('Validating Staff Invite Code for Live Operator:', otpCode);
-      const otpValidation = await otpService.validateStaffInviteCode(otpCode);
-      console.log('Staff invite validation result:', otpValidation);
-
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid or expired staff invite code', 'auth/invalid-staff-code');
-      }
-
-      // Create Firebase Auth user
-      console.log('Creating Firebase user with email:', email);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      console.log('Live Operator user created successfully:', user.uid);
-
-      // Update display name
-      await updateProfile(user, { displayName: userData.displayName });
-
-      // Send verification email
-      await sendEmailVerification(user);
-
-      // Create Firestore user document with liveoperator role
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.LIVEOPERATOR,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          inviteCode: otpCode,
-          invitedBy: otpValidation.createdBy || 'admin'
-        }
-      });
-
-      // Mark invite code as used (non-blocking - don't fail signup if this fails)
-      try {
-        await otpService.markStaffInviteCodeAsUsed(otpCode, user.uid);
-      } catch (inviteError) {
-        console.warn('Failed to mark invite code as used, but signup succeeded:', inviteError);
-      }
-
-      return user;
-    } catch (error) {
-      console.error('SignUpLiveOperatorWithOTP Error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-
-  async signUpThirdPartyOperatorWithOTP(email, password, userData, otpCode) {
-    try {
-      const otpValidation = await otpService.validateThirdPartyOperatorCode(otpCode);
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid third party operator access code', 'auth/invalid-otp');
-      }
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await updateProfile(user, { displayName: userData.displayName });
-      await sendEmailVerification(user);
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.THIRDPARTYSTAFF,
-        company: otpValidation.company,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          accessCode: otpCode
-        }
-      });
-      try {
-        await otpService.markThirdPartyOperatorCodeAsUsed(otpCode, user.uid);
-      } catch (e) {
-        console.warn('Failed to mark TP operator code as used, but signup succeeded:', e);
-      }
-      return user;
-    } catch (error) {
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-
-  async signUpThirdPartyClientWithOTP(email, password, userData, otpCode) {
-    try {
-      const otpValidation = await otpService.validateThirdPartyClientCode(otpCode);
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid third party client access code', 'auth/invalid-otp');
-      }
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await updateProfile(user, { displayName: userData.displayName });
-      await sendEmailVerification(user);
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.THIRDPARTYCLIENT,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          accessCode: otpCode
-        }
-      });
-      try {
-        await otpService.markThirdPartyClientCodeAsUsed(otpCode, user.uid);
-      } catch (e) {
-        console.warn('Failed to mark TP client code as used, but signup succeeded:', e);
-      }
-      return user;
-    } catch (error) {
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-
-  async signUpThirdPartyLiveOperatorWithOTP(email, password, userData, otpCode) {
-    try {
-      const otpValidation = await otpService.validateThirdPartyLiveOperatorCode(otpCode);
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid third party live operator access code', 'auth/invalid-otp');
-      }
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await updateProfile(user, { displayName: userData.displayName });
-      await sendEmailVerification(user);
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.THIRDPARTYLIVEOPERATOR,
-        company: otpValidation.company,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          accessCode: otpCode
-        }
-      });
-      try {
-        await otpService.markThirdPartyLiveOperatorCodeAsUsed(otpCode, user.uid);
-      } catch (e) {
-        console.warn('Failed to mark TP live operator code as used, but signup succeeded:', e);
-      }
-      return user;
-    } catch (error) {
-      throw new AppError(error.message, error.code, error);
-    }
-  }
-
-  async signUpThirdPartyCCTVOperatorWithOTP(email, password, userData, otpCode) {
-    try {
-      const otpValidation = await otpService.validateThirdPartyCCTVOperatorCode(otpCode);
-      if (!otpValidation.isValid) {
-        throw new AppError('Invalid third party CCTV operator access code', 'auth/invalid-otp');
-      }
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await updateProfile(user, { displayName: userData.displayName });
-      await sendEmailVerification(user);
-      await firestoreService.createUserDocument(user.uid, {
-        ...userData,
-        email,
-        role: USER_ROLES.THIRDPARTYCCTVOPERATOR,
-        schemeId: otpValidation.schemeId,
-        schemeName: otpValidation.schemeName,
-        emailVerified: false,
-        metadata: {
-          signInMethod: 'email',
-          ipAddress: null,
-          userAgent: navigator.userAgent,
-          accessCode: otpCode
-        }
-      });
-      try {
-        await otpService.markThirdPartyCCTVOperatorCodeAsUsed(otpCode, user.uid);
-      } catch (e) {
-        console.warn('Failed to mark TP CCTV operator code as used, but signup succeeded:', e);
-      }
-      return user;
-    } catch (error) {
+      if (user) await user.delete().catch(() => {});
       throw new AppError(error.message, error.code, error);
     }
   }

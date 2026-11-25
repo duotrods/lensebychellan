@@ -60,58 +60,21 @@ const SignUpForm = () => {
     setLoading(true);
 
     try {
-      // eslint-disable-next-line no-unused-vars
-      const { password, confirmPassword, otpCode, ...userData } = formData;
+      const userData = { displayName: formData.displayName, company: formData.company, phone: formData.phone };
 
-      // Use OTP-based registration for both clients and staff
-      if (formData.role === USER_ROLES.CLIENT) {
-        await authService.signUpClientWithOTP(
-          formData.email,
-          formData.password,
-          userData,
-          formData.otpCode
-        );
-      } else if (formData.role === USER_ROLES.STAFF) {
-        await authService.signUpStaffWithOTP(
-          formData.email,
-          formData.password,
-          userData,
-          formData.otpCode
-        );
-      } else if (formData.role === USER_ROLES.LIVEOPERATOR) {
-        await authService.signUpLiveOperatorWithOTP(
-          formData.email,
-          formData.password,
-          userData,
-          formData.otpCode
-        );
-      } else if (formData.role === USER_ROLES.CCTVOPERATOR) {
-        await authService.signUpCCTVFaultOperatorWithOTP(
-          formData.email,
-          formData.password,
-          userData,
-          formData.otpCode
-        );
-      } else if (formData.role === USER_ROLES.THIRDPARTYSTAFF) {
-        await authService.signUpThirdPartyOperatorWithOTP(formData.email, formData.password, userData, formData.otpCode);
-      } else if (formData.role === USER_ROLES.THIRDPARTYCLIENT) {
-        await authService.signUpThirdPartyClientWithOTP(formData.email, formData.password, userData, formData.otpCode);
-      } else if (formData.role === USER_ROLES.THIRDPARTYLIVEOPERATOR) {
-        await authService.signUpThirdPartyLiveOperatorWithOTP(formData.email, formData.password, userData, formData.otpCode);
-      } else if (formData.role === USER_ROLES.THIRDPARTYCCTVOPERATOR) {
-        await authService.signUpThirdPartyCCTVOperatorWithOTP(formData.email, formData.password, userData, formData.otpCode);
-      } else {
-        await authService.signUpWithEmail(
-          formData.email,
-          formData.password,
-          userData
-        );
-      }
+      await authService.signUpWithCode(
+        formData.email,
+        formData.password,
+        userData,
+        formData.role,
+        formData.otpCode
+      );
 
       toast.success("Account created! Please verify your email.");
       navigate("/signin");
     } catch (error) {
-      toast.error(getAuthErrorMessage(error.code));
+      // Callable errors (bad/expired code, etc.) carry a readable message of their own.
+      toast.error(error.code?.startsWith('functions/') ? error.message : getAuthErrorMessage(error.code));
     } finally {
       setLoading(false);
     }

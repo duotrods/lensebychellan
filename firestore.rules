@@ -76,13 +76,9 @@ service cloud.firestore {
         (getUserRole() == 'admin' && isMfaVerified())
       );
 
-      // A user may only create their own document, and never with the 2FA flags or
-      // archive flag set (those are written by Cloud Functions / admins only).
-      // Otherwise a user could delete + re-create their doc claiming mfaEnrolled.
-      // NOTE: `role` is still chosen by the signup client; moving signup to a Cloud
-      // Function is the real fix and is out of scope for the 2FA work.
-      allow create: if isSignedIn() && request.auth.uid == userId
-        && !request.resource.data.keys().hasAny(['mfaEnrolled', 'mfaLockedUntil', 'isArchived']);
+      // Clients never create user docs: the registerWithCode Cloud Function does,
+      // after checking an access code, so a user cannot choose their own role.
+      allow create: if false;
 
       // No direct deletes from clients. Admins delete users via the deleteUserAccount
       // Cloud Function (Admin SDK, bypasses these rules).
@@ -102,58 +98,49 @@ service cloud.firestore {
 
     // Client OTPs
     match /clientOTPs/{otpId} {
-      allow write: if isVerified() && getUserRole() == 'admin';
-      // SECURITY FIX: Split 'allow read: if true' into get vs list.
-      // 'get' (single doc) is still public — needed for OTP validation during
-      // signup before the user has a Firebase account.
-      // 'list' (query all docs) is admin-only — prevents anyone from
-      // enumerating all active OTP codes.
-      allow get: if true;
-      allow list: if isVerified() && getUserRole() == 'admin';
+      allow read, write: if isVerified() && getUserRole() == 'admin';
     }
 
     // CCTV Operator Access Codes (separate from clientOTPs)
     match /cctvOperatorOTPs/{codeId} {
       allow write: if isVerified() && getUserRole() == 'admin';
-      allow get: if true;
-      allow list: if isVerified() && getUserRole() == 'admin';
+      // get/list are admin-only: codes are checked server-side by registerWithCode.
+      allow get, list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Staff Invite Codes
     match /staffInviteCodes/{codeId} {
       allow write: if isVerified() && getUserRole() == 'admin';
-      // SECURITY FIX: Same as clientOTPs — allow single-doc read for signup
-      // validation but block listing all invite codes.
-      allow get: if true;
-      allow list: if isVerified() && getUserRole() == 'admin';
+      // get/list are admin-only: codes are checked server-side by registerWithCode.
+      allow get, list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party Operator Codes — admin only
     match /thirdPartyOperatorCodes/{codeId} {
       allow write: if isVerified() && getUserRole() == 'admin';
-      allow get: if true;
-      allow list: if isVerified() && getUserRole() == 'admin';
+      // get/list are admin-only: codes are checked server-side by registerWithCode.
+      allow get, list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party Client Codes — admin only
     match /thirdPartyClientCodes/{codeId} {
       allow write: if isVerified() && getUserRole() == 'admin';
-      allow get: if true;
-      allow list: if isVerified() && getUserRole() == 'admin';
+      // get/list are admin-only: codes are checked server-side by registerWithCode.
+      allow get, list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party Live Operator Codes — admin only
     match /thirdPartyLiveOperatorCodes/{codeId} {
       allow write: if isVerified() && getUserRole() == 'admin';
-      allow get: if true;
-      allow list: if isVerified() && getUserRole() == 'admin';
+      // get/list are admin-only: codes are checked server-side by registerWithCode.
+      allow get, list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Third Party CCTV Operator Codes — admin only
     match /thirdPartyCCTVOperatorCodes/{codeId} {
       allow write: if isVerified() && getUserRole() == 'admin';
-      allow get: if true;
-      allow list: if isVerified() && getUserRole() == 'admin';
+      // get/list are admin-only: codes are checked server-side by registerWithCode.
+      allow get, list: if isVerified() && getUserRole() == 'admin';
     }
 
     // Incident Reports
@@ -573,8 +560,17 @@ service cloud.firestore {
     }
 
     // CCTV Uptime Cache (computed summaries, shared across users, 15-min TTL)
+    // Docs carry schemeId; non-staff roles may only touch their own schemes' docs
+    // (cache-aside: the client that computes the numbers writes them).
     match /cctvUptimeCache/{docId} {
-      allow read, write: if isVerified();
+      allow read: if isVerified() && (
+        getUserRole() in ['admin', 'staff', 'thirdpartystaff'] ||
+        (getUserSchemes() != null && resource.data.schemeId in getUserSchemes())
+      );
+      allow write: if isVerified() && (
+        getUserRole() in ['admin', 'staff', 'thirdpartystaff'] ||
+        (getUserSchemes() != null && request.resource.data.schemeId in getUserSchemes())
+      );
     }
 
     // Scheme Stats + Time Series Cache (computed summaries, shared across users,
@@ -606,7 +602,7 @@ service cloud.firestore {
 
     // Collection count cache (computed dashboard totals, shared, 15-min TTL)
     match /collectionStatsCache/{docId} {
-      allow read, write: if isVerified();
+      allow read, write: if isVerified() && getUserRole() in ['admin', 'staff', 'thirdpartystaff'];
     }
 
     // Schemes (admin-managed list of schemes). Everyone verified needs to read it;
