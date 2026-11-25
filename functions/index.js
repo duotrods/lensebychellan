@@ -28,10 +28,20 @@ const {
 
 admin.initializeApp();
 
+// Report fields come from the caller's browser: escape them before they go into email HTML.
+const esc = (v) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
 const smtpPass = defineSecret("SMTP_PASS");
 
 // Two-factor auth callables (see mfa.js / mfaLogic.js)
 Object.assign(exports, require("./mfa")({ admin, smtpPass, SMTP_USER, SMTP_SENDER }));
+
+// Server-side sign-up: the only place a users/{uid} doc is created (see signup.js)
+Object.assign(exports, require("./signup")({ admin }));
+
+// Presigned R2 upload URLs, so the R2 key stays off the browser (see r2Upload.js)
+Object.assign(exports, require("./r2Upload")({ admin }));
 
 // Admin-only proxy to K2's live operator locations (see getResponderLocations.js)
 exports.getResponderLocations = require("./getResponderLocations").getResponderLocations;
@@ -544,7 +554,7 @@ exports.sendIncidentAlertNotification = onCall(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
           <h1 style="margin: 0;">Incident Alert</h1>
-          <p style="margin: 5px 0 0 0; font-size: 16px;">${alertTriggerLabel} Reported</p>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">${esc(alertTriggerLabel)} Reported</p>
         </div>
 
         <div style="padding: 20px; background-color: #f9fafb;">
@@ -553,7 +563,7 @@ exports.sendIncidentAlertNotification = onCall(
             <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #991b1b;">
               ${hasIncursion ? "<li>Incursion: YES</li>" : ""}
               ${hasIncursionToGainAdvantage ? "<li>Incursion to Gain Benefit: YES</li>" : ""}
-              ${hasAssetDamage ? `<li>Asset Damage: ${reportData.assetType || "N/A"} — ${reportData.damageType || "N/A"}</li>` : ""}
+              ${hasAssetDamage ? `<li>Asset Damage: ${esc(reportData.assetType || "N/A")} — ${esc(reportData.damageType || "N/A")}</li>` : ""}
             </ul>
           </div>
 
@@ -564,35 +574,35 @@ exports.sendIncidentAlertNotification = onCall(
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.referenceId || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
-              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(scheme)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Section:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.section || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.section || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.date || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Marker Post:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.markerPost || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.markerPost || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Type:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.incidentType || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.incidentType || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">NH Log:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.nhLog || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.nhLog || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.submittedBy || "N/A")}</td>
             </tr>
           </table>
 
@@ -600,7 +610,7 @@ exports.sendIncidentAlertNotification = onCall(
         ? `
           <h3 style="color: #374151; margin-top: 20px;">Description</h3>
           <p style="background-color: white; padding: 15px; border-radius: 8px; color: #374151;">
-            ${reportData.description}
+            ${esc(reportData.description)}
           </p>`
         : ""
       }
@@ -666,7 +676,7 @@ exports.sendIncidentAlertNotification = onCall(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
           <h1 style="margin: 0;">New Incident Report</h1>
-          <p style="margin: 5px 0 0 0; font-size: 16px;">Reported by Avera — ${scheme}</p>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">Reported by Avera — ${esc(scheme)}</p>
         </div>
 
         <div style="padding: 20px; background-color: #f9fafb;">
@@ -677,27 +687,27 @@ exports.sendIncidentAlertNotification = onCall(
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.referenceId || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
-              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(scheme)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.date || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Marker Post:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.markerPost || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.markerPost || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Type:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.incidentType || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.incidentType || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.submittedBy || "N/A")}</td>
             </tr>
           </table>
 
@@ -755,7 +765,7 @@ exports.sendIncidentAlertNotification = onCall(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
           <h1 style="margin: 0;">New Incident Report</h1>
-          <p style="margin: 5px 0 0 0; font-size: 16px;">Reported by Lense Assist — ${scheme}</p>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">Reported by Lense Assist — ${esc(scheme)}</p>
         </div>
 
         <div style="padding: 20px; background-color: #f9fafb;">
@@ -766,27 +776,27 @@ exports.sendIncidentAlertNotification = onCall(
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.referenceId || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
-              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(scheme)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.date || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Marker Post:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.markerPost || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.markerPost || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Type:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.incidentType || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.incidentType || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.submittedBy || "N/A")}</td>
             </tr>
           </table>
 
@@ -844,7 +854,7 @@ exports.sendIncidentAlertNotification = onCall(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
           <h1 style="margin: 0;">New Incident Report</h1>
-          <p style="margin: 5px 0 0 0; font-size: 16px;">Wideload — ${scheme}</p>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">Wideload — ${esc(scheme)}</p>
         </div>
 
         <div style="padding: 20px; background-color: #f9fafb;">
@@ -855,27 +865,27 @@ exports.sendIncidentAlertNotification = onCall(
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.referenceId || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
-              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(scheme)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.date || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Marker Post:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.markerPost || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.markerPost || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Incident Type:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.incidentType || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.incidentType || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.submittedBy || "N/A")}</td>
             </tr>
           </table>
 
@@ -1008,7 +1018,7 @@ exports.sendCCTVFaultBlackspotAlert = onDocumentCreated(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background-color: #00BAA8; color: white; padding: 20px; text-align: center;">
           <h1 style="margin: 0;">CCTV Fault Alert</h1>
-          <p style="margin: 5px 0 0 0; font-size: 16px;">Blackspot Camera Fault Reported — ${scheme}</p>
+          <p style="margin: 5px 0 0 0; font-size: 16px;">Blackspot Camera Fault Reported — ${esc(scheme)}</p>
         </div>
 
         <div style="padding: 20px; background-color: #f9fafb;">
@@ -1019,31 +1029,31 @@ exports.sendCCTVFaultBlackspotAlert = onDocumentCreated(
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Reference ID:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.referenceId || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.referenceId || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Scheme:</td>
-              <td style="padding: 8px 0; color: #111827;">${scheme}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(scheme)}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Camera:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.camera || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.camera || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Date:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.date || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.date || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Time:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.time || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.time || "N/A")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">TSS Informed:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.tssInformed ? "Yes" : "No"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.tssInformed ? "Yes" : "No")}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Submitted By:</td>
-              <td style="padding: 8px 0; color: #111827;">${reportData.submittedBy?.name || "N/A"}</td>
+              <td style="padding: 8px 0; color: #111827;">${esc(reportData.submittedBy?.name || "N/A")}</td>
             </tr>
           </table>
 

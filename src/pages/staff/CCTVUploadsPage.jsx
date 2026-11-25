@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { staffService } from "../../services/staffService";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { uploadFileToR2 } from "../../utils/r2Upload";
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -20,15 +20,6 @@ import {
   SCHEMES,
   extractSchemeId,
 } from "../../utils/schemes";
-
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: import.meta.env.VITE_R2_ENDPOINT,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-  },
-});
 
 const CCTVUploadsPage = () => {
   const { userProfile } = useAuth();
@@ -176,24 +167,10 @@ const CCTVUploadsPage = () => {
 
     try {
       const uploadPromises = selectedFiles.map(async (file, index) => {
-        const key = `cctv-uploads/${userProfile.uid}/${Date.now()}_${file.name}`;
-
-        // Read file as ArrayBuffer for S3 PutObject
-        const arrayBuffer = await file.arrayBuffer();
-
-        await r2Client.send(
-          new PutObjectCommand({
-            Bucket: import.meta.env.VITE_R2_BUCKET,
-            Key: key,
-            Body: new Uint8Array(arrayBuffer),
-            ContentType: file.type,
-          }),
-        );
+        const { key, downloadUrl: publicUrl } = await uploadFileToR2(file, "cctv-uploads");
 
         // Simulate progress since S3 PutObject doesn't stream progress
         setUploadProgress((prev) => ({ ...prev, [index]: 100 }));
-
-        const publicUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${key}`;
 
         return {
           fileName: file.name,

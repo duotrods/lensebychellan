@@ -3,20 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faUpload, faXmark, faChevronRight } from "@fortawesome/free-solid-svg-icons";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { uploadFileToR2 } from "../../utils/r2Upload";
 import { useAuth } from "../../hooks/useAuth";
 import { getStaffBasePath } from "../../utils/constants";
 import { staffService } from "../../services/staffService";
 import { sendIncidentAlertNotification } from "../../services/emailService";
 
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: import.meta.env.VITE_R2_ENDPOINT,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-  },
-});
 import StaffSidebarLayout from "../../components/layout/StaffSidebarLayout";
 import StepIndicator from "../../components/staff/incident/StepIndicator";
 import { compressImage } from "../../utils/imageCompression";
@@ -349,19 +341,7 @@ const IncidentReportFormPage = () => {
     setUploadingFiles(true);
     const uploadPromises = files.map(async (file) => {
       const compressedFile = await compressImage(file);
-      const key = `incident-reports/${userProfile.uid}/${Date.now()}_${file.name}`;
-      const arrayBuffer = await compressedFile.arrayBuffer();
-
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: import.meta.env.VITE_R2_BUCKET,
-          Key: key,
-          Body: new Uint8Array(arrayBuffer),
-          ContentType: file.type,
-        }),
-      );
-
-      const downloadUrl = `${import.meta.env.VITE_R2_PUBLIC_URL}/${key}`;
+      const { key, downloadUrl } = await uploadFileToR2(compressedFile, "incident-reports");
 
       return {
         fileName: file.name,

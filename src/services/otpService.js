@@ -2,12 +2,10 @@ import {
   collection,
   doc,
   setDoc,
-  getDoc,
   getDocs,
   getCountFromServer,
   query,
   where,
-  updateDoc,
   deleteDoc,
   serverTimestamp,
   orderBy,
@@ -17,10 +15,16 @@ import {
 import { db } from '../config/firebase';
 import { AppError } from '../utils/errorHandling';
 
+// Secure random part of an access code: 10 chars from a 32-letter alphabet (50 bits).
+// No 0/O/1/I so codes read out over the phone are unambiguous.
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const randomCodePart = (length = 10) =>
+  Array.from(crypto.getRandomValues(new Uint8Array(length)), (b) => CODE_ALPHABET[b % 32]).join('');
+
 class OTPService {
   // Generate a random OTP code
   generateOTPCode(schemeId) {
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const randomPart = randomCodePart();
     const year = new Date().getFullYear();
     return `${schemeId}-${year}-${randomPart}`;
   }
@@ -49,52 +53,6 @@ class OTPService {
       return otpCode;
     } catch (error) {
       throw new AppError('Failed to create OTP code', 'otp/create-error', error);
-    }
-  }
-
-  // Validate OTP code during client signup
-  async validateOTP(otpCode) {
-    try {
-      const otpRef = doc(db, 'clientOTPs', otpCode);
-      const otpSnap = await getDoc(otpRef);
-
-      if (!otpSnap.exists()) {
-        throw new AppError('Invalid OTP code', 'otp/invalid-code');
-      }
-
-      const otpData = otpSnap.data();
-
-      if (otpData.isUsed) {
-        throw new AppError('This OTP code has already been used', 'otp/already-used');
-      }
-
-      const expiresAt = otpData.expiresAt?.toDate ? otpData.expiresAt.toDate() : otpData.expiresAt ? new Date(otpData.expiresAt) : null;
-      if (expiresAt && expiresAt < new Date()) {
-        throw new AppError('This OTP code has expired', 'otp/expired');
-      }
-
-      return {
-        isValid: true,
-        schemeId: otpData.schemeId,
-        schemeName: otpData.schemeName
-      };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate OTP', 'otp/validation-error', error);
-    }
-  }
-
-  // Mark OTP as used after successful client registration
-  async markOTPAsUsed(otpCode, clientUid) {
-    try {
-      const otpRef = doc(db, 'clientOTPs', otpCode);
-      await updateDoc(otpRef, {
-        isUsed: true,
-        usedBy: clientUid,
-        usedAt: serverTimestamp()
-      });
-    } catch (error) {
-      throw new AppError('Failed to mark OTP as used', 'otp/update-error', error);
     }
   }
 
@@ -191,7 +149,7 @@ class OTPService {
 
   // Generate a random Staff Invite Code
   generateStaffInviteCode() {
-    const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const randomPart = randomCodePart();
     const year = new Date().getFullYear();
     return `STAFF-${year}-${randomPart}`;
   }
@@ -222,66 +180,6 @@ class OTPService {
       return inviteCode;
     } catch (error) {
       throw new AppError('Failed to create staff invite code', 'staff-invite/create-error', error);
-    }
-  }
-
-  // Validate Staff Invite Code during staff signup
-  async validateStaffInviteCode(inviteCode) {
-    try {
-      const inviteRef = doc(db, 'staffInviteCodes', inviteCode);
-      const inviteSnap = await getDoc(inviteRef);
-
-      if (!inviteSnap.exists()) {
-        return { isValid: false, reason: 'Code does not exist' };
-      }
-
-      const inviteData = inviteSnap.data();
-
-      // Check if code is already used (for single-use codes)
-      if (inviteData.usesRemaining <= 0) {
-        return { isValid: false, reason: 'Code has been fully used' };
-      }
-
-      // Check if code has expired
-      const now = new Date();
-      const expiresAt = inviteData.expiresAt?.toDate();
-      if (expiresAt && expiresAt < now) {
-        return { isValid: false, reason: 'Code has expired' };
-      }
-
-      return {
-        isValid: true,
-        createdBy: inviteData.createdBy,
-        createdByName: inviteData.createdByName
-      };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate staff invite code', 'staff-invite/validation-error', error);
-    }
-  }
-
-  // Mark Staff Invite Code as used after successful staff registration
-  async markStaffInviteCodeAsUsed(inviteCode, staffUid) {
-    try {
-      const inviteRef = doc(db, 'staffInviteCodes', inviteCode);
-      const inviteSnap = await getDoc(inviteRef);
-
-      if (!inviteSnap.exists()) {
-        throw new AppError('Invite code not found', 'staff-invite/not-found');
-      }
-
-      const inviteData = inviteSnap.data();
-      const updatedUsedBy = [...(inviteData.usedBy || []), staffUid];
-      const usesRemaining = inviteData.usesRemaining - 1;
-
-      await updateDoc(inviteRef, {
-        usesRemaining,
-        isUsed: usesRemaining <= 0,
-        usedBy: updatedUsedBy,
-        lastUsedAt: serverTimestamp()
-      });
-    } catch (error) {
-      throw new AppError('Failed to mark invite code as used', 'staff-invite/update-error', error);
     }
   }
 
@@ -359,7 +257,7 @@ class OTPService {
 
   // Generate a CCTV Operator access code
   generateCCTVOperatorCode() {
-    const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const randomPart = randomCodePart();
     const year = new Date().getFullYear();
     return `CCTV-${year}-${randomPart}`;
   }
@@ -388,48 +286,6 @@ class OTPService {
       return code;
     } catch (error) {
       throw new AppError('Failed to create CCTV operator access code', 'otp/create-error', error);
-    }
-  }
-
-  // Validate CCTV Operator access code during signup
-  async validateCCTVOperatorCode(code) {
-    try {
-      const codeRef = doc(db, 'cctvOperatorOTPs', code);
-      const codeSnap = await getDoc(codeRef);
-
-      if (!codeSnap.exists()) {
-        throw new AppError('Invalid CCTV operator access code', 'otp/invalid-code');
-      }
-
-      const codeData = codeSnap.data();
-
-      if (codeData.isUsed) {
-        throw new AppError('This access code has already been used', 'otp/already-used');
-      }
-
-      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
-      if (expiresAt && expiresAt < new Date()) {
-        throw new AppError('This access code has expired', 'otp/expired');
-      }
-
-      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate CCTV operator code', 'otp/validation-error', error);
-    }
-  }
-
-  // Mark CCTV Operator access code as used after successful registration
-  async markCCTVOperatorCodeAsUsed(code, uid) {
-    try {
-      const codeRef = doc(db, 'cctvOperatorOTPs', code);
-      await updateDoc(codeRef, {
-        isUsed: true,
-        usedBy: uid,
-        usedAt: serverTimestamp()
-      });
-    } catch (error) {
-      throw new AppError('Failed to mark CCTV operator code as used', 'otp/update-error', error);
     }
   }
 
@@ -492,28 +348,28 @@ class OTPService {
 
   // Generate third-party operator access code
   generateThirdPartyOperatorCode() {
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const randomPart = randomCodePart();
     const year = new Date().getFullYear();
     return `TPOP-${year}-${randomPart}`;
   }
 
   // Generate third-party client access code
   generateThirdPartyClientCode() {
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const randomPart = randomCodePart();
     const year = new Date().getFullYear();
     return `TPCL-${year}-${randomPart}`;
   }
 
   // Generate third-party live operator access code
   generateThirdPartyLiveOperatorCode() {
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const randomPart = randomCodePart();
     const year = new Date().getFullYear();
     return `TPLIVE-${year}-${randomPart}`;
   }
 
   // Generate third-party CCTV operator access code
   generateThirdPartyCCTVOperatorCode() {
-    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const randomPart = randomCodePart();
     const year = new Date().getFullYear();
     return `TPCCTV-${year}-${randomPart}`;
   }
@@ -537,30 +393,6 @@ class OTPService {
     }
   }
 
-  async validateThirdPartyOperatorCode(code) {
-    try {
-      const codeRef = doc(db, 'thirdPartyOperatorCodes', code);
-      const codeSnap = await getDoc(codeRef);
-      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
-      const codeData = codeSnap.data();
-      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
-      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
-      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
-      return { isValid: true, company: codeData.company };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate third party operator code', 'otp/validation-error', error);
-    }
-  }
-
-  async markThirdPartyOperatorCodeAsUsed(code, uid) {
-    try {
-      await updateDoc(doc(db, 'thirdPartyOperatorCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
-    } catch (error) {
-      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
-    }
-  }
-
   // ==================== THIRD-PARTY CLIENT CODE METHODS ====================
 
   async createThirdPartyClientCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
@@ -577,30 +409,6 @@ class OTPService {
       return code;
     } catch (error) {
       throw new AppError('Failed to create third party client code', 'otp/create-error', error);
-    }
-  }
-
-  async validateThirdPartyClientCode(code) {
-    try {
-      const codeRef = doc(db, 'thirdPartyClientCodes', code);
-      const codeSnap = await getDoc(codeRef);
-      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
-      const codeData = codeSnap.data();
-      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
-      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
-      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
-      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate third party client code', 'otp/validation-error', error);
-    }
-  }
-
-  async markThirdPartyClientCodeAsUsed(code, uid) {
-    try {
-      await updateDoc(doc(db, 'thirdPartyClientCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
-    } catch (error) {
-      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
     }
   }
 
@@ -623,30 +431,6 @@ class OTPService {
     }
   }
 
-  async validateThirdPartyLiveOperatorCode(code) {
-    try {
-      const codeRef = doc(db, 'thirdPartyLiveOperatorCodes', code);
-      const codeSnap = await getDoc(codeRef);
-      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
-      const codeData = codeSnap.data();
-      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
-      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
-      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
-      return { isValid: true, company: codeData.company };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate third party live operator code', 'otp/validation-error', error);
-    }
-  }
-
-  async markThirdPartyLiveOperatorCodeAsUsed(code, uid) {
-    try {
-      await updateDoc(doc(db, 'thirdPartyLiveOperatorCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
-    } catch (error) {
-      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
-    }
-  }
-
   // ==================== THIRD-PARTY CCTV OPERATOR CODE METHODS ====================
 
   async createThirdPartyCCTVOperatorCode(schemeId, schemeName, adminUid, expiresInDays = 30) {
@@ -663,30 +447,6 @@ class OTPService {
       return code;
     } catch (error) {
       throw new AppError('Failed to create third party CCTV operator code', 'otp/create-error', error);
-    }
-  }
-
-  async validateThirdPartyCCTVOperatorCode(code) {
-    try {
-      const codeRef = doc(db, 'thirdPartyCCTVOperatorCodes', code);
-      const codeSnap = await getDoc(codeRef);
-      if (!codeSnap.exists()) throw new AppError('Invalid access code', 'otp/invalid-code');
-      const codeData = codeSnap.data();
-      if (codeData.isUsed) throw new AppError('This access code has already been used', 'otp/already-used');
-      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : codeData.expiresAt ? new Date(codeData.expiresAt) : null;
-      if (expiresAt && expiresAt < new Date()) throw new AppError('This access code has expired', 'otp/expired');
-      return { isValid: true, schemeId: codeData.schemeId, schemeName: codeData.schemeName };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError('Failed to validate third party CCTV operator code', 'otp/validation-error', error);
-    }
-  }
-
-  async markThirdPartyCCTVOperatorCodeAsUsed(code, uid) {
-    try {
-      await updateDoc(doc(db, 'thirdPartyCCTVOperatorCodes', code), { isUsed: true, usedBy: uid, usedAt: serverTimestamp() });
-    } catch (error) {
-      throw new AppError('Failed to mark code as used', 'otp/update-error', error);
     }
   }
 
