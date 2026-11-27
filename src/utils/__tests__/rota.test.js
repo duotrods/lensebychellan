@@ -14,7 +14,19 @@ import {
   getStaffDueForHolidayReset,
   HOURS_PER_HOLIDAY_DAY,
   resolveHolidayHours,
+  staffLocation,
+  DEFAULT_ROTA_LOCATION,
 } from "../rota";
+
+describe("staffLocation", () => {
+  it("puts staff saved before locations existed in the default location", () => {
+    expect(staffLocation({ name: "Old Timer" })).toBe(DEFAULT_ROTA_LOCATION);
+    expect(DEFAULT_ROTA_LOCATION).toBe("kirksandall");
+  });
+  it("keeps an explicit location", () => {
+    expect(staffLocation({ location: "clearway" })).toBe("clearway");
+  });
+});
 
 // Regression coverage for a timezone bug: fmt() used to go through
 // toISOString() (UTC), which shifts the calendar date back by a day for any

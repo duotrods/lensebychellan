@@ -20,10 +20,12 @@ import {
   faMapLocationDot,
   faLayerGroup,
   faWandMagicSparkles,
+  faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
 import headerLogo from "../../assets/headerlogo.svg";
 import logomark from "../../assets/Logomark.svg";
 import LogoutConfirmModal from "./LogoutConfirmModal";
+import { ROTA_LOCATIONS } from "../../utils/rota";
 
 const AdminSidebarLayout = ({ children }) => {
   const { userProfile } = useAuth();
@@ -32,6 +34,10 @@ const AdminSidebarLayout = ({ children }) => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 1024);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Name of the open dropdown in the nav ("Staff Rota"), or null.
+  const [openMenu, setOpenMenu] = useState(() =>
+    location.pathname.includes('/rota') ? 'Staff Rota' : null
+  );
 
   // Close mobile sidebar on route change
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
@@ -79,6 +85,8 @@ const AdminSidebarLayout = ({ children }) => {
       name: "Staff Rota",
       path: "/dashboard/admin/rota",
       icon: faCalendarDays,
+      hasSubmenu: true,
+      submenu: ROTA_LOCATIONS.map((l) => ({ name: l.name, path: `/dashboard/admin/rota/${l.id}` })),
     },
     {
       name: "Reports",
@@ -138,21 +146,61 @@ const AdminSidebarLayout = ({ children }) => {
 
         {/* Navigation */}
         <nav className="flex-1 px-2 py-6 space-y-2 overflow-y-auto">
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.path}
-              title={collapsed ? item.name : undefined}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                isActive(item.path, item.exact)
-                  ? "bg-teal-500 text-white"
-                  : "text-gray-700 hover:bg-gray-100"
-              } ${collapsed ? 'justify-center' : ''}`}
-            >
-              <FontAwesomeIcon icon={item.icon} className="w-5 h-5 shrink-0" />
-              {!collapsed && <span className="font-medium">{item.name}</span>}
-            </Link>
-          ))}
+          {navItems.map((item) =>
+            item.hasSubmenu && !collapsed ? (
+              <div key={item.name}>
+                <button
+                  onClick={() => setOpenMenu(openMenu === item.name ? null : item.name)}
+                  className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${
+                    isActive(item.path, item.exact)
+                      ? "bg-teal-500 text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <FontAwesomeIcon icon={item.icon} className="w-5 h-5" />
+                    <span className="font-medium">{item.name}</span>
+                  </div>
+                  <FontAwesomeIcon
+                    icon={faChevronDown}
+                    className={`w-4 h-4 transition-transform ${openMenu === item.name ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {openMenu === item.name && (
+                  <div className="ml-4 mt-2 space-y-1">
+                    {item.submenu.map((subItem) => (
+                      <Link
+                        key={subItem.path}
+                        to={subItem.path}
+                        className={`block px-4 py-2 rounded-lg text-sm transition-colors ${
+                          location.pathname === subItem.path
+                            ? "bg-teal-50 text-teal-600 font-medium"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {subItem.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Collapsed, a dropdown is a plain icon link to its first submenu item.
+              <Link
+                key={item.name}
+                to={item.hasSubmenu ? item.submenu[0].path : item.path}
+                title={collapsed ? item.name : undefined}
+                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
+                  isActive(item.path, item.exact)
+                    ? "bg-teal-500 text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                } ${collapsed ? 'justify-center' : ''}`}
+              >
+                <FontAwesomeIcon icon={item.icon} className="w-5 h-5 shrink-0" />
+                {!collapsed && <span className="font-medium">{item.name}</span>}
+              </Link>
+            ),
+          )}
         </nav>
 
         {/* Collapse toggle */}

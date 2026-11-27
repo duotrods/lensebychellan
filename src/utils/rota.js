@@ -1,6 +1,18 @@
 // Pure staff-rota helpers: dates, pay-period math, and CSV building.
 // No Firebase imports here — keep this unit-testable in isolation.
 
+// Each location has its own team and rota. Staff docs saved before locations
+// existed have no `location`, so they belong to the default one.
+export const ROTA_LOCATIONS = [
+  { id: "kirksandall", name: "Kirksandall" },
+  { id: "clearway", name: "Clearway" },
+];
+export const DEFAULT_ROTA_LOCATION = ROTA_LOCATIONS[0].id;
+
+export function staffLocation(staff) {
+  return staff?.location ?? DEFAULT_ROTA_LOCATION;
+}
+
 export function getMonday(date) {
   const d = new Date(date);
   const day = d.getDay();

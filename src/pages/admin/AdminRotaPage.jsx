@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -36,6 +37,8 @@ import {
   downloadCsv,
   fmt,
   getPayPeriod,
+  ROTA_LOCATIONS,
+  DEFAULT_ROTA_LOCATION,
 } from "../../utils/rota";
 
 const TABS = [
@@ -47,16 +50,23 @@ const TABS = [
 
 const AdminRotaPage = () => {
   const { currentUser } = useAuth();
+  const { location: locationParam } = useParams();
+  const rotaLocation = ROTA_LOCATIONS.find((l) => l.id === locationParam);
   const [activeTab, setActiveTab] = useState("rota");
   const [periodAnchor, setPeriodAnchor] = useState(() => new Date());
   const [pendingCell, setPendingCell] = useState(null);
   const [customRange, setCustomRange] = useState(null);
 
   const period = getPayPeriod(periodAnchor);
-  const { staff, loading: staffLoading } = useRotaStaff();
+  const { staff, loading: staffLoading } = useRotaStaff(rotaLocation?.id);
   const { bankHolidays, loading: bankHolidaysLoading } = useBankHolidays();
   const { shifts } = useRotaShifts(period.start, period.end);
-  const { pending: pendingHolidays } = usePendingHolidays();
+  const { pending: allPendingHolidays } = usePendingHolidays();
+  // Pending requests come back for every location; keep this location's only.
+  const pendingHolidays = useMemo(() => {
+    const staffIds = new Set(staff.map((s) => s.id));
+    return allPendingHolidays.filter((p) => staffIds.has(p.staffId));
+  }, [allPendingHolidays, staff]);
   const { holidayShifts } = useAllHolidayShifts();
 
   // Holiday hours used, per staff member — feeds each row's "holiday hours
@@ -213,20 +223,27 @@ const AdminRotaPage = () => {
 
   const handleDownloadRotaCsv = () => {
     downloadCsv(
-      `rota_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
+      `rota_${rotaLocation.id}_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
       buildRotaCsvRows(staff, shifts, bankHolidays, period),
     );
   };
 
   const handleDownloadTallyCsv = () => {
     downloadCsv(
-      `hours_and_pay_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
+      `hours_and_pay_${rotaLocation.id}_${fmt(period.start)}_to_${fmt(period.end)}.csv`,
       buildTallyCsvRows(staff, shifts, bankHolidays, period, holidayHoursUsedByStaff),
     );
   };
 
+  if (!rotaLocation) {
+    return <Navigate to={`/dashboard/admin/rota/${DEFAULT_ROTA_LOCATION}`} replace />;
+  }
+
   return (
     <AdminSidebarLayout>
+      <div className="bg-white px-6 pt-4">
+        <h1 className="text-lg font-semibold text-gray-800">{rotaLocation.name} Rota</h1>
+      </div>
       <AdminTabBar
         tabs={TABS.map((t) => ({
           ...t,
@@ -334,6 +351,7 @@ const AdminRotaPage = () => {
         {activeTab === "team" && (
           <RotaTeamManager
             staff={staff}
+            location={rotaLocation.id}
             loading={staffLoading}
             holidayHoursUsedByStaff={holidayHoursUsedByStaff}
             onUpdateAllowance={handleUpdateHolidayAllowance}

@@ -28,9 +28,10 @@ class RotaService {
     );
   }
 
-  async addStaffMember(name) {
+  async addStaffMember(name, location) {
     return addDoc(collection(db, "rotaStaff"), {
       name,
+      location,
       sortOrder: Date.now(),
       createdAt: serverTimestamp(),
     });
