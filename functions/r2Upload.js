@@ -34,7 +34,8 @@ function createR2UploadFunction({ admin }) {
 
       const client = new S3Client({
         region: "auto",
-        endpoint: endpoint.value(),
+        // Drop any path: the SDK would prepend it to the object key (e.g. a pasted ".../<bucket>").
+        endpoint: new URL(endpoint.value()).origin,
         credentials: { accessKeyId: accessKeyId.value(), secretAccessKey: secretAccessKey.value() },
       });
       const type = typeof contentType === "string" && contentType ? contentType : "application/octet-stream";
